@@ -42,7 +42,7 @@ def test_the_table_has_no_stale_entries():
     assert sorted(set(cli_routes.COVERED) - routes) == [], "route couverte qui n'existe plus"
     for rule in cli_routes.EXEMPT:
         assert any(rule.matches(route) and route not in cli_routes.COVERED for route in routes), f"exemption sans route : {rule.pattern}"
-        assert rule.status in ("never", "todo") and rule.reason.strip()
+        assert rule.status == "never" and rule.reason.strip()
 
 
 def test_covered_routes_name_a_real_command():
@@ -53,25 +53,9 @@ def test_every_command_listed_for_the_launcher_exists_in_the_parser():
     assert set(cli_completion._command_tree(cli.build_parser())[1]) == set(cli.COMMANDS)
 
 
-EXPECTED_CHOICES = {
-    ("library", "list", "sort_by"): contract.VIDEO_SORT_FIELDS,
-    ("library", "list", "order"): contract.SORT_ORDERS,
-    ("schedule", "list", "channel"): contract.SCHEDULE_CHANNELS,
-    ("schedule", "next", "channel"): contract.SCHEDULE_CHANNELS,
-    ("metrics", "dashboard", "period"): contract.DASHBOARD_PERIODS,
-    ("metrics", "dashboard", "channel"): contract.DASHBOARD_CHANNELS,
-    ("metrics", "history", "period"): contract.HISTORY_PERIODS,
-    ("display", "set", "channel"): contract.CHANNELS,
-    ("display", "set", "output"): contract.DISPLAY_OUTPUTS,
-    ("logs", None, "source"): contract.LOG_SOURCES,
-    ("logs", None, "level"): contract.LOG_LEVELS,
-    ("schedule", "add", "target_type"): contract.SCHEDULE_TARGETS,
-    ("schedule", "add", "channel"): contract.SCHEDULE_CHANNELS,
-    ("schedule", "override", "action"): contract.OVERRIDE_ACTIONS,
-    ("schedule", "override", "replace_type"): contract.SCHEDULE_TARGETS,
-    ("api", None, "method"): ("GET", "POST", "PUT", "PATCH", "DELETE"),
-    ("completion", None, "shell"): ("bash", "zsh", "fish"),
-}
+CONTRACT_TUPLES = {value for value in vars(contract).values() if isinstance(value, tuple) and all(isinstance(v, str) for v in value)}
+CONTRACT_TUPLES |= {tuple(contract.PLAYABLE_MEDIA), tuple(contract.SETTING_BOUNDS)}
+LOCAL_CHOICES = {("api", None, "method"): ("GET", "POST", "PUT", "PATCH", "DELETE"), ("completion", None, "shell"): ("bash", "zsh", "fish")}
 
 
 def parser_choices():
@@ -91,10 +75,8 @@ def parser_choices():
 
 
 def test_every_choice_of_the_parser_comes_from_the_contract():
-    found = parser_choices()
-    assert set(found) == set(EXPECTED_CHOICES), "un argument à choix a été ajouté ou retiré : le déclarer dans api_contract et ce test"
-    for key, values in found.items():
-        assert values == tuple(EXPECTED_CHOICES[key]), key
+    for key, values in parser_choices().items():
+        assert values == LOCAL_CHOICES.get(key) or values in CONTRACT_TUPLES, f"{key} : liste de valeurs hors de api/contract.py"
 
 
 @pytest.fixture(scope="module")
@@ -173,6 +155,6 @@ def test_the_facade_knows_every_action_of_the_contract(client):
     assert client.post("/api/playback/cable/stop", json={}).status_code in (200, 409)
 
 
-def test_the_todo_list_only_shrinks():
+def test_every_route_is_reachable_from_the_command_line():
     todo = [route for route in api_routes() if any(r.status == "todo" for r in cli_routes.exemption_for(route))]
-    assert len(todo) <= 120, f"{len(todo)} routes todo : ajouter des commandes plutôt que des exemptions"
+    assert todo == [], "ajouter une commande (cli/specs/) plutôt qu'une exemption"

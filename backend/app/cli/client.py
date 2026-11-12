@@ -28,7 +28,7 @@ class Client:
         self, method: str, path: str, *, query: dict | None = None, body: Any = None,
         accept_status: frozenset[int] = frozenset(),
     ) -> Any:
-        url = self.base + path + (f"?{urllib.parse.urlencode({k: v for k, v in query.items() if v is not None})}" if query else "")
+        url = self.base + path + (f"?{urllib.parse.urlencode({k: v for k, v in query.items() if v is not None}, doseq=True)}" if query else "")
         data = json.dumps(body).encode("utf-8") if body is not None else None
         self.out.log(1, f"{method} {url}")
         if data is not None:
@@ -71,7 +71,7 @@ class Client:
             raise CliError(f"réponse non JSON ({status}) de {url} : {raw[:200]!r}", EXIT_ERROR, payload)
         return payload
 
-    def upload(self, path: str, files: list[tuple[str, Path]], fields: dict[str, str] | None = None) -> Any:
+    def upload(self, path: str, files: list[tuple[str, Path]], fields: dict[str, str] | None = None, method: str = "POST") -> Any:
         """Envoie des fichiers en multipart sans les charger en mémoire (une vidéo peut peser plusieurs Gio)."""
         boundary = "bobine" + uuid.uuid4().hex
         parts: list[bytes | Path] = []
@@ -93,11 +93,11 @@ class Client:
         except OSError as exc:
             raise CliError(f"fichier illisible : {exc}", EXIT_USAGE) from exc
         url = self.base + path
-        self.out.log(1, f"POST {url} ({len(files)} fichier(s), {length} octets)")
+        self.out.log(1, f"{method} {url} ({len(files)} fichier(s), {length} octets)")
         parsed = urllib.parse.urlsplit(url)
         connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=self.timeout)
         try:
-            connection.putrequest("POST", parsed.path)
+            connection.putrequest(method, parsed.path)
             connection.putheader("Content-Type", f"multipart/form-data; boundary={boundary}")
             connection.putheader("Content-Length", str(length))
             connection.endheaders()

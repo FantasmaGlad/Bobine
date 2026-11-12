@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from app.cli.specs import SPECS, Spec, UsageError
+from app.cli.specs import COMMAND_HELP, SPECS, Spec, UsageError
 from app.utils.media_formats import ARCHIVE as ARCHIVE_EXTENSIONS
 
 from .client import Client
@@ -26,7 +26,14 @@ def _run_spec(client: Client, out: Output, args: argparse.Namespace) -> int:
         call = spec.request(client, args)
     except UsageError as exc:
         raise CliError(str(exc), EXIT_USAGE) from exc
-    payload = client.request(call.method, call.path, body=call.body, query=call.query)
+    if call.files:
+        missing = [str(path) for _, path in call.files if not path.is_file()]
+        if missing:
+            raise CliError(f"fichier introuvable : {', '.join(missing)}", EXIT_USAGE)
+        form = {key: str(value) for key, value in (call.body or {}).items()}
+        payload = client.upload(call.path, list(call.files), form, call.method)
+    else:
+        payload = client.request(call.method, call.path, body=call.body, query=call.query)
     out.result(payload, spec.human(payload, args))
     return EXIT_OK
 
@@ -36,7 +43,7 @@ def add_spec_commands(sub: Any, sub_common: argparse.ArgumentParser) -> None:
     for spec in SPECS:
         command = sub.choices.get(spec.command)
         if command is None:
-            command = sub.add_parser(spec.command, parents=[sub_common], help=f"{spec.command} : voir « bobine {spec.command} --help »")
+            command = sub.add_parser(spec.command, parents=[sub_common], help=COMMAND_HELP.get(spec.command, spec.command))
         actions = next((a for a in command._actions if isinstance(a, argparse._SubParsersAction)), None)
         if actions is None:
             actions = command.add_subparsers(dest=f"{spec.command.replace('-', '_')}_action", required=True)

@@ -56,6 +56,7 @@ COVERED: dict[str, str] = {
     "POST /api/radio/tracks/upload-zip": "radio-library",
     "GET /api/settings/backup/export": "settings",
     "POST /api/settings/backup/restore": "settings",
+    "GET /api/media": "media",
 }
 COVERED.update({route: spec.command for spec in SPECS for route in spec.covers})
 
@@ -82,22 +83,7 @@ EXEMPT: tuple[Exemption, ...] = (
     Exemption(r"POST /api/settings/system/(reset|uninstall|reset-data)", "never", "irréversible : interface, ou install.sh --uninstall"),
     Exemption(r"POST /api/settings/system/restart", "never", "autre outil : bobine restart de l'appliance, menu de la barre système"),
     Exemption(r"GET /api/config", "never", "liste des fichiers : `bobine config export` les écrit"),
-    Exemption(r"GET /api/metrics/ratings", "todo", "metrics ratings"),
-    Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "todo", "library import : protocole d'envoi par morceaux"),
-    Exemption(r"(POST|PUT|DELETE) /api/videos(/.*)?", "todo", "library import|set|rm|subtitles|chapters"),
-    Exemption(r"GET /api/videos/(programs|\{video_id\}/(subtitles|chapters(/export)?))", "todo", "library subtitles|chapters"),
-    Exemption(r"(GET|POST|PUT|DELETE) /api/audio-playlists(/.*)?", "todo", "playlists --kind audio"),
-    Exemption(r"(GET|POST|PUT|DELETE) /api/audio(/.*)?", "todo", "audio list|get|import|set|rm"),
-    Exemption(r"(GET|POST|PUT|DELETE) /api/backgrounds(/.*)?", "todo", "backgrounds list|import|set|rm"),
-    Exemption(r"GET /api/schedule/occurrences", "todo", "schedule occurrences"),
-    Exemption(r"(GET|POST|PUT|PATCH|DELETE) /api/radio/(tracks|artists|albums|tags|playlists|announcements|announcement-rules|default-playlist|sound).*",
-              "todo", "radio library|tags|playlists|announcements"),
-    Exemption(r"(GET|PUT|DELETE|POST) /api/playback/interrupted.*", "todo", "playback resume|dismiss"),
-    Exemption(r"(GET|POST|PUT|DELETE) /api/devices/.*", "todo", "devices audio|bluetooth|wifi|routing|mixer"),
-    Exemption(r"(GET|POST|PUT|DELETE) /api/storage/.*", "todo", "storage volume|format"),
-    Exemption(r"(GET|DELETE) /api/logs/(activity|technical).*", "todo", "logs purge|clear|types"),
-    Exemption(r"(GET|POST|DELETE) /api/settings/(storage|logs/purge|media-native|logo|laptop-lid|backup/.*)", "todo", "settings backup|restore|logo|purge"),
-    Exemption(r"POST /api/updates/(tor-check|acknowledge)", "todo", "update tor-check|acknowledge"),
+    Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "never", "envoi reprenable par morceaux du navigateur : `bobine <famille> import` envoie en une fois"),
 )
 
 

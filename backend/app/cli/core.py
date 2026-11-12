@@ -10,9 +10,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
+from app.cli.specs import SPECS
 
 EXIT_OK, EXIT_ERROR, EXIT_USAGE, EXIT_UNREACHABLE, EXIT_REFUSED, EXIT_NOT_FOUND = 0, 1, 2, 3, 4, 5
-COMMANDS = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs", "playback", "radio", "config", "settings", "update", "completion", "audio", "backgrounds", "radio-library", "api", "open", "version")
+_BUILT_IN = ("status", "diagnose", "library", "playlists", "schedule", "devices", "storage", "metrics", "imports", "display", "logs",
+             "playback", "radio", "config", "settings", "update", "completion", "api", "open", "version")
+COMMANDS = tuple(dict.fromkeys(_BUILT_IN + tuple(spec.command for spec in SPECS)))
 _REFUSAL_STATUSES = {403, 409, 503}
 DEFAULT_TIMEOUT = 30.0
 
