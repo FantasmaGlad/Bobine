@@ -7,7 +7,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-from app import config_apply, config_files
+from app import config_files
+from app.config_apply.context import ConfigErrors
+from app.config_apply.runner import apply as apply_configuration
 from app.database import get_db
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -53,8 +55,8 @@ async def apply_config(
     if not isinstance(files, dict) or not files:
         raise HTTPException(status_code=400, detail={"code": "no_files", "message": "Aucun fichier fourni (« files »)."})
     try:
-        return await config_apply.apply(db, files, dry_run=dry_run, include_machine=include_machine)
-    except config_apply.ConfigErrors as exc:
+        return await apply_configuration(db, files, dry_run=dry_run, include_machine=include_machine)
+    except ConfigErrors as exc:
         raise HTTPException(
             status_code=422, detail={"code": "invalid_config", "message": "Rien n'a été appliqué.", "errors": exc.errors},
         ) from exc
