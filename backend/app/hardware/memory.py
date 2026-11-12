@@ -8,7 +8,7 @@ from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil
 
 
 def get_ram_info() -> dict[str, Any]:
-    """Retourne les informations matérielles détaillées de la mémoire vive (RAM) : - brand (marque : Hynix, Samsung, Micron, Crucial, Kingston...) - type (technologie : DDR4, DDR5, LPDDR4, LPDDR5, LPDDR5x...) - freq (fréquence max : ex."""
+    """Retourne les informations matérielles détaillées de la mémoire vive."""
     if _HARDWARE_CACHE.get("ram_info"):
         return _HARDWARE_CACHE["ram_info"]
 

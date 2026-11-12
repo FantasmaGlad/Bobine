@@ -1,4 +1,4 @@
-"""Gestionnaire du formatage : plan (lecture seule), exécution en cascade, annulation, vérification après coup."""
+"""Gestionnaire du formatage : plan (lecture seule), exécution en cascade, annulation, vérification après cou."""
 
 from __future__ import annotations
 

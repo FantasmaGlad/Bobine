@@ -1,5 +1,3 @@
-"""Non-regression de la consolidation mDNS : re-annonce sur changement d'IP (zc.update_service, jamais un second register_service), detection d'un avahi-daemon natif sur linux-desktop (evite un double repondeur bobine.local), et etat expose par get_status()."""
-
 from unittest.mock import MagicMock
 
 import pytest

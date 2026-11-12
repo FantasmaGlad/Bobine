@@ -62,7 +62,7 @@ def get_status() -> dict[str, Any]:
 
 
 def status_file_path() -> Path:
-    """Chemin public — utilisé aussi par les handlers dont l'installeur s'exécute dans un script détaché SURVIVANT à la sortie de ce process (ex."""
+    """Chemin public — utilisé aussi par les handlers dont l'installeur s'exécute dans un script détaché SURVIVANT à la sortie de ce process."""
     from app.config import settings as runtime_settings
     return Path(runtime_settings.logs_dir) / "update_status.json"
 
@@ -81,7 +81,7 @@ def _persist_state() -> None:
 
 
 def load_persisted_state_at_startup() -> None:
-    """Recharge le dernier état connu au démarrage du process (appelé depuis `main.py::lifespan`) — sans ça, un redémarrage déclenché par une mise à jour réussie ferait réapparaître `GET /api/updates/status` à "idle" avant même que le frontend ait pu lire le résultat réel."""
+    """Recharge le dernier état connu au démarrage du process."""
     try:
         path = _status_file_path()
         if not path.exists():
@@ -119,7 +119,7 @@ async def report_external_event(
     error: str | None = None,
     percent: int | None = None,
 ) -> None:
-    """Point d'entrée public pour un évènement qui n'arrive PAS depuis `run_update_pipeline` lui-même — aujourd'hui uniquement le rappel Android (`POST /api/updates/_android-callback`, cf."""
+    """Point d'entrée public pour un évènement qui n'arrive PAS depuis `run_update_pipeline` lui-même — aujourd'hui uniquement le rappel Android."""
     await _set_state(step=step, message=message, error=error, percent=percent)
 
 
@@ -172,7 +172,7 @@ def run_checked(
     cwd: Path | str | None = None,
     timeout: float = 45.0,
 ) -> subprocess.CompletedProcess:
-    """`subprocess.run` qui échoue BRUYAMMENT (exception avec stdout/ stderr inclus) au lieu de laisser l'appelant oublier de vérifier `returncode` — corrige le constat récurrent "git checkout / systemctl restart jamais vérifié avant de continuer, y compris en cas d'échec réel"."""
+    """`subprocess.run` qui échoue BRUYAMMENT (exception avec stdout/ stderr inclus) au lieu de laisser l'appelant oublier de vérifier `returncode`."""
     result = subprocess.run(
         cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout,
         env=clean_subprocess_env(),

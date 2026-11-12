@@ -34,7 +34,7 @@ router = APIRouter(prefix="/api/updates", tags=["updates"])
 
 
 class AndroidUpdateCallback(BaseModel):
-    """Rappel émis par `UpdateManager.kt` pendant (progression) puis à la fin du téléchargement de l'APK (succès ou échec) — `apply_update()` du profil Android (backend/app/utils/deployment_profiles/android.py) délègue le téléchargement à un thread Kotlin asynchrone et ne peut donc pas connaître l'issue réelle avant que ce rappel n'arrive."""
+    """Rappel émis par `UpdateManager.kt` pendant."""
 
     status: str
     message: str | None = None
@@ -162,13 +162,13 @@ async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
 
 @router.get("/status")
 async def get_update_status() -> dict[str, Any]:
-    """État courant (ou dernier connu) du pipeline de mise à jour — lu par le frontend au chargement de la page ET par l'overlay de progression en repli si le WebSocket n'est pas connecté au moment où une mise à jour planifiée se termine (cas concret : déclenchement à 3h du matin, personne devant l'écran)."""
+    """État courant (ou dernier connu) du pipeline de mise à jour."""
     return get_status()
 
 
 @router.post("/acknowledge")
 async def acknowledge_update() -> dict[str, Any]:
-    """Acquitte le cycle de mise à jour courant (bannière/notification fermée manuellement par l'utilisateur) — persisté côté serveur pour que l'acquittement survive à un rechargement de page ou à un redémarrage de service déclenché par la mise à jour elle-même, au lieu de réapparaître en boucle (cf."""
+    """Acquitte le cycle de mise à jour courant."""
     return await acknowledge_current()
 
 

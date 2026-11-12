@@ -1,4 +1,3 @@
-"""Contrat HTTP du stockage sous FastAPI/Pydantic Android et bureau."""
 from unittest.mock import AsyncMock
 
 import pytest

@@ -1,5 +1,3 @@
-"""Mise à jour macOS : après le remplacement du bundle, tout Bobine redémarre (tray + backend) au lieu de laisser l'ancien tray superviser le nouveau backend."""
-
 import os
 import signal
 import subprocess

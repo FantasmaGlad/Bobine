@@ -1,5 +1,3 @@
-"""Script de hotplug du Wyse : n'agit que sur un changement réel de la liste des sorties connectées."""
-
 import os
 import subprocess
 from pathlib import Path
@@ -85,7 +83,6 @@ def test_changement_de_sortie_connectee_redemarre(tmp_path):
 
 
 def test_sans_reference_enregistree_aucune_action_destructrice(tmp_path):
-    """Sans --record préalable (kiosque jamais démarré) le script voit un changement et demande un `try-restart` : sans effet si le service est inactif (c'est le rôle de `try-restart`)."""
     drm = tmp_path / "drm"
     _connector(drm, "card0-HDMI-A-1", "connected")
     env = _env(tmp_path)

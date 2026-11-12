@@ -1,4 +1,3 @@
-"""Durcissement de la commande bobine : chemins d'export, routes dangereuses encodées, délai, archives."""
 import math
 import tarfile
 import zipfile

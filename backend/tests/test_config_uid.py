@@ -1,5 +1,3 @@
-"""Identifiants stables dans la configuration : renommage, restauration, suppression opt-in, planning à `id` conservés, métadonnées des médias, noms plats de la version 5.1."""
-
 import asyncio
 import copy
 import os
@@ -342,7 +340,6 @@ def test_links_are_informational_and_never_applied_nor_in_the_diff(single_names,
 
 
 def test_deleting_a_video_used_by_a_playlist_and_a_schedule_works(data_dirs, tmp_path, single_names):
-    """Régression : la ligne de playlist orpheline faisait échouer la suppression, après l'effacement des fichiers."""
     from fastapi.testclient import TestClient
 
     from app.main import app

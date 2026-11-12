@@ -1,4 +1,3 @@
-"""Reprise d'une programmation après un redémarrage du serveur : calcul de la position, puis relance réelle."""
 import os
 import sys
 import unittest

@@ -35,7 +35,7 @@ def git_lines(args: list[str], repo_dir: Path) -> list[str]:
 
 
 def rolling_build_info(channel: release_channel.ReleaseChannel, commit: str) -> dict[str, Any]:
-    """Construit le résultat de `get_local_version_info()` pour un build posé sur le tag mobile (rolling) d'un canal — factorisé pour servir tous les canaux rolling du registre sans dupliquer la logique de version affichée."""
+    """Construit le résultat de `get_local_version_info()` pour un build posé sur le tag mobile."""
     base = get_app_version().lstrip("vV")
     version = f"V{base}" if "-" in base else f"V{base}-{channel.version_suffix}"
     return {

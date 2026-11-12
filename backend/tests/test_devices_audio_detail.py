@@ -1,5 +1,3 @@
-"""Détail d'une sortie audio : analyse (pw-dump), balance gauche/droite, son de test, profil, alias et masquage."""
-
 import asyncio
 import io
 import os

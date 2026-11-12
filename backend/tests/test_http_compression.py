@@ -1,5 +1,3 @@
-"""Compression HTTP : gzip des réponses JSON/texte de l'API et du frontend statique, jamais des flux média, des requêtes Range ni des réponses déjà encodées ; l'ETag par contenu de `RevalidateStaticFiles` doit rester exact."""
-
 import gzip
 import hashlib
 import json

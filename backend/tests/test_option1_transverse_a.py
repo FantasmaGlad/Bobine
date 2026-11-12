@@ -68,7 +68,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
 
     async def test_check_updates_offline(self):
-        """Vérifie que check_updates gère le mode hors-ligne sans planter."""
         with patch("urllib.request.urlopen", side_effect=OSError("Offline")):
             res = await check_updates(db=SessionLocal())
             self.assertFalse(res["online"])
@@ -77,7 +76,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(res["download_url"])
 
     async def test_check_updates_profile_asset_matching(self):
-        """Vérifie que chaque profil sélectionne l'asset adapté (.exe, .deb, .dmg)."""
         mock_release = {
             "tag_name": "V9.9.9",
             "name": "Bobine V9.9.9",
@@ -149,7 +147,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
 
     def test_export_backup(self):
-        """Vérifie la génération d'une archive ZIP de sauvegarde valide."""
         response = export_backup()
         self.assertEqual(response.media_type, "application/zip")
         self.assertIn("attachment; filename=", response.headers.get("Content-Disposition", ""))
@@ -169,7 +166,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(db_data.startswith(b"SQLite format 3\x00"))
 
     async def test_restore_backup_invalid_file(self):
-        """Vérifie le rejet de fichiers corrompus ou invalides."""
         upload = UploadFile(filename="corrupt.zip", file=io.BytesIO(b"not a zip file"))
         with self.assertRaises(HTTPException) as ctx:
             await restore_backup(file=upload, db=MagicMock())
@@ -196,7 +192,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         self.assertIn("pas une base SQLite valide", ctx.exception.detail)
 
     async def test_restore_backup_success(self):
-        """Vérifie la restauration réussie d'une sauvegarde valide."""
         export_resp = export_backup()
         backup_bytes = export_resp.body
 
@@ -232,14 +227,12 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
 
 
     async def test_reset_data_confirmation_required(self):
-        """Vérifie qu'une confirmation exacte est exigée."""
         with self.assertRaises(HTTPException) as ctx:
             await reset_data_system(ResetDataRequest(confirm="OUI"), MagicMock())
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("REINITIALISER", ctx.exception.detail)
 
     async def test_reset_data_success(self):
-        """Vérifie la purge des médias et la réinitialisation de la DB sans toucher aux dossiers parents."""
         media_file = Path(settings.media_dir) / "course1.mp4"
         self.assertTrue(media_file.exists())
 
@@ -258,7 +251,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             db.close()
 
     def test_system_usage_normal_and_android_fallback(self):
-        """Vérifie que get_system_usage fonctionne normalement et ne lève jamais d'erreur 500 même si psutil.cpu_percent échoue avec PermissionError (/proc/stat)."""
         usage = get_system_usage()
         self.assertIn("cpu_percent", usage)
         self.assertIn("memory_total_bytes", usage)

@@ -1,5 +1,3 @@
-"""Signature de la liste des empreintes d'une release (scripts/ci/sign-release-checksums.sh) et contrôle de complétude."""
-
 import os
 import shutil
 import subprocess

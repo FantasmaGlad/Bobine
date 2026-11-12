@@ -1,5 +1,3 @@
-"""Mode d'affichage câblé dérivé du matériel."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

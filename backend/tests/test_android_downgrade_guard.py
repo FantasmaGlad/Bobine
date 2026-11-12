@@ -1,5 +1,3 @@
-"""Android refuse un APK au versionCode inférieur (UpdateManager.validatePackage) mais seulement après 46 à 69 Mo de téléchargement."""
-
 import asyncio
 import urllib.error
 

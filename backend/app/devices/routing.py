@@ -107,7 +107,7 @@ def resolve_route(route: dict[str, Any] | None, sinks: list[dict[str, Any]] | No
 
 
 def player_route_state(route: dict[str, Any] | None, resolution: dict[str, Any]) -> dict[str, Any] | None:
-    """Ce que le lecteur de la sortie radio reçoit (champ `route` de l'état) : de quoi retrouver la sortie dans les périphériques de SON navigateur (libellés du système, ceux de la sortie actuelle si elle est présente) et le repli."""
+    """Ce que le lecteur de la sortie radio reçoit."""
     if route is None:
         return None
     labels = list(route["labels"])
@@ -153,7 +153,7 @@ def save_routes(db: Session, routes: dict[str, dict[str, Any]]) -> None:
 
 
 def load_routes_into_managers(db: Session) -> None:
-    """Au démarrage : publie les routes mémorisées dans l'état des deux sorties radio (état « inconnu » tant que le pilote n'a pas dit quelles sorties sont présentes ; `DevicesService.reconcile_routes` le précise ensuite)."""
+    """Au démarrage : publie les routes mémorisées dans l'état des deux sorties radio."""
     from app.radio_manager import get_all_radio_managers
 
     routes = load_routes(db)

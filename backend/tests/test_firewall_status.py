@@ -1,4 +1,3 @@
-"""Sonde du pare-feu : Bobine bloqué par le pare-feu de macOS ou règle Windows absente, avec la commande de réparation ; installation de développement et Linux non vérifiés (lecture réservée à l'administrateur)."""
 import subprocess
 
 import pytest

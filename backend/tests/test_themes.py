@@ -1,4 +1,3 @@
-"""Thèmes : liste identique côté serveur et côté interface, anciens noms traduits, réglage `theme_mode` validé."""
 import os
 import re
 from pathlib import Path
@@ -67,7 +66,6 @@ def test_le_serveur_traduit_un_ancien_theme_et_valide_le_mode(client):
 
 
 def test_ecriture_partielle_du_theme_ou_du_mode(client):
-    """Un changement de couleur seul conserve le mode ; un changement de mode seul normalise l'ancien nom."""
     original = client.get("/api/settings").json()
     try:
         assert client.put("/api/settings", json={"theme": "ocean", "theme_mode": "dark"}).status_code == 200

@@ -1,4 +1,3 @@
-"""Pure parts of the audio corpus generator used by the native component bench."""
 import importlib.util
 from pathlib import Path
 import shutil

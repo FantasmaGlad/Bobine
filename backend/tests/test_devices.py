@@ -1,5 +1,3 @@
-"""Onglet « Périphériques » : analyseurs Linux, provenance des requêtes, routeur avec pilote factice, filet de sécurité Wi-Fi (retour automatique), sauvegarde et migration des réglages d'accès."""
-
 import asyncio
 import io
 import os

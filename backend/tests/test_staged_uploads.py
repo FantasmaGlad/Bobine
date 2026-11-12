@@ -1,5 +1,3 @@
-"""Téléversement par morceaux reprenable : création, ajout par offset, reprise après désynchronisation, réutilisation par empreinte, protections (dépassement, espace disque, session incomplète) et reprise du fichier par un point d'entrée d'import sans recopie."""
-
 import os
 import sys
 import time

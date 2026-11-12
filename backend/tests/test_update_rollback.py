@@ -1,4 +1,3 @@
-"""Retour arrière d'une mise à jour de l'appliance : le backend arme un marqueur, le chien de garde confirme la nouvelle version par le contrôle de santé ou restaure la précédente."""
 import json
 import os
 import shutil
@@ -23,7 +22,6 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") 
 
 @pytest.fixture
 def appliance(tmp_path):
-    """Copie du chien de garde dans un faux dépôt, avec des commandes système qui notent leurs appels."""
     repo = tmp_path / "repo"
     (repo / "scripts").mkdir(parents=True)
     (repo / "backend").mkdir()

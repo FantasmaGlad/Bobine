@@ -1,5 +1,3 @@
-"""Choix de l'adresse du réseau local : jamais un VPN, un conteneur ni le réseau mobile."""
-
 import pytest
 
 from app.utils import network

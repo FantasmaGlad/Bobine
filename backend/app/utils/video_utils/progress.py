@@ -24,7 +24,7 @@ def run_ffmpeg_with_progress(
     width: int | None = None,
     height: int | None = None,
 ) -> tuple[int, str]:
-    """Exécute FFmpeg en sous-processus Popen avec télémétrie en direct (-progress pipe:1), enregistre le processus dans import_jobs pour permettre son annulation immédiate, et calcule en temps réel progress_percent, eta_seconds et speed."""
+    """Exécute FFmpeg en sous-processus Popen avec télémétrie en direct."""
     from app.utils.import_jobs import register_job_process, unregister_job_process, is_job_cancelled, update_job, JobCancelledError
     import threading
 

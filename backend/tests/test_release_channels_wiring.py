@@ -1,5 +1,3 @@
-"""Garde-fou de l'architecture des canaux de diffusion : UN registre (app/release_channel.py), des consommateurs qui en DÉRIVENT."""
-
 import importlib.util
 import re
 import shutil

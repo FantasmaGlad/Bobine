@@ -1,4 +1,3 @@
-"""Réglage `media_native` : défaut désactivé, priorité de la variable, état réel, repli et pochettes."""
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

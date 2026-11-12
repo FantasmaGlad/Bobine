@@ -1,4 +1,4 @@
-"""Historique de vitesse d'encodage ffmpeg : mémorise, par couple (encodeur, palier de résolution), la vitesse moyenne réellement observée (en multiple du temps réel, ex."""
+"""Historique de vitesse d'encodage ffmpeg : mémorise, par couple (encodeur, palier de résolution), la vitesse moyenne réellement observée."""
 
 import json
 import logging

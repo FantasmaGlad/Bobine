@@ -1,5 +1,3 @@
-"""Commande `bobine` : chaque commande appelle la même route que l'interface (parité), codes de sortie stables, `--json` seul sur stdout, journaux sur stderr, démarrage sans charger l'icône système."""
-
 import io
 import json
 import subprocess
@@ -18,7 +16,6 @@ BACKEND = Path(__file__).resolve().parents[1]
 
 
 class Recorder:
-    """Remplace le transport HTTP : note chaque appel et renvoie une réponse plausible."""
 
     def __init__(self, responses=None):
         self.calls = []
@@ -109,7 +106,6 @@ def test_no_argument_prints_the_help(capsys):
 
 
 def test_global_options_are_kept_before_the_subcommand():
-    """`bobine --host ..."""
     args = cli.build_parser().parse_args(["--host", "192.0.2.1", "--port", "1234", "--json", "status"])
     assert (args.host, args.port, args.json) == ("192.0.2.1", 1234, True)
 

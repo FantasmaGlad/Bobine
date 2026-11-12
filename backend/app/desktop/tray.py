@@ -95,7 +95,7 @@ def _backend_command() -> list[str]:
 
 
 class BackendSupervisor:
-    """Démarre BobineBackend et le relance s'il s'arrête de lui-même ou sur demande explicite (cf."""
+    """Démarre BobineBackend et le relance s'il s'arrête de lui-même ou sur demande explicite."""
 
     def __init__(self, backend_command: list[str]):
         self._backend_command = backend_command

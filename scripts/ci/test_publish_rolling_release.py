@@ -1,4 +1,3 @@
-"""A rolling release is updated in place: never deleted, so no 404 window and no empty channel after a failed upload."""
 import os
 from pathlib import Path
 import subprocess

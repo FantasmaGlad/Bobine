@@ -53,7 +53,7 @@ class MacOSHandler(ProfileHandler):
         os._exit(0)
 
     def relaunch_application(self) -> None:
-        """Redémarre tout le bundle (tray + backend) depuis les fichiers fraîchement installés ; repli sur `restart_services()` (le tray relance alors le seul backend) quand le tray parent est introuvable ou que le script ne peut pas être lancé."""
+        """Redémarre tout le bundle (tray + backend) depuis les fichiers fraîchement installés."""
         tray_pid = os.getppid()
         if not _is_bobine_tray(tray_pid):
             logger.warning("Parent du backend différent de BobineTray : relance du seul backend.")

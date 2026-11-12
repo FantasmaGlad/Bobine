@@ -1,5 +1,3 @@
-"""Assistant de formatage de bout en bout avec un pilote factice : API, plan (aucune écriture), jeton, cascade de refus, exécution, annulation, échec et retour à l'état vierge, vérification après coup, journal sans secret."""
-
 import dataclasses
 import os
 import time
@@ -186,7 +184,6 @@ def test_plan_refuses_system_internal_readonly_stacked_and_busy_supports(env):
 
 
 def test_simulated_etoile_is_refused_by_the_whole_stack(env, monkeypatch):
-    """Identité du vrai disque « Étoile » simulée (exFAT, 238 Go, USB) : enregistrée comme bibliothèque, il est refusé ; jamais touché."""
     etoile = env.driver.plug("sdq", "E7E7-0238", {"Films/a.mp4": b"z" * 100}, label="Étoile", size=238 * GIB)
     env.refresh()
     env.client.post(f"/api/storage/volumes/{etoile.key}/library", json={})

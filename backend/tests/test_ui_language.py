@@ -1,4 +1,3 @@
-"""Un export statique par langue : celui de la langue enregistrée est servi, le changement demande un redémarrage."""
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

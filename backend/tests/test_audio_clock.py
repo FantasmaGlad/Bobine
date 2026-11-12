@@ -1,5 +1,3 @@
-"""Horloge serveur du mode coach : la position de la piste audio est une fonction du temps, la fin de piste est idempotente."""
-
 import asyncio
 
 from app.playback.constants import AUDIO_END_GRACE_SECONDS
@@ -76,7 +74,6 @@ def test_piste_suivante_et_relance_remettent_l_horloge_a_zero():
 
 
 def test_fin_de_piste_idempotente_deux_ecrans_ne_sautent_pas_deux_pistes():
-    """Tous les écrans envoient `audio_track_ended` : en mode auto, le second signal (même piste) sautait une piste de plus."""
     async def _run():
         m, fake = _manager()
         await m.load_audio_course(1, "RPM", "RPM", None, TRACKS, chain_mode="auto")

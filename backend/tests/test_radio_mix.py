@@ -1,5 +1,3 @@
-"""Phase 3 des périphériques : table de mixage applicative d'une sortie radio (bornage, persistance, diffusion, vumètre)."""
-
 import asyncio
 import json
 import os

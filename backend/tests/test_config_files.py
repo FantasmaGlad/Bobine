@@ -1,5 +1,3 @@
-"""Configuration en fichiers JSON : un fichier par type de réglage, objets désignés par leurs noms et métadonnées (jamais par identifiant interne), homonymes signalés, copie lisible tenue à jour après chaque modification."""
-
 import json
 import os
 from datetime import datetime, timezone

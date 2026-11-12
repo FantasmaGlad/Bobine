@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def radio_track_dict(track) -> dict:
-    """Forme d'une piste radio dans l'état du RadioPlaybackManager (`order`, `current_track`, file d'attente) : source UNIQUE, partagée avec api/routes/playback/ (les deux copies d'avant dérivaient l'une de l'autre)."""
+    """Forme d'une piste radio dans l'état du RadioPlaybackManager."""
     return {
         "id": track.id,
         "title": track.title,
@@ -60,7 +60,7 @@ def set_radio_default_playlist_override(db: Session, radio_channel: str, playlis
 
 
 def resolve_radio_default_playlist(db: Session, radio_channel: str) -> RadioPlaylist | None:
-    """Ambiance par défaut d'une sortie : le choix propre à la sortie s'il existe encore, sinon la playlist marquée `is_default` (comportement d'avant les deux sorties, donc aucune migration), sinon None (repli : toute la bibliothèque)."""
+    """Ambiance par défaut d'une sortie : le choix propre à la sortie s'il existe encore, sinon la playlist marquée `is_default`."""
     override_id = get_radio_default_playlist_override(db, radio_channel)
     if override_id is not None:
         playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == override_id).first()

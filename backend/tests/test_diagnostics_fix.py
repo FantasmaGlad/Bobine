@@ -1,4 +1,3 @@
-"""Corrections que `bobine diagnose --auto-fix` peut appliquer : décrites par le diagnostic, jamais devinées par la commande."""
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

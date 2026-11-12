@@ -195,7 +195,7 @@ def take_staged_upload(upload_id: str, forced_suffix: str | None = None) -> tupl
 
 
 def receive_single_upload(file: UploadFile | None, upload_id: str | None, forced_suffix: str | None = None) -> tuple[str, str]:
-    """Point d'entrée commun des handlers d'import à fichier unique : soit un fichier déjà téléversé par morceaux (`upload_id`, aucune recopie), soit un `multipart` classique (copié dans un fichier temporaire, comportement historique conservé pour les clients simples et les anciennes versions)."""
+    """Point d'entrée commun des handlers d'import à fichier unique."""
     import shutil
 
     if upload_id:

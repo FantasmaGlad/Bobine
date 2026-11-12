@@ -11,7 +11,7 @@ SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
 
 def parse_version(version_str: str) -> tuple[tuple[int, int, int], tuple]:
-    """Parse une chaîne 'V3.0.1' ou 'V3.0.1-beta.2' en clé de tri conforme à la précédence semver : à base MAJOR.MINOR.PATCH égale, une version SANS pre-release est toujours postérieure à une version AVEC pre-release, et deux pre-releases se comparent identifiant par identifiant (numérique si possible, sinon lexical — les identifiants numériques ont une précédence inférieure aux alphanumériques, comme le veut semver)."""
+    """Parse une chaîne 'V3.0.1' ou 'V3.0.1-beta.2' en clé de tri conforme à la précédence semver."""
     s = (version_str or "").strip()
     if s[:1] in ("v", "V"):
         s = s[1:]

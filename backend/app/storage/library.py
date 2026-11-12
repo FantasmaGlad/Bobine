@@ -1,4 +1,4 @@
-"""Accès base de données du stockage externe : bibliothèques enregistrées, remappage des chemins, index."""
+"""Accès base de données du stockage externe : bibliothèques enregistrées, remappage des chemins, ind."""
 
 from __future__ import annotations
 

@@ -82,7 +82,7 @@ class TrackReorderInput(BaseModel):
 
 
 class AudioTrackWithCourseResponse(BaseModel):
-    """Piste individuelle avec le contexte de son cours d'origine : sert de source pour le sélecteur de pistes des playlists audio, qui pioche librement dans n'importe quel cours plutôt que de les enchaîner entiers."""
+    """Piste individuelle avec le contexte de son cours d'origine."""
     id: int
     number: int | None
     title: str
@@ -132,7 +132,7 @@ def list_audio_courses(db: Session = Depends(get_db)):
 
 @router.get("/tracks", response_model=List[AudioTrackWithCourseResponse])
 def list_all_tracks(db: Session = Depends(get_db)):
-    """Toutes les pistes de tous les cours audio, à plat, avec leur contexte de cours d'origine : source du sélecteur de pistes des playlists audio — DOIT être déclarée avant `/{course_id}` pour ne pas être interceptée par cette route paramétrée."""
+    """Toutes les pistes de tous les cours audio, à plat, avec leur contexte de cours d'origine."""
     tracks = (
         db.query(AudioTrack)
         .join(AudioCourse, AudioTrack.audio_course_id == AudioCourse.id)

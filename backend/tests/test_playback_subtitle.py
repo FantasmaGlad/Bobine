@@ -1,5 +1,3 @@
-"""Choix des sous-titres depuis l'admin : état diffusé aux kiosques du canal."""
-
 import asyncio
 
 from tests.test_playback_clock import FakeTime, _manager, _patch_clock

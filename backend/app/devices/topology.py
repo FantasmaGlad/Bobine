@@ -1,4 +1,4 @@
-"""Carte des périphériques : graphe « système solaire » (machine au centre) construit depuis l'état déjà connu — sorties audio, appareils Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine connectés."""
+"""Carte des périphériques : graphe « système solaire »."""
 
 from __future__ import annotations
 

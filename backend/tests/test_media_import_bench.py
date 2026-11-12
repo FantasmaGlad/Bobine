@@ -1,4 +1,3 @@
-"""The row comparison that decides whether a faster import produced the same library."""
 import base64
 import importlib.util
 import io

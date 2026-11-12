@@ -1,5 +1,3 @@
-"""Horloge du cours /cinema lancé par ordre : créée par `launch`, pilotée par play/pause/seek, détruite par `stop`, jamais jointe à une lecture locale."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

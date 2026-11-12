@@ -1,5 +1,3 @@
-"""Horloge serveur du canal Radio : position fonction du temps, fin de piste idempotente, filet de sécurité serveur."""
-
 import asyncio
 import os
 

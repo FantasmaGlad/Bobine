@@ -1,4 +1,3 @@
-"""Binary discovery in packaged layouts, parent death, and gapless duration parity."""
 from pathlib import Path
 import os
 import shutil
@@ -59,7 +58,6 @@ def test_non_executable_candidate_is_not_selected(tmp_path, frozen, monkeypatch)
 @pytest.mark.skipif(os.name == "nt", reason="POSIX signals")
 @needs_binary
 def test_native_process_exits_when_the_parent_is_killed(tmp_path):
-    """EOF on stdin is the only supervision channel: it must also fire when the parent dies."""
     parent = tmp_path / "parent.py"
     parent.write_text(textwrap.dedent(f'''
         import sys, time
@@ -107,7 +105,6 @@ def test_native_process_exits_when_the_parent_is_killed(tmp_path):
 @needs_binary
 @pytest.mark.skipif(not (shutil.which("ffmpeg") and shutil.which("ffprobe")), reason="ffmpeg/ffprobe unavailable")
 def test_mp3_durations_match_ffprobe_for_varied_lengths(tmp_path):
-    """Regression: raw frame counts over-report by the encoder delay and padding (up to ~52 ms)."""
     client = media.MediaClient([str(NATIVE)], enabled=True)
     try:
         checked = 0

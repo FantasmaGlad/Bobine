@@ -1,5 +1,3 @@
-"""Sortie câblée commutable en Radio : validation par canal de diffusion, coupure de la vidéo, reprise ou démarrage de l'ambiance du moteur radio câblé, pause au retour, verrou des lancements vidéo, ambiance par défaut et rappels par sortie."""
-
 import asyncio
 import json
 import os

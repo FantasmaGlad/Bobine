@@ -1,5 +1,3 @@
-"""Détection d'Android indépendante de la version de CPython, et ses conséquences : profil de déploiement, canal rolling d'un build packagé."""
-
 import sys
 from pathlib import Path
 
@@ -13,7 +11,6 @@ from app.release_channel import rolling_channel_of_version
 
 @pytest.fixture
 def desktop_env(monkeypatch):
-    """Environnement de bureau neutre : aucun des signaux Android présent."""
     for var in ("BOBINE_PLATFORM", "ANDROID_ROOT", "ANDROID_DATA"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(android_runtime.platform, "system", lambda: "Linux")

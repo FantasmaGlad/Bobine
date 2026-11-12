@@ -1,4 +1,3 @@
-"""Smoke check used before the audio component is staged into a package."""
 import importlib.util
 from pathlib import Path
 import stat

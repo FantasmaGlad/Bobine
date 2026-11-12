@@ -20,7 +20,7 @@ def _app_root() -> Path:
 
 @lru_cache(maxsize=1)
 def get_app_version() -> str:
-    """Numéro de version nu (ex."""
+    """Numéro de version nu."""
     env_ver = os.environ.get("BOBINE_VERSION", "").strip()
     if env_ver:
         return env_ver.lstrip("vV")

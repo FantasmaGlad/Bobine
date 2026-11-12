@@ -1,5 +1,3 @@
-"""GET /api/diagnostics/import : chaque bloc est défensif, jamais de HTTP 500."""
-
 import os
 import sys
 from pathlib import Path

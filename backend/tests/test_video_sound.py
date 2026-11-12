@@ -1,5 +1,3 @@
-"""Son des canaux vidéo : mêmes bornes que la radio, un réglage par canal, persisté, diffusé avec l'état."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

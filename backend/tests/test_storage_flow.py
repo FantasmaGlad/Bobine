@@ -1,5 +1,3 @@
-"""Stockage externe : API ouverte au réseau local, montage/retrait, explorateur sûr, import vérifié, bibliothèque externe, disponibilité (arrachage, rebranchement à un autre point de montage), garde-fous, longévité."""
-
 import hashlib
 import os
 import shutil
@@ -45,7 +43,6 @@ def _sha(path) -> str:
 
 @pytest.fixture(scope="module")
 def media(tmp_path_factory):
-    """Une vidéo H.264/AAC et un MP3 minuscules (générés une fois)."""
     folder = tmp_path_factory.mktemp("media")
     video, audio = folder / "Rpm 101 test.mp4", folder / "piste.mp3"
     if HAS_FFMPEG:
@@ -83,7 +80,6 @@ def _purge_local(model, condition) -> None:
 
 @pytest.fixture()
 def env(tmp_path, monkeypatch):
-    """Application complète (cycle de vie compris) avec un service de stockage neuf et un pilote factice ; écran local."""
     init_db()
     _cleanup_db()
     driver = FakeStorageDriver(tmp_path / "fake")
@@ -378,7 +374,6 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
 
 
 def test_disk_images_are_never_remounted_automatically(env):
-    """udisks libère un périphérique loop dès son démontage : remonter une image « en lecture seule » la ferait disparaître."""
     image = env.driver.plug("loop5", "BBBB-0099", kind="image", dev_type="loop", mounted_rw=True)
     usb = env.driver.plug("sdq", "BBBB-0098", mounted_rw=True)
     env.refresh()

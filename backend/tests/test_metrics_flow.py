@@ -73,7 +73,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.video_id = self.video.id
 
     def test_playback_session_lifecycle_completed(self):
-        """Teste le cycle de vie d'une session terminée avec complétion (>= 90%)."""
         with SessionLocal() as db:
             sess_id = start_playback_session(
                 db, video_id=self.video_id, channel="cable", launch_type="grid", total_duration_seconds=3000.0
@@ -92,7 +91,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(s.duration_played_seconds, 2750.0)
 
     def test_playback_session_lifecycle_abandoned(self):
-        """Teste le cycle de vie d'une session abandonnée (< 90%)."""
         with SessionLocal() as db:
             sess_id = start_playback_session(
                 db, video_id=self.video_id, channel="network", launch_type="kiosk", total_duration_seconds=3000.0
@@ -105,7 +103,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(s.duration_played_seconds, 600.0)
 
     def test_rating_api_flow(self):
-        """Teste les endpoints de notation 5 étoiles."""
         with SessionLocal() as db:
             r1 = create_course_rating(
                 RatingCreate(video_id=self.video_id, rating=5, channel="cable", source="grid"),
@@ -131,7 +128,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(len(ratings), 2)
 
     def test_dashboard_aggregation(self):
-        """Teste l'agrégation complète du tableau de bord /api/metrics/dashboard."""
         with SessionLocal() as db:
             s1 = start_playback_session(db, self.video_id, "cable", "grid", 3000.0)
             close_playback_session(db, s1, position_seconds=2800.0)
@@ -178,7 +174,6 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("runtime", hw)
 
     def test_hardware_supervision_endpoints(self):
-        """Teste l'enrichissement de /api/settings/system et /api/settings/storage."""
         d = get_system_usage()
         self.assertIn("cpu_percent", d)
         self.assertIn("cpu_name", d)
@@ -195,7 +190,6 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("used_percent", s)
 
     def test_hardware_helpers(self):
-        """Valide que les fonctions hardware_info ne lèvent pas d'exception."""
         cpu = get_cpu_model_name()
         self.assertIsInstance(cpu, str)
         self.assertGreater(len(cpu), 0)
@@ -214,7 +208,6 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIn("service_uptime_formatted", runtime)
 
     def test_hardware_history_endpoint(self):
-        """Teste l'historique temporel matériel et son sous-échantillonnage."""
         with SessionLocal() as db:
             from app.models import SystemMetricsHistory
             db.query(SystemMetricsHistory).delete()
@@ -232,7 +225,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertIn("avg", res)
 
     def test_logs_and_metrics_purge(self):
-        """Teste la purge automatique et manuelle des logs et métriques expirés."""
         with SessionLocal() as db:
             purged = purge_expired_logs_and_metrics(db, retention_days=7)
             self.assertIn("purged_logs", purged)
@@ -243,7 +235,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertIn("details", manual_res)
 
     def test_dynamic_metrics_future_extensibility(self):
-        """Valide qu'une nouvelle métrique future (ex: fan_rpm, npu_load, battery_pct) est enregistrée et servie sans altération de schéma."""
         with SessionLocal() as db:
             record_hardware_snapshot(db, extra={"fan_rpm": 2400.0, "npu_load_percent": 35.5, "battery_pct": 92.0})
 
@@ -257,7 +248,6 @@ class TestMetricsFlow(unittest.TestCase):
             self.assertEqual(res_npu["points"][-1]["value"], 35.5)
 
     def test_settings_logs_retention_days_update(self):
-        """Valide la modification du délai de rétention des logs via PUT /api/settings et la validation des bornes."""
         from app.api.routes.settings.core import SettingsUpdate
         from app.api.routes.settings.values import update_settings, get_settings
         import asyncio
@@ -280,7 +270,6 @@ class TestMetricsFlow(unittest.TestCase):
             asyncio.run(update_settings(SettingsUpdate(logs_retention_days=7), db=db))
 
     def test_power_watts_calculation_and_energy(self):
-        """Valide le calcul de puissance multi-OS et l'accumulation d'énergie Wh."""
         from app.hardware.power import update_cumulative_energy, get_cumulative_energy_wh
         p = get_power_watts()
         self.assertIsNotNone(p)
@@ -291,7 +280,6 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIsInstance(wh, float)
 
     def test_power_watts_multi_os_profiles(self):
-        """Vérifie le comportement de calcul de puissance sur tous les profils matériels (Mac mini, MacBook, PC fixe, Laptop, Wyse)."""
         from unittest.mock import patch
         from collections import namedtuple
 

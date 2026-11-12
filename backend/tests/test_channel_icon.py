@@ -1,5 +1,3 @@
-"""Icône de la barre système selon le canal : détection du canal (API > indice d'installation > Stable), ordre de recherche des fichiers, repli."""
-
 from pathlib import Path
 
 import pytest

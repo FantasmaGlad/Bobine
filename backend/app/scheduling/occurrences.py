@@ -24,7 +24,7 @@ _MAX_OCCURRENCES_PER_SCHEDULE = 1000
 
 
 def ensure_utc(value: datetime) -> datetime:
-    """SQLite ne conserve pas le fuseau des datetimes stockés : une valeur aware écrite en base est relue *naïve* par SQLAlchemy, alors qu'elle représente toujours un instant UTC (convention utilisée dans tout le schéma — imported_at, created_at, etc.)."""
+    """SQLite ne conserve pas le fuseau des datetimes stockés."""
     return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 

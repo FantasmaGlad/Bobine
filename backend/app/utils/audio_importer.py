@@ -46,7 +46,7 @@ def _guess_release(title: str) -> str | None:
 
 
 def wait_for_folder_to_stabilize(dir_path: str, stable_secs: int = 3, timeout: int = 300) -> bool:
-    """Variante de `importer.wait_for_file_to_copy` pour un dossier entier : attend que la taille CUMULÉE de tous les fichiers qu'il contient cesse de changer (copie de plusieurs MP3 en cours dans le dossier surveillé des cours audio)."""
+    """Variante de `importer.wait_for_file_to_copy` pour un dossier entier."""
     last_total = -1
     stable_since = 0
     start_time = time.time()
@@ -84,7 +84,7 @@ def import_audio_course_from_files(
     release: str | None = None,
     job_id: str | None = None,
 ) -> AudioCourse:
-    """Importe un cours audio à partir d'une liste de fichiers MP3 déjà présents sur disque : les déplace dans un sous-dossier dédié de `settings.audio_dir`, extrait durée/numéro/titre par piste (ffprobe + parsing du nom de fichier), crée le cours et ses pistes en base dans l'ordre déduit du nom de fichier (réordonnable ensuite depuis l'UI)."""
+    """Importe un cours audio à partir d'une liste de fichiers MP3 déjà présents sur disque."""
     if not mp3_paths:
         raise ValueError("Aucun fichier MP3 fourni pour l'import du cours audio.")
 

@@ -15,7 +15,7 @@ class Base(DeclarativeBase):
 
 
 class UidMixin:
-    """Identifiant stable, propre à l'objet et jamais modifié (`vid_…`, `pl_…`, `sch_…`) : les fichiers de configuration JSON l'utilisent pour reconnaître un objet quand son titre, son nom ou son fichier changent."""
+    """Identifiant stable, propre à l'objet et jamais modifié."""
 
     __uid_prefix__ = "x"
     uid: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)

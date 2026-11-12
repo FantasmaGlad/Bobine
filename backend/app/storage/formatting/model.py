@@ -104,7 +104,7 @@ def fingerprint(disk: DiskInfo) -> str:
 
 
 def inventory_digest(disks: list[DiskInfo]) -> str:
-    """Empreinte de l'ensemble des supports candidats branchés : un autre support qui apparaît ou disparaît entre le plan et l'exécution invalide le plan (les noms `/dev/sdX` peuvent alors avoir été réattribués)."""
+    """Empreinte de l'ensemble des supports candidats branchés."""
     return _digest(sorted([d.path, d.size_bytes, d.serial or "", d.model or "", [p.uuid or "" for p in d.partitions]] for d in disks))
 
 

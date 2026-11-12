@@ -1,5 +1,3 @@
-"""Stockage externe : copie vérifiée (intégrité, reprise, annulation, source modifiée), plan d'import, export, appareils portables."""
-
 import hashlib
 import os
 from pathlib import Path
@@ -65,7 +63,6 @@ def test_cancel_removes_partial_files_and_keeps_source(source, staging, tmp_path
 
 
 def test_interrupted_copy_resumes_at_the_byte_and_verifies(source, staging, tmp_path):
-    """Retrait brutal en cours de copie : le `.part` est conservé et la reprise ne recopie pas le début."""
     original = open
 
     state = {"reads": 0}

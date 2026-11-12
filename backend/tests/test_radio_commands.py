@@ -1,4 +1,3 @@
-"""Son radio et rappel immédiat : un seul code pour REST, WebSocket et CLI."""
 import asyncio
 import os
 
@@ -72,7 +71,6 @@ def test_rest_routes_use_the_shared_code():
 
 
 def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
-    """`PUT /api/radio/sound` et `POST /api/radio/{sortie}/radio_set_sound` : mêmes bornes, même état, même copie en base."""
     from app.radio_manager import get_radio_manager
     from app.utils.radio_sound import load_sound
 
@@ -92,7 +90,6 @@ def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
 
 
 def test_play_now_and_the_facade_reach_the_same_players():
-    """Le rappel immédiat par REST, par la façade et par la commande WebSocket arrive aux mêmes sorties, en « duck »."""
     from app.radio_manager import get_radio_manager
 
     init_db()

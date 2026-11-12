@@ -1,5 +1,3 @@
-"""Régression sur `RevalidateStaticFiles` (app/main.py) : l'ETag PAR DÉFAUT de Starlette (`FileResponse.set_stat_headers`) est `md5(mtime + "-" + taille)`, PAS un hachage du contenu réel."""
-
 import os
 import sys
 from pathlib import Path
@@ -56,7 +54,6 @@ def test_content_change_with_identical_mtime_is_not_served_as_304(tmp_path):
 
 
 def test_if_modified_since_alone_never_triggers_a_stale_304(tmp_path):
-    """Deuxième bug trouvé en testant pour de vrai sur la tablette pilote (au-delà du premier correctif ETag, insuffisant seul) : un client qui envoie SEULEMENT `If-Modified-Since` (pas `If-None-Match`) ne doit jamais recevoir 304 ici — `Last-Modified` reste figé au mtime normalisé du build reproductible (01/02/1980), donc absolument N'IMPORTE QUELLE date envoyée par le client le satisferait selon la RFC 7232 standard (`If-Modified-Since >= Last-Modified`)."""
     static_files = RevalidateStaticFiles(directory=str(tmp_path))
 
     file_path = tmp_path / "index.html"
@@ -80,7 +77,6 @@ def test_if_modified_since_alone_never_triggers_a_stale_304(tmp_path):
 
 
 def test_unchanged_content_is_served_as_304_on_revalidation(tmp_path):
-    """Le pendant positif : un fichier VRAIMENT inchangé doit toujours bénéficier d'un 304 (l'objectif même de la revalidation ETag), pas être re-téléchargé à chaque requête."""
     static_files = RevalidateStaticFiles(directory=str(tmp_path))
 
     file_path = tmp_path / "style.css"

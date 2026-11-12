@@ -161,7 +161,7 @@ class _Report:
         self.checks.append(entry)
 
     def problem(self, check: str, code: str, severity: str, message: str, remedy: str, fix: dict | None = None) -> None:
-        """`fix` (facultatif) décrit une correction sans risque que `bobine diagnose --auto-fix` peut appliquer : `{"action": "cancel_import_jobs", "job_ids": [...]}` ou `{"action": "set_settings", "settings": {...}}`."""
+        """`fix` (facultatif) décrit une correction sans risque que `bobine diagnose --auto-fix` peut appliquer."""
         entry = {"code": code, "severity": severity, "message": message, "remedy": remedy}
         if fix:
             entry["fix"] = fix

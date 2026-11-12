@@ -1,5 +1,3 @@
-"""Registre et résolution des canaux de diffusion (app/release_channel.py)."""
-
 import importlib.util
 import subprocess
 import sys
@@ -31,7 +29,6 @@ def test_registre_coherent():
 
 
 def test_module_autonome_charge_par_son_chemin_sans_le_paquet_app():
-    """Les outils de construction (specs, paquetage, générateur) le chargent par son chemin : il ne doit rien importer d'autre que la bibliothèque standard à l'import."""
     code = (
         "import importlib.util, sys;"
         f"spec = importlib.util.spec_from_file_location('rc', r'{MODULE_PATH}');"

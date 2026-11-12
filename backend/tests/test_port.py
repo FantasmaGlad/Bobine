@@ -1,5 +1,3 @@
-"""Résolution du port d'écoute (app/utils/port.py) : port préféré libre, port occupé, plage de repli épuisée, mode strict, fichier d'exécution écrit puis supprimé, et câblage (plus aucun 8000 littéral dans les lanceurs)."""
-
 import json
 import os
 import re
@@ -21,7 +19,6 @@ def _free_port() -> int:
 
 @pytest.fixture
 def held_port():
-    """Un port réellement occupé (socket en écoute) pour la durée du test."""
     sock = socket.socket()
     sock.bind(("0.0.0.0", 0))
     sock.listen()
@@ -282,7 +279,6 @@ def test_kotlin_endpoint_reads_the_file_the_backend_writes():
 
 @pytest.fixture
 def tray(monkeypatch):
-    """Module du tray importé avec un `pystray` factice : le vrai exige un serveur d'affichage (X11) à l'import, absent des exécuteurs de CI."""
     import importlib
     import sys
     from unittest.mock import MagicMock
@@ -342,7 +338,6 @@ def test_projector_window_resolves_a_callable_url_at_launch():
 
 
 def test_runtime_file_is_removed_when_the_process_receives_sigterm(tmp_path):
-    """uvicorn re-lève SIGTERM après son arrêt propre : le fichier doit disparaître quand même."""
     import signal
     import subprocess
     import sys

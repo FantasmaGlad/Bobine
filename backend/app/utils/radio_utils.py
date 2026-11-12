@@ -34,7 +34,7 @@ def content_type_for(file_path: str) -> str:
 
 
 def clean_filename_label(file_path: str) -> str:
-    """Dérive un libellé lisible depuis un nom de fichier (underscores en espaces) — utilisé en repli quand aucun tag ID3 de titre n'est présent, et pour dériver automatiquement la description d'un rappel importé en lot."""
+    """Dérive un libellé lisible depuis un nom de fichier."""
     stem = Path(file_path).stem.replace("_", " ").strip()
     return stem or Path(file_path).stem
 
@@ -150,7 +150,7 @@ def save_cover_image(src_image_path: str, covers_dir: str, file_id: str) -> str:
 
 
 def transcode_to_web(src_path: str, dest_path: str) -> None:
-    """Transcode un format non lu par le navigateur (ex."""
+    """Transcode un format non lu par le navigateur."""
     cmd = [FFMPEG_BIN, "-y", "-i", src_path, "-vn", "-c:a", "aac", "-b:a", "256k", dest_path]
     res = subprocess.run(with_nostdin(cmd), capture_output=True, text=True, **media_subprocess_kwargs())
     if res.returncode != 0:

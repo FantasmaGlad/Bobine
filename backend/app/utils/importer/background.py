@@ -87,7 +87,7 @@ def import_background_image(src_path: str, original_filename: str, job_id: str |
 def import_background(
     src_path: str, original_filename: str, source: ImportSource, job_id: str | None = None
 ) -> Background:
-    """Importe un fond animé : même pipeline que import_video (stabilisation, métadonnées, normalisation si nécessaire, miniature) mais dans le dossier dédié `settings.backgrounds_dir`, sans parsing programme/ release (non pertinent pour une boucle d'ambiance) et sans piste audio (les fonds animés sont toujours joués sans son)."""
+    """Importe un fond animé : même pipeline que import_video."""
     path_obj = Path(src_path)
 
     if source == ImportSource.watched_folder:

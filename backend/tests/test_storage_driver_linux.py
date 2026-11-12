@@ -1,5 +1,3 @@
-"""Pilote Linux du stockage : commandes udisksctl/smartctl/busctl simulées par un exécuteur scripté (aucun root, aucun matériel)."""
-
 import asyncio
 import json
 import os
@@ -19,7 +17,6 @@ VOLUME = Volume(key="u-1", device="/dev/sdb1", name="sdb1", fs_uuid="1", label="
 
 
 class Script:
-    """Exécuteur scripté : `rules` = liste de (préfixe de commande, résultat ou exception) consommées dans l'ordre d'appel."""
 
     def __init__(self, *rules):
         self.rules = list(rules)

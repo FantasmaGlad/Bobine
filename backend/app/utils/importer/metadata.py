@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def extract_metadata_or_unknown(file_path: str, original_filename: str) -> dict:
-    """Enveloppe extract_metadata() pour ne plus faire échouer tout l'import quand ffprobe est indisponible ou en erreur (sous Android : aucun binaire ffprobe utilisable sous Android, tout binaire lie glibc statique y est tue par le filtre seccomp)."""
+    """Enveloppe extract_metadata() pour ne plus faire échouer tout l'import quand ffprobe est indisponible ou en erreur."""
     try:
         return extract_metadata(file_path)
     except Exception as e:

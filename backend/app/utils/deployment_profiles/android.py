@@ -70,7 +70,7 @@ class AndroidHandler(ProfileHandler):
         return False
 
     def is_store_managed(self) -> bool:
-        """Vrai pour le build Google Play (`BuildConfig.STORE_BUILD`, cf."""
+        """Vrai pour le build Google Play."""
         if self._store_managed is not None:
             return self._store_managed
         try:

@@ -1,5 +1,3 @@
-"""Carte des périphériques : construction du graphe (pure), moyen de liaison des clients, spectateurs WebSocket."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

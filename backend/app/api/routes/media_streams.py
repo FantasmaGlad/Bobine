@@ -80,7 +80,7 @@ async def stream_video(
 
 
 def reset_stale_web_rendition_status() -> None:
-    """Une version web « en cours » trouvée au démarrage ne peut venir que d'un arrêt brutal du processus : on la ramène à « absente » plutôt que de laisser l'interface annoncer indéfiniment une production qui n'existe plus."""
+    """Une version web « en cours » trouvée au démarrage ne peut venir que d'un arrêt brutal du processus."""
     db = SessionLocal()
     try:
         db.query(Video).filter(Video.web_status == "pending").update({Video.web_status: None})

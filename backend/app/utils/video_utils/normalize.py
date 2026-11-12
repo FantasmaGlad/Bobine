@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def estimate_normalize_seconds(source_metadata: dict) -> float | None:
-    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg : basée sur la vitesse moyenne (x temps réel) déjà observée pour ce couple (encodeur, résolution) via `encode_speed_stats`, ou un repère par défaut tant qu'aucun échantillon n'existe encore."""
+    """Estimation de la durée de réencodage AVANT le démarrage de ffmpeg."""
     from app.utils.deployment import get_deployment_profile
     from app.utils.encode_speed_stats import get_estimated_speed, resolution_bucket
 

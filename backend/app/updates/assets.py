@@ -11,7 +11,7 @@ ASSET_EXTENSION_BY_PROFILE = {
 
 
 def asset_matches_variant(name: str, variant: str | None) -> bool:
-    """Android publie deux APK par release (`Bobine-<v>.apk` pour téléphone/ tablette, `Bobine-TV-<v>.apk` pour Android TV, `applicationId` différents) — `variant` "tv" ne retient que le second, toute autre valeur l'exclut."""
+    """Android publie deux APK par release (`Bobine-<v>.apk` pour téléphone/ tablette, `Bobine-TV-<v>.apk` pour Android TV, `applicationId` différents)."""
     is_tv = "-tv-" in name or name.startswith("bobine-tv")
     return is_tv if variant == "tv" else not is_tv
 

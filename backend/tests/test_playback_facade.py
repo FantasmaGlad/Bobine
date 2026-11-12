@@ -1,5 +1,3 @@
-"""Façade REST de la lecture : mêmes commandes et même effet que le WebSocket, refus typés au lieu d'un silence, rapports d'écran exclus, routes existantes de même forme non masquées ; une commande en échec ne coupe plus la connexion WebSocket."""
-
 import asyncio
 import os
 

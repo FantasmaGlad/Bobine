@@ -1,4 +1,3 @@
-"""Wiring of the publication jobs: in-place rolling releases, one publisher per channel, guarded order, scheduled refresh."""
 from pathlib import Path
 import re
 import unittest
@@ -83,7 +82,6 @@ class RollingReleaseTests(unittest.TestCase):
         self.assertLess(ROLLING_ACTION.index('if [ "$REQUIRE_TIP" = true ]'), ROLLING_ACTION.index("--require-tip origin/main"))
 
     def test_the_stable_job_takes_its_actions_from_the_workflow_revision(self):
-        """Republier un ancien tag Stable : l'action locale vient de la révision du workflow, pas du tag."""
         stable = job("release-stable")
         self.assertIn("path: .workflow-tools", stable)
         self.assertIn("uses: ./.workflow-tools/.github/actions/assemble-release-assets", stable)

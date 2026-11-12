@@ -1,5 +1,3 @@
-"""Configuration commune des tests."""
-
 import tempfile
 from pathlib import Path
 

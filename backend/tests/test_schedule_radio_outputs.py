@@ -1,5 +1,3 @@
-"""Planning à quatre voies : les deux sorties radio ont chacune leur voie, l'ancienne voie « radio » reste acceptée et migre vers la sortie réseau, un lancement visant la radio câblée ne bascule jamais l'écran câblé."""
-
 import asyncio
 import os
 

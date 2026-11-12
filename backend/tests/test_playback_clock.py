@@ -1,5 +1,3 @@
-"""Horloge de lecture serveur : la position est une fonction du temps, indépendante de tout kiosque."""
-
 import asyncio
 
 from app.playback.constants import LOAD_LEAD_MS, PLAY_LEAD_MS, VIDEO_END_GRACE_SECONDS
@@ -8,7 +6,6 @@ from app.utils.playback_clock import PlaybackClock
 
 
 class FakeTime:
-    """Horloges injectables : `mono` (secondes) et `epoch_ms` avancent ensemble."""
 
     def __init__(self):
         self.mono = 1000.0
@@ -103,7 +100,6 @@ def _patch_clock(manager, fake: FakeTime):
 
 
 def test_la_position_avance_sans_aucun_kiosque_connecte():
-    """Cause racine S4 : sans kiosque primaire, la position restait figée."""
     received = []
 
     async def _run():
@@ -161,7 +157,6 @@ def test_report_position_ne_modifie_plus_la_position():
 
 
 def test_video_ended_est_idempotent_et_ignore_le_signal_d_un_autre_cours():
-    """Tous les écrans envoient `video_ended` : le 2e signal ne doit pas terminer le cours suivant."""
     async def _run():
         m = _manager([])
         fake = FakeTime()
@@ -199,7 +194,6 @@ def test_le_serveur_termine_lui_meme_un_cours_depasse():
 
 
 def test_un_seul_ecran_ou_aucun_demarre_sans_delai():
-    """Mesuré avant correction : play = 300 ms, chargement = 1 009 ms de latence ressentie, alors que pause répondait en 1 à 3 ms."""
     async def _run():
         for screens in (0, 1):
             m = _manager([])
@@ -251,7 +245,6 @@ def test_un_compteur_d_ecrans_defaillant_ne_bloque_jamais_la_lecture():
 
 
 def test_l_epoch_change_a_chaque_ordre_et_reste_stable_entre_deux_heartbeats():
-    """Permet à un écran de distinguer un ORDRE explicite (à appliquer sans délai de grâce) d'une simple dérive."""
     t = FakeTime()
     c = t.clock()
     e0 = c.to_dict()["epoch"]

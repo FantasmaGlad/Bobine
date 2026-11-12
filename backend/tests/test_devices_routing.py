@@ -1,5 +1,3 @@
-"""Phase 2 des périphériques : routage audio par sortie radio."""
-
 import asyncio
 import json
 import os
@@ -156,7 +154,6 @@ def test_choix_du_flux_jamais_de_devinette():
 
 
 class FakePipeWire:
-    """Simule `pw-dump` et `pw-metadata` : un flux de navigateur qui suit `target.object` quand on le lui donne."""
 
     def __init__(self, streams, follow=True):
         self.streams = streams

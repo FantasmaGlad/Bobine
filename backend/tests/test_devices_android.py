@@ -1,5 +1,3 @@
-"""Pilote Android : pont Kotlin simulé (aucun appareil requis)."""
-
 import asyncio
 import json
 

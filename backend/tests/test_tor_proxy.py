@@ -1,5 +1,3 @@
-"""Mises à jour par Tor : le nom d'hôte part au proxy SOCKS5 sans être résolu localement ; option activée et Tor indisponible, rien ne part en direct ; Tor lancé à la demande s'arrête seul ; réglages et test exposés par l'API."""
-
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
@@ -35,7 +33,6 @@ def _free_port() -> int:
 
 
 class FakeSocksProxy:
-    """Proxy SOCKS5 minimal : note la cible demandée et répond lui-même une page HTTP."""
 
     def __init__(self) -> None:
         self.server = socket.socket()

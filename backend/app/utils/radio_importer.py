@@ -146,7 +146,7 @@ def _ingest_announcement(db, src: Path, description: str) -> RadioAnnouncement:
 
 
 def import_radio_announcement(file_path: str, description: str, db) -> RadioAnnouncement:
-    """Importe un rappel : fichier unique + description OBLIGATOIRE, saisie en même temps que l'upload — pas de traitement en arrière-plan (pas de dossier surveillé pour les rappels : une description manuelle est de toute façon requise)."""
+    """Importe un rappel : fichier unique + description OBLIGATOIRE, saisie en même temps que l'upload."""
     announcement = _ingest_announcement(db, Path(file_path), description)
     db.commit()
     db.refresh(announcement)

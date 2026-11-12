@@ -1,5 +1,3 @@
-"""Miniatures : dépassement de délai ffmpeg, miniature de secours, service sans dossier (jamais de 500)."""
-
 import os
 import subprocess
 from pathlib import Path

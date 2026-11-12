@@ -1,4 +1,3 @@
-"""Liste unique des extensions d'import : parité avec le frontend et import d'archives de médias."""
 import re
 import tarfile
 import zipfile

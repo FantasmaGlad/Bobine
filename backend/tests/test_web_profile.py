@@ -1,5 +1,3 @@
-"""Version web « lisible partout » : détection des raisons de non-lisibilité, négociation selon les capacités annoncées par le navigateur, et vrai transcodage ffmpeg d'un HEVC 10 bits."""
-
 import os
 import shutil
 import subprocess

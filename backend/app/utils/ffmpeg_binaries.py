@@ -60,7 +60,7 @@ def with_nostdin(cmd: list[str]) -> list[str]:
 
 
 def media_subprocess_env() -> dict[str, str] | None:
-    """Environnement des sous-processus ffmpeg/ffprobe : hérité tel quel en développement et dans les paquets non figés ; assaini dans un build figé (PyInstaller), dont le chargeur positionne les variables de recherche de bibliothèques (`LD_LIBRARY_PATH`, `DYLD_LIBRARY_PATH`, `LIBPATH`) sur ses propres bibliothèques embarquées — un ffmpeg installé sur le système (Homebrew, apt) risquerait alors de charger les mauvaises."""
+    """Environnement des sous-processus ffmpeg/ffprobe."""
     if not getattr(sys, "frozen", False):
         return None
     from app.updates.orchestrator import clean_subprocess_env

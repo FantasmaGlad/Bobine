@@ -1,4 +1,3 @@
-"""Manifestes winget : installeurs x64 et ARM64 de la release, empreintes reprises de SHA256SUMS, refus d'un tag roulant."""
 import importlib.util
 import subprocess
 import sys

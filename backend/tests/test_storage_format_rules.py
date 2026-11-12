@@ -1,5 +1,3 @@
-"""Assistant de formatage : logique PURE (analyse des disques, identité, cascade de refus, jeton, options)."""
-
 import json
 
 import pytest
@@ -157,7 +155,6 @@ def test_every_code_used_by_the_rules_is_documented_with_a_message():
 
 
 def test_simulated_etoile_identity_is_refused_when_registered_or_in_use_or_off_allowlist():
-    """Identité du vrai disque « Étoile » (exFAT, 238 Go, USB) SIMULÉE : aucun accès au vrai périphérique."""
     etoile = disk("sdq", size_bytes=255_800_000_000, vendor="Generic", model="USB Flash", serial="ETOILE0000",
                   parts=[part("sdq1", "exfat", "Étoile", "E7E7-0238", 255_700_000_000)])
     assert refusal_code(ctx(etoile)) is None

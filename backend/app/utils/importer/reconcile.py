@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def reconcile_orphaned_media() -> None:
-    """Filet de sécurité au démarrage : import_video/import_background déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec un nettoyage sur exception Python (`except Exception as dbe`) — mais un crash DUR du processus (coupure électrique, kill -9) entre les deux n'est pas une exception Python à rattraper, et peut laisser un fichier à son emplacement final sans plus aucune ligne DB pour le référencer."""
+    """Filet de sécurité au démarrage : import_video/import_background déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec un nettoyage sur exception Python."""
     db = SessionLocal()
     try:
         known_video_paths = {row[0] for row in db.query(Video.file_path).all()}

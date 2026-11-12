@@ -1,5 +1,3 @@
-"""Conformité HTTP des flux média (RFC 9110) : HEAD, Range, If-Range, 416, ETag."""
-
 import os
 import sys
 from pathlib import Path
@@ -183,7 +181,6 @@ def _open_fds_on(path) -> int:
 
 @pytest.mark.skipif(not os.path.isdir("/proc/self/fd"), reason="Linux uniquement")
 def test_stream_released_when_client_stops_early(tmp_path):
-    """Régression : un client qui coupe en cours de flux (annulation pendant `yield`) laissait le fichier ouvert, ce qui empêchait de démonter un support externe (« occupé »)."""
     import asyncio
 
     media = tmp_path / "gros.mp4"

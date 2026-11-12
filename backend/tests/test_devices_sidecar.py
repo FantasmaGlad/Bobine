@@ -1,5 +1,3 @@
-"""Pilote sidecar (Windows/macOS) : protocole JSON-RPC, garde-fou « expérimental », reprise après panne, délais d'expiration."""
-
 import asyncio
 import os
 import sys
@@ -175,7 +173,6 @@ REAL = Path(__file__).resolve().parents[2] / "devices" / "target" / "release" / 
 
 @pytest.mark.skipif(not REAL.is_file() or os.name == "nt", reason="binaire bobine-devices non compilé")
 def test_real_binary_speaks_the_protocol_and_refuses_unknown_methods():
-    """Sur Linux le binaire déclare « plateforme non prise en charge » (Linux passe par D-Bus), mais le protocole (hello, liste blanche, validation) est celui de Windows/macOS."""
     driver = SidecarDriver("macos", command=[str(REAL)], experimental=True)
 
     async def scenario():

@@ -15,7 +15,7 @@ ANDROID_DOWNGRADE_MESSAGE = (
 async def refuse_android_downgrade(
     profile: str, local: dict[str, Any], release_data: dict[str, Any], evaluation: dict[str, Any]
 ) -> dict[str, Any]:
-    """Android refuse d'installer un APK dont le versionCode est inférieur à celui installé (`UpdateManager.validatePackage`), mais seulement APRÈS le téléchargement de 46 à 69 Mo : passer de Canary (la plus récente) à Bêta ou Stable s'annonçait donc comme une mise à jour."""
+    """Android refuse d'installer un APK dont le versionCode est inférieur à celui installé."""
     if profile != "android" or not evaluation["has_update"]:
         return evaluation
     local_commit, ref = local.get("current_commit") or "", release_target_ref(release_data)

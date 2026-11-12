@@ -1,5 +1,3 @@
-"""Garde-fou du câblage des icônes par canal (Stable / Bêta / Canary) sur TOUTES les plateformes."""
-
 import importlib.util
 import re
 import shutil
@@ -74,7 +72,6 @@ def _blueness(path: Path) -> float:
     ],
 )
 def test_chaque_fichier_porte_la_teinte_de_son_canal(template):
-    """Stable = ruban neutre, Bêta = bleu, Canary = or : détecte une icône copiée sous le mauvais canal."""
     stable, beta, canary = (_blueness(REPO / template.format(c=c)) for c in ("stable", "beta", "canary"))
     assert beta > 40, "le ruban bêta doit être bleu"
     assert canary < -40, "le ruban canary doit être doré (rouge > bleu)"
@@ -160,7 +157,6 @@ def test_android_fournit_icone_et_banniere_pour_chaque_canal():
 
 @pytest.mark.parametrize("platform,extension", [("windows", "ico"), ("macos", "icns")])
 def test_preparation_des_specs_avec_les_globales_documentees_de_pyinstaller(platform, extension, tmp_path, monkeypatch):
-    """Exécute la préparation réelle du spec avant l'analyse dépendante de l'OS."""
     monkeypatch.syspath_prepend(str(REPO / "packaging/common"))
     prefix = _read(f"packaging/{platform}/bobine.spec").split("backend_analysis = Analysis(", 1)[0]
     namespace = {"SPECPATH": str(REPO / f"packaging/{platform}"), "workpath": str(tmp_path)}

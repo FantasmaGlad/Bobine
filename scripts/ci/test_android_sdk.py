@@ -1,4 +1,3 @@
-"""Offline failure cases for SDK acquisition; never touches an installed SDK."""
 import hashlib
 import importlib.util
 import io

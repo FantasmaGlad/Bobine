@@ -1,5 +1,3 @@
-"""ffmpeg/ffprobe : message clair quand le binaire est introuvable, `-nostdin` (ffmpeg), `stdin=DEVNULL` et environnement assaini dans un build figé."""
-
 import os
 import subprocess
 import sys

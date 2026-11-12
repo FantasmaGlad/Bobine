@@ -44,7 +44,7 @@ REFUSALS: dict[str, tuple[int, str]] = {
 
 
 class FormatRefusal(DeviceError):
-    """Refus (ou échec) de l'assistant de formatage ; `extra` transporte les actions proposées (ex."""
+    """Refus (ou échec) de l'assistant de formatage ; `extra` transporte les actions proposées."""
 
     def __init__(self, code: str, message: str | None = None, *, status: int | None = None, **extra: Any):
         default_status, default_message = REFUSALS.get(code, (409, "Opération de formatage refusée."))

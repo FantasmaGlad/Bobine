@@ -1,5 +1,3 @@
-"""Garde-fou du profil Android, qui tourne en Pydantic v1 (Chaquopy n'a pas de pydantic-core) alors que toutes les autres plateformes sont en v2 (cf."""
-
 import ast
 from pathlib import Path
 

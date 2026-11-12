@@ -38,7 +38,7 @@ class ConnectionManager:
         self._loop = loop
 
     def broadcast_threadsafe(self, message: dict) -> None:
-        """Version thread-safe de `broadcast()` (cf."""
+        """Version thread-safe de `broadcast()`."""
         loop = self._loop
         if loop is None or loop.is_closed() or not loop.is_running():
             return

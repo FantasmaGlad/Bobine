@@ -1,5 +1,3 @@
-"""Commandes d'écriture de `bobine` : route et corps envoyés, confirmations, `bobine api`, envoi de fichiers, sauvegarde."""
-
 import json
 
 import pytest

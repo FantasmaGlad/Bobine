@@ -1,4 +1,3 @@
-"""Publishing to gh-pages stages the root .repo aliases and survives a concurrent push (rebase and retry)."""
 import os
 from pathlib import Path
 import re

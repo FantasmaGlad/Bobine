@@ -85,7 +85,7 @@ def register_job_future(job_id: str, future: concurrent.futures.Future, leftover
 
 
 def register_job_process(job_id: str | None, proc: subprocess.Popen) -> None:
-    """Associe le processus sous-jacent (ex."""
+    """Associe le processus sous-jacent."""
     if not job_id:
         return
     with _lock:
@@ -152,7 +152,7 @@ def cancel_job(job_id: str) -> bool:
 
 
 def update_job(job_id: str | None, **fields) -> None:
-    """Met à jour les champs fournis d'une tâche existante (no-op silencieux si `job_id` est None — permet aux fonctions d'import de rester utilisables sans job à suivre, ex."""
+    """Met à jour les champs fournis d'une tâche existante."""
     if not job_id:
         return
     with _lock:

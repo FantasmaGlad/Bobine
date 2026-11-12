@@ -1,5 +1,3 @@
-"""Couvre `ConnectionManager.broadcast_threadsafe`, le pont utilisé par les endpoints FastAPI SYNCHRONES (`def`, exécutés dans le threadpool) et les exécuteurs d'import (ffmpeg_executor/io_executor) pour diffuser un évènement WebSocket sans jamais appeler une coroutine directement depuis un thread qui n'est pas celui de la boucle asyncio — cf."""
-
 import asyncio
 import threading
 import time
@@ -9,7 +7,6 @@ from app.utils.ws_manager import ConnectionManager
 
 
 def test_broadcast_threadsafe_without_bound_loop_is_a_safe_noop():
-    """Avant `bind_loop()` (ex."""
     manager = ConnectionManager()
     manager.broadcast_threadsafe({"event": "library_change"})
 
@@ -62,7 +59,6 @@ def test_broadcast_threadsafe_delivers_message_from_another_thread():
 
 
 def test_broadcast_actually_closes_a_client_that_times_out(monkeypatch):
-    """Bug réel trouvé en déployant sur la tablette pilote (pas en relecture de code) : `broadcast()` retirait un client lent/bloqué de `active_connections` SANS jamais fermer sa connexion WebSocket — le client, lui, ne recevait ni frame de fermeture ni erreur, et son objet WebSocket restait `OPEN` indéfiniment de son propre point de vue, silencieusement muet (plus aucun `position_tick`), jusqu'au keepalive serveur (jusqu'à 90s)."""
     monkeypatch.setattr(ws_manager_module, "BROADCAST_SEND_TIMEOUT_SECONDS", 0.1)
 
     manager = ConnectionManager()

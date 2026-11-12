@@ -45,7 +45,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 class RetryingSession(Session):
-    """Filet de sécurité au-dessus de busy_timeout : si une écriture échoue quand même avec "database is locked" (contention extrême, ou busy_timeout dépassé), on retente le commit avec un backoff exponentiel court plutôt que de renvoyer une erreur 500 au client pour un conflit transitoire."""
+    """Filet de sécurité au-dessus de busy_timeout."""
 
     _MAX_RETRIES = 3
     _BASE_DELAY_SECONDS = 0.2

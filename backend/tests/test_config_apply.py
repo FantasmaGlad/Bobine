@@ -1,5 +1,3 @@
-"""Application des fichiers de configuration : essai à blanc sans écriture, aller-retour export → application sans écart, tout ou rien (une erreur dans un fichier refuse l'ensemble et les liste toutes), références par nom, planning remplacé par canal et resynchronisé, `machine.json` seulement sur demande."""
-
 import asyncio
 import copy
 import os

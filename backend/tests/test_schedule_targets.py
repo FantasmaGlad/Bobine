@@ -1,4 +1,3 @@
-"""Supprimer une playlist la retire du planning : programmations, remplacements d'occurrence, reprise."""
 import os
 import sys
 from datetime import datetime, timedelta, timezone

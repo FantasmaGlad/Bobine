@@ -1,5 +1,3 @@
-"""Diffusion filtrée par canal : un client n'est plus inondé des évènements des canaux qui ne le concernent pas."""
-
 import asyncio
 
 from app.utils.ws_manager import ConnectionManager

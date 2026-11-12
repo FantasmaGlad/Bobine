@@ -1,5 +1,3 @@
-"""Stockage externe : conseiller de système de fichiers, santé SMART, longévité (logique pure)."""
-
 import pytest
 
 from app.storage import fsadvisor, health, longevity

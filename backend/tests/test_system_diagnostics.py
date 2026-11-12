@@ -1,5 +1,3 @@
-"""Diagnostic système et journaux unifiés : constats typés à code stable triés par gravité, sonde en échec rendue `unknown` sans erreur 500 ; journaux en JSON stable (UTC, niveau minimal, `since` avec fuseau, archives, traces rattachées à leur entrée)."""
-
 import os
 import time
 from datetime import datetime
@@ -129,7 +127,6 @@ def test_activity_log_shares_the_same_shape(client):
 
 
 def test_repeated_local_hour_keeps_utc_order(client, technical_log, tmp_path):
-    """Le retour à l'heure d'hiver répète 02:00-03:00 : les deux passages doivent rester en UTC et dans l'ordre."""
     (tmp_path / "technical.log.1").unlink()
     (tmp_path / "technical.log").write_text(
         "2026-10-25 02:30:00,000 INFO app.main: premier passage\n"

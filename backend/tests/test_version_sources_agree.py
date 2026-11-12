@@ -1,5 +1,3 @@
-"""Toutes les copies écrites à la main du numéro de version annoncent celui du fichier VERSION."""
-
 import re
 from pathlib import Path
 
@@ -14,7 +12,6 @@ def _read(relative: str) -> str:
 
 
 def test_version_est_un_numero_de_base_sans_suffixe_de_canal():
-    """Le dépôt porte toujours la version de base : le suffixe n'est ajouté que par la CI."""
     assert re.fullmatch(r"\d+\.\d+\.\d+", CURRENT), CURRENT
 
 

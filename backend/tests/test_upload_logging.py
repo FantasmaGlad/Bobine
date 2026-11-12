@@ -1,5 +1,3 @@
-"""Journal du cycle d'un upload par morceaux (technical.log) : création, morceaux (taille, durée), complétion, reprise, abandon, purge — sans donnée sensible."""
-
 import logging
 import os
 import sys

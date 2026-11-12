@@ -66,7 +66,7 @@ class AudioMixin:
         chain_timer_seconds: float | None = None,
         client_ts: float | None = None,
     ):
-        """Lance une playlist audio ("édition mixée") : une playlist est une séquence de PISTES individuelles, possiblement issues de plusieurs cours/programmes différents — traitée en mode coach exactement comme un cours normal dont les pistes auraient été choisies une par une, sans notion de "cours suivant" à enchaîner (`tracks` est déjà la liste à plat)."""
+        """Lance une playlist audio ("édition mixée")."""
         if not tracks:
             await self.stop(client_ts)
             return
@@ -142,7 +142,7 @@ class AudioMixin:
         is_image: bool,
         client_ts: float | None = None,
     ):
-        """Change (ou retire) le fond d'ambiance du mode coach EN COURS de lecture — sans ça, le fond n'était fixé qu'au lancement du cours (via l'attribut background_id persistant du cours), impossible à changer une fois la lecture démarrée."""
+        """Change (ou retire) le fond d'ambiance du mode coach EN COURS de lecture."""
         if self.state["current_audio_course"] is None:
             return
         self.state["current_audio_course"]["background_id"] = background_id

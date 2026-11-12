@@ -1,5 +1,3 @@
-"""Deux moteurs radio indépendants (sortie câblée et sortie réseau), alias historique `radio` ramené à la sortie réseau, diffusion et rôle primaire par sortie."""
-
 import asyncio
 import os
 

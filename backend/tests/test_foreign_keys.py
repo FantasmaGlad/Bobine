@@ -1,4 +1,3 @@
-"""Clés étrangères : une base créée avant les règles de suppression est alignée sur le modèle, ses orphelins retirés."""
 import sqlite3
 
 from sqlalchemy import create_engine, event

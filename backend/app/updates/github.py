@@ -119,7 +119,7 @@ def lookup_release_blocking(channel: str, force: bool) -> tuple[dict[str, Any] |
 async def fetch_release_for_channel(
     channel: str, force: bool = False
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """Interroge GitHub pour le canal donné — partagé entre `check_updates()` (affichage), `apply_update()` (résolution du tag cible) et la planification, pour ne jamais risquer que ces chemins déterminent une release différente."""
+    """Interroge GitHub pour le canal donné — partagé entre `check_updates()`."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lookup_release_blocking, channel, force)
 

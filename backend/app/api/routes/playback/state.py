@@ -40,7 +40,7 @@ def get_playback_state(channel: str = DEFAULT_CHANNEL):
 
 @router.get("/api/playback/interrupted", response_model=InterruptedStateResponse | None)
 def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
-    """Dernière action différée en attente de reprise/relance explicite depuis l'interface, POUR UN CANAL DONNÉ : soit une lecture manuelle interrompue par une programmation, soit une programmation reportée par le mode coach."""
+    """Dernière action différée en attente de reprise/relance explicite depuis l'interface, POUR UN CANAL DONNÉ."""
     resolved = _resolve_channel(channel)
     state = (
         db.query(PlaybackState)
@@ -77,7 +77,7 @@ def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(
 
 @router.post("/api/playback/interrupted/resume")
 async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
-    """Relance l'action différée du canal : reprise à la position exacte pour une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach (elle n'avait jamais démarré, il n'y a pas de position à reprendre)."""
+    """Relance l'action différée du canal : reprise à la position exacte pour une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach."""
     resolved = _resolve_channel(channel)
     state = (
         db.query(PlaybackState)

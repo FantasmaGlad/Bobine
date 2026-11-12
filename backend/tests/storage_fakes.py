@@ -1,5 +1,3 @@
-"""Pilote de stockage factice : simule branchements, montages et arrachages sans matériel ni root."""
-
 from __future__ import annotations
 
 import asyncio
@@ -76,7 +74,6 @@ class FakeStorageDriver(StorageDriver):
         return self.volumes[vol.key]
 
     def unplug(self, key: str) -> None:
-        """Arrachage brutal : le volume disparaît de l'inventaire, le lien de montage devient orphelin."""
         vol = self.volumes.pop(key)
         if vol.mountpoint:
             try:

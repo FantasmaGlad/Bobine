@@ -1,5 +1,3 @@
-"""Renforcement reseaux imparfaits (retour utilisateur, session Android) : `position_tick` porte un numero de sequence croissant, jamais reinitialise, pour que le client detecte un tick perdu en silence et resynchronise immediatement au lieu d'attendre le prochain cycle du filet de securite REST periodique (15s, cf."""
-
 import asyncio
 
 from app.playback.manager import PlaybackManager
@@ -42,7 +40,6 @@ def test_non_tick_causes_never_carry_a_tick_seq():
 
 
 def test_tick_sequence_is_never_reset_across_a_new_load():
-    """Le compteur suit le CANAL, pas la video en cours : un changement de cours (load) ne doit pas faire repartir la sequence a zero, sinon un trou juste avant/apres un changement de video serait invisible."""
     received = []
 
     async def _fake_broadcast(payload):

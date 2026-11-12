@@ -1,4 +1,3 @@
-"""The APT repository is published for any channel and refreshed without touching a package (needs reprepro, dpkg-deb, gpg)."""
 import hashlib
 import os
 from pathlib import Path

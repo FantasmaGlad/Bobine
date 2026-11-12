@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/radio", tags=["radio"])
 
 @router.get("/state")
 def get_radio_state(channel: str | None = None):
-    """Snapshot ponctuel de l'état d'UNE sortie radio (`radio_cable` ou `radio_network`, réseau par défaut — l'alias historique `radio` est accepté), utile au premier rendu de la télécommande admin avant connexion WebSocket — même rôle que GET /api/playback/state pour câblé/réseau."""
+    """Snapshot ponctuel de l'état d'UNE sortie radio."""
     from app.radio_manager import get_radio_manager
 
     return get_radio_manager(channel).snapshot()
@@ -57,7 +57,7 @@ class DefaultPlaylistInput(BaseModel):
 
 @router.get("/default-playlist")
 def get_default_playlists(db: Session = Depends(get_db)):
-    """Ambiance par défaut de chaque sortie radio : le choix propre à la sortie (None si aucun) et la playlist effectivement utilisée (choix propre, sinon playlist marquée `is_default`, sinon None = toute la bibliothèque)."""
+    """Ambiance par défaut de chaque sortie radio."""
     from app.radio_manager import RADIO_CHANNELS
     from app.scheduling.radio import get_radio_default_playlist_override, resolve_radio_default_playlist
 

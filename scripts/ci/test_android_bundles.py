@@ -1,4 +1,3 @@
-"""Exercise AAB verification with actual JDK signatures and archive corruption."""
 import importlib.util
 from pathlib import Path
 import shutil

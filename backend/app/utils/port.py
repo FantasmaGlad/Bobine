@@ -213,7 +213,7 @@ def read_runtime_port(directory: Path | str | None = None) -> int | None:
 
 
 def current_port() -> int:
-    """Port à joindre pour parler au backend : celui du fichier d'exécution d'un backend vivant, sinon le port préféré (comportement historique quand rien n'est encore démarré)."""
+    """Port à joindre pour parler au backend : celui du fichier d'exécution d'un backend vivant, sinon le port préféré."""
     return read_runtime_port() or preferred_port()
 
 

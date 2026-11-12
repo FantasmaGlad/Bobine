@@ -1,5 +1,3 @@
-"""File « À suivre » : réordonnancement (glisser-déposer) limité aux pistes à venir, commande WebSocket, style (genre) transmis avec chaque piste."""
-
 import asyncio
 import os
 

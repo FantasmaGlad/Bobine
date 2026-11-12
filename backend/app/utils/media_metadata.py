@@ -23,7 +23,7 @@ def _probe(file_path: str, profile: str) -> dict | None:
 
 
 def extract_radio_metadata(file_path: str) -> dict:
-    """Use verified native tags, preserving the historical filename fallback."""
+    """Balises natives vérifiées, avec repli sur le nom du fichier."""
     metadata = _probe(file_path, "radio-v1")
     if metadata is None:
         return radio_utils.extract_radio_metadata(file_path)

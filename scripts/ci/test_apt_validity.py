@@ -1,4 +1,3 @@
-"""APT suite validity: one year for Stable and Beta (the Beta is only published by hand), 30 days for the rebuilt Canary."""
 import importlib.util
 from pathlib import Path
 import tempfile

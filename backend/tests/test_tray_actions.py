@@ -1,4 +1,3 @@
-"""Actions rapides de la barre système : états, pause et reprise par sortie, arrêt de toute la diffusion."""
 import urllib.error
 
 import pytest
@@ -8,7 +7,6 @@ from app.desktop.tray_actions import Controls
 
 
 class Backend:
-    """Faux backend : état par sortie, journal des appels, pannes réglables."""
 
     def __init__(self, states=None):
         self.states = {("playback", "cable"): "playing", ("playback", "network"): "paused",

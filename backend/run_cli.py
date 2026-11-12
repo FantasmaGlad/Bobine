@@ -1,4 +1,4 @@
-"""Point d'entrée figé en `bobine.exe` sous Windows (cf."""
+"""Point d'entrée figé en `bobine.exe` sous Windows."""
 
 import sys
 

@@ -1,5 +1,3 @@
-"""Stockage externe : analyse de lsblk, règles d'exclusion strictes, options de montage, identité des volumes."""
-
 import json
 
 from app.storage.lsblk import (
@@ -71,7 +69,6 @@ def test_system_disk_is_never_listed():
 
 
 def test_disk_with_any_system_mount_is_system_even_if_removable():
-    """Un disque « USB » qui porte / (installation sur clé) ou /home n'est jamais proposé."""
     booted_usb = node("sde", type="disk", rm=True, hotplug=True, tran="usb", children=[
         node("sde1", fstype="ext4", mountpoints=["/"], uuid="77777777-7777-7777-7777-777777777777"),
         node("sde2", fstype="ext4", mountpoints=[None], uuid="88888888-8888-8888-8888-888888888888"),

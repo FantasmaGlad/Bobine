@@ -1,4 +1,3 @@
-"""Extraction sûre des archives d'import : ZIP et tar reconnus au contenu, aucun fichier écrit hors de la destination, liens et fichiers spéciaux refusés avant toute écriture."""
 import io
 import sys
 import tarfile

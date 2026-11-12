@@ -1,4 +1,3 @@
-"""Commands and service tasks must finish cleanup before their loop closes."""
 import asyncio
 import sys
 

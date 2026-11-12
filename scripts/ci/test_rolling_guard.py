@@ -1,4 +1,3 @@
-"""The rolling-channel guard refuses to publish a build older than the one already published."""
 import importlib.util
 import os
 from pathlib import Path
@@ -13,7 +12,6 @@ SPEC.loader.exec_module(guard)
 
 
 class DecisionTests(unittest.TestCase):
-    """decide() on plain values: `ancestor` says whether the first commit is an ancestor of the second."""
     OLD, MID, NEW = "a" * 40, "b" * 40, "c" * 40
     order = [OLD, MID, NEW]
 
@@ -51,7 +49,6 @@ class DecisionTests(unittest.TestCase):
 
 
 class GitFixture(unittest.TestCase):
-    """A real repository: three commits on main, one commit on a side branch, a movable canary tag."""
 
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()

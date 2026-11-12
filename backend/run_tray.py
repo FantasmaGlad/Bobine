@@ -1,4 +1,4 @@
-"""Point d'entrée figé par PyInstaller en `BobineTray.exe` (cf."""
+"""Point d'entrée figé par PyInstaller en `BobineTray.exe`."""
 
 import sys
 

@@ -1,5 +1,3 @@
-"""Garde d'origine : une page web d'une autre origine ne pilote pas l'API (ni requête modifiante, ni WebSocket, ni lecture d'une réponse par CORS) ; l'interface servie par Bobine, la CLI et le serveur de développement passent."""
-
 import os
 
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")

@@ -193,7 +193,7 @@ class RadioPlaybackManager:
     async def load_playlist(self, playlist_id: int, name: str, tracks: list[dict],
                             shuffle: bool | None = None, client_ts: float | None = None,
                             repeat: str | None = None, start_paused: bool = False):
-        """`repeat`, si fourni, force le mode de répétition APRÈS chargement (ambiance 24/7 par défaut et fenêtres de Planning radio, toutes deux censées boucler plutôt que s'arrêter en silence en fin de playlist)."""
+        """`repeat`, si fourni, force le mode de répétition APRÈS chargement."""
         if shuffle is not None:
             self.state["shuffle"] = bool(shuffle)
         if repeat is not None:
@@ -355,12 +355,12 @@ class RadioPlaybackManager:
         await self._emit("radio_volume", client_ts)
 
     async def set_sound(self, sound: dict, client_ts: float | None = None):
-        """Applique des réglages de son DÉJÀ validés (cf."""
+        """Applique des réglages de son DÉJÀ validés."""
         self.state["sound"] = sound
         await self._emit("radio_sound_change", client_ts)
 
     async def set_mix(self, mix: dict, client_ts: float | None = None):
-        """Applique une table de mixage DÉJÀ validée (cf."""
+        """Applique une table de mixage DÉJÀ validée."""
         self.state["mix"] = mix
         await self._emit("radio_mix_change", client_ts)
 

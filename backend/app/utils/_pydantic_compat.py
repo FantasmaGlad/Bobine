@@ -1,4 +1,4 @@
-"""Compatibilité Pydantic v1 (profil Android) / v2 (toutes les autres plateformes) — cf."""
+"""Compatibilité Pydantic v1 (profil Android) / v2 (toutes les autres plateformes)."""
 
 try:
     from pydantic import computed_field

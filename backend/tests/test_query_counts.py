@@ -1,5 +1,3 @@
-"""Régression N+1 : les routes de LISTE (et les détails de playlists) doivent émettre un nombre de requêtes SQL constant, indépendant du nombre de lignes."""
-
 import os
 
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")

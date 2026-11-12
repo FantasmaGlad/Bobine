@@ -1,5 +1,3 @@
-"""Les réseaux de confiance sont les mêmes dans la garde, le script Linux et l'installateur Windows."""
-
 import re
 from pathlib import Path
 

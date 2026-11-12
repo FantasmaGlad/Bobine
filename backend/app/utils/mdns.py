@@ -34,7 +34,7 @@ def _set_status(state: str, detail: str | None = None) -> None:
 
 
 def get_status() -> dict[str, Any]:
-    """État courant du répondeur mDNS — consommé par `GET /api/settings` (bloc `network`) pour que l'UI puisse signaler que `bobine.local` est réellement indisponible plutôt que d'afficher cette URL comme si elle fonctionnait systématiquement."""
+    """État courant du répondeur mDNS — consommé par `GET /api/settings`."""
     with _state_lock:
         return dict(_status)
 

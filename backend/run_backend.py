@@ -1,4 +1,4 @@
-"""Point d'entrée figé par PyInstaller en `BobineBackend.exe` (cf."""
+"""Point d'entrée figé par PyInstaller en `BobineBackend.exe`."""
 
 import logging
 import multiprocessing

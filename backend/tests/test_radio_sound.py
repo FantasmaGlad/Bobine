@@ -1,5 +1,3 @@
-"""Réglages de son par sortie radio : bornage, persistance, diffusion avec l'état."""
-
 import asyncio
 import json
 import os

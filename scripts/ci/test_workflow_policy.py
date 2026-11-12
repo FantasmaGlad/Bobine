@@ -1,4 +1,3 @@
-"""Garde-fous des workflows GitHub, lus comme du texte (aucune dépendance YAML) : déclencheur de tag aligné sur resolve-release.py, republication manuelle d'un tag construite depuis ce tag."""
 from __future__ import annotations
 
 import re
@@ -75,7 +74,6 @@ class ToolchainRustTests(unittest.TestCase):
 
 
 class DocumentationSeuleTests(unittest.TestCase):
-    """Documentation seule : rien n'est construit ni publié."""
 
     PORTEES = {
         "frontend": "frontend", "firefox-smoke": "code", "backend": "code", "backend-android-compat": "code",

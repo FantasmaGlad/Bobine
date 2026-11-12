@@ -61,7 +61,7 @@ def _sanitized_db_bytes(db_path: Path) -> bytes:
 
 @router.get("/backup/export")
 def export_backup() -> Response:
-    """Exporte une archive ZIP de sauvegarde contenant : - La base de données SQLite (après checkpoint WAL pour garantir sa consistance) - Le fichier de configuration config.toml (si présent) - Un manifest.json décrivant la version, la date et le profil."""
+    """Exporte une archive ZIP de sauvegarde contenant."""
     if not _IS_SQLITE:
         raise HTTPException(status_code=400, detail="L'export de sauvegarde n'est supporté que pour SQLite.")
 

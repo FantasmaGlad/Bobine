@@ -1,5 +1,3 @@
-"""Le thème par défaut doit être le même partout où il est décidé : réglage serveur, état initial de l'interface web, couleur du navigateur et écran de chargement Android (qui s'affiche avant que l'interface web existe)."""
-
 import re
 from pathlib import Path
 

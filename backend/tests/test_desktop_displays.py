@@ -1,5 +1,3 @@
-"""Détection des écrans externes et fenêtre projecteur desktop."""
-
 import json
 import threading
 
@@ -37,7 +35,6 @@ def test_parse_xrandr_ignore_les_lignes_inattendues_et_gere_un_decalage_negatif(
 
 
 def test_parse_xrandr_moniteur_defini_a_la_main_sans_prefixe_plus():
-    """Constaté sur une vraie session XWayland : `xrandr --setmonitor` écrit le moniteur SANS le « + » des sorties RandR."""
     out = parse_xrandr_listmonitors(
         "Monitors: 2\n 0: +*eDP-1 3072/340x1920/220+0+0  eDP-1\n 1: projecteur-virtuel 1920/508x1080/286+3072+0 \n"
     )

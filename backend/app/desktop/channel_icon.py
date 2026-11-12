@@ -25,7 +25,7 @@ def detect_channel(
     fetch_settings: Callable[[], dict | None],
     hint_file: Path = release_channel.INSTALL_HINT_PATH,
 ) -> str:
-    """Canal choisi : réglage du backend en premier (source de vérité : choix explicite ou, à défaut, canal d'installation), puis, backend injoignable, le canal d'installation du build (`release_channel.install_channel`)."""
+    """Canal choisi : réglage du backend en premier."""
     try:
         settings = fetch_settings()
     except Exception as exc:
@@ -36,7 +36,7 @@ def detect_channel(
 
 
 def icon_candidates(channel: str, exe_dir: Path, images_dir: Path) -> list[Path]:
-    """Emplacements essayés dans l'ordre : à côté de l'exécutable (Windows/Linux figés, `contents_directory="."`), `Contents/Resources/` (bundle macOS), puis le dépôt en développement ; l'icône du canal avant l'icône par défaut à chaque emplacement."""
+    """Emplacements essayés dans l'ordre : à côté de l'exécutable."""
     names = [channel_icon_filename(channel), DEFAULT_ICON_FILENAME]
     roots = [exe_dir, exe_dir.parent / "Resources", images_dir]
     return [root / name for root in roots for name in names]

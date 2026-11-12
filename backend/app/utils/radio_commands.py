@@ -1,4 +1,4 @@
-"""Commandes radio partagées entre la façade REST (`PUT /api/radio/sound`, `POST /api/radio/announcements/play-now`), la commande WebSocket (`radio_set_sound`, `radio_play_announcement`) et `bobine radio` : une seule implémentation, donc les mêmes bornes, la même persistance, les mêmes diffusions et la même copie de la configuration quel que soit le canal."""
+"""Commandes radio partagées entre la façade REST."""
 from __future__ import annotations
 
 from sqlalchemy import func

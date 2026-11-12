@@ -87,7 +87,7 @@ def _migrate_to_internal_storage_once(external_files_dir, internal_files_dir):
 
 
 def start_server_once(external_files_dir=None, native_library_dir=None, internal_files_dir=None, app_version=None):
-    """`external_files_dir` : `context.getExternalFilesDir(null)` côté Kotlin — médias uniquement, cf."""
+    """`external_files_dir` : `context.getExternalFilesDir(null)` côté Kotlin — médias uniquement."""
     global _started
     with _lock:
         if _started:

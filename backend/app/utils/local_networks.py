@@ -1,4 +1,4 @@
-"""Réseaux de confiance de Bobine : l'unique liste, lue par la garde réseau (`network_guard`) et rappelée par les pare-feu des installateurs (`packaging/linux/firewall/configure-firewall`, `packaging/windows/bobine.iss`, `backend/app/utils/firewall.py`)."""
+"""Réseaux de confiance de Bobine : l'unique liste, lue par la garde réseau."""
 from __future__ import annotations
 
 import ipaddress

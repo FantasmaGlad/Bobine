@@ -145,7 +145,6 @@ class TestPlaylistFlow(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(manager.state["playlist_name"])
 
     async def test_playlist_waiting_period_auto_advances(self):
-        """Correctifs "playlist bloquée sur 0" et "le décompte ne dure pas 1 s par seconde" : au lieu de contourner l'attente via skip_waiting (ce que fait le test ci-dessus), on laisse la tâche _run_waiting_period se dérouler RÉELLEMENT et on vérifie qu'elle décompte à ~1 s/tick puis enchaîne toute seule le cours suivant — sans rester figée sur « 0 »."""
         import time as _time
 
         item1 = PlaylistItemInput(video_id=self.video1.id, position=0)

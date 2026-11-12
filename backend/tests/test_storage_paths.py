@@ -1,5 +1,3 @@
-"""Stockage externe : sécurité de chemin (traversée, liens symboliques), exploration paginée, ensembles média."""
-
 import os
 
 import pytest

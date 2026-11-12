@@ -46,7 +46,7 @@ class ProfileHandler:
     async_completion: bool = False
 
     def asset_variant(self) -> str | None:
-        """Variante de l'asset de release à choisir quand une même release en publie plusieurs pour ce profil (Android : APK téléphone/tablette vs APK Android TV, deux `applicationId` distincts — installer le mauvais ne met PAS à jour l'application en place, il en installe une seconde à côté)."""
+        """Variante de l'asset de release à choisir quand une même release en publie plusieurs pour ce profil."""
         return None
 
     def restart_services(self) -> None:
@@ -97,7 +97,7 @@ class ProfileHandler:
         return False
 
     def tries_port80_redirect(self) -> bool:
-        """True si Bobine peut tenter d'écouter lui-même le port 80 pour rediriger (postes de bureau ; jamais sur l'appliance, déjà redirigée par le système, ni sur Android, où les ports inférieurs à 1024 sont interdits)."""
+        """True si Bobine peut tenter d'écouter lui-même le port 80 pour rediriger."""
         return not self.has_system_port80_redirect()
 
     def supports_update_over_tor(self) -> bool:
@@ -154,6 +154,6 @@ def get_profile_handler() -> ProfileHandler:
 
 
 def resolve_update_channel(stored: object) -> release_channel.ChannelChoice:
-    """Canal effectif de CETTE installation (cf."""
+    """Canal effectif de CETTE installation."""
     locked = release_channel.DEFAULT_CHANNEL if get_profile_handler().is_store_managed() else None
     return release_channel.resolve(stored, locked=locked)

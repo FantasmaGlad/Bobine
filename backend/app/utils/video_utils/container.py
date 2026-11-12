@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def is_faststart_mp4(file_path: str) -> bool:
-    """Vrai si l'atome 'moov' (index des échantillons) précède l'atome 'mdat' (données) dans le fichier — condition requise pour qu'un navigateur puisse décoder la moindre image avant d'avoir reçu la quasi-totalité du fichier."""
+    """Vrai si l'atome 'moov' (index des échantillons) précède l'atome 'mdat'."""
     try:
         with open(file_path, "rb") as f:
             file_size = os.fstat(f.fileno()).st_size
@@ -39,7 +39,7 @@ def is_faststart_mp4(file_path: str) -> bool:
 
 
 def read_mp4_duration_seconds(file_path: str) -> float | None:
-    """Lit la durée d'un MP4/M4V directement dans l'atome 'mvhd' (imbriqué dans 'moov'), sans ffprobe — repli utilisé quand ffprobe est indisponible pour au moins récupérer la durée, seule métadonnée manquante qu'un parcours d'en-têtes pur Python peut raisonnablement reconstituer (largeur/hauteur/codec demanderaient de décoder les box 'stsd', bien plus engagé pour un gain d'affichage secondaire)."""
+    """Lit la durée d'un MP4/M4V directement dans l'atome 'mvhd'."""
     try:
         with open(file_path, "rb") as f:
             file_size = os.fstat(f.fileno()).st_size

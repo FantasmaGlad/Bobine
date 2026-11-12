@@ -1,5 +1,3 @@
-"""Robustesse des mises a jour et de la gestion des canaux de mise a jour Stable/Beta/Canary : decision pure `_evaluate_update` (dont le retour en arriere Beta/Canary -> Stable), migration DB du canal "beta" historique (rolling) vers "canary", choix de l'asset par profil (APK telephone vs Android TV), reconciliation de l'etat persiste apres un redemarrage reussi, telechargement verifie avec nouvelles tentatives."""
-
 import asyncio
 import hashlib
 import http.server
