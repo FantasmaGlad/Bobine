@@ -47,52 +47,9 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
             setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
         }
 
-        val splashLayout = android.widget.LinearLayout(context).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            gravity = android.view.Gravity.CENTER
-            setBackgroundColor(android.graphics.Color.parseColor("#0b0e14"))
-            layoutParams = android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        }
-
-        val logoSizePx = (160 * context.resources.displayMetrics.density).toInt()
-        val logoView = android.widget.ImageView(context).apply {
-            setImageResource(SplashChannel.initialDrawable(context))
-            layoutParams = android.widget.LinearLayout.LayoutParams(logoSizePx, logoSizePx).apply {
-                bottomMargin = (24 * context.resources.displayMetrics.density).toInt()
-            }
-            adjustViewBounds = true
-        }
-        splashLayout.addView(logoView)
-        SplashChannel.refreshFromBackendIfUnknown(context, logoView)
-
         val presentationBackground = android.graphics.Color.parseColor("#0b0e14")
         val presentationText = android.graphics.Color.parseColor("#94a3b8")
-        val progressBar = ArcSpinnerView(
-            context,
-            SpinnerColors.arcColor(ThemeColors.load(context).accent, presentationText, presentationBackground),
-            presentationText,
-            56,
-        ).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = (18 * context.resources.displayMetrics.density).toInt()
-            }
-        }
-        splashLayout.addView(progressBar)
-
-        val statusText = android.widget.TextView(context).apply {
-            text = "Démarrage de Bobine..."
-            setTextColor(android.graphics.Color.parseColor("#94a3b8"))
-            textSize = 15f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = android.view.Gravity.CENTER
-        }
-        splashLayout.addView(statusText)
+        val splashLayout = buildBootSplash(context, presentationBackground, presentationText, ThemeColors.load(context).accent, 160, 24, 56, 15f)
 
         var hasLoadedSuccessfully = false
         var lastPageFailed = false
