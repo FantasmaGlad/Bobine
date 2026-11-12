@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/audio", tags=["audio"])
 
 
-class AudioTrackResponse(BaseModel):
+class AudioTrackResponse(OrmModel):
     id: int
     number: int | None
     title: str
@@ -33,12 +34,8 @@ class AudioTrackResponse(BaseModel):
     available: bool = True
     external: bool = False
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class AudioCourseResponse(BaseModel):
+class AudioCourseResponse(OrmModel):
     id: int
     title: str
     program: str | None
@@ -51,22 +48,14 @@ class AudioCourseResponse(BaseModel):
     partially_available: bool = False
     external: bool = False
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class AudioCourseDetailResponse(BaseModel):
+class AudioCourseDetailResponse(OrmModel):
     id: int
     title: str
     program: str | None
     release: str | None
     background_id: int | None
     tracks: List[AudioTrackResponse]
-
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
 
 class AudioCourseUpdate(BaseModel):

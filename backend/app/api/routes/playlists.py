@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
@@ -26,7 +27,7 @@ class PlaylistInput(BaseModel):
     items: List[PlaylistItemInput] = []
 
 
-class VideoResponse(BaseModel):
+class VideoResponse(OrmModel):
     id: int
     title: str
     program: str | None = None
@@ -34,44 +35,28 @@ class VideoResponse(BaseModel):
     duration_seconds: float | None = None
     thumbnail_path: str | None = None
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class PlaylistItemResponse(BaseModel):
+class PlaylistItemResponse(OrmModel):
     id: int
     position: int
     video: VideoResponse
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class PlaylistDetailResponse(BaseModel):
+class PlaylistDetailResponse(OrmModel):
     id: int
     name: str
     created_at: datetime
     items: List[PlaylistItemResponse]
     total_duration_seconds: float
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class PlaylistSummaryResponse(BaseModel):
+class PlaylistSummaryResponse(OrmModel):
     id: int
     name: str
     created_at: datetime
     item_count: int
     total_duration_seconds: float
     thumbnail_path: str | None = None
-
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
 
 @router.get("", response_model=List[PlaylistSummaryResponse])

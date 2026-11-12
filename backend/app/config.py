@@ -4,9 +4,11 @@ import sys
 import tomllib
 from pathlib import Path
 try:
-    from pydantic_settings import BaseSettings
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 except ImportError:
     from pydantic import BaseSettings
+
+    SettingsConfigDict = None
 
 from app.utils.android_runtime import is_android
 
@@ -128,8 +130,12 @@ class Settings(BaseSettings):
     radio_announcement_fade_ms: int = 1500
     radio_autostart_on_boot: bool = True
 
-    class Config:
-        env_prefix = "BOBINE_"
+    if SettingsConfigDict is not None:
+        model_config = SettingsConfigDict(env_prefix="BOBINE_")
+    else:
+
+        class Config:
+            env_prefix = "BOBINE_"
 
     @property
     def technical_log_path(self) -> Path:

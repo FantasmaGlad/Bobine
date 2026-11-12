@@ -17,6 +17,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -61,7 +62,7 @@ class VideoUpdate(BaseModel):
     description: str | None = None
 
 
-class VideoResponse(BaseModel):
+class VideoResponse(OrmModel):
     id: int
     file_path: str
     title: str
@@ -85,22 +86,14 @@ class VideoResponse(BaseModel):
     available: bool = True
     external: bool = False
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class VideoSubtitleResponse(BaseModel):
+class VideoSubtitleResponse(OrmModel):
     id: int
     video_id: int
     language_code: str
     language_label: str
     format: str
     vtt_url: str
-
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
 
 class ImportJobAccepted(BaseModel):

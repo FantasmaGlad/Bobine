@@ -29,3 +29,22 @@ def list_max_items(limit: int, **kwargs):
     if VERSION.startswith("1."):
         return Field(max_items=limit, **kwargs)
     return Field(max_length=limit, **kwargs)
+
+
+from pydantic import VERSION as _PYDANTIC_VERSION, BaseModel
+
+if _PYDANTIC_VERSION.startswith("1."):
+
+    class OrmModel(BaseModel):
+        """Modèle lu depuis un objet SQLAlchemy."""
+
+        class Config:
+            orm_mode = True
+
+else:
+    from pydantic import ConfigDict
+
+    class OrmModel(BaseModel):
+        """Modèle lu depuis un objet SQLAlchemy."""
+
+        model_config = ConfigDict(from_attributes=True)

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -27,7 +28,7 @@ class AudioPlaylistInput(BaseModel):
     items: List[AudioPlaylistItemInput] = []
 
 
-class AudioTrackSummaryResponse(BaseModel):
+class AudioTrackSummaryResponse(OrmModel):
     id: int
     number: int | None = None
     title: str
@@ -36,10 +37,6 @@ class AudioTrackSummaryResponse(BaseModel):
     course_title: str
     course_program: str | None = None
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
-
 
 class AudioPlaylistItemBackgroundResponse(BaseModel):
     id: int
@@ -47,39 +44,27 @@ class AudioPlaylistItemBackgroundResponse(BaseModel):
     is_image: bool
 
 
-class AudioPlaylistItemResponse(BaseModel):
+class AudioPlaylistItemResponse(OrmModel):
     id: int
     position: int
     track: AudioTrackSummaryResponse
     background: AudioPlaylistItemBackgroundResponse | None = None
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class AudioPlaylistDetailResponse(BaseModel):
+class AudioPlaylistDetailResponse(OrmModel):
     id: int
     name: str
     created_at: datetime
     items: List[AudioPlaylistItemResponse]
     total_duration_seconds: float
 
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
-
-class AudioPlaylistSummaryResponse(BaseModel):
+class AudioPlaylistSummaryResponse(OrmModel):
     id: int
     name: str
     created_at: datetime
     item_count: int
     total_duration_seconds: float
-
-    class Config:
-        from_attributes = True
-        orm_mode = True
 
 
 def _track_summary(track: AudioTrack) -> dict:
