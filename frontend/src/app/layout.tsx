@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
+import localFont from "next/font/local";
 import "./globals.css";
 import "./themes.css";
 import "./responsive.css";
@@ -19,14 +21,13 @@ import { DEFAULT_MODE, DEFAULT_THEME, LEGACY_THEMES, paletteOf, THEME_IDS } from
 // « auto » suit prefers-color-scheme, comme le fait AppSettingsContext ensuite.
 const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement,ids=${JSON.stringify(THEME_IDS)},legacy=${JSON.stringify(LEGACY_THEMES)},t=localStorage.getItem('olc-theme'),m=localStorage.getItem('olc-theme-mode'),l=t&&legacy[t];if(l&&(ids.indexOf(t)<0||(m!=='light'&&m!=='dark'&&m!=='auto'))){t=l.theme;m=(m==='light'||m==='dark')?m:l.mode;}if(ids.indexOf(t)<0)t=${JSON.stringify(DEFAULT_THEME)};if(m!=='light'&&m!=='dark'&&m!=='auto')m=${JSON.stringify(DEFAULT_MODE)};if(m==='auto')m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t);d.setAttribute('data-mode',m);}catch(e){}})();`;
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+// Polices embarquées dans l'export : Bobine tourne sans Internet, aucune ressource n'est chargée d'un tiers.
+const materialSymbols = localFont({
+  src: "../../node_modules/material-symbols/material-symbols-outlined.woff2",
+  variable: "--font-material-symbols",
+  weight: "100 700",
+  display: "block",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -61,16 +62,10 @@ export default function RootLayout({
       lang={UI_LANGUAGE}
       data-theme={DEFAULT_THEME}
       data-mode="light"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${materialSymbols.variable}`}
       suppressHydrationWarning
     >
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400..700,0..1,0&display=block"
-          rel="stylesheet"
-        />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

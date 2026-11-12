@@ -4,6 +4,8 @@
  * Toutes les erreurs de l'API sont structurées : `{"detail": {"code", "message", ...}}` — jamais une 500.
  */
 
+import { getApiUrl } from "./apiUrl.ts";
+
 export interface CapabilityInfo {
   supported: boolean;
   reason?: string;
@@ -154,10 +156,7 @@ export interface ApiError {
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
 export function getDevicesApiUrl(path: string): string {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api/devices${path}`;
-  }
-  return `/api/devices${path}`;
+  return getApiUrl(`/devices${path}`);
 }
 
 /** Interprète le corps d'une réponse d'erreur (détail structuré, texte ou absent). */

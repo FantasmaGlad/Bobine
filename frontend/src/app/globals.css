@@ -251,13 +251,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------
-   Icônes Material Symbols — police variable Google
-   chargée dans layout.tsx. Le composant Icon.tsx pilote la variation
+   Icônes Material Symbols : police variable embarquée (layout.tsx). Le composant Icon.tsx pilote la variation
    (taille/graisse/remplissage) via style inline ; cette classe ne fixe
    que les réglages communs.
 --------------------------------------------------------------------- */
 .material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
+  font-family: var(--font-material-symbols);
   font-weight: normal;
   font-style: normal;
   line-height: 1;
