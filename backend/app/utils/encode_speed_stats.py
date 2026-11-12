@@ -4,7 +4,7 @@ temps réel, ex. 2.5 = deux fois et demi plus vite que la durée de la vidéo)
 sur les imports précédents. Permet d'afficher une estimation AVANT même que
 ffmpeg n'ait démarré et n'émette sa propre progression en direct (laquelle
 reste la source de vérité dès qu'elle est disponible, cf.
-video_utils._run_ffmpeg_with_progress).
+video_utils/progress.py).
 
 Persisté dans la table `settings` (clé/valeur déjà utilisée ailleurs dans le
 backend) plutôt que dans un nouveau fichier ou une nouvelle table : pas de
@@ -44,7 +44,7 @@ _DEFAULT_SPEED_BY_ENCODER = {
 
 
 def resolution_bucket(width: int | None, height: int | None) -> str:
-    """Même paliers que `_get_target_bitrate` (video_utils.py) : la vitesse
+    """Même paliers que `get_target_bitrate` (video_utils/encoders.py) : la vitesse
     d'encodage dépend avant tout de la résolution source, pas de sa valeur
     exacte en pixels."""
     w = width or 1920

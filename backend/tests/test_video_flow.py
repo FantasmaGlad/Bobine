@@ -20,7 +20,10 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 from app.config import settings
 from app.database import init_db, SessionLocal, get_db
 from app.models import Video, ImportSource
-from app.utils.video_utils import extract_metadata, check_compatibility, generate_thumbnail, read_mp4_duration_seconds
+from app.utils.video_utils.probe import extract_metadata
+from app.utils.video_utils.compatibility import check_compatibility
+from app.utils.video_utils.thumbnails import generate_thumbnail
+from app.utils.video_utils.container import read_mp4_duration_seconds
 from app.utils.importer import import_video
 from app.api.routes.videos import VideoUpdate, update_video, upload_video_thumbnail
 
@@ -286,15 +289,15 @@ class TestVideoFlow(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 400)
 
     def test_10_target_bitrate_heavy_video_4k_60(self):
-        from app.utils.video_utils import _get_target_bitrate
-        self.assertEqual(_get_target_bitrate(3840, 2160), "28M")  # 4K
-        self.assertEqual(_get_target_bitrate(2560, 1440), "14M")  # 2K
-        self.assertEqual(_get_target_bitrate(1920, 1080), "6M")   # 1080p
-        self.assertEqual(_get_target_bitrate(1280, 720), "6M")    # 720p
+        from app.utils.video_utils.encoders import get_target_bitrate
+        self.assertEqual(get_target_bitrate(3840, 2160), "28M")  # 4K
+        self.assertEqual(get_target_bitrate(2560, 1440), "14M")  # 2K
+        self.assertEqual(get_target_bitrate(1920, 1080), "6M")   # 1080p
+        self.assertEqual(get_target_bitrate(1280, 720), "6M")    # 720p
 
     def test_11_encoder_args_multi_os(self):
-        from app.utils.video_utils import _get_encoder_args
-        args_android, name_android = _get_encoder_args(is_android=True, width=1920, height=1080)
+        from app.utils.video_utils.encoders import get_encoder_args
+        args_android, name_android = get_encoder_args(is_android=True, width=1920, height=1080)
         self.assertEqual(name_android, "h264_mediacodec")
         self.assertIn("-operating_rate", args_android)
         self.assertIn("1000", args_android)
@@ -318,10 +321,10 @@ class TestVideoFlow(unittest.TestCase):
             import_video(self.dummy_compatible_path, "cancelled_import.mp4", ImportSource.upload, job_id=job_id)
         
     def test_13_transcode_pipeline_multi_os(self):
-        from app.utils.video_utils import _get_transcode_pipeline
+        from app.utils.video_utils.encoders import get_transcode_pipeline
 
         # 1. Android avec source AV1
-        android_pipeline = _get_transcode_pipeline(is_android=True, in_codec="av1", width=3840, height=2160)
+        android_pipeline = get_transcode_pipeline(is_android=True, in_codec="av1", width=3840, height=2160)
         self.assertEqual(len(android_pipeline), 3)
         self.assertEqual(android_pipeline[0]["name"], "android_mediacodec_full")
         self.assertIn("av1_mediacodec", android_pipeline[0]["hw_in"])
@@ -332,7 +335,7 @@ class TestVideoFlow(unittest.TestCase):
 
         # 2. macOS Apple Silicon / Intel
         with patch("platform.system", return_value="Darwin"):
-            mac_pipeline = _get_transcode_pipeline(is_android=False, in_codec="hevc", width=1920, height=1080)
+            mac_pipeline = get_transcode_pipeline(is_android=False, in_codec="hevc", width=1920, height=1080)
             self.assertEqual(len(mac_pipeline), 3)
             self.assertEqual(mac_pipeline[0]["name"], "videotoolbox_full")
             self.assertIn("-hwaccel", mac_pipeline[0]["hw_in"])
@@ -343,7 +346,7 @@ class TestVideoFlow(unittest.TestCase):
 
         # 3. Windows Intel QuickSync
         with patch("platform.system", return_value="Windows"):
-            win_pipeline = _get_transcode_pipeline(is_android=False, in_codec="hevc", width=2560, height=1440)
+            win_pipeline = get_transcode_pipeline(is_android=False, in_codec="hevc", width=2560, height=1440)
             self.assertEqual(len(win_pipeline), 3)
             self.assertEqual(win_pipeline[0]["name"], "qsv_full")
             self.assertIn("-hwaccel", win_pipeline[0]["hw_in"])
@@ -354,8 +357,8 @@ class TestVideoFlow(unittest.TestCase):
             self.assertEqual(win_pipeline[2]["name"], "software_libx264")
 
         # 4. Linux avec VA-API (Intel / AMD)
-        with patch("platform.system", return_value="Linux"), patch("app.utils.video_utils._find_vaapi_device", return_value="/dev/dri/renderD128"):
-            linux_pipeline = _get_transcode_pipeline(is_android=False, in_codec="av1", width=3840, height=2160)
+        with patch("platform.system", return_value="Linux"), patch("app.utils.video_utils.encoders.find_vaapi_device", return_value="/dev/dri/renderD128"):
+            linux_pipeline = get_transcode_pipeline(is_android=False, in_codec="av1", width=3840, height=2160)
             self.assertEqual(len(linux_pipeline), 3)
             self.assertEqual(linux_pipeline[0]["name"], "vaapi_full")
             self.assertIn("-hwaccel", linux_pipeline[0]["hw_in"])
@@ -367,7 +370,7 @@ class TestVideoFlow(unittest.TestCase):
             self.assertEqual(linux_pipeline[2]["name"], "software_libx264")
 
     def test_14_normalize_video_recode_action(self):
-        from app.utils.video_utils import normalize_video
+        from app.utils.video_utils.normalize import normalize_video
         test_out_path = str(Path(settings.media_dir) / "test_norm_output.mp4")
         try:
             # Normaliser la vidéo incompatible avec action recode_video explicite

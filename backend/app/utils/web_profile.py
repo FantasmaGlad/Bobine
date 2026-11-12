@@ -1,7 +1,7 @@
 """Profil vidéo « lisible partout » et version compatible navigateurs.
 
 Contexte : l'import d'un cours conserve le codec d'origine (H.264, HEVC, VP9 —
-cf. `video_utils.COMPATIBLE_COURSE_VIDEO_CODECS`) : c'est voulu pour la sortie
+cf. `video_utils/compatibility.py`) : c'est voulu pour la sortie
 HDMI locale (4K 60 i/s natif, décodage matériel). Mais un navigateur tiers
 (Firefox sous Windows sans l'extension HEVC, Firefox pour Android, vieux
 poste sans décodage matériel…) peut ne PAS savoir lire ce fichier. Plutôt que

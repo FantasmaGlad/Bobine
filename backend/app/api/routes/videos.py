@@ -43,12 +43,10 @@ from app.utils.staged_uploads import receive_single_upload
 from app.utils.web_rendition import remove_web_file, request_web_rendition
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils.ws_manager import manager as ws_manager
-from app.utils.video_utils import (
-    extract_metadata,
-    check_compatibility,
-    normalize_video,
-    generate_thumbnail,
-)
+from app.utils.video_utils.probe import extract_metadata
+from app.utils.video_utils.compatibility import check_compatibility
+from app.utils.video_utils.normalize import normalize_video
+from app.utils.video_utils.thumbnails import generate_thumbnail
 
 logger = logging.getLogger(__name__)
 

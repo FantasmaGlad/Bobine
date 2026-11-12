@@ -83,7 +83,8 @@ def _index_video(db, lib_id: int, root: str, unit: Unit):
     from app.config import settings
     from app.models import ImportSource, Video
     from app.utils.importer import _extract_metadata_or_unknown, parse_title_program_release
-    from app.utils.video_utils import check_compatibility, generate_thumbnail
+    from app.utils.video_utils.compatibility import check_compatibility
+    from app.utils.video_utils.thumbnails import generate_thumbnail
 
     f = unit.files[0]
     if db.query(Video.id).filter(Video.storage_id == lib_id, Video.rel_path == f.rel).first():

@@ -10,15 +10,11 @@ from app.config import settings
 from app.database import SessionLocal
 from app.models import Background, Video, ImportSource
 from app.utils.activity_log import log_activity
-from app.utils.video_utils import (
-    extract_metadata,
-    check_compatibility,
-    generate_placeholder_thumbnail,
-    generate_thumbnail,
-    normalize_video,
-    read_mp4_duration_seconds,
-    estimate_normalize_seconds,
-)
+from app.utils.video_utils.probe import extract_metadata
+from app.utils.video_utils.compatibility import check_compatibility
+from app.utils.video_utils.thumbnails import generate_placeholder_thumbnail, generate_thumbnail
+from app.utils.video_utils.normalize import normalize_video, estimate_normalize_seconds
+from app.utils.video_utils.container import read_mp4_duration_seconds
 from app.utils.import_jobs import update_job, is_job_cancelled, JobCancelledError
 
 logger = logging.getLogger(__name__)
@@ -193,7 +189,7 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
         if compat["needs_normalization"]:
             # Estimation initiale : affichée le temps que ffmpeg
             # démarre et émette sa propre progression en direct, qui prend
-            # ensuite le relais (cf. _run_ffmpeg_with_progress).
+            # ensuite le relais (cf. run_ffmpeg_with_progress).
             update_job(job_id, stage="normalizing", estimated_seconds=estimate_normalize_seconds(meta))
             # Déplacement vers un fichier temporaire pour normalisation
             temp_filename = f"temp_{file_id}_{clean_name}"
