@@ -195,7 +195,7 @@ async def acknowledge_update() -> dict[str, Any]:
     fermée manuellement par l'utilisateur) — persisté côté serveur pour que
     l'acquittement survive à un rechargement de page ou à un redémarrage de
     service déclenché par la mise à jour elle-même, au lieu de réapparaître
-    en boucle (cf. `update_orchestrator.acknowledge_current`)."""
+    en boucle (cf. `updates.orchestrator.acknowledge_current`)."""
     return await acknowledge_current()
 
 

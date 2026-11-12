@@ -5,7 +5,8 @@ import logging
 from fastapi import APIRouter
 from fastapi.concurrency import run_in_threadpool
 
-from app.playback_manager import CHANNELS, DEFAULT_CHANNEL, init_playback_managers
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL
+from app.playback.manager import init_playback_managers
 from app.radio_manager import (
     init_radio_managers,
 )

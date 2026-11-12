@@ -162,7 +162,7 @@ def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
     if not isinstance(sounds, dict):
         ctx.fail(file, "« sound » doit être un objet")
         return
-    from app.playback_manager import get_playback_manager
+    from app.playback.manager import get_playback_manager
     from app.utils.radio_sound import sanitize_sound
     from app.utils.video_sound import video_sound_setting_key
 

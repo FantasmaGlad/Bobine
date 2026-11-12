@@ -185,7 +185,7 @@ def test_un_changement_sans_rapport_avec_la_radio_ne_met_pas_la_radio_en_pause(c
 
 
 def test_la_bascule_vers_radio_coupe_la_video_du_cable(client):
-    from app.playback_manager import get_playback_manager
+    from app.playback.manager import get_playback_manager
 
     manager = get_playback_manager("cable")
     asyncio.run(manager.load(1, "Cours", 600.0, None, None))

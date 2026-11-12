@@ -6,7 +6,7 @@ REST periodique (15s, cf. usePlaybackSocket.ts)."""
 
 import asyncio
 
-from app.playback_manager import PlaybackManager
+from app.playback.manager import PlaybackManager
 
 
 def test_position_tick_carries_an_incrementing_sequence_number():

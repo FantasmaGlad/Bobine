@@ -13,7 +13,7 @@ os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_playlist_database.db"
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.models import Video, Playlist, PlaylistItem, ImportSource
-from app.playback_manager import PlaybackManager
+from app.playback.manager import PlaybackManager
 from app.api.routes.playlists import create_playlist, list_playlists, get_playlist, duplicate_playlist, delete_playlist, update_playlist
 from app.api.routes.playlists import PlaylistInput, PlaylistItemInput
 

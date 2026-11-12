@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 BroadcastFn = Callable[[dict], Awaitable[None]]
 
 # Deux moteurs radio INDÉPENDANTS, un par sortie de diffusion (même modèle que
-# les gestionnaires câblé/réseau de playback_manager.py) : la sortie câblée
+# les gestionnaires câblé/réseau de app/playback) : la sortie câblée
 # (écran physiquement connecté) et la sortie réseau (tout autre appareil) ont
 # chacune leur playlist, file d'attente, position, volume, rappels et planning.
 from app.api.contract import RADIO_CHANNELS  # noqa: E402  (valeurs partagées avec l'API et la CLI)

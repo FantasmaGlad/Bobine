@@ -315,7 +315,7 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
 async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[str, Any]:
     """Effets à chaud de réglages déjà enregistrés ; renvoie les réglages effectifs."""
     for key, value in updates.items():
-        # Le singleton `runtime_settings` est partagé par tout le backend (playback_manager, scheduling...),
+        # Le singleton `runtime_settings` est partagé par tout le backend (lecture, planning...),
         # qui lit ses attributs à chaque usage, pas seulement au démarrage.
         if key in _WRITABLE_NUMERIC_FIELDS and hasattr(runtime_settings, key) and value is not None:
             setattr(runtime_settings, key, int(value))

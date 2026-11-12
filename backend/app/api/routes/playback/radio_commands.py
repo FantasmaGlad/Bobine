@@ -164,7 +164,7 @@ async def _handle_radio_command(
     elif command == "radio_track_ended":
         # Règle « toutes les N musiques » : vérifiée
         # ICI (accès DB), pas dans le manager (état pur) — même partage des
-        # responsabilités que scheduling/playback_manager. Si due, le
+        # responsabilités que scheduling et app/playback. Si due, le
         # rappel se joue AVANT l'avancement (attente-fin), qui reprendra à sa
         # fin (`announcement_ended`, deferred_advance=True) plutôt que tout
         # de suite.

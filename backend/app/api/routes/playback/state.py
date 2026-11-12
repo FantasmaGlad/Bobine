@@ -12,7 +12,8 @@ from app.models import (
     Playlist,
     Video,
 )
-from app.playback_manager import DEFAULT_CHANNEL, get_playback_manager
+from app.api.contract import DEFAULT_CHANNEL
+from app.playback.manager import get_playback_manager
 from app.scheduling.occurrences import ensure_utc, resolve_target_title
 
 from .core import _resolve_channel, router

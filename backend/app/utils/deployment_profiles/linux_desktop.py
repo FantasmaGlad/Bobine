@@ -107,7 +107,7 @@ class LinuxDesktopHandler(ProfileHandler):
         # un binaire système totalement étranger au bundle PyInstaller — un
         # `LD_LIBRARY_PATH` hérité de ce process frozen lui ferait charger
         # la `libcrypto.so.3` embarquée au lieu de celle de l'hôte (cf.
-        # `update_orchestrator.clean_subprocess_env`, cause racine confirmée
+        # `updates.orchestrator.clean_subprocess_env`, cause racine confirmée
         # de l'échec `systemctl: ... version 'OPENSSL_3.4.0' not found`).
         cmd = "sleep 1 && (systemctl --user restart bobine.service || systemctl --user restart bobine || true)"
         try:

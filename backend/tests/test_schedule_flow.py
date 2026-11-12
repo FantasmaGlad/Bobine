@@ -27,7 +27,7 @@ from app.models import (
     ScheduleType,
     Video,
 )
-from app.playback_manager import init_playback_managers, get_playback_manager
+from app.playback.manager import init_playback_managers, get_playback_manager
 from app.api.routes.playback.state import dismiss_interrupted_state, resume_interrupted_state
 from app.api.routes.schedule import (
     OverrideInput,
@@ -64,7 +64,7 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         # Les tests de programmation remplacent les gestionnaires de lecture globaux (diffusion factice) : ceux de
         # l'application sont remis ensuite, sinon les tests WebSocket suivants ne reçoivent plus aucun état.
-        from app import playback_manager as playback_manager_module
+        from app.playback import manager as playback_manager_module
 
         saved_managers = dict(playback_manager_module._managers)
         self.addCleanup(lambda: playback_manager_module._managers.update(saved_managers))

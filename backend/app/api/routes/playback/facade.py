@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.api.contract import PLAYBACK_ACTIONS, RADIO_ACTIONS, RADIO_OUTPUTS
 from app.database import get_db
-from app.playback_manager import CHANNELS, get_playback_manager
+from app.api.contract import CHANNELS
+from app.playback.manager import get_playback_manager
 from app.radio_manager import (
     get_radio_manager,
 )

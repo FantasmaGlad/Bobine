@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db, SessionLocal
-from app.playback_manager import get_all_playback_managers
+from app.playback.manager import get_all_playback_managers
 from app.radio_manager import get_all_radio_managers
 from app.api.routes import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,

@@ -3,12 +3,8 @@ du temps, indépendante de tout kiosque."""
 
 import asyncio
 
-from app.playback_manager import (
-    LOAD_LEAD_MS,
-    PLAY_LEAD_MS,
-    VIDEO_END_GRACE_SECONDS,
-    PlaybackManager,
-)
+from app.playback.constants import LOAD_LEAD_MS, PLAY_LEAD_MS, VIDEO_END_GRACE_SECONDS
+from app.playback.manager import PlaybackManager
 from app.utils.playback_clock import PlaybackClock
 
 

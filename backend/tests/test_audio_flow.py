@@ -21,7 +21,7 @@ from app.utils.audio_importer import (
     import_audio_course_from_zip,
     import_audio_course_from_watched_folder,
 )
-from app.playback_manager import PlaybackManager
+from app.playback.manager import PlaybackManager
 from app.scheduling.jobs import sync_schedule_job
 from app.scheduling.launch import fire_schedule
 
@@ -60,7 +60,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         # Certains tests remplacent les gestionnaires de lecture globaux (diffusion factice) : ceux de l'application
         # sont remis ensuite, sinon les tests WebSocket suivants ne reçoivent plus aucun état.
-        from app import playback_manager as playback_manager_module
+        from app.playback import manager as playback_manager_module
 
         saved_managers = dict(playback_manager_module._managers)
         self.addCleanup(lambda: playback_manager_module._managers.update(saved_managers))
@@ -233,7 +233,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         async def mock_broadcast(data):
             broadcast_payloads.append(data)
 
-        from app import playback_manager as playback_manager_module
+        from app.playback import manager as playback_manager_module
         playback_manager_module.init_playback_managers(mock_broadcast)
         manager = playback_manager_module.get_playback_manager()
 
@@ -280,7 +280,7 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(t2.background_id)
 
         # Vérification du comportement dynamique avec PlaybackManager
-        from app import playback_manager as playback_manager_module
+        from app.playback import manager as playback_manager_module
         async def mock_bc(data): pass
         playback_manager_module.init_playback_managers(mock_bc)
         mgr = playback_manager_module.get_playback_manager()
