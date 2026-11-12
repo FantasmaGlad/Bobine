@@ -192,7 +192,7 @@ def download_with_progress(
     on_progress: Callable[[int], None] | None = None,
     on_verifying: Callable[[], None] | None = None,
 ) -> None:
-    """Téléchargement par blocs, avec timeout explicite (contrairement à l'ancien `urllib.request.urlretrieve` utilisé sans timeout sur les profils Windows et Linux desktop) et vérification d'intégrité."""
+    """Téléchargement par blocs, avec délai et vérification d'intégrité."""
     if not expected_digest:
         raise RuntimeError(
             "Empreinte d'intégrité indisponible pour cet asset — "

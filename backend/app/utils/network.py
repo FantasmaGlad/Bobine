@@ -140,7 +140,7 @@ def _route_ip() -> str | None:
     probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     probe.settimeout(0.2)
     try:
-        probe.connect(("8.8.8.8", 80))
+        probe.connect(("192.0.2.1", 9))  # RFC 5737 : recherche de route, aucun paquet émis
         return probe.getsockname()[0]
     except OSError:
         return None

@@ -700,6 +700,10 @@ if $DO_UNINSTALL; then
     run rm -f /usr/local/bin/bobine
     run rm -f /etc/polkit-1/rules.d/49-bobine-storage.rules
     run rm -f /usr/local/sbin/bobine-uninstall
+    if [ -f /etc/bobine/apt-daily-disabled ]; then
+        run systemctl enable --now apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+        run rm -f /etc/bobine/apt-daily-disabled
+    fi
     if [ -f "${REPO_DIR}/packaging/linux/firewall/configure-firewall" ]; then
         run sh "${REPO_DIR}/packaging/linux/firewall/configure-firewall" close || true
     fi
@@ -1379,6 +1383,9 @@ exec ${CHROMIUM_BIN} \
     --disable-domain-reliability \
     --disable-client-side-phishing-detection \
     --no-pings \
+    --disable-breakpad \
+    --disable-crash-reporter \
+    --metrics-recording-only \
     --disable-features=Translate,OptimizationHints,MediaRouter,AutofillServerCommunication
 EOF
         run chmod +x "${CONFIG_DIR}/kiosk-xinitrc"
@@ -1558,12 +1565,17 @@ EOF
 }
 
 step_ntp() {
-    step ntp "Synchronisation NTP"
+    step ntp "Synchronisation NTP, sans tâche réseau quotidienne"
     if command -v timedatectl >/dev/null 2>&1; then
         run timedatectl set-ntp true
         ok "systemd-timesyncd activé"
     else
         warn "timedatectl introuvable — vérifier manuellement la synchronisation NTP du système"
+    fi
+    if systemctl list-unit-files apt-daily.timer &>/dev/null; then
+        run systemctl disable --now apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+        write_file /etc/bobine/apt-daily-disabled <<<"apt-daily.timer apt-daily-upgrade.timer"
+        ok "$(t "Tâches réseau quotidiennes d'apt désactivées" "Daily apt network jobs disabled")"
     fi
     step_done
 }
