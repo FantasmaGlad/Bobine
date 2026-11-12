@@ -51,6 +51,10 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA cache_size=-64000")
     cursor.execute("PRAGMA busy_timeout=30000")
+    from app import foreign_keys
+
+    if foreign_keys.enforced:
+        cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
 
@@ -151,6 +155,11 @@ def init_db():
     _migrate_storage_indexes()
     _migrate_drop_devices_access_settings()
     _migrate_add_uids()
+    if _IS_SQLITE:
+        # En dernier : toutes les tables et colonnes existent, les clés peuvent être alignées sur le modèle.
+        from app.foreign_keys import align_foreign_keys
+
+        align_foreign_keys(engine)
 
 
 def _migrate_add_uids():

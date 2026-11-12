@@ -150,7 +150,7 @@ class Video(UidMixin, Base):
     source: Mapped[ImportSource]
     # Média posé sur un support externe (lecture directe) : `file_path` est le chemin courant (ou un chemin
     # d'attente `external://…` quand le support est absent), `rel_path` le chemin relatif au support.
-    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id"), index=True)
+    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id", ondelete="SET NULL"), index=True)
     rel_path: Mapped[str | None]
 
     @property
@@ -171,12 +171,14 @@ class Video(UidMixin, Base):
     def web_safe(self) -> bool:
         return not self.web_issues
 
-    playlist_items: Mapped[list["PlaylistItem"]] = relationship(back_populates="video")
-    ratings: Mapped[list["CourseRating"]] = relationship(back_populates="video", cascade="all, delete-orphan")
-    playback_sessions: Mapped[list["PlaybackSession"]] = relationship(back_populates="video", cascade="all, delete-orphan")
-    subtitles: Mapped[list["VideoSubtitle"]] = relationship(back_populates="video", cascade="all, delete-orphan")
+    playlist_items: Mapped[list["PlaylistItem"]] = relationship(
+        back_populates="video", cascade="all, delete-orphan", passive_deletes=True
+    )
+    ratings: Mapped[list["CourseRating"]] = relationship(back_populates="video", cascade="all, delete-orphan", passive_deletes=True)
+    playback_sessions: Mapped[list["PlaybackSession"]] = relationship(back_populates="video", cascade="all, delete-orphan", passive_deletes=True)
+    subtitles: Mapped[list["VideoSubtitle"]] = relationship(back_populates="video", cascade="all, delete-orphan", passive_deletes=True)
     chapters: Mapped[list["VideoChapter"]] = relationship(
-        back_populates="video", cascade="all, delete-orphan", order_by="VideoChapter.position"
+        back_populates="video", cascade="all, delete-orphan", passive_deletes=True, order_by="VideoChapter.position"
     )
 
 
@@ -233,12 +235,12 @@ class AudioCourse(UidMixin, Base):
     program: Mapped[str | None]
     release: Mapped[str | None]
     title: Mapped[str]
-    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id"))
+    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id", ondelete="SET NULL"))
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     background: Mapped[Background | None] = relationship()
     tracks: Mapped[list["AudioTrack"]] = relationship(
-        back_populates="course", order_by="AudioTrack.position", cascade="all, delete-orphan"
+        back_populates="course", order_by="AudioTrack.position", cascade="all, delete-orphan", passive_deletes=True
     )
 
     @property
@@ -264,14 +266,14 @@ class AudioTrack(UidMixin, Base):
     __tablename__ = "audio_tracks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    audio_course_id: Mapped[int] = mapped_column(ForeignKey("audio_courses.id"))
+    audio_course_id: Mapped[int] = mapped_column(ForeignKey("audio_courses.id", ondelete="CASCADE"))
     number: Mapped[int | None]
     title: Mapped[str]
     file_path: Mapped[str] = mapped_column(unique=True)
     duration_seconds: Mapped[float | None]
     position: Mapped[int]
-    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id"), nullable=True)
-    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id"), index=True)
+    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id", ondelete="SET NULL"), nullable=True)
+    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id", ondelete="SET NULL"), index=True)
     rel_path: Mapped[str | None]
 
     course: Mapped[AudioCourse] = relationship(back_populates="tracks")
@@ -305,7 +307,7 @@ class Playlist(UidMixin, Base):
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     items: Mapped[list["PlaylistItem"]] = relationship(
-        back_populates="playlist", order_by="PlaylistItem.position", cascade="all, delete-orphan"
+        back_populates="playlist", order_by="PlaylistItem.position", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
@@ -313,8 +315,8 @@ class PlaylistItem(Base):
     __tablename__ = "playlist_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    playlist_id: Mapped[int] = mapped_column(ForeignKey("playlists.id"))
-    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    playlist_id: Mapped[int] = mapped_column(ForeignKey("playlists.id", ondelete="CASCADE"))
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"))
     position: Mapped[int]
 
     playlist: Mapped[Playlist] = relationship(back_populates="items")
@@ -335,7 +337,7 @@ class AudioPlaylist(UidMixin, Base):
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     items: Mapped[list["AudioPlaylistItem"]] = relationship(
-        back_populates="playlist", order_by="AudioPlaylistItem.position", cascade="all, delete-orphan"
+        back_populates="playlist", order_by="AudioPlaylistItem.position", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
@@ -343,14 +345,14 @@ class AudioPlaylistItem(Base):
     __tablename__ = "audio_playlist_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    playlist_id: Mapped[int] = mapped_column(ForeignKey("audio_playlists.id"))
-    audio_track_id: Mapped[int] = mapped_column(ForeignKey("audio_tracks.id"))
+    playlist_id: Mapped[int] = mapped_column(ForeignKey("audio_playlists.id", ondelete="CASCADE"))
+    audio_track_id: Mapped[int] = mapped_column(ForeignKey("audio_tracks.id", ondelete="CASCADE"))
     position: Mapped[int]
     # Fond d'ambiance propre à CETTE piste dans CETTE playlist : rattaché à l'item plutôt qu'à la piste elle-même, une même
     # piste pouvant apparaître dans plusieurs playlists avec un fond
     # différent à chaque fois. Nul = pas de fond propre, le fond de la
     # playlist/du cours (défini au lancement) reste affiché pour cette piste.
-    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id"))
+    background_id: Mapped[int | None] = mapped_column(ForeignKey("backgrounds.id", ondelete="SET NULL"))
 
     playlist: Mapped[AudioPlaylist] = relationship(back_populates="items")
     track: Mapped["AudioTrack"] = relationship()
@@ -374,8 +376,8 @@ class AudioPlaylistItem(Base):
 radio_track_tags = Table(
     "radio_track_tags",
     Base.metadata,
-    Column("radio_track_id", Integer, ForeignKey("radio_tracks.id"), primary_key=True),
-    Column("tag_id", Integer, ForeignKey("radio_tags.id"), primary_key=True),
+    Column("radio_track_id", Integer, ForeignKey("radio_tracks.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", Integer, ForeignKey("radio_tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
 
@@ -405,7 +407,7 @@ class RadioTrack(UidMixin, Base):
     cover_source: Mapped[RadioCoverSource] = mapped_column(default=RadioCoverSource.none)
     source: Mapped[ImportSource]
     imported_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
-    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id"), index=True)
+    storage_id: Mapped[int | None] = mapped_column(ForeignKey("external_volumes.id", ondelete="SET NULL"), index=True)
     rel_path: Mapped[str | None]
 
     @property
@@ -416,7 +418,7 @@ class RadioTrack(UidMixin, Base):
     def external(self) -> bool:
         return self.storage_id is not None
 
-    tags: Mapped[list["RadioTag"]] = relationship(secondary=radio_track_tags, back_populates="tracks")
+    tags: Mapped[list["RadioTag"]] = relationship(secondary=radio_track_tags, back_populates="tracks", passive_deletes=True)
 
 
 class RadioTag(UidMixin, Base):
@@ -429,7 +431,7 @@ class RadioTag(UidMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True)
 
-    tracks: Mapped[list["RadioTrack"]] = relationship(secondary=radio_track_tags, back_populates="tags")
+    tracks: Mapped[list["RadioTrack"]] = relationship(secondary=radio_track_tags, back_populates="tags", passive_deletes=True)
 
 
 class RadioPlaylist(UidMixin, Base):
@@ -447,7 +449,7 @@ class RadioPlaylist(UidMixin, Base):
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     items: Mapped[list["RadioPlaylistItem"]] = relationship(
-        back_populates="playlist", order_by="RadioPlaylistItem.position", cascade="all, delete-orphan"
+        back_populates="playlist", order_by="RadioPlaylistItem.position", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
@@ -455,8 +457,8 @@ class RadioPlaylistItem(Base):
     __tablename__ = "radio_playlist_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    playlist_id: Mapped[int] = mapped_column(ForeignKey("radio_playlists.id"))
-    radio_track_id: Mapped[int] = mapped_column(ForeignKey("radio_tracks.id"))
+    playlist_id: Mapped[int] = mapped_column(ForeignKey("radio_playlists.id", ondelete="CASCADE"))
+    radio_track_id: Mapped[int] = mapped_column(ForeignKey("radio_tracks.id", ondelete="CASCADE"))
     position: Mapped[int]
 
     playlist: Mapped[RadioPlaylist] = relationship(back_populates="items")
@@ -522,7 +524,7 @@ class Schedule(UidMixin, Base):
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
 
     overrides: Mapped[list["ScheduleOverride"]] = relationship(
-        back_populates="schedule", cascade="all, delete-orphan"
+        back_populates="schedule", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
@@ -531,7 +533,7 @@ class ScheduleOverride(UidMixin, Base):
     __tablename__ = "schedule_overrides"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    schedule_id: Mapped[int] = mapped_column(ForeignKey("schedules.id"))
+    schedule_id: Mapped[int] = mapped_column(ForeignKey("schedules.id", ondelete="CASCADE"))
     occurrence_date: Mapped[datetime]
     action: Mapped[OverrideAction]
     replacement_target_type: Mapped[ScheduleTargetType | None]
@@ -554,7 +556,7 @@ class PlaybackState(Base):
     __tablename__ = "playback_state"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    video_id: Mapped[int | None] = mapped_column(ForeignKey("videos.id"))
+    video_id: Mapped[int | None] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"))
     position_seconds: Mapped[float | None]
     target_type: Mapped[str | None]
     target_id: Mapped[int | None]
@@ -601,7 +603,7 @@ class CourseRating(Base):
     __tablename__ = "course_ratings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"))
     rating: Mapped[int] = mapped_column()  # 1 à 5
     channel: Mapped[str] = mapped_column()  # 'cable' ou 'network'
     source: Mapped[str] = mapped_column()   # 'grid' ou 'cinema'
@@ -615,7 +617,7 @@ class PlaybackSession(Base):
     __tablename__ = "playback_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id"))
+    video_id: Mapped[int] = mapped_column(ForeignKey("videos.id", ondelete="CASCADE"))
     channel: Mapped[str] = mapped_column()  # 'cable' ou 'network'
     started_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     ended_at: Mapped[datetime | None] = mapped_column(nullable=True)

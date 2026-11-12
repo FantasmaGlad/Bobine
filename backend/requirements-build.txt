@@ -1,5 +1,5 @@
 # Outils de packaging résolus sur les runners multi-OS de la CI 40510466876.
-pip==26.2.2
+pip==26.3
 pyinstaller==6.22.3
 pyinstaller-hooks-contrib==2026.9
 setuptools==84.2.1

@@ -85,8 +85,6 @@ def _purge_local(model, condition) -> None:
                 path = getattr(row, attr, None)
                 if path and getattr(row, "storage_id", None) is None:
                     Path(path).unlink(missing_ok=True)
-            if hasattr(row, "tags"):
-                row.tags = []
             db.delete(row)
         db.commit()
 
@@ -306,8 +304,7 @@ def test_import_audio_course_and_radio(env, media):
     with SessionLocal() as db:
         for track in db.query(AudioTrack).filter(AudioTrack.audio_course_id == job["result_id"]).all():
             Path(track.file_path).unlink(missing_ok=True)
-            db.delete(track)
-        db.query(AudioCourse).filter(AudioCourse.id == job["result_id"]).delete()
+        db.query(AudioCourse).filter(AudioCourse.id == job["result_id"]).delete()  # pistes supprimées en cascade
         db.commit()
 
 

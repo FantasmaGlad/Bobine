@@ -31,9 +31,6 @@ MODELS = (
 
 def _clean():
     with SessionLocal() as db:
-        for track in db.query(RadioTrack).all():
-            track.tags = []
-        db.flush()
         for model in MODELS + (RadioTrack, RadioTag):
             db.query(model).delete()
         db.commit()

@@ -22,7 +22,6 @@ from app.models import (
     AudioTrack,
     ExternalVolume,
     PlaylistItem,
-    RadioPlaylistItem,
     RadioTrack,
     StorageImport,
     Video,
@@ -188,13 +187,9 @@ def purge_index(db: Session, storage_id: int) -> dict[str, int]:
                 db.delete(course)
                 removed["audio_courses"] += 1
     radios = db.query(RadioTrack).filter(RadioTrack.storage_id == storage_id).all()
-    radio_ids = [r.id for r in radios]
-    if radio_ids:
-        db.query(RadioPlaylistItem).filter(RadioPlaylistItem.radio_track_id.in_(radio_ids)).delete(synchronize_session=False)
     for radio in radios:
         _unlink_internal(radio.cover_path)
-        radio.tags = []
-        db.delete(radio)
+        db.delete(radio)  # places en playlist et tags supprimés en cascade
         removed["radio_tracks"] += 1
     db.commit()
     return removed
