@@ -1,12 +1,3 @@
-<#
-Cycle de vie réel de l'installeur Inno Setup dans la CI Windows (x64 et ARM64) :
-  Install    installation silencieuse dans un dossier de test, journal conservé ;
-  Verify     arborescence installée identique à celle de PyInstaller, clé de
-             désinstallation, règle de pare-feu ;
-  Uninstall  désinstallation silencieuse, puis retrait vérifié (dossier, clé,
-             règle de pare-feu, raccourci de démarrage).
-Le lancement du backend installé se fait avec smoke-windows-backend.ps1.
-Aucune signature n'est exigée : SmartScreen n'est pas exercé par la CI.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidateSet('Install', 'Verify', 'Uninstall', 'Logs')][string]$Action,
