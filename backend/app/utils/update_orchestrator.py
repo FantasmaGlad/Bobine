@@ -1,7 +1,7 @@
 """Machine à états de la mise à jour système.
 
 Centralise ce qui vivait auparavant dans `_run_update_pipeline()`
-(`routers/updates.py`) et l'étend pour que chaque étape (vérification,
+(`api/routes/updates.py`) et l'étend pour que chaque étape (vérification,
 téléchargement, vérification d'intégrité, installation, redémarrage)
 diffuse sa progression en temps réel — au lieu de ne renvoyer un succès
 au frontend qu'au moment où le travail est simplement PLANIFIÉ (bug
@@ -16,7 +16,7 @@ point (`_set_state`) :
      client qui se reconnecte APRÈS un redémarrage de service (cas normal
      d'une mise à jour) retrouve l'issue réelle au lieu de revenir
      silencieusement à un état neutre.
-  3. `GET /api/updates/status` (routers/updates.py) qui lit ce même état
+  3. `GET /api/updates/status` (api/routes/updates.py) qui lit ce même état
      en mémoire — utilisé par le frontend au chargement de la page.
 """
 
@@ -180,7 +180,7 @@ async def report_external_event(
 ) -> None:
     """Point d'entrée public pour un évènement qui n'arrive PAS depuis
     `run_update_pipeline` lui-même — aujourd'hui uniquement le rappel
-    Android (`POST /api/updates/_android-callback`, cf. routers/updates.py) :
+    Android (`POST /api/updates/_android-callback`, cf. api/routes/updates.py) :
     `apply_update()` d'Android ne peut connaître l'issue réelle du
     téléchargement qu'après être retourné (délégué à un thread Kotlin
     asynchrone côté JVM), donc après que le pipeline se soit déjà terminé

@@ -1,0 +1,12 @@
+# Garde contre le code mort : imports, variables et noms inutilisés ou indéfinis.
+target-version = "py311"
+line-length = 200
+extend-exclude = ["android/app/build", "frontend", "backend/.venv"]
+
+[lint]
+select = ["F"]
+
+[lint.per-file-ignores]
+# Les fixtures pytest s'importent pour leur effet et se redéclarent en paramètre.
+"backend/tests/*" = ["F401", "F811"]
+"scripts/ci/test_*.py" = ["F401", "F811"]

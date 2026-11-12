@@ -74,7 +74,7 @@ def test_language_change_requires_a_restart(client):
 
 def test_startup_serves_the_stored_language(client):
     from app.database import SessionLocal
-    from app.routers import settings as settings_router
+    from app.api.routes import settings as settings_router
 
     client.put("/api/settings", json={"language": "en"})
     with SessionLocal() as db:
@@ -96,7 +96,7 @@ def test_restart_endpoint_restarts_the_service(client, monkeypatch):
     monkeypatch.setattr(get_profile_handler().__class__, "restart_services", lambda self: calls.append("restart"))
     async def no_wait(_seconds):
         return None
-    monkeypatch.setattr("app.routers.settings.asyncio.sleep", no_wait)
+    monkeypatch.setattr("app.api.routes.settings.maintenance.asyncio.sleep", no_wait)
     response = client.post("/api/settings/system/restart")
     assert response.status_code == 200 and response.json()["status"] == "restarting"
     assert calls == ["restart"]

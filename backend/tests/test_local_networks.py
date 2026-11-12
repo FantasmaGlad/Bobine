@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.utils.local_networks import FIREWALL_NETWORKS
-from app.utils.network_guard import is_allowed_client
+from app.api.network_guard import is_allowed_client
 
 ROOT = Path(__file__).resolve().parents[2]
 

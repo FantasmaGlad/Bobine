@@ -5,6 +5,7 @@ import type { RadioOutputId } from "@/lib/devicesApi";
 import { clampMix, smoothLevel, type MeterId, type RadioMix } from "@/lib/radioMix";
 import { clampSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { RadioRoute } from "@/lib/audioRoute";
+import { getPlaybackWsUrl } from "./apiUrl.ts";
 
 /** Ce que l'interface Périphériques suit d'une sortie radio en direct. */
 export interface RadioFeedChannel {
@@ -30,13 +31,6 @@ const METER_RENEW_MS = 5000;
 /** Sans nouvelle mesure depuis ce délai (lecteur en pause, fermé), les aiguilles retombent. */
 const LEVEL_STALE_MS = 600;
 const DECAY_TICK_MS = 150;
-
-function getWsUrl(): string {
-  if (typeof window === "undefined") return "";
-  const host = window.location.port === "3000" ? "localhost:8001" : window.location.host;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws/playback`;
-}
 
 /**
  * Suit en direct les deux sorties radio (état de lecture, mixage, route) pour le graphe et la table de mixage, sans
@@ -74,7 +68,7 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl());
       socketRef.current = ws;
       ws.onopen = () => {
         delay = 1000;

@@ -18,7 +18,7 @@ from app.main import app  # noqa: E402
 from app.models import RadioTrack, Setting  # noqa: E402
 from app.playback_manager import get_playback_manager  # noqa: E402
 from app.radio_manager import get_radio_manager  # noqa: E402
-from app.routers.playback import PLAYBACK_ACTIONS, RADIO_ACTIONS  # noqa: E402
+from app.api.contract import PLAYBACK_ACTIONS, RADIO_ACTIONS  # noqa: E402
 
 OUTPUT_KEYS = ("display_output_cable", "display_output_network")
 

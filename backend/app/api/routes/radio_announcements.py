@@ -1,0 +1,303 @@
+"""Router des rappels Radio.
+
+Annonces de bienséance intercalées dans la musique : import (fichier +
+description obligatoire), activation/retrait, règles de déclenchement (toutes
+les N musiques / toutes les X minutes / à heures fixes), et déclenchement
+manuel (« jouer maintenant »). Le tirage et l'insertion réels vivent dans
+`RadioPlaybackManager.play_announcement` (état) + `radio_announcement_scheduler`
+(règles temporelles) + `api/routes/playback/::_handle_radio_command` (règle
+« toutes les N musiques », à la fin de chaque piste).
+"""
+import json
+import logging
+import os
+import shutil
+import tempfile
+from pathlib import Path
+from typing import List
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+try:
+    from pydantic import BaseModel, field_validator
+except ImportError:  # Pydantic v1 (profil Android, cf. docs/ARCHITECTURE.md §3.1)
+    from pydantic import BaseModel, validator as field_validator
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
+from app.radio_manager import LEGACY_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
+from app.utils.executors import io_executor
+from app.utils.import_jobs import create_job, update_job
+from app.utils.radio_importer import import_radio_announcement, import_radio_announcements_from_files
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/radio", tags=["radio-announcements"])
+
+
+# ---------------------------------------------------------------------------
+# Schémas
+# ---------------------------------------------------------------------------
+class RadioAnnouncementResponse(BaseModel):
+    id: int
+    description: str
+    duration_seconds: float | None
+    enabled: bool
+
+
+class RadioAnnouncementUpdate(BaseModel):
+    description: str | None = None
+    enabled: bool | None = None
+
+
+class PlayNowInput(BaseModel):
+    announcement_id: int | None = None
+    # Sortie radio où jouer le rappel : "radio_cable", "radio_network" ou "both".
+    # Absent = sortie réseau (comportement d'avant les deux sorties).
+    target: str | None = None
+
+
+class ImportJobAccepted(BaseModel):
+    job_id: str
+
+
+class RadioAnnouncementRuleResponse(BaseModel):
+    id: int
+    rule_type: RadioAnnouncementRuleType
+    n_tracks: int | None
+    interval_minutes: int | None
+    times_of_day: List[str] | None
+    enabled: bool
+    target: str
+
+
+class RadioAnnouncementRuleInput(BaseModel):
+    rule_type: RadioAnnouncementRuleType
+    n_tracks: int | None = None
+    interval_minutes: int | None = None
+    times_of_day: List[str] | None = None
+    enabled: bool = True
+    # Sortie concernée : "radio_cable", "radio_network" ou "both". Absente : réseau à la création
+    # (comportement d'avant les deux sorties), cible CONSERVÉE à la mise à jour — un client qui ne
+    # connaît pas ce champ (page en cache) ne doit pas ramener une règle câblée sur le réseau.
+    target: str | None = None
+
+    @field_validator("times_of_day")
+    @classmethod
+    def _validate_times(cls, value: List[str] | None) -> List[str] | None:
+        if not value:
+            return value
+        for t in value:
+            parts = t.split(":")
+            if len(parts) != 2 or not all(p.isdigit() for p in parts):
+                raise ValueError(f"Horaire invalide : {t!r} (attendu HH:MM)")
+            h, m = int(parts[0]), int(parts[1])
+            if not (0 <= h < 24 and 0 <= m < 60):
+                raise ValueError(f"Horaire invalide : {t!r}")
+        return value
+
+
+def _rule_response(rule: RadioAnnouncementRule) -> dict:
+    return {
+        "id": rule.id,
+        "rule_type": rule.rule_type,
+        "n_tracks": rule.n_tracks,
+        "interval_minutes": rule.interval_minutes,
+        "times_of_day": json.loads(rule.times_of_day) if rule.times_of_day else None,
+        "enabled": rule.enabled,
+        "target": normalize_rule_target(rule.target),
+    }
+
+
+def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
+    if data.target is not None and data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
+        raise HTTPException(
+            status_code=400, detail="target invalide (attendu 'radio_cable', 'radio_network' ou 'both')"
+        )
+    if data.rule_type == RadioAnnouncementRuleType.every_n_tracks and not data.n_tracks:
+        raise HTTPException(status_code=400, detail="n_tracks est requis pour une règle « toutes les N musiques »")
+    if data.rule_type == RadioAnnouncementRuleType.every_x_minutes and not data.interval_minutes:
+        raise HTTPException(status_code=400, detail="interval_minutes est requis pour une règle « toutes les X minutes »")
+    if data.rule_type == RadioAnnouncementRuleType.fixed_times and not data.times_of_day:
+        raise HTTPException(status_code=400, detail="times_of_day est requis pour une règle « à heures fixes »")
+
+
+# ---------------------------------------------------------------------------
+# Rappels — bibliothèque
+# ---------------------------------------------------------------------------
+@router.get("/announcements", response_model=List[RadioAnnouncementResponse])
+def list_announcements(db: Session = Depends(get_db)):
+    return db.query(RadioAnnouncement).order_by(RadioAnnouncement.imported_at.desc()).all()
+
+
+@router.post("/announcements/upload", response_model=RadioAnnouncementResponse, status_code=201)
+def upload_announcement(
+    file: UploadFile = File(...), description: str = Form(...), db: Session = Depends(get_db),
+):
+    """Import synchrone (un seul fichier + description obligatoire) :
+    pas de job d'arrière-plan, contrairement aux morceaux — le traitement
+    ffprobe/ffmpeg d'un unique fichier reste rapide."""
+    description = description.strip()
+    if not description:
+        raise HTTPException(status_code=400, detail="La description est obligatoire")
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename or "").suffix)
+    try:
+        shutil.copyfileobj(file.file, tmp)
+        tmp.close()
+        announcement = import_radio_announcement(tmp.name, description, db)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Import de rappel échoué : {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Import impossible : {e}")
+    finally:
+        try:
+            os.remove(tmp.name)
+        except OSError:
+            pass
+    return announcement
+
+
+def _run_announcements_import_job(job_id: str, tmp_dir: Path, temp_paths: list[str]) -> None:
+    try:
+        announcements = import_radio_announcements_from_files(temp_paths, job_id=job_id)
+        update_job(job_id, stage="done", result_id=announcements[0].id if announcements else None)
+    except Exception as e:
+        logger.error(f"Import de rappels (job {job_id}) échoué : {e}", exc_info=True)
+        update_job(job_id, stage="error", error=str(e))
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@router.post("/announcements/upload-batch", response_model=ImportJobAccepted, status_code=202)
+def upload_announcements_batch(files: List[UploadFile] = File(...)):
+    """Import groupé (plusieurs fichiers ou dossier entier) : traité en arrière-plan comme les
+    morceaux — voir GET /api/import-jobs. Description dérivée automatiquement
+    du nom de chaque fichier (décision actée), pas de champ description ici."""
+    tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_announcement_upload_"))
+    temp_paths = []
+    try:
+        for f in files:
+            dest = tmp_dir / Path(f.filename).name
+            with open(dest, "wb") as out:
+                shutil.copyfileobj(f.file, out)
+            temp_paths.append(str(dest))
+    except Exception as e:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise HTTPException(status_code=400, detail=str(e))
+
+    label = Path(files[0].filename).name if files else "rappels"
+    job_id = create_job("radio_announcement", label, label)
+    io_executor.submit(_run_announcements_import_job, job_id, tmp_dir, temp_paths)
+    return {"job_id": job_id}
+
+
+@router.put("/announcements/{announcement_id}", response_model=RadioAnnouncementResponse)
+def update_announcement(announcement_id: int, payload: RadioAnnouncementUpdate, db: Session = Depends(get_db)):
+    announcement = db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first()
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Rappel non trouvé")
+
+    # `.model_fields_set` (v2) / `.__fields_set__` (v1, profil Android) —
+    # cf. docs/ARCHITECTURE.md §3.1.
+    fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
+    if "description" in fields_set:
+        description = (payload.description or "").strip()
+        if not description:
+            raise HTTPException(status_code=400, detail="La description ne peut pas être vide")
+        announcement.description = description
+    if "enabled" in fields_set:
+        announcement.enabled = bool(payload.enabled)
+
+    db.commit()
+    db.refresh(announcement)
+    return announcement
+
+
+@router.delete("/announcements/{announcement_id}")
+def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
+    announcement = db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first()
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Rappel non trouvé")
+
+    file_path = announcement.file_path
+    db.delete(announcement)
+    db.commit()
+
+    if file_path and Path(file_path).exists():
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            logger.error(f"Suppression de fichier rappel impossible ({file_path}) : {e}")
+    return {"message": "Rappel supprimé"}
+
+
+@router.post("/announcements/play-now")
+async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get_db)):
+    """Déclenchement manuel — toujours en mode « duck »
+    (fondu immédiat, la musique continue). `announcement_id` nul = tirage
+    aléatoire parmi les rappels actifs."""
+    from app.radio_manager import RADIO_CHANNELS, RULE_TARGET_BOTH, get_radio_manager, normalize_rule_target
+    from app.utils.radio_commands import play_announcement_now as play_now, resolve_announcement
+
+    announcement = resolve_announcement(db, payload.announcement_id)
+    if not announcement:
+        raise HTTPException(status_code=404, detail="Aucun rappel disponible")
+    target = normalize_rule_target(payload.target)
+    outputs = RADIO_CHANNELS if target == RULE_TARGET_BOTH else (target,)
+    return await play_now(db, [get_radio_manager(channel) for channel in outputs], announcement)
+
+
+# ---------------------------------------------------------------------------
+# Règles de déclenchement
+# ---------------------------------------------------------------------------
+@router.get("/announcement-rules", response_model=List[RadioAnnouncementRuleResponse])
+def list_rules(db: Session = Depends(get_db)):
+    rules = db.query(RadioAnnouncementRule).order_by(RadioAnnouncementRule.created_at.asc()).all()
+    return [_rule_response(r) for r in rules]
+
+
+@router.post("/announcement-rules", response_model=RadioAnnouncementRuleResponse, status_code=201)
+def create_rule(payload: RadioAnnouncementRuleInput, db: Session = Depends(get_db)):
+    _validate_rule_fields(payload)
+    rule = RadioAnnouncementRule(
+        rule_type=payload.rule_type,
+        n_tracks=payload.n_tracks,
+        interval_minutes=payload.interval_minutes,
+        times_of_day=json.dumps(payload.times_of_day) if payload.times_of_day else None,
+        enabled=payload.enabled,
+        target=normalize_rule_target(payload.target or "radio_network"),
+    )
+    db.add(rule)
+    db.commit()
+    db.refresh(rule)
+    return _rule_response(rule)
+
+
+@router.put("/announcement-rules/{rule_id}", response_model=RadioAnnouncementRuleResponse)
+def update_rule(rule_id: int, payload: RadioAnnouncementRuleInput, db: Session = Depends(get_db)):
+    rule = db.query(RadioAnnouncementRule).filter(RadioAnnouncementRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Règle non trouvée")
+    _validate_rule_fields(payload)
+    rule.rule_type = payload.rule_type
+    rule.n_tracks = payload.n_tracks
+    rule.interval_minutes = payload.interval_minutes
+    rule.times_of_day = json.dumps(payload.times_of_day) if payload.times_of_day else None
+    rule.enabled = payload.enabled
+    if payload.target is not None:
+        rule.target = normalize_rule_target(payload.target)
+    db.commit()
+    db.refresh(rule)
+    return _rule_response(rule)
+
+
+@router.delete("/announcement-rules/{rule_id}")
+def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+    rule = db.query(RadioAnnouncementRule).filter(RadioAnnouncementRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail="Règle non trouvée")
+    db.delete(rule)
+    db.commit()
+    return {"message": "Règle supprimée"}

@@ -3,11 +3,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { getApiUrl } from "@/lib/apiUrl";
 
 export interface CourseRatingWidgetProps {
   videoId: number;
   courseTitle: string;
-  sessionId?: number | null;
   channel?: "cable" | "network";
   autoCloseSeconds?: number;
   onClose?: () => void;
@@ -18,7 +18,6 @@ export interface CourseRatingWidgetProps {
 export default function CourseRatingWidget({
   videoId,
   courseTitle,
-  sessionId,
   channel = "cable",
   autoCloseSeconds = 20,
   onClose,
@@ -66,7 +65,7 @@ export default function CourseRatingWidget({
       setSubmitted(true);
 
       try {
-        await fetch("/api/metrics/ratings", {
+        await fetch(getApiUrl("/metrics/ratings"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

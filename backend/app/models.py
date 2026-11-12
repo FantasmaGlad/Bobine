@@ -549,7 +549,7 @@ class PlaybackState(Base):
       mode audio coach était actif -> `target_type`/`target_id` renseignés
       (cible jamais lancée, donc pas de position), relance depuis zéro.
     Une seule ligne à la fois quelle que soit la cause (la plus récente
-    remplace la précédente non traitée), cf. scheduler_manager._launch_target.
+    remplace la précédente non traitée), cf. scheduling.launch._launch_target.
     """
     __tablename__ = "playback_state"
 
@@ -563,6 +563,21 @@ class PlaybackState(Base):
     # en attente PAR canal).
     channel: Mapped[str] = mapped_column(default="cable", server_default="cable")
     interrupted_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+
+
+class ScheduledLaunch(Base):
+    """Dernier lancement programmé d'un canal de diffusion (une ligne par canal).
+
+    `started_at` est l'heure murale du lancement : après un redémarrage du serveur, la lecture reprend à
+    `maintenant - started_at`. `active` passe à faux dès que ce lancement quitte l'écran (arrêt, lecture
+    manuelle, fin) : un cours arrêté à la main n'est jamais relancé."""
+    __tablename__ = "scheduled_launches"
+
+    channel: Mapped[str] = mapped_column(primary_key=True)
+    target_type: Mapped[str]
+    target_id: Mapped[int]
+    started_at: Mapped[datetime]
+    active: Mapped[bool] = mapped_column(default=True)
 
 
 class Setting(Base):

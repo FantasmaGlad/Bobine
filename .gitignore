@@ -23,6 +23,7 @@ node_modules/
 /data/
 backend/data/
 backend/backend-runtime.json
+backend/update-pending.json
 /VideoTest/
 
 # IDE & Éditeurs

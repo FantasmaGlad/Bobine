@@ -32,8 +32,8 @@ def single_names(library):  # noqa: F811
 @pytest.fixture(autouse=True)
 def _quiet_effects(monkeypatch):
     synced = []
-    monkeypatch.setattr("app.scheduler_manager.sync_schedule_job", lambda schedule: synced.append(schedule.channel))
-    monkeypatch.setattr("app.scheduler_manager.remove_schedule_job", lambda schedule_id: None)
+    monkeypatch.setattr("app.scheduling.jobs.sync_schedule_job", lambda schedule: synced.append(schedule.channel))
+    monkeypatch.setattr("app.scheduling.jobs.remove_schedule_job", lambda schedule_id: None)
     monkeypatch.setattr(config_files, "schedule_mirror", lambda: None)
     return synced
 

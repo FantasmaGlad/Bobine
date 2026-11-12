@@ -352,7 +352,7 @@ class LinuxStorageDriver(StorageDriver):
             raise DeviceError("not_mounted", "Le support n'est pas monté.", 409)
         if not (hasattr(os, "geteuid") and os.geteuid() == 0):
             raise DeviceError("needs_root", "TRIM exige les droits d'administrateur ; le minuteur fstrim du système s'en charge.", 501)
-        if mounted_ro := volume.mounted_read_only:
+        if volume.mounted_read_only:
             raise DeviceError("read_only", "Le support est monté en lecture seule : TRIM n'a rien à faire.", 409)
         code, out, err = await self._run("fstrim", "-v", volume.mountpoint, timeout=300.0)
         if code != 0:

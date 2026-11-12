@@ -23,6 +23,8 @@ import { subtitleSrc } from "@/lib/subtitles";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import ChapterEditor from "@/components/ChapterEditor";
 import SearchBox from "@/components/SearchBox";
+import { getApiUrl } from "@/lib/apiUrl";
+import { useToast } from "@/lib/useToast";
 
 interface VideoSubtitleItem {
   id: number;
@@ -50,11 +52,6 @@ interface Video {
   audio_codec?: string | null;
   fps?: number | null;
   bitrate_kbps?: number | null;
-}
-
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
 }
 
 export default function LibraryPage() {
@@ -87,7 +84,6 @@ export default function LibraryPage() {
 
   // Sous-titres pour le cours ouvert en Studio
   const [studioSubtitles, setStudioSubtitles] = useState<VideoSubtitleItem[]>([]);
-  const [isLoadingSubtitles, setIsLoadingSubtitles] = useState<boolean>(false);
   const subtitleInputRef = useRef<HTMLInputElement>(null);
 
   // Catégories (programmes) réellement présentes dans la bibliothèque, pour
@@ -116,17 +112,7 @@ export default function LibraryPage() {
   const [bulkTargetPlaylistId, setBulkTargetPlaylistId] = useState<string>("");
 
   // Toast state
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  // API URL Helper
-  const getApiUrl = (path: string) => {
-    if (typeof window !== "undefined") {
-      if (window.location.port === "3000") {
-        return `http://localhost:8001/api${path}`;
-      }
-    }
-    return `/api${path}`;
-  };
+  const { toast, showToast } = useToast();
 
   // Upload Manager global
   const { addUploads, uploads } = useUploadManager();
@@ -139,21 +125,6 @@ export default function LibraryPage() {
   // vidéo n'a nouvellement terminé (effet déclaré plus bas, après
   // `fetchVideos`).
   const seenDoneIds = useRef<Set<string>>(new Set());
-
-  // Show toast helper
-  const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
-    setToast({ message, type });
-  };
-
-  // Auto-hide toast
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => {
-        setToast(null);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   // Load videos
   const fetchVideos = async () => {
@@ -203,7 +174,6 @@ export default function LibraryPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchVideos();
   }, [search, programFilter, releaseFilter, sortBy]);
-
 
   useEffect(() => {
     fetch(getApiUrl("/playlists"), { cache: "no-store" })
@@ -286,7 +256,8 @@ export default function LibraryPage() {
   const confirmBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     const results = await Promise.allSettled(ids.map((id) => fetch(getApiUrl(`/videos/${id}`), { method: "DELETE" })));
-    const failed = results.filter((r) => r.status === "rejected").length;
+    // Une réponse d'erreur du serveur résout la promesse : seul `ok` dit que la vidéo est supprimée.
+    const failed = results.filter((r) => r.status === "rejected" || !r.value.ok).length;
     showToast(
       failed > 0
         ? t("library.bulkDeletedPartial", { ok: ids.length - failed, total: ids.length })
@@ -341,7 +312,6 @@ export default function LibraryPage() {
   };
 
   const fetchSubtitles = async (videoId: number) => {
-    setIsLoadingSubtitles(true);
     try {
       const res = await fetch(getApiUrl(`/videos/${videoId}/subtitles`));
       if (res.ok) {
@@ -349,9 +319,7 @@ export default function LibraryPage() {
         setStudioSubtitles(Array.isArray(data) ? data : []);
       }
     } catch {
-      // ignorer
-    } finally {
-      setIsLoadingSubtitles(false);
+      // Liste de sous-titres indisponible : le studio s'ouvre sans elle.
     }
   };
 
@@ -632,8 +600,6 @@ export default function LibraryPage() {
 
   // Catégories libres : plus de couleur par programme (RPM/Sprint/… mappaient
   // déjà tous vers l'accent du thème en CSS). Une seule classe générique suffit.
-  const getProgramClass = (_program: string | null) => "program-autre";
-  const getProgramBadgeClass = (_program: string | null) => "autre";
 
   const getThumbnailSrc = (video: Video) => {
     if (!video.thumbnail_path) return null;
@@ -1021,7 +987,7 @@ export default function LibraryPage() {
                     return (
                       <div
                         key={video.id}
-                        className={`video-card ${getProgramClass(video.program)}${isSelected ? " selected" : ""}`}
+                        className={`video-card program-autre${isSelected ? " selected" : ""}`}
                         onClick={() => handleSelectVideo(video)}
                       >
                         <div className="thumbnail-wrapper">
@@ -1046,7 +1012,7 @@ export default function LibraryPage() {
                             {video.title}
                           </h4>
                           <div className="card-meta-row">
-                            <span className={`program-badge ${getProgramBadgeClass(video.program)}`}>
+                            <span className={`program-badge autre`}>
                               {video.program || t("library.noProgram")}
                             </span>
                             {video.release && (
@@ -1112,7 +1078,7 @@ export default function LibraryPage() {
                       {video.title}
                     </td>
                     <td>
-                      <span className={`program-badge ${getProgramBadgeClass(video.program)}`}>
+                      <span className={`program-badge autre`}>
                         {video.program || t("library.noProgram")}
                       </span>
                     </td>

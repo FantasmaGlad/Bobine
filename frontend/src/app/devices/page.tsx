@@ -10,10 +10,11 @@ import MapSection from "@/components/devices/MapSection";
 import MixerSection from "@/components/devices/MixerSection";
 import VideoSoundSection from "@/components/devices/VideoSoundSection";
 import RoutingSection from "@/components/devices/RoutingSection";
-import type { Notify, SectionProps } from "@/components/devices/common";
+import type { SectionProps } from "@/components/devices/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
+import { useToast } from "@/lib/useToast";
 
 // Périphériques : audio, Bluetooth et Wi-Fi de la machine qui diffuse. Tout appareil du réseau local de confiance
 // y accède directement (voir docs/ARCHITECTURE.md).
@@ -22,8 +23,6 @@ import { useRadioFeed } from "@/lib/useRadioFeed";
 type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "videosound";
 const TAB_KEY = "bobine.devices.tab";
 
-interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
 export default function DevicesPage() {
   const { t } = useAppSettings();
   const [status, setStatus] = useState<DevicesStatus | null>(null);
@@ -31,14 +30,7 @@ export default function DevicesPage() {
   const [tab, setTab] = useState<Tab>("map");
   const [focus, setFocus] = useState<{ id: string | null; nonce: number }>({ id: null, nonce: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  const notify: Notify = useCallback((message, type = "success") => setToast({ message, type }), []);
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
+  const { toast, showToast: notify } = useToast();
 
   useEffect(() => {
     try {

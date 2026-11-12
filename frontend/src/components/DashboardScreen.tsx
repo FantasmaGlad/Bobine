@@ -18,6 +18,8 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { courseThumbSrc, formatClock as formatCourseClock } from "@/lib/courseMeta";
 import { useVideoChapters } from "@/lib/chapters";
 import type { DisplayOutput } from "@/lib/displayChannel";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes, formatTime } from "@/lib/format";
 
 interface VideoSummary {
   id: number;
@@ -70,26 +72,6 @@ interface InterruptedState {
   // Report par le mode coach (cause="coach_priority") : programmation reportée par le mode audio coach.
   target_type?: string | null;
   target_id?: number | null;
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatDuration(seconds: number) {
-  if (!seconds) return "0 min";
-  const mins = Math.round(seconds / 60);
-  return `${mins} min`;
 }
 
 const SPEED_OPTIONS = [0.5, 1, 1.25, 1.5, 2];
@@ -988,7 +970,7 @@ export default function DashboardScreen({ channel }: Props) {
                     label: p.name,
                     sublabel: t("dashboard.playlistCourseCount", { count: p.item_count }),
                     thumbnail: courseThumbSrc(getApiUrl, { thumbnail_path: p.thumbnail_path }),
-                    meta: formatDuration(p.total_duration_seconds),
+                    meta: formatMinutes(p.total_duration_seconds, "0 min"),
                   }))}
                 />
                 <button

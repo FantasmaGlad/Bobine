@@ -1,7 +1,7 @@
 """Interface commune des pilotes de périphériques (audio, Bluetooth, Wi-Fi).
 
 Un pilote par plateforme (Linux : `linux.py`, Windows/macOS : sidecar Rust `sidecar.py`,
-Android : pont Kotlin `android.py`) ; le routeur `routers/devices.py` ne connaît que cette
+Android : pont Kotlin `android.py`) ; le routeur `api/routes/devices.py` ne connaît que cette
 interface. Règles d'or :
 
 * un pilote DÉCLARE ses capacités (`capabilities()`) — l'interface n'affiche que ce que

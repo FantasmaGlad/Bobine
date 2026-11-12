@@ -2,8 +2,10 @@
 `install.sh`) : `sudo systemctl restart`, enveloppe de désinstallation
 `systemd-run`, mise à jour via `git checkout`/`git pull`."""
 
+import json
 import logging
 import subprocess
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -23,6 +25,23 @@ _NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 
 def _repo_dir() -> Path:
     return Path(__file__).resolve().parent.parent.parent.parent
+
+
+# Délai laissé au nouveau backend pour répondre en bonne santé avant que le chien de garde ne restaure l'ancien.
+UPDATE_CONFIRMATION_SECONDS = 180
+PENDING_UPDATE_FILE = "update-pending.json"
+
+
+def write_pending_update(repo_dir: Path, previous_ref: str) -> None:
+    """Demande au chien de garde de confirmer la mise à jour ou de revenir à `previous_ref`."""
+    marker = repo_dir / "backend" / PENDING_UPDATE_FILE
+    try:
+        marker.write_text(
+            json.dumps({"previous_ref": previous_ref, "deadline": int(time.time()) + UPDATE_CONFIRMATION_SECONDS}),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        logger.warning("Retour arrière automatique non armé : %s", exc)
 
 
 class LinuxHeadlessHandler(ProfileHandler):
@@ -142,11 +161,15 @@ class LinuxHeadlessHandler(ProfileHandler):
         try:
             self._rebuild(repo_dir, report)
         except Exception as e:
-            self._rollback(repo_dir, previous_ref)
-            raise RuntimeError(
-                f"{e} — version précédente restaurée ({previous_ref[:12]}), l'appliance continue "
-                f"de fonctionner sur l'ancienne version."
-            ) from e
+            if self._rollback(repo_dir, previous_ref):
+                outcome = f"version précédente restaurée ({previous_ref[:12]}), l'appliance continue de fonctionner sur l'ancienne version."
+            else:
+                outcome = f"le retour à la version précédente ({previous_ref[:12]}) a échoué : relancez l'installateur."
+            raise RuntimeError(f"{e} — {outcome}") from e
+
+        # Le chien de garde confirme la nouvelle version par le contrôle de santé, ou restaure la précédente :
+        # un backend qui ne redémarre pas ne pourrait pas le faire lui-même (scripts/watchdog.sh).
+        write_pending_update(repo_dir, previous_ref)
 
         # Hors du `try` : un service qui refuse de redémarrer (sudoers cassé,
         # unité désactivée) ne justifie PAS d'annuler un code et un frontend
@@ -166,12 +189,14 @@ class LinuxHeadlessHandler(ProfileHandler):
         return run_checked(["git", "rev-parse", "HEAD"], cwd=repo_dir, timeout=10).stdout.strip()
 
     @staticmethod
-    def _rollback(repo_dir: Path, previous_ref: str) -> None:
+    def _rollback(repo_dir: Path, previous_ref: str) -> bool:
         try:
             run_checked(["git", "checkout", previous_ref], cwd=repo_dir, timeout=45)
             logger.warning(f"Mise à jour annulée : retour à {previous_ref}.")
+            return True
         except Exception as rollback_error:
             logger.error(f"Échec du retour arrière vers {previous_ref} : {rollback_error}")
+            return False
 
     def _rebuild(self, repo_dir: Path, report: Callable[..., None]) -> None:
         # Réinstallation des dépendances Python et reconstruction du

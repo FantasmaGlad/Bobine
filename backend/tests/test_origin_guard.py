@@ -14,8 +14,8 @@ from starlette.testclient import TestClient  # noqa: E402
 from starlette.websockets import WebSocketDisconnect  # noqa: E402
 
 from app.main import app as real_app  # noqa: E402
-from app.utils import origin_guard  # noqa: E402
-from app.utils.origin_guard import SameOriginGuard, is_same_origin, is_trusted_host_name  # noqa: E402
+from app.api import origin_guard  # noqa: E402
+from app.api.origin_guard import SameOriginGuard, is_same_origin, is_trusted_host_name  # noqa: E402
 
 EVIL = "https://evil.example"
 

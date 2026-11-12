@@ -28,8 +28,8 @@ from app.models import (
     Video,
 )
 from app.playback_manager import init_playback_managers, get_playback_manager
-from app.routers.playback import dismiss_interrupted_state, resume_interrupted_state
-from app.routers.schedule import (
+from app.api.routes.playback.state import dismiss_interrupted_state, resume_interrupted_state
+from app.api.routes.schedule import (
     OverrideInput,
     ScheduleInput,
     create_override,
@@ -40,7 +40,9 @@ from app.routers.schedule import (
     list_schedules,
     update_schedule,
 )
-from app.scheduler_manager import expand_occurrences, fire_schedule, start_scheduler, stop_scheduler
+from app.scheduling.jobs import start_scheduler, stop_scheduler
+from app.scheduling.launch import fire_schedule
+from app.scheduling.occurrences import expand_occurrences
 
 
 class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):

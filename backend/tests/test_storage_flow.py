@@ -99,7 +99,8 @@ def env(tmp_path, monkeypatch):
     driver = FakeStorageDriver(tmp_path / "fake")
     service = StorageService(lambda: driver)
     monkeypatch.setattr("app.main.storage_service", service)
-    monkeypatch.setattr("app.routers.storage.service", service)
+    monkeypatch.setattr("app.api.routes.media_streams.storage_service", service)
+    monkeypatch.setattr("app.api.routes.storage.service", service)
     with TestClient(app) as client:
         ns = SimpleNamespace(client=client, driver=driver, service=service, tmp=tmp_path)
         ns.refresh = lambda: client.portal.call(service.refresh)
@@ -652,8 +653,8 @@ def test_startup_puts_every_external_path_in_waiting_state(env):
 
 def test_scheduler_and_playlists_skip_unavailable_media(env):
     from app.models import Playlist, PlaylistItem, ScheduleTargetType
-    from app.routers.playback import _build_playlist_video_items
-    from app.scheduler_manager import _scheduled_target_unavailable
+    from app.api.routes.playback.media_items import _build_playlist_video_items
+    from app.scheduling.launch import _scheduled_target_unavailable
 
     with SessionLocal() as db:
         lib = ExternalVolume(fs_uuid="FFFF-0002", label="Y", kind="usb")

@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import release_channel
 from app.models import Base, Setting
-from app.routers import settings, updates
+from app.api.routes import settings, updates
 
 MODULE_PATH = Path(release_channel.__file__)
 
@@ -138,14 +138,14 @@ def installed_as_canary(monkeypatch):
 
 
 def test_reglages_sans_choix_proposent_le_canal_d_installation(db, installed_as_canary):
-    payload = settings.get_settings(db)
+    payload = settings.values.get_settings(db)
     assert (payload["update_channel"], payload["update_channel_source"], payload["install_channel"]) == ("canary", "install", "canary")
 
 
 def test_reglages_choix_explicite_stable_l_emporte_sur_une_installation_canary(db, installed_as_canary):
     db.add(Setting(key="update_channel", value="stable"))
     db.commit()
-    payload = settings.get_settings(db)
+    payload = settings.values.get_settings(db)
     assert (payload["update_channel"], payload["update_channel_source"], payload["install_channel"]) == ("stable", "user", "canary")
 
 
@@ -234,13 +234,13 @@ def store_build(monkeypatch):
     from app.utils import deployment
 
     monkeypatch.setattr(deployment, "get_profile_handler", lambda: _StoreProfile())
-    monkeypatch.setattr(settings, "get_profile_handler", lambda: _StoreProfile())
+    monkeypatch.setattr(settings.values, "get_profile_handler", lambda: _StoreProfile())
 
 
 def test_build_boutique_reste_sur_stable_quel_que_soit_le_reglage_enregistre(db, store_build, installed_as_canary):
     db.add(Setting(key="update_channel", value="canary"))  # p. ex. restauré d'une sauvegarde d'un APK direct
     db.commit()
-    payload = settings.get_settings(db)
+    payload = settings.values.get_settings(db)
     assert (payload["update_channel"], payload["update_channel_source"]) == ("stable", "locked")
     assert updates._get_update_channel(db) == "stable"
 
@@ -251,7 +251,7 @@ def test_build_boutique_refuse_de_rejoindre_un_autre_canal(db, store_build):
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as refused:
-        asyncio.run(settings.update_settings(settings.SettingsUpdate(update_channel="canary"), db))
+        asyncio.run(settings.values.update_settings(settings.core.SettingsUpdate(update_channel="canary"), db))
     assert refused.value.status_code == 409
 
 

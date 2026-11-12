@@ -42,12 +42,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from app.api.contract import DEFAULT_PORT
+
 logger = logging.getLogger(__name__)
 
-# Port préféré quand rien d'autre n'est configuré. Doit rester égal au défaut de
-# `Settings.port` (app/config.py) ; les installeurs, le pare-feu et la
-# documentation s'appuient sur cette valeur.
-DEFAULT_PORT = 1903
+# `DEFAULT_PORT` vient du contrat ; il doit rester égal au défaut de `Settings.port` (app/config.py).
 # Nombre de ports consécutifs essayés après le port préféré avant de demander
 # un port libre au système.
 FALLBACK_SPAN = 10

@@ -7,7 +7,7 @@ import zipfile
 import pytest
 from fastapi import HTTPException
 
-from app.routers import settings as settings_router
+from app.api.routes import settings as settings_router
 from app.utils import import_jobs
 
 
@@ -35,7 +35,7 @@ def test_stage_reads_database_by_blocks_and_validates(tmp_path):
     work = tmp_path / "work"
     work.mkdir()
     with open(zip_path, "rb") as f:
-        staged, config = settings_router._stage_backup_archive(f, work)
+        staged, config = settings_router.backup._stage_backup_archive(f, work)
     assert staged.read_bytes().startswith(b"SQLite format 3\x00")
     assert config == b"[x]\n"
 
@@ -44,14 +44,14 @@ def test_stage_refuses_invalid_inputs(tmp_path):
     work = tmp_path / "w"
     work.mkdir()
     with pytest.raises(HTTPException) as e:
-        settings_router._stage_backup_archive(io.BytesIO(b""), work)
+        settings_router.backup._stage_backup_archive(io.BytesIO(b""), work)
     assert e.value.status_code == 400
     with pytest.raises(HTTPException):
-        settings_router._stage_backup_archive(io.BytesIO(b"pas un zip"), work)
+        settings_router.backup._stage_backup_archive(io.BytesIO(b"pas un zip"), work)
     bad = tmp_path / "bad.zip"
     _archive(bad, bad_header=True)
     with open(bad, "rb") as f, pytest.raises(HTTPException):
-        settings_router._stage_backup_archive(f, work)
+        settings_router.backup._stage_backup_archive(f, work)
 
 
 def test_stage_refuses_when_disk_space_is_too_small(tmp_path, monkeypatch):
@@ -61,9 +61,11 @@ def test_stage_refuses_when_disk_space_is_too_small(tmp_path, monkeypatch):
     _archive(zip_path, db_path=db)
     work = tmp_path / "w"
     work.mkdir()
-    monkeypatch.setattr(settings_router.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
+    monkeypatch.setattr(settings_router.backup.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
+    monkeypatch.setattr(settings_router.laptop_lid.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
+    monkeypatch.setattr(settings_router.maintenance.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
     with open(zip_path, "rb") as f, pytest.raises(HTTPException) as e:
-        settings_router._stage_backup_archive(f, work)
+        settings_router.backup._stage_backup_archive(f, work)
     assert e.value.status_code == 507
 
 

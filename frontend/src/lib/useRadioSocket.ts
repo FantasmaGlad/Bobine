@@ -9,6 +9,7 @@ import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
 import type { ClockTarget } from "@/lib/useMediaClockFollower";
+import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
 
 /** État d'UNE sortie radio (`radio_cable` ou `radio_network`) : un moteur INDÉPENDANT par
  * sortie, distinct du câblé/réseau vidéo (RadioPlaybackManager côté backend).
@@ -107,20 +108,6 @@ export interface RadioEvent {
   client_ts?: number;
 }
 
-function getWsUrl(): string {
-  if (typeof window === "undefined") return "";
-  const isDevServer = window.location.port === "3000";
-  const host = isDevServer ? "localhost:8001" : window.location.host;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws/playback`;
-}
-
-function getApiUrl(path: string): string {
-  if (typeof window === "undefined") return "";
-  const isDevServer = window.location.port === "3000";
-  return isDevServer ? `http://localhost:8001/api${path}` : `/api${path}`;
-}
-
 // Même filet de sécurité que usePlaybackSocket : recale l'état sur GET /api/radio/state à
 // intervalle régulier, au cas où un broadcast() aurait été perdu.
 const RESYNC_INTERVAL_MS = 15000;
@@ -176,7 +163,7 @@ export function useRadioSocket(
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl());
       wsRef.current = ws;
 
       ws.onopen = () => {

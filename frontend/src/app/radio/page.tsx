@@ -16,6 +16,9 @@ import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
 import AppLogo from "@/components/AppLogo";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatTime, formatWallClock } from "@/lib/format";
+import { unloadMedia } from "@/lib/mediaElement";
 
 // Écran du poste radio dédié : mise en page "type Spotify", lecteur PRIMAIRE (source de la
 // position rapportée au serveur, comme le kiosk câblé/réseau).
@@ -34,25 +37,6 @@ import AppLogo from "@/components/AppLogo";
 // (cf. handleEvent), pour que la position rapportée reste cohérente avec
 // l'état serveur pendant le chevauchement. Le rappel réutilise
 // le MÊME graphe : la « rampe de gain » n'est plus qu'une primitive partagée.
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatClock(date: Date | null) {
-  if (!date) return "--:--";
-  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-}
 
 const DUCK_LEVEL_DEFAULT = 15;
 const DUCK_FADE_MS_DEFAULT = 1500;
@@ -131,6 +115,7 @@ export default function RadioScreenPage() {
   // expiration (dos-à-dos, écart < fadeMs) ne doit pas se faire couper par un
   // pause() différé destiné à l'ancien.
   const announcementFadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const duckSettingsRef = useRef({ level: DUCK_LEVEL_DEFAULT, fadeMs: DUCK_FADE_MS_DEFAULT });
   useEffect(() => {
     fetch(getApiUrl("/settings"), { cache: "no-store" })
@@ -312,9 +297,7 @@ export default function RadioScreenPage() {
       // sinon l'audio se coupe net avant même que le gain ait eu le temps de
       // descendre (Web Audio ne coupe pas la lecture, seulement le volume).
       announcementFadeOutTimeoutRef.current = setTimeout(() => {
-        announcementAudio.pause();
-        announcementAudio.removeAttribute("src");
-        announcementAudio.load();
+        unloadMedia(announcementAudio);
         announcementFadeOutTimeoutRef.current = null;
       }, fadeMs);
       if (wasAnnouncing.mode === "duck") {
@@ -327,11 +310,7 @@ export default function RadioScreenPage() {
     if (!track) {
       for (const slot of [0, 1] as Slot[]) {
         const el = getAudioEl(slot);
-        if (el && el.getAttribute("src")) {
-          el.pause();
-          el.removeAttribute("src");
-          el.load();
-        }
+        unloadMedia(el);
         slotTrackIdRef.current[slot] = null;
       }
       crossfadingRef.current = false;
@@ -439,7 +418,6 @@ export default function RadioScreenPage() {
   // rappel (état « announcing » : la musique y est gérée par le rappel).
   const activeMediaRef = useMemo(
     () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- getAudioEl ne lit que des refs stables
     [],
   );
   useMediaClockFollower({
@@ -471,7 +449,7 @@ export default function RadioScreenPage() {
   // côté client (l'instant réel où la page s'ouvre, potentiellement des jours
   // après) : React détecte l'écart et rejette tout le HTML pré-rendu. La vraie
   // heure n'est posée qu'ici, dans l'effet ci-dessous (hors rendu, après
-  // hydratation) — formatClock affiche "--:--" le temps de ce premier réglage.
+  // hydratation) — formatWallClock affiche "--:--" le temps de ce premier réglage.
   const [now, setNow] = useState<Date | null>(null);
   const clockOffsetRef = useRef(0);
   useEffect(() => {
@@ -496,7 +474,15 @@ export default function RadioScreenPage() {
   // Ferme proprement le contexte Web Audio si la page se démonte (hygiène —
   // ce poste reste normalement ouvert en permanence, comme un kiosk).
   useEffect(() => {
+    const slotA = audioARef;
+    const slotB = audioBRef;
+    const announcement = announcementAudioRef;
     return () => {
+      if (announcementFadeOutTimeoutRef.current) clearTimeout(announcementFadeOutTimeoutRef.current);
+      if (recoveryPollRef.current) clearInterval(recoveryPollRef.current);
+      unloadMedia(slotA.current);
+      unloadMedia(slotB.current);
+      unloadMedia(announcement.current);
       audioCtxRef.current?.close().catch(() => {});
     };
   }, []);
@@ -592,6 +578,7 @@ export default function RadioScreenPage() {
     }
     const attemptStartedAt = Date.now();
     lastProgressRef.current[slot] = attemptStartedAt;
+    if (recoveryPollRef.current) clearInterval(recoveryPollRef.current);
     const pollId = setInterval(() => {
       // Un vrai timeupdate est revenu APRÈS le début de cette tentative : la
       // reprise a fonctionné (fût-elle lente), on arrête là sans rien signaler
@@ -608,6 +595,7 @@ export default function RadioScreenPage() {
         sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
       }
     }, RECOVERY_POLL_MS);
+    recoveryPollRef.current = pollId;
   }, [sendCommand]);
 
   const handleErrorForSlot = (slot: Slot) => {
@@ -763,7 +751,7 @@ export default function RadioScreenPage() {
       {!currentTrack ? (
         <>
           <AppLogo className="radio-brand-logo" />
-          <span className="radio-screen-clock">{formatClock(now)}</span>
+          <span className="radio-screen-clock">{formatWallClock(now)}</span>
           <span className="radio-screen-idle-label">
             {connected ? t("radioScreen.idleHint") : t("radioRemote.disconnected")}
           </span>

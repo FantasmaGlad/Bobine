@@ -15,8 +15,10 @@ import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
 import { useKioskRemote, moveDomFocus2D, activateDomFocus, selectRemoteTarget } from "@/lib/useKioskRemote";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
 import Icon from "@/components/Icon";
+import CinemaRow from "@/components/cinema/CinemaRow";
+import CinemaAllList from "@/components/cinema/CinemaAllList";
+import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import AppLogo from "@/components/AppLogo";
-import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { formatCleanDescription } from "@/lib/formatDescription";
@@ -25,18 +27,14 @@ import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
 import ChapterTicks from "@/components/ChapterTicks";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
+import { unloadMedia } from "@/lib/mediaElement";
 
 // Boutons de cours focalisables par la télécommande, dans l'ordre de lecture
 // (héros, puis rangées par programme, puis grille complète).
 const CINEMA_GRID_CARDS =
   ".cinema-grid-layer .cinema-hero-play, .cinema-grid-layer .cinema-card, .cinema-grid-layer .cinema-all-item";
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
 
 // (voir kiosk/page.tsx,
 // même bug) : assigner `currentTime` sur un élément en lecture sans pause
@@ -70,49 +68,6 @@ function seekWhenReady(el: HTMLMediaElement, targetSeconds: number, onDone?: () 
   else el.addEventListener("loadedmetadata", apply, { once: true });
 }
 
-interface CinemaVideo {
-  id: number;
-  title: string;
-  program: string | null;
-  release: string | null;
-  duration_seconds: number | null;
-  thumbnail_path: string | null;
-  thumbnail_url?: string | null;
-  width?: number | null;
-  height?: number | null;
-  codec?: string | null;
-  description?: string | null;
-  audio_channels?: number | null;
-  audio_codec?: string | null;
-  fps?: number | null;
-  bitrate_kbps?: number | null;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatDurationMin(seconds: number | null) {
-  if (!seconds) return "";
-  return `${Math.round(seconds / 60)} min`;
-}
-
-function formatClock(date: Date) {
-  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-}
-
-function thumbnailUrl(video: CinemaVideo): string | null {
-  const path = video.thumbnail_path || video.thumbnail_url;
-  if (!path) return null;
-  const filename = path.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
-}
-
-
-
 // Délai d'inactivité souris avant de masquer la barre de contrôle en lecture.
 const CONTROLS_HIDE_MS = 3000;
 // "À suivre" : délai avant lancement automatique du
@@ -123,172 +78,6 @@ const UP_NEXT_AUTOPLAY_SECONDS = 5 * 60;
 const SCRAMBLE_INTERVAL_MS = 15 * 60 * 1000;
 
 type Phase = "grid" | "playing" | "ended";
-
-// Fraction de la largeur visible parcourue à chaque clic sur une flèche.
-const ROW_SCROLL_FRACTION = 0.85;
-
-/**
- * Rangée horizontale avec flèches de défilement : remplace la dépendance à la barre de défilement native (peu visible,
- * malaisée à la souris) par des boutons gauche/droite façon Netflix. Chaque
- * rangée gère sa propre référence de scroll, d'où un composant dédié plutôt
- * qu'une simple boucle inline.
- */
-// React.memo : la grille de sélection
-// reste montée (masquée en CSS) même pendant la lecture — sans mémoïsation,
-// chaque mise à jour de position vidéo (plusieurs fois par seconde) forçait
-// React à réconcilier toute la grille, invisible mais bien réelle dans le
-// DOM, sur le CPU modeste du Wyse.
-const CinemaRow = React.memo(function CinemaRow({
-  programName,
-  items,
-  rowIndex,
-  onSelect,
-  onHover,
-  coursesCountLabel,
-}: {
-  programName: string;
-  items: CinemaVideo[];
-  rowIndex: number;
-  onSelect: (video: CinemaVideo) => void;
-  onHover: () => void;
-  coursesCountLabel: string;
-}) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateArrows = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateArrows();
-    const el = scrollRef.current;
-    if (!el) return;
-    const onResize = () => updateArrows();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [updateArrows, items.length]);
-
-  const { t } = useAppSettings();
-  const scrollBy = (direction: 1 | -1) => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollBy({ left: direction * el.clientWidth * ROW_SCROLL_FRACTION, behavior: "smooth" });
-  };
-
-  return (
-    <section className="cinema-row" style={{ animationDelay: `${rowIndex * 90}ms` }}>
-      <div className="cinema-row-header">
-        <h2 style={{ color: "var(--accent-text)" }}>{programName}</h2>
-        <span className="cinema-row-count">{coursesCountLabel}</span>
-      </div>
-      <div className="cinema-row-wrap">
-        {canScrollLeft && (
-          <button
-            className="cinema-row-arrow cinema-row-arrow-left"
-            onClick={() => scrollBy(-1)}
-            aria-label={t("common.previous")}
-          >
-            <Icon name="chevron_left" size={32} />
-          </button>
-        )}
-        <div className="cinema-row-scroll" ref={scrollRef} onScroll={updateArrows}>
-          {items.map((v, i) => {
-            const thumb = thumbnailUrl(v);
-            return (
-              <button
-                key={v.id}
-                className="cinema-card"
-                style={{ animationDelay: `${rowIndex * 90 + i * 45}ms` }}
-                onClick={() => onSelect(v)}
-                onMouseEnter={onHover}
-                title={v.title}
-              >
-                <div className="cinema-card-thumb">
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" loading="lazy" />
-                  ) : (
-                    <div className="cinema-card-thumb-fallback">
-                      <Icon name="movie" size={40} color="var(--text-dim)" />
-                    </div>
-                  )}
-                  <span className="cinema-card-play">
-                    <Icon name="play_arrow" size={34} filled />
-                  </span>
-                  {v.duration_seconds ? (
-                    <span className="cinema-card-duration">{formatDurationMin(v.duration_seconds)}</span>
-                  ) : null}
-                </div>
-                <MarqueeText text={v.title} className="cinema-card-title" />
-                <span className="cinema-card-meta">{v.release ?? ""}</span>
-              </button>
-            );
-          })}
-        </div>
-        {canScrollRight && (
-          <button
-            className="cinema-row-arrow cinema-row-arrow-right"
-            onClick={() => scrollBy(1)}
-            aria-label="Suivant"
-          >
-            <Icon name="chevron_right" size={32} />
-          </button>
-        )}
-      </div>
-    </section>
-  );
-});
-
-// Idem CinemaRow : mémoïsé pour ne pas réconcilier toute la liste "Tous les
-// cours" (potentiellement longue) à chaque mise à jour de position vidéo.
-const CinemaAllList = React.memo(function CinemaAllList({
-  videos,
-  onSelect,
-  onHover,
-}: {
-  videos: CinemaVideo[];
-  onSelect: (video: CinemaVideo) => void;
-  onHover: () => void;
-}) {
-  return (
-    <div className="cinema-all-grid">
-      {videos.map((v, i) => {
-        const thumb = thumbnailUrl(v);
-        const accent = "var(--accent-text)";
-        return (
-          <button
-            key={v.id}
-            className="cinema-all-item"
-            style={{ animationDelay: `${i * 30}ms` }}
-            onClick={() => onSelect(v)}
-            onMouseEnter={onHover}
-          >
-            <div className="cinema-all-thumb">
-              {thumb ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={thumb} alt="" loading="lazy" />
-              ) : (
-                <Icon name="movie" size={22} color="var(--text-dim)" />
-              )}
-            </div>
-            <div className="cinema-all-text">
-              <MarqueeText text={v.title} className="cinema-all-title" />
-              <span className="cinema-all-meta" style={{ color: accent }}>
-                {[v.program, formatDurationMin(v.duration_seconds)].filter(Boolean).join(" · ")}
-              </span>
-            </div>
-            <Icon name="play_circle" size={26} color="var(--text-dim)" />
-          </button>
-        );
-      })}
-    </div>
-  );
-});
 
 /**
  * Interface cinéma adhérents. Contrairement à /kiosk, la
@@ -383,6 +172,7 @@ export default function CinemaPage() {
   const lastSeekTimeRef = useRef(0);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deckUnloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Définie tôt (avant startPlayback ci-dessous, qui doit pouvoir l'appeler) : ce minuteur d'auto-masquage n'était armé
   // QUE par `onMouseMove` sur cinema-root, jamais par le démarrage de la
   // lecture elle-même. Sur un écran HDMI passif piloté à distance depuis
@@ -526,6 +316,13 @@ export default function CinemaPage() {
       return;
     }
 
+    // Le deck inactif est celui qu'un lancement précédent s'apprêtait à décharger : sans annulation, la
+    // minuterie viderait le cours qui vient d'y être chargé.
+    if (deckUnloadTimerRef.current) {
+      clearTimeout(deckUnloadTimerRef.current);
+      deckUnloadTimerRef.current = null;
+    }
+
     // Double Décodeur Vidéo Gapless A/B Deck :
     // Préchargement en coulisses sur le deck inactif
     idle.src = videoStreamUrl(getApiUrl, video.id);
@@ -543,13 +340,10 @@ export default function CinemaPage() {
           setActiveDeck(nextDeck);
           if (videoRef.current) videoRef.current = idle;
 
-          // Déchargement doux du deck précédent après transition 0.4s
-          setTimeout(() => {
-            if (currentActive) {
-              currentActive.pause();
-              currentActive.removeAttribute("src");
-              currentActive.load();
-            }
+          // Déchargement du deck précédent une fois la transition de 0,4 s terminée.
+          deckUnloadTimerRef.current = setTimeout(() => {
+            deckUnloadTimerRef.current = null;
+            unloadMedia(currentActive);
           }, 450);
         })
         .catch(() => {
@@ -581,13 +375,8 @@ export default function CinemaPage() {
   const handleBackToMenu = useCallback(() => {
     setCinemaSync(null);
     clearUpNextTask();
-    [deckARef.current, deckBRef.current].forEach((el) => {
-      if (el) {
-        el.pause();
-        el.removeAttribute("src");
-        el.load();
-      }
-    });
+    unloadMedia(deckARef.current);
+    unloadMedia(deckBRef.current);
     setPhase("grid");
     setSelected(null);
     setUpNext(null);
@@ -696,7 +485,18 @@ export default function CinemaPage() {
     }, 1000);
   }, [videos, selected, handleBackToMenu, playImmediately]);
 
-  useEffect(() => () => clearUpNextTask(), []);
+  // Démontage : minuteries arrêtées, flux et tampons des deux decks libérés.
+  useEffect(() => {
+    const deckA = deckARef;
+    const deckB = deckBRef;
+    return () => {
+      clearUpNextTask();
+      if (deckUnloadTimerRef.current) clearTimeout(deckUnloadTimerRef.current);
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+      unloadMedia(deckA.current);
+      unloadMedia(deckB.current);
+    };
+  }, []);
 
   const handlePlayPause = () => {
     const el = videoRef.current;
@@ -1029,7 +829,7 @@ export default function CinemaPage() {
       {videos.length === 0 && (
         <div className="cinema-empty-screen">
           <AppLogo className="cinema-empty-logo" />
-          <span className="cinema-empty-clock" suppressHydrationWarning>{formatClock(now)}</span>
+          <span className="cinema-empty-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
           <span className="cinema-empty-message">{t("cinema.empty")}</span>
         </div>
       )}
@@ -1038,7 +838,7 @@ export default function CinemaPage() {
       {effectiveHideControls && showGrid && (
         <div className="cinema-standby-screen">
           <AppLogo size={96} className="cinema-standby-logo" />
-          <span className="cinema-standby-clock" suppressHydrationWarning>{formatClock(now)}</span>
+          <span className="cinema-standby-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
           <h1 className="cinema-standby-title">{t("cinema.standbyTitle")}</h1>
           <p className="cinema-standby-hint">{t("cinema.standbyHint")}</p>
         </div>
@@ -1073,7 +873,7 @@ export default function CinemaPage() {
                     <span className="cinema-hero-year">{featured.release}</span>
                   )}
                   {featured.duration_seconds && (
-                    <span className="cinema-hero-duration">{formatDurationMin(featured.duration_seconds)}</span>
+                    <span className="cinema-hero-duration">{formatMinutes(featured.duration_seconds)}</span>
                   )}
                   {getResolutionBadge(featured.width, featured.height) && (
                     <span className="cinema-hero-badge-pill">
@@ -1189,6 +989,7 @@ export default function CinemaPage() {
                 onSelect={handleSelect}
                 onHover={playHoverSound}
                 coursesCountLabel={t("cinema.coursesCount", { count: items.length })}
+                accentTitle
               />
             ))}
 
@@ -1551,7 +1352,7 @@ export default function CinemaPage() {
               </button>
               <h2 className="cinema-upnext-title">{upNext.title}</h2>
               <p className="cinema-upnext-meta">
-                {[upNext.program, upNext.release, formatDurationMin(upNext.duration_seconds)].filter(Boolean).join(" · ")}
+                {[upNext.program, upNext.release, formatMinutes(upNext.duration_seconds)].filter(Boolean).join(" · ")}
               </p>
               <p className="cinema-upnext-autoplay">
                 {t("cinema.autoPlayIn", { time: formatTime(upNextRemaining) })}

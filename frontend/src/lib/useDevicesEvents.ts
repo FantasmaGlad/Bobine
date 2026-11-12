@@ -1,13 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
-function getWsUrl(): string {
-  if (typeof window === "undefined") return "";
-  const host = window.location.port === "3000" ? "localhost:8001" : window.location.host;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws/playback`;
-}
+import { getPlaybackWsUrl } from "./apiUrl.ts";
 
 /**
  * Écoute les évènements `devices_changed` (audio, bluetooth, wifi) du serveur et appelle `onChange(scope)`.
@@ -30,7 +24,7 @@ export function useDevicesEvents(onChange: (scope: string) => void, enabled = tr
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl());
       socket = ws;
       ws.onopen = () => {
         delay = 1000;

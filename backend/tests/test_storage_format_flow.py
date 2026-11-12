@@ -68,7 +68,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(service.formatter, "_device_numbers", device_numbers)
     service.formatter.tokens = PlanTokens(min_age=0.0)           # le délai de réflexion a son propre test
     monkeypatch.setattr("app.main.storage_service", service)
-    monkeypatch.setattr("app.routers.storage.service", service)
+    monkeypatch.setattr("app.api.routes.media_streams.storage_service", service)
+    monkeypatch.setattr("app.api.routes.storage.service", service)
     monkeypatch.setattr("app.storage.formatting.manager.UNMOUNT_PAUSE", 0.01)
     monkeypatch.setattr("app.storage.formatting.manager.SETTLE_SECONDS", 3.0)
     with TestClient(app) as client:

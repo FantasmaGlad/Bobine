@@ -23,8 +23,9 @@ from starlette.applications import Starlette  # noqa: E402
 from starlette.routing import Mount  # noqa: E402
 from starlette.testclient import TestClient  # noqa: E402
 
-from app.main import RevalidateStaticFiles, app as real_app  # noqa: E402
-from app.utils.http_compression import (  # noqa: E402
+from app.main import app as real_app
+from app.api.static_files import RevalidateStaticFiles  # noqa: E402
+from app.api.http_compression import (  # noqa: E402
     ApiCompressionMiddleware,
     accepts_gzip,
     is_compressible_media_type,

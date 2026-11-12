@@ -11,6 +11,9 @@ import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
 import Highlight from "@/components/Highlight";
 import { matchesQuery } from "@/lib/searchText";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 type TargetType = "video" | "playlist" | "radio_playlist";
 type ScheduleTypeValue = "once" | "recurring";
@@ -82,18 +85,6 @@ interface Occurrence {
   override_id: number | null;
 }
 
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
-
 function getWeekStart(source: Date): Date {
   const d = new Date(source);
   d.setHours(0, 0, 0, 0);
@@ -137,12 +128,6 @@ function formatOccurrenceTime(iso: string) {
 
 function occurrenceKey(o: Occurrence): string {
   return `${o.schedule_id}-${o.run_at}`;
-}
-
-function formatDuration(seconds: number | null) {
-  if (!seconds) return "";
-  const mins = Math.round(seconds / 60);
-  return `${mins} min`;
 }
 
 function minutesToHHMM(minutes: number): string {
@@ -274,7 +259,6 @@ export default function SchedulePage() {
   // glisser-déposer HTML5 ne fonctionne pas au toucher, la garder ouverte
   // n'y mangerait que de la place utile sans rien apporter.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- même motif que viewMode ci-dessus
     if (isMobile) setLibraryOpen(false);
   }, [isMobile]);
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()));
@@ -283,7 +267,7 @@ export default function SchedulePage() {
   const [videos, setVideos] = useState<VideoSummary[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [radioPlaylists, setRadioPlaylists] = useState<RadioPlaylistSummary[]>([]);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [replacingKey, setReplacingKey] = useState<string | null>(null);
@@ -321,14 +305,6 @@ export default function SchedulePage() {
   const [libraryOpen, setLibraryOpen] = useState(true);
   const [librarySearch, setLibrarySearch] = useState("");
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
-
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   useEffect(() => {
     if (viewMode === "week" || viewMode === "day") {
@@ -837,7 +813,7 @@ export default function SchedulePage() {
         ? o.end_time
           ? `${formatOccurrenceTime(o.run_at)}–${o.end_time}`
           : formatOccurrenceTime(o.run_at)
-        : `${formatOccurrenceTime(o.run_at)} · ${formatDuration(o.duration_seconds)}`;
+        : `${formatOccurrenceTime(o.run_at)} · ${formatMinutes(o.duration_seconds)}`;
 
     return (
       <div
@@ -1276,7 +1252,7 @@ export default function SchedulePage() {
                           </div>
                         )}
                         <span className="card-duration" style={{ fontSize: "0.65rem", padding: "1px 4px" }}>
-                          {formatDuration(p.total_duration_seconds)}
+                          {formatMinutes(p.total_duration_seconds)}
                         </span>
                       </div>
                       <div className="picker-card-content">
@@ -1371,7 +1347,7 @@ export default function SchedulePage() {
                         </div>
                       )}
                       <span className="card-duration" style={{ fontSize: "0.65rem", padding: "1px 4px" }}>
-                        {formatDuration(v.duration_seconds)}
+                        {formatMinutes(v.duration_seconds)}
                       </span>
                     </div>
                     <div className="picker-card-content">
@@ -1416,7 +1392,7 @@ export default function SchedulePage() {
                         </div>
                       )}
                       <span className="card-duration" style={{ fontSize: "0.65rem", padding: "1px 4px" }}>
-                        {formatDuration(p.total_duration_seconds)}
+                        {formatMinutes(p.total_duration_seconds)}
                       </span>
                     </div>
                     <div className="picker-card-content">
@@ -1544,7 +1520,7 @@ export default function SchedulePage() {
                                 <Highlight text={opt.label} query={formTargetSearch} />
                               </span>
                               <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                                {t("schedule.tracksCount", { count: radioPlaylist.item_count })} · {formatDuration(radioPlaylist.total_duration_seconds)}
+                                {t("schedule.tracksCount", { count: radioPlaylist.item_count })} · {formatMinutes(radioPlaylist.total_duration_seconds)}
                               </span>
                             </span>
                             {selected && <Icon name="check" size={18} />}

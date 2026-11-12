@@ -51,7 +51,7 @@ class WindowsHandler(ProfileHandler):
         logger.info("Arrêt du process pour redémarrage (relance attendue de BobineTray).")
         # Sortie immédiate plutôt qu'un arrêt FastAPI/uvicorn « propre » :
         # ce code tourne déjà dans une tâche de fond après l'envoi de la
-        # réponse HTTP (cf. routers/settings.py::_run_full_reset), il n'y a
+        # réponse HTTP (cf. api/routes/settings/maintenance.py::_run_full_reset), il n'y a
         # plus rien à répondre proprement. `os._exit` évite en plus tout
         # risque qu'un `finally`/gestionnaire de signal ne bloque l'arrêt.
         os._exit(0)

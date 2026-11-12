@@ -5,7 +5,8 @@ import json
 import pytest
 
 from app import cli
-from app.cli_commands import SPECS
+import urllib.request
+from app.cli.specs import SPECS
 
 
 class Recorder:
@@ -51,7 +52,7 @@ def test_destructive_commands_need_yes(rec, argv, capsys):
 
 
 def test_every_spec_route_is_declared_as_covered():
-    from app import cli_routes
+    from app.cli import routes as cli_routes
     for spec in SPECS:
         for route in spec.covers:
             assert cli_routes.COVERED[route] == spec.command
@@ -135,7 +136,7 @@ class FakeResponse:
 
 def test_backup_writes_a_new_file_and_never_overwrites(monkeypatch, tmp_path):
     monkeypatch.setenv("BOBINE_PORT", "1903")
-    monkeypatch.setattr(cli.urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"PKdonnees"))
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"PKdonnees"))
     target = tmp_path / "sauvegarde.zip"
     assert cli.main(["settings", "backup", str(target)]) == cli.EXIT_OK
     assert target.read_bytes() == b"PKdonnees"
@@ -149,3 +150,10 @@ def test_archives_use_the_archive_route_for_every_family(rec, tmp_path):
     for family, route in (("library", "/api/videos/upload-zip"), ("backgrounds", "/api/backgrounds/upload-zip")):
         assert cli.main([family, "import", str(z)]) == cli.EXIT_OK
         assert rec.uploads[-1][0] == route
+
+
+def test_update_status_exit_code_reports_a_failed_update(monkeypatch):
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"step": "failed", "message": "empreinte"})
+    assert cli.main(["update", "status"]) == cli.EXIT_ERROR
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"step": "done"})
+    assert cli.main(["update", "status"]) == cli.EXIT_OK

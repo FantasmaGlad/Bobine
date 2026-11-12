@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://bobine.fit/fr"><b>Site officiel</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/fr/telechargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
+  <a href="#téléchargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/fr/documentation"><b>Documentation utilisateur</b></a> &nbsp;·&nbsp;
   <a href="README.md"><b>English</b></a> &nbsp;·&nbsp;
   <a href="docs/ARCHITECTURE.md"><b>Architecture technique</b></a>
@@ -25,24 +25,21 @@
   <a href="https://packages.bobine.fit/fr/"><img src="https://img.shields.io/badge/D%C3%A9p%C3%B4ts%20Linux-packages.bobine.fit-A81D33?logo=linux&logoColor=white" alt="Dépôts Linux"></a>
 </p>
 
+
 ---
 
 ## Pourquoi Bobine ?
 
-Les salles de cours collectifs et studios de cycling diffusent quotidiennement des cours vidéo sur grand écran ou vidéoprojecteur. Les solutions propriétaires imposent des abonnements mensuels par écran, un catalogue fermé et une connexion internet permanente.
+Les salles de cours collectifs et les studios de cycling diffusent des cours vidéo enregistrés sur grand écran ou vidéoprojecteur. Les systèmes propriétaires facturent un abonnement mensuel par écran, gardent leur catalogue fermé et exigent une connexion internet permanente. Bobine fait le même travail en logiciel libre, installé sur votre propre matériel.
 
-**Bobine offre la même expérience en salle — gratuitement, sans abonnement et en toute autonomie :**
+- **Vos contenus, votre matériel** : vos vidéos, votre planning, l'identité de votre club. Aucun compte, aucune redevance.
+- **Hors ligne** : une fois installé, les cours planifiés, la borne adhérents et la radio fonctionnent sans internet.
+- **Un programme, plusieurs écrans** : planning hebdomadaire, borne adhérents (`/kiosk`, `/cinema`), pupitre coach (`/grid`, `/coach`), radio avec rappels vocaux (`/radio`), télécommande sur téléphone, mesures de fréquentation.
+- **Sans surveillance** : démarre seul à la mise sous tension, y compris après une coupure de courant.
 
-- **Vous êtes propriétaire** — vos vidéos, votre planning, l'identité visuelle de votre club et votre matériel. Aucun compte requis, aucune redevance mensuelle.
-- **100 % hors ligne** — une fois installé, la salle n'a besoin d'aucune connexion internet pour lancer les cours planifiés, la borne adhérents ou la radio d'ambiance.
-- **Compatible avec votre matériel** — s'installe en quelques secondes sur Windows, macOS, Linux, tablette Android, Google Book, boîtier Android TV ou mini PC dédié.
-- **Autonome 24/7** — démarre tout seul à la mise sous tension et reprend automatiquement la séance en cours après une coupure de courant.
+## Téléchargement
 
----
-
-## Téléchargement & Installation
-
-Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Version Stable 5.1.1 ci-dessous ; tous les canaux et fichiers sur [**bobine.fit/fr/telechargement**](https://bobine.fit/fr/telechargement).
+Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Version Stable 5.1.1 ci-dessous ; tous les canaux et fichiers sur la [**page des versions**](https://github.com/FantasmaGlad/Bobine/releases).
 
 | Plateforme | Téléchargement | Prérequis |
 | :--- | :--- | :--- |
@@ -57,44 +54,43 @@ Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Versio
 
 Mêmes paquets sur les dérivées (glibc 2.38+) : <img src="Assets/Icons/distros/linuxmint.svg" width="16" height="16" valign="middle" alt="Linux Mint" title="Linux Mint"> Linux Mint · <img src="Assets/Icons/distros/popos.svg" width="16" height="16" valign="middle" alt="Pop!_OS" title="Pop!_OS"> Pop!_OS · <img src="Assets/Icons/distros/zorin.svg" width="16" height="16" valign="middle" alt="Zorin OS" title="Zorin OS"> Zorin OS · <img src="Assets/Icons/distros/raspberrypi.svg" width="16" height="16" valign="middle" alt="Raspberry Pi OS" title="Raspberry Pi OS"> Raspberry Pi OS · <img src="Assets/Icons/distros/nobara.svg" width="16" height="16" valign="middle" alt="Nobara" title="Nobara"> Nobara · <img src="Assets/Icons/distros/rhel.svg" width="16" height="16" valign="middle" alt="RHEL" title="RHEL"> RHEL 10+ · <img src="Assets/Icons/distros/almalinux.svg" width="16" height="16" valign="middle" alt="AlmaLinux" title="AlmaLinux"> AlmaLinux 10+ · <img src="Assets/Icons/distros/rockylinux.svg" width="16" height="16" valign="middle" alt="Rocky Linux" title="Rocky Linux"> Rocky Linux 10+ · <img src="Assets/Icons/distros/endeavouros.svg" width="16" height="16" valign="middle" alt="EndeavourOS" title="EndeavourOS"> EndeavourOS · <img src="Assets/Icons/distros/cachyos.svg" width="16" height="16" valign="middle" alt="CachyOS" title="CachyOS"> CachyOS · <img src="Assets/Icons/distros/manjaro.svg" width="16" height="16" valign="middle" alt="Manjaro" title="Manjaro"> Manjaro
 
+## Installer depuis un terminal
+
+Chaque commande installe la version Stable. Le script Windows vérifie la signature de `SHA256SUMS` et l'empreinte SHA-256 ; les dépôts Linux sont signés ([packages.bobine.fit](https://packages.bobine.fit)).
+
+| Système | Commande |
+| :--- | :--- |
+| <img src="Assets/Icons/tools/powershell.svg" width="20" height="20" valign="middle" alt="PowerShell"> **Windows (PowerShell)** | `irm https://bobine.fit/install.ps1 \| iex` |
+| <img src="Assets/Icons/tools/homebrew.svg" width="20" height="20" valign="middle" alt="Homebrew"> **macOS (Homebrew)** | `brew install --cask fantasmaglad/bobine/bobine` |
+| <img src="Assets/Icons/os/linux.svg" width="20" height="20" valign="middle" alt="Linux"> **Linux (APT, DNF, pacman)** | voir [packages.bobine.fit](https://packages.bobine.fit) |
+| <img src="Assets/Icons/distros/debian.svg" width="20" height="20" valign="middle" alt="Debian"> **Mini PC (Debian 13)** | `curl -fsSL https://bobine.fit/install.sh \| bash` |
+
 ### Mini PC dédié
 
-Transforme un mini PC (Debian 13, x64 ou ARM64) en lecteur Bobine dédié : il démarre directement sur le kiosque plein écran de sa sortie HDMI et reprend seul après une coupure de courant.
+Un mini PC sous Debian 13 minimale (x64 ou ARM64, SSH activé) devient un lecteur dédié : il démarre sur la borne en plein écran sur sa sortie HDMI. Installez-le depuis votre ordinateur avec [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy), qui trouve le mini PC sur le réseau et installe par SSH, ou lancez [`install.sh`](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/install.sh) sur le mini PC lui-même (commande ci-dessus).
 
-- **Depuis votre ordinateur, avec [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy)** : il trouve le mini PC sur votre réseau, s'y connecte en SSH et installe tout avec une barre de progression, en fenêtre ou en ligne de commande (Linux, Windows, macOS ; [téléchargements](https://github.com/FantasmaGlad/bobine-deploy/releases/latest)).
-- **Directement sur le mini PC**, dans un terminal ([install.sh](https://github.com/FantasmaGlad/Bobine/releases/download/V5.1.1/install.sh)) :
+### Autre canal, Tor
 
-  ```bash
-  curl -fsSL https://bobine.fit/install.sh | bash
-  ```
+<details>
+<summary><b>Un autre canal sous Windows</b></summary>
 
-- **Script récupéré par Tor** sur le miroir onion (l'installation passe ensuite par le réseau habituel) :
-
-  ```bash
-  onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
-  curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install.sh" | bash
-  ```
-
-Prérequis : Debian 13 minimale avec SSH activé, sur le même réseau que votre ordinateur.
-
-### Installation en une commande
-
-<img src="Assets/Icons/tools/powershell.svg" width="20" height="20" alt="PowerShell"> Windows (PowerShell) : installe la Stable après contrôle de la signature de `SHA256SUMS` et de son empreinte SHA-256, sans gpg.
-
-```powershell
-irm https://bobine.fit/install.ps1 | iex
-```
-
-Sur Windows PowerShell 5.1 avec un .NET antérieur à 4.7, exécutez `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` avant `irm` ; le script ne peut pas changer la version TLS de la requête qui le télécharge.
-
-Autre canal (le pipe ne transmet pas les paramètres) :
+Le tube ne transmet pas de paramètre :
 
 ```powershell
 $script = irm https://bobine.fit/install.ps1
 & ([scriptblock]::Create($script)) -Channel beta
 ```
 
-Par Tor (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
+Sous Windows PowerShell 5.1 avec un .NET antérieur à 4.7, lancez `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` avant `irm`.
+
+</details>
+
+<details>
+<summary><img src="Assets/Icons/os/tor.svg" width="16" height="16" valign="middle" alt="Tor"> <b>Par Tor</b></summary>
+
+GitHub et Homebrew voient alors une sortie Tor à la place de votre adresse. Le script du mini PC est lu sur le miroir onion ; l'installation elle-même passe par le réseau ordinaire.
+
+Windows (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
 
 ```powershell
 $base = 'https://github.com/FantasmaGlad/Bobine/releases/latest/download'
@@ -102,82 +98,61 @@ $script = irm "$base/install.ps1" -Proxy socks5://127.0.0.1:9150
 & ([scriptblock]::Create($script)) -Tor
 ```
 
-<img src="Assets/Icons/tools/homebrew.svg" width="20" height="20" alt="Homebrew"> macOS (Homebrew) :
-
-```bash
-brew install --cask fantasmaglad/bobine/bobine
-```
-
-Par Tor :
+macOS :
 
 ```bash
 export ALL_PROXY=socks5h://127.0.0.1:9050
 brew install --cask fantasmaglad/bobine/bobine
 ```
 
-<img src="Assets/Icons/os/linux.svg" width="20" height="20" alt="Linux"> Linux : dépôts signés, instructions sur [packages.bobine.fit](https://packages.bobine.fit). Par Tor, dépôts et clé de signature par le miroir onion :
+Dépôts Linux et clé de signature :
 
 ```bash
 onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
 curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
 ```
 
-<img src="Assets/Icons/os/tor.svg" width="20" height="20" alt="Tor"> Par Tor, GitHub et Homebrew voient une sortie Tor et non votre adresse.
+Mini PC :
 
----
+```bash
+onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
+curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install.sh" | bash
+```
 
-## Fonctionnalités clés
-
-- **Planning hebdomadaire automatisé** — Programmez la grille horaire de vos salles ; les cours démarrent automatiquement à l'heure prévue sur le bon écran.
-- **Borne adhérents à la demande (`/kiosk` & `/cinema`)** — Permettez aux membres de parcourir le catalogue par discipline et de lancer une séance en libre-service (écran tactile, télécommande TV, manette ou souris), avec enchaînement fluide sans écran noir et notation sur 5 étoiles en fin de séance.
-- **Pupitre Studio Coach (`/grid` & `/coach`)** — Reliez un ordinateur portable ou une tablette Android en HDMI à l'écran de la salle : l'écran tactile sert de console de pilotage (sélection, chapitres, sous-titres, mode audio coach) tandis que le grand écran diffuse uniquement le cours en plein écran.
-- **Télécommande mobile** — Ouvrez `http://bobine.local:1903` depuis n'importe quel smartphone connecté au Wi-Fi du club pour mettre en pause, avancer, choisir les sous-titres ou lancer un cours sans installer d'application.
-- **Radio d'ambiance 24/7 & Rappels vocaux (`/radio`)** — Lecteur musical continu avec fondu enchaîné, égaliseur 5 bandes, playlists et diffusion automatique d'annonces vocales programmées (*« Pensez à ranger vos poids »*, etc.).
-- **Deux sorties d'écran et de radio indépendantes** — Pilotez simultanément un écran câblé (HDMI) et un écran réseau avec deux programmes distincts.
-- **Statistiques de fréquentation (`/metrics`)** — Suivez en local l'assiduité des cours, les notes des adhérents, les heures d'affluence sur 24 h et l'état du matériel.
-- **9 thèmes de couleurs, chacun en clair et en sombre** — mode automatique selon l'appareil, contrastes vérifiés, sans dégradé de fond ; adaptés aux espaces d'accueil lumineux comme aux salles de cycling immersives.
-
----
-
-## Prise en main rapide
-
-1. **Installez et lancez Bobine** sur votre ordinateur, tablette ou mini PC.
-2. **Ouvrez l'interface** depuis n'importe quel navigateur connecté au même réseau Wi-Fi ou Ethernet :
-   ```text
-   http://bobine.local:1903
-   ```
-   *(Ou `http://127.0.0.1:1903` directement sur la machine hôte ; sans le port sur le mini PC dédié. Toutes les adresses de l'appareil sont dans Réglages → Documentation.)*
-3. **Importez vos premières vidéos** par glisser-déposer dans l'onglet **Bibliothèque** (les musiques vont dans l'onglet **Piste Audio Radio**), puis lancez une séance ou configurez votre **Planning**.
-
-Toutes les interfaces fonctionnent immédiatement sur **Mozilla Firefox**, **Google Chrome**, **Microsoft Edge**, **Apple Safari**, **Brave** et **Tor Browser**, sans aucune installation sur les appareils clients.
-
----
+</details>
 
 ## Canaux de mise à jour
 
-Bobine propose trois canaux de mise à jour, modifiables à tout moment dans **Réglages → Mises à jour logicielles** :
+Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 
-| Canal | Cadence | Public visé | Liens |
+| Canal | Publication | Pour | Version |
 | :--- | :--- | :--- | :--- |
-| **Stable** | Versions officielles taguées (`V5.1.1`) | Choix par défaut recommandé pour l'exploitation en salle | [Dernière Stable](https://github.com/FantasmaGlad/Bobine/releases/latest) |
-| **Bêta** | Lots d'accès anticipé sélectionnés | Découverte des prochaines nouveautés avant leur sortie Stable | [Release Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) |
-| **Canary** | Reconstruite à chaque commit sur `main` | Utilisateurs avancés souhaitant tester immédiatement les derniers changements | [Release Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) |
+| <img src="Assets/Images/Versions/Stable-cropped-1024.png" width="20" height="20" valign="middle" alt="Stable"> **Stable** | chaque version taguée (`V5.1.1`) | les clubs et studios en exploitation | [Stable](https://github.com/FantasmaGlad/Bobine/releases/latest) |
+| <img src="Assets/Images/Versions/Beta-cropped-1024.png" width="20" height="20" valign="middle" alt="Bêta"> **Bêta** | lots choisis par le mainteneur | essayer les nouveautés avant la Stable | [Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) |
+| <img src="Assets/Images/Versions/Canary-cropped-1024.png" width="20" height="20" valign="middle" alt="Canary"> **Canary** | chaque commit sur `main` | tester les derniers changements | [Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) |
 
----
+## Documentation
 
-## Documentation & Guides matériel
+| Sujet | Où |
+| :--- | :--- |
+| Guide d'utilisation et FAQ | [bobine.fit/fr/documentation](https://bobine.fit/fr/documentation) |
+| Auteur et projet | [bobine.fit/fr/a-propos](https://bobine.fit/fr/a-propos) |
+| Dépôts Linux | [packages.bobine.fit](https://packages.bobine.fit/fr/) |
+| Architecture et API | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
-- **Guide utilisateur & FAQ** : [bobine.fit/fr/documentation](https://bobine.fit/fr/documentation)
-- **Compatibilité matérielle** *(mini PC, PC portables, tablettes, box TV)* : [bobine.fit/fr/telechargement](https://bobine.fit/fr/telechargement)
-- **Portail des paquets Linux** *(instructions APT, DNF, Pacman)* : [packages.bobine.fit/fr/](https://packages.bobine.fit/fr/)
-- **Architecture technique & Référence API** : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+## Pourquoi aller aussi loin ?
 
----
+Un planning hebdomadaire de cours collectifs n'a pas besoin de sept plateformes, de trois canaux de mise à jour ni d'un miroir Tor. Ces choix sont voulus ; Bobine est aussi le terrain où son auteur les pratique.
 
-## Sécurité & Licence
+- **Tous les systèmes et architectures** : pour que la question « est-ce compatible ? » ne se pose pas. Un ancien portable, une tablette, un boîtier TV, un mini PC d'occasion : si l'appareil dort dans un garage, Bobine doit pouvoir s'y installer, quelle que soit sa puissance. Réutiliser un appareil évite d'en acheter un.
+- **Trois canaux de mise à jour** : pour tenir un processus de diffusion propre, avec la Stable en bout de chaîne, la Bêta par lots choisis et la Canary reconstruite à chaque modification.
+- **Un miroir Tor** : disproportionné pour une application de régie. Publier une application et ses dépôts par des miroirs onion, sans révéler l'adresse de l'utilisateur, est un savoir-faire à maîtriser avant de publier des logiciels plus sensibles.
+- **Une seule personne** : toute la chaîne, du code source aux paquets signés de chaque plateforme, est construite et maintenue par [Clément Barillot](https://bobine.fit/fr/a-propos).
 
-- **Sécurité** : Signalez toute vulnérabilité en privé via [GitHub Security Advisories](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou à [security@bobine.fit](mailto:security@bobine.fit) (empreinte OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`, détails sur [security.bobine.fit/fr/](https://security.bobine.fit/fr/) et [docs/fr/SECURITY.md](docs/fr/SECURITY.md)).
-- **Contribuer** : Les signalements de bugs et contributions sont bienvenus — voir [docs/fr/CONTRIBUTING.md](docs/fr/CONTRIBUTING.md) et [docs/fr/CODE_OF_CONDUCT.md](docs/fr/CODE_OF_CONDUCT.md).
-- **Licence** : Logiciel libre et gratuit distribué sous licence **GNU Affero General Public License v3.0 ([AGPL-3.0](LICENSE))**.
+## Sécurité et licence
 
-<sub>Dépôts liés : [bobine-deploy](https://github.com/FantasmaGlad/bobine-deploy) (installation à distance) · [BobineWeb](https://github.com/FantasmaGlad/BobineWeb) (site) · [bobine-packages](https://github.com/FantasmaGlad/bobine-packages) (dépôts de paquets Linux) · [homebrew-bobine](https://github.com/FantasmaGlad/homebrew-bobine) (tap Homebrew) · Politique de sécurité : [security.bobine.fit](https://security.bobine.fit/fr/), [`/.well-known/security.txt`](https://bobine.fit/.well-known/security.txt)</sub>
+- **Sécurité** : signalez une vulnérabilité en privé par [GitHub Security Advisories](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou à [security@bobine.fit](mailto:security@bobine.fit) (OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` ; détails sur [security.bobine.fit](https://security.bobine.fit/fr/) et dans [SECURITY.md](SECURITY.md)).
+- **Contribuer** : [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+- **Licence** : [AGPL-3.0](LICENSE).
+
+<sub>Dépôts liés : [bobine-deploy](https://github.com/FantasmaGlad/bobine-deploy) (installation à distance) · [BobineWeb](https://github.com/FantasmaGlad/BobineWeb) (site) · [bobine-packages](https://github.com/FantasmaGlad/bobine-packages) (dépôts Linux) · [homebrew-bobine](https://github.com/FantasmaGlad/homebrew-bobine) (tap Homebrew)</sub>

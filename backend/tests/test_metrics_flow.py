@@ -17,25 +17,20 @@ from fastapi import HTTPException
 from app.config import settings
 from app.database import SessionLocal, init_db
 from app.models import CourseRating, ImportSource, PlaybackSession, Video
-from app.routers.metrics import (
+from app.api.routes.metrics import (
     RatingCreate,
     create_course_rating,
     get_hardware_history,
     get_metrics_dashboard,
     list_course_ratings,
 )
-from app.routers.settings import get_storage, get_system_usage, purge_logs_manual
-from app.utils.hardware_info import (
-    get_cpu_model_name,
-    get_cpu_temp,
-    get_gpu_info,
-    get_power_watts,
-    get_ram_info,
-    get_runtime_info,
-    get_storage_model,
-    purge_expired_logs_and_metrics,
-    record_hardware_snapshot,
-)
+from app.api.routes.settings.maintenance import get_storage, get_system_usage, purge_logs_manual
+from app.hardware.cpu import get_cpu_model_name
+from app.hardware.disk import get_storage_model
+from app.hardware.gpu import get_gpu_info
+from app.hardware.memory import get_ram_info
+from app.hardware.power import get_power_watts
+from app.hardware.telemetry import get_runtime_info, purge_expired_logs_and_metrics, record_hardware_snapshot
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
@@ -266,7 +261,6 @@ class TestMetricsFlow(unittest.TestCase):
     def test_dynamic_metrics_future_extensibility(self):
         """Valide qu'une nouvelle métrique future (ex: fan_rpm, npu_load, battery_pct) est enregistrée et servie sans altération de schéma."""
         with SessionLocal() as db:
-            from app.models import SystemMetricsHistory
             record_hardware_snapshot(db, extra={"fan_rpm": 2400.0, "npu_load_percent": 35.5, "battery_pct": 92.0})
 
             res_fan = get_hardware_history(metric="fan_rpm", period="1h", db=db)
@@ -280,7 +274,8 @@ class TestMetricsFlow(unittest.TestCase):
 
     def test_settings_logs_retention_days_update(self):
         """Valide la modification du délai de rétention des logs via PUT /api/settings et la validation des bornes."""
-        from app.routers.settings import update_settings, get_settings, SettingsUpdate
+        from app.api.routes.settings.core import SettingsUpdate
+        from app.api.routes.settings.values import update_settings, get_settings
         import asyncio
 
         with SessionLocal() as db:
@@ -306,12 +301,7 @@ class TestMetricsFlow(unittest.TestCase):
 
     def test_power_watts_calculation_and_energy(self):
         """Valide le calcul de puissance multi-OS et l'accumulation d'énergie Wh."""
-        from app.utils.hardware_info import (
-            get_power_watts,
-            update_cumulative_energy,
-            get_cumulative_energy_wh,
-            get_average_power_watts,
-        )
+        from app.hardware.power import update_cumulative_energy, get_cumulative_energy_wh
         p = get_power_watts()
         self.assertIsNotNone(p)
         self.assertGreater(p, 0.0)
@@ -325,7 +315,6 @@ class TestMetricsFlow(unittest.TestCase):
         """Vérifie le comportement de calcul de puissance sur tous les profils matériels (Mac mini, MacBook, PC fixe, Laptop, Wyse)."""
         from unittest.mock import patch
         from collections import namedtuple
-        from app.utils.hardware_info import get_power_watts
 
         BatteryMock = namedtuple("BatteryMock", ["percent", "secsleft", "power_plugged"])
 

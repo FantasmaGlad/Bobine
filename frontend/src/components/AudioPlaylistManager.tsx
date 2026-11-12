@@ -8,6 +8,9 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatMediaDuration, formatMinutes } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 interface AudioTrackSummary {
   id: number;
@@ -76,18 +79,6 @@ interface PlaylistDraftItem {
   backgroundId: number | null;
 }
 
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-}
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
-
 /**
  * Créateur de playlists audio ("éditions mixées") pour le mode coach,
  * embarqué dans l'onglet "Playlists" de Coach → Cours audio — anciennement la page
@@ -108,7 +99,7 @@ export default function AudioPlaylistManager() {
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [backgrounds, setBackgrounds] = useState<BackgroundSummary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   const [playlistSearch, setPlaylistSearch] = useState<string>("");
   const [trackSearch, setTrackSearch] = useState<string>("");
@@ -128,17 +119,6 @@ export default function AudioPlaylistManager() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<AudioPlaylistSummary | null>(null);
-
-  const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
-    setToast({ message, type });
-  };
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const fetchPlaylists = async () => {
     try {
@@ -190,18 +170,6 @@ export default function AudioPlaylistManager() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     Promise.all([fetchPlaylists(), fetchTracks(), fetchCourses(), fetchBackgrounds()]).finally(() => setLoading(false));
   }, []);
-
-  const formatDuration = (seconds: number) => {
-    if (!seconds) return "0 min";
-    return `${Math.round(seconds / 60)} min`;
-  };
-
-  const formatTrackDuration = (seconds: number | null) => {
-    if (!seconds) return "--:--";
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
 
   const getCourseThumbSrc = (course: AudioCourseSummary) => {
     if (!course.background_thumbnail_path) return null;
@@ -563,7 +531,7 @@ export default function AudioPlaylistManager() {
                       <span className="release-badge" style={{ padding: "2px 6px" }}>
                         {t("audioPlaylists.coursesCount", { count: p.item_count })}
                       </span>
-                      <span>{formatDuration(p.total_duration_seconds)}</span>
+                      <span>{formatMinutes(p.total_duration_seconds, "0 min")}</span>
                     </div>
                     <div className="playlist-card-actions">
                       <button
@@ -664,7 +632,7 @@ export default function AudioPlaylistManager() {
                 </div>
                 <div className="metadata-stat">
                   <span className="metadata-stat-label">{t("audioPlaylists.totalDurationLabel")}</span>
-                  <span className="metadata-stat-value">{formatDuration(totalDurationSeconds)}</span>
+                  <span className="metadata-stat-value">{formatMinutes(totalDurationSeconds, "0 min")}</span>
                 </div>
                 {!isMobile && (
                   <div className="metadata-stat">
@@ -727,7 +695,7 @@ export default function AudioPlaylistManager() {
                                 </span>
                               )}
                               <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                {item.track.course_title} · {formatTrackDuration(item.track.duration_seconds)}
+                                {item.track.course_title} · {formatMediaDuration(item.track.duration_seconds)}
                               </span>
                             </div>
                             <div onClick={(e) => e.stopPropagation()}>
@@ -874,7 +842,7 @@ export default function AudioPlaylistManager() {
                                     {track.number ? `${track.number}. ` : ""}{track.title}
                                   </span>
                                   <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", flexShrink: 0 }}>
-                                    {formatTrackDuration(track.duration_seconds)}
+                                    {formatMediaDuration(track.duration_seconds)}
                                   </span>
                                   <button
                                     type="button"

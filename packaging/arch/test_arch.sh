@@ -22,7 +22,7 @@ errors=[]
 for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
     if ' E: ' not in line: continue
     # Namcap cherche les bibliothèques dans /usr/lib ; PyInstaller les embarque dans son répertoire privé.
-    match=re.search(r"Dependency \w+ detected and not included \(libraries (\[.*?\])",line)
+    match=re.search(r"Dependency [\w.+-]+ detected and not included \(libraries (\[.*?\])",line)
     if match and all('usr/lib/bobine/'+pathlib.PurePosixPath(lib).name in files for lib in ast.literal_eval(match[1])):
         continue
     if re.search(r'unknown-dep|script-link-detected|elf-unusual-bin-path|unstripped|incorrect-library|no-dep|usr-lib',line): continue

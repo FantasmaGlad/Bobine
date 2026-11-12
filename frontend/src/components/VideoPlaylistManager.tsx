@@ -8,6 +8,9 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatMinutes } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 interface Video {
   id: number;
@@ -45,11 +48,6 @@ interface PlaylistSummary {
   total_duration_seconds: number;
 }
 
-interface ToastState {
-  message: string;
-  type: "success" | "error" | "warning";
-}
-
 /**
  * Créateur de playlists vidéo pour le mode kiosk, embarqué dans l'onglet
  * "Playlists" de la Bibliothèque — anciennement la page `/playlists` à part entière.
@@ -65,7 +63,7 @@ export default function VideoPlaylistManager() {
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
 
   const [playlistSearch, setPlaylistSearch] = useState<string>("");
 
@@ -85,28 +83,6 @@ export default function VideoPlaylistManager() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
-
-  const getApiUrl = (path: string) => {
-    if (typeof window !== "undefined") {
-      if (window.location.port === "3000") {
-        return `http://localhost:8001/api${path}`;
-      }
-    }
-    return `/api${path}`;
-  };
-
-  const showToast = (message: string, type: "success" | "error" | "warning" = "success") => {
-    setToast({ message, type });
-  };
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => {
-        setToast(null);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const fetchPlaylists = async () => {
     try {
@@ -138,12 +114,6 @@ export default function VideoPlaylistManager() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     Promise.all([fetchPlaylists(), fetchVideos()]).finally(() => setLoading(false));
   }, []);
-
-  const formatDuration = (seconds: number) => {
-    if (!seconds) return "0 min";
-    const mins = Math.round(seconds / 60);
-    return `${mins} min`;
-  };
 
   const formatItemDuration = (seconds: number | null) => {
     if (seconds === null || seconds === undefined) return "--:--";
@@ -506,7 +476,7 @@ export default function VideoPlaylistManager() {
                       <span className="release-badge" style={{ padding: "2px 6px" }}>
                         {t("playlists.coursesCount", { count: p.item_count })}
                       </span>
-                      <span>{formatDuration(p.total_duration_seconds)}</span>
+                      <span>{formatMinutes(p.total_duration_seconds, "0 min")}</span>
                     </div>
                     <div className="playlist-card-actions">
                       <button
@@ -607,7 +577,7 @@ export default function VideoPlaylistManager() {
                 </div>
                 <div className="metadata-stat">
                   <span className="metadata-stat-label">{t("playlists.totalDurationLabel")}</span>
-                  <span className="metadata-stat-value">{formatDuration(totalDurationSeconds)}</span>
+                  <span className="metadata-stat-value">{formatMinutes(totalDurationSeconds, "0 min")}</span>
                 </div>
                 <div className="metadata-stat">
                   <span className="metadata-stat-label">{t("playlists.statusLabel")}</span>

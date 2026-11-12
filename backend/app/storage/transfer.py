@@ -461,8 +461,10 @@ def _fsync_dir(directory: str) -> None:
         return
     try:
         os.fsync(fd)
-    except OSError:
-        pass
+    except OSError as exc:
+        # Certains systèmes de fichiers amovibles refusent fsync sur un dossier : l'export reste valide,
+        # seule la durabilité du renommage en cas de coupure n'est pas garantie.
+        logger.warning("fsync du dossier %s impossible : %s", directory, exc)
     finally:
         os.close(fd)
 

@@ -16,13 +16,7 @@ import UpdateProgressOverlay from "@/components/UpdateProgressOverlay";
 import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import { useDpadNavigation } from "@/lib/useDpadNavigation";
 import { isPlugEvent, useStorageEvents, type StorageEvent } from "@/lib/useStorageEvents";
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
+import { getApiUrl } from "@/lib/apiUrl";
 
 interface ClientLayoutProps {
   children: React.ReactNode;

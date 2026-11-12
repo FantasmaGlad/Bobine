@@ -9,7 +9,7 @@ import urllib.error
 import pytest
 from fastapi import HTTPException
 
-from app.routers import updates
+from app.api.routes import updates
 
 
 @pytest.fixture(autouse=True)

@@ -1,6 +1,6 @@
 /**
  * Client du téléversement par morceaux reprenable (backend :
- * `app/utils/staged_uploads.py`, `app/routers/uploads.py`).
+ * `app/utils/staged_uploads.py`, `app/api/routes/uploads.py`).
  *
  * Remplace, pour les gros fichiers (vidéos, fonds, archives ZIP), l'unique
  * requête `multipart/form-data` de plusieurs Go : le fichier est découpé

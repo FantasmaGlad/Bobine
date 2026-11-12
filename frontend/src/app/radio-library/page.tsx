@@ -9,6 +9,9 @@ import { matchesQuery } from "@/lib/searchText";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { ARCHIVE_ACCEPT, RADIO_AUDIO_EXTENSIONS, hasExtension, isArchiveName } from "@/lib/mediaFiles";
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatMediaDuration } from "@/lib/format";
+import { useToast } from "@/lib/useToast";
 
 // Bibliothèque musicale Radio — écran unique « vue d'ensemble » (refonte).
 // Barre latérale persistante (playlists / tags / genres / artistes, tous
@@ -68,22 +71,6 @@ type SortKey = "recent" | "title" | "artist" | "duration";
 type ViewMode = "grid" | "list";
 const VIEW_STORAGE_KEY = "bobine.radioLibrary.view";
 
-interface ToastState { message: string; type: "success" | "error" | "warning"; }
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
-
-function formatDuration(seconds: number | null) {
-  if (!seconds) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 // Filtre les fichiers non audio d'un dossier déposé (liste unique : `lib/mediaFiles.ts`).
 const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
@@ -96,7 +83,7 @@ export default function RadioLibraryPage() {
   const [albums, setAlbums] = useState<AlbumEntry[]>([]);
   const [tagsList, setTagsList] = useState<TagEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast } = useToast();
   const [coverVersion, setCoverVersion] = useState(0);
 
   const [search, setSearch] = useState("");
@@ -178,15 +165,8 @@ export default function RadioLibraryPage() {
   const { uploads, addUploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  const showToast = (message: string, type: ToastState["type"] = "success") => setToast({ message, type });
   // Imports radio en cours ou récents, affichés dans la section « Importer ».
   const radioUploads = uploads.filter((u) => u.kind === "radio_files" || u.kind === "radio_zip").slice(-12).reverse();
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const fetchJson = async <T,>(path: string, fallback: T): Promise<T> => {
     try {
@@ -436,8 +416,10 @@ export default function RadioLibraryPage() {
 
   const confirmBulkDelete = async () => {
     const ids = Array.from(selected);
-    await Promise.all(ids.map((id) => fetch(getApiUrl(`/radio/tracks/${id}`), { method: "DELETE" }).catch(() => null)));
-    showToast(t("radioLibrary.bulkDeletedToast", { count: ids.length }));
+    const responses = await Promise.all(ids.map((id) => fetch(getApiUrl(`/radio/tracks/${id}`), { method: "DELETE" }).catch(() => null)));
+    const deleted = responses.filter((res) => res?.ok).length;
+    if (deleted === 0) showToast(t("radioLibrary.deleteError"), "error");
+    else showToast(t("radioLibrary.bulkDeletedToast", { count: deleted }), deleted < ids.length ? "error" : "success");
     setBulkDeleteOpen(false);
     clearSelection();
     refreshAll();
@@ -751,7 +733,7 @@ export default function RadioLibraryPage() {
           ) : (
             <Icon name="music_note" size={40} style={{ opacity: 0.25 }} />
           )}
-          <span className="card-duration">{formatDuration(track.duration_seconds)}</span>
+          <span className="card-duration">{formatMediaDuration(track.duration_seconds)}</span>
         </div>
         <div className="card-content">
           <h4 className="card-title" title={track.title}>{track.title}</h4>
@@ -798,7 +780,7 @@ export default function RadioLibraryPage() {
           {track.tags.slice(0, 2).map((tg) => <span key={tg} className="rl-card-tag">{tg}</span>)}
           {track.tags.length > 2 && <span className="rl-card-tag">+{track.tags.length - 2}</span>}
         </span>
-        <span className="rl-list-duration">{formatDuration(track.duration_seconds)}</span>
+        <span className="rl-list-duration">{formatMediaDuration(track.duration_seconds)}</span>
       </div>
     );
   };
@@ -984,7 +966,7 @@ export default function RadioLibraryPage() {
                     <div className="rl-pcard-body">
                       <span className="rl-pcard-title" title={p.name}>{p.name}</span>
                       <span className="rl-pcard-meta">
-                        {t("radioLibrary.itemsInPlaylist", { count: p.item_count })} · {formatDuration(p.total_duration_seconds)}
+                        {t("radioLibrary.itemsInPlaylist", { count: p.item_count })} · {formatMediaDuration(p.total_duration_seconds)}
                       </span>
                       <span className="rl-pcard-badges">
                         {outputDefaults?.radio_cable?.override_playlist_id === p.id && <span className="rl-card-tag"><Icon name="cable" size={11} /> {t("radioLibrary.outputCable")}</span>}
@@ -1236,7 +1218,7 @@ export default function RadioLibraryPage() {
             <div className="rl-pl-meta">
               <span>{t("radioLibrary.itemsInPlaylist", { count: editingPlaylist.items.length })}</span>
               <span className="rl-pl-meta-dot">·</span>
-              <span>{formatDuration(editingPlaylist.total_duration_seconds)}</span>
+              <span>{formatMediaDuration(editingPlaylist.total_duration_seconds)}</span>
               <div className="rl-toolbar-spacer" />
               <button type="button" className={`rl-pl-star ${editingPlaylist.is_default ? "on" : ""}`} onClick={toggleDefault} title={editingPlaylist.is_default ? t("radioLibrary.unsetDefault") : t("radioLibrary.setDefault")}>
                 <Icon name="star" size={18} filled={editingPlaylist.is_default} />
@@ -1345,7 +1327,7 @@ export default function RadioLibraryPage() {
                       <span className="rl-pl-row-title">{item.track.title}</span>
                       <span className="rl-pl-row-artist">{item.track.artist || t("radioLibrary.unknownArtist")}</span>
                     </div>
-                    <span className="rl-pl-row-duration">{formatDuration(item.track.duration_seconds)}</span>
+                    <span className="rl-pl-row-duration">{formatMediaDuration(item.track.duration_seconds)}</span>
                     <button type="button" className="rl-pl-row-action" title={t("radioLibrary.remove")} onClick={() => removeFromPlaylist(item.track.id)}>
                       <Icon name="close" size={18} />
                     </button>

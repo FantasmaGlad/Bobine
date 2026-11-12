@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.api_contract import CHANNELS, DEFAULT_CHANNEL
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL
 from app.models import Setting
 from app.utils.radio_sound import default_sound, sanitize_sound
 

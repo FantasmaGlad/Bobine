@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
-import type { Notify } from "@/components/devices/common";
 import Explorer from "@/components/storage/Explorer";
 import FormatAdvisor from "@/components/storage/FormatAdvisor";
 import FormatWizard from "@/components/storage/FormatWizard";
@@ -14,11 +13,11 @@ import { storageErrorText } from "@/components/storage/common";
 import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
 import { diffVolumes, encodeKey, storageRequest, type FormatJob, type PortableListing, type StorageVolume, type VolumeListing } from "@/lib/storageApi";
 import { useStorageEvents } from "@/lib/useStorageEvents";
+import { useToast } from "@/lib/useToast";
 
 // Stockage externe : supports amovibles et téléphones. Tout appareil du réseau local de confiance y accède directement.
 // Une liste, UNE action principale par support (Explorer), puis Importer ou Utiliser comme extension ; le reste est dans « Options ».
 
-interface ToastState { message: string; type: "success" | "error" | "warning"; }
 interface OpenSource { key: string; name: string; portable: boolean; volume: StorageVolume | null; }
 
 export default function StoragePage() {
@@ -28,7 +27,7 @@ export default function StoragePage() {
   const [loadError, setLoadError] = useState(false);
   const [listing, setListing] = useState<VolumeListing | null>(null);
   const [portable, setPortable] = useState<PortableListing | null>(null);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, showToast: notify } = useToast(5000);
   const [opening, setOpening] = useState<string | null>(null);
   const [explorer, setExplorer] = useState<OpenSource | null>(null);
   const [sheetKey, setSheetKey] = useState<string | null>(null);
@@ -37,13 +36,6 @@ export default function StoragePage() {
   const [jobIds, setJobIds] = useState<string[]>([]);
   const [modes, setModes] = useState<Record<string, "import" | "index" | "export">>({});
   const previous = useRef<StorageVolume[] | null>(null);
-
-  const notify: Notify = useCallback((message, type = "success") => setToast({ message, type }), []);
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const loadStatus = useCallback(async () => {
     const result = await devicesRequest<DevicesStatus>("/status");

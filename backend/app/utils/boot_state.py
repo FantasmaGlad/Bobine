@@ -5,7 +5,7 @@ import uuid
 # (redémarrage, mise à jour, coupure) — c'est tout ce qu'exige son seul
 # usage restant : signaler aux clients déjà connectés qu'un redémarrage a eu
 # lieu depuis leur connexion initiale, pour qu'ils se rechargent entièrement
-# au lieu de rester sur leur ancien bundle JS/HTML (cf. routers/playback.py).
+# au lieu de rester sur leur ancien bundle JS/HTML (cf. api/routes/playback/).
 #
 # Auparavant, cette valeur était calculée à partir
 # du PID du processus parent + son instant de démarrage (lu dans

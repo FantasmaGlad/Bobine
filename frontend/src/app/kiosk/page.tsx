@@ -19,24 +19,9 @@ import { useMediaSound } from "@/lib/useMediaSound";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
 import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
-
-function getApiUrl(path: string) {
-  if (typeof window !== "undefined" && window.location.port === "3000") {
-    return `http://localhost:8001/api${path}`;
-  }
-  return `/api${path}`;
-}
-
-function formatTime(seconds: number | null | undefined) {
-  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatClock(date: Date) {
-  return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
-}
+import { getApiUrl } from "@/lib/apiUrl";
+import { formatTime, formatWallClock } from "@/lib/format";
+import { unloadMedia } from "@/lib/mediaElement";
 
 // Durée hh:mm:ss pour le compte à rebours « prochain cours » de l'écran
 // d'attente (format identique à l'ancien habillage dynamique).
@@ -91,6 +76,19 @@ export default function KioskPage() {
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [osd, setOsd] = useState<OsdContent>(null);
   const osdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Démontage : flux, tampons et minuterie libérés sans attendre le ramasse-miettes.
+  useEffect(() => {
+    const video = videoRef;
+    const bgVideo = bgVideoRef;
+    const audio = audioRef;
+    return () => {
+      if (osdTimerRef.current) clearTimeout(osdTimerRef.current);
+      unloadMedia(video.current);
+      unloadMedia(bgVideo.current);
+      unloadMedia(audio.current);
+    };
+  }, []);
 
   // Indicateur visuel du changement de volume
   const [volumeHud, showVolumeHud] = useVolumeHud();
@@ -232,12 +230,6 @@ export default function KioskPage() {
       // <video>/<audio> non déchargé continue de jouer (son audible) sous la
       // nouvelle couche. Appelé à chaque changement de mode pour tout élément
       // qui n'est plus concerné par l'état serveur.
-      const unloadMedia = (el: HTMLMediaElement | null) => {
-        if (!el || (!el.src && !el.getAttribute("src"))) return;
-        el.pause();
-        el.removeAttribute("src");
-        el.load();
-      };
 
       // Chaque /kiosk (câblé ou réseau) est un canal de diffusion à part
       // entière : un second
@@ -426,21 +418,9 @@ export default function KioskPage() {
           }
           break;
         case "stop":
-          if (video) {
-            video.pause();
-            video.removeAttribute("src");
-            video.load();
-          }
-          if (bgVideo) {
-            bgVideo.pause();
-            bgVideo.removeAttribute("src");
-            bgVideo.load();
-          }
-          if (audio) {
-            audio.pause();
-            audio.removeAttribute("src");
-            audio.load();
-          }
+          unloadMedia(video);
+          unloadMedia(bgVideo);
+          unloadMedia(audio);
           break;
         case "seek":
           // ce cas
@@ -670,7 +650,7 @@ export default function KioskPage() {
           habillage. */}
       <div className={`kiosk-layer kiosk-waiting ${isIdle ? "visible" : ""}`}>
         <div className="kiosk-waiting-content">
-          <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatClock(now)}</span>
+          <span className="kiosk-waiting-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
           <div className="kiosk-waiting-logo-wrap">
             <AppLogo className="kiosk-waiting-stage-logo" />
           </div>
@@ -698,7 +678,7 @@ export default function KioskPage() {
 
       <div className={`kiosk-layer kiosk-playlist-waiting ${state.state === "playlist_waiting" ? "visible" : ""}`}>
         <AppLogo size={110} className="kiosk-waiting-logo" />
-        <span className="kiosk-clock" suppressHydrationWarning>{formatClock(now)}</span>
+        <span className="kiosk-clock" suppressHydrationWarning>{formatWallClock(now)}</span>
         <div className="kiosk-playlist-info">
           <span className="kiosk-playlist-label">{t("kiosk.activePlaylist")}</span>
           <span className="kiosk-playlist-name">{state.playlist_name}</span>

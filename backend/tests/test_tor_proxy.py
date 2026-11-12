@@ -201,7 +201,10 @@ def client():
 
 
 def test_settings_expose_and_validate_tor(client, monkeypatch):
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: DesktopHandler())
+    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
     data = client.get("/api/settings").json()
     assert data["update_tor_supported"] is True
     assert client.put("/api/settings", json={"update_tor_proxy": "pas une adresse"}).status_code == 400
@@ -213,7 +216,10 @@ def test_settings_expose_and_validate_tor(client, monkeypatch):
 
 
 def test_appliance_refuses_tor_updates(client, monkeypatch):
-    monkeypatch.setattr("app.routers.settings.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: ApplianceHandler())
+    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: ApplianceHandler())
     assert client.get("/api/settings").json()["update_tor_supported"] is False
     assert client.put("/api/settings", json={"update_tor": "true"}).status_code == 409
 
@@ -225,7 +231,7 @@ def test_tor_check_endpoint(client, monkeypatch):
 
 
 def test_automatic_checks_reuse_the_last_result_longer_under_tor(monkeypatch):
-    from app.routers import updates
+    from app.api.routes import updates
 
     calls = []
     monkeypatch.setattr(updates, "_github_get", lambda url, etag=None: calls.append(url) or (200, {"tag_name": "V9.9.9"}, None))
