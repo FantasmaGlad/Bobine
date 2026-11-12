@@ -76,6 +76,3 @@ class PlanTokens:
         self._used[digest] = self._clock()
         return record
 
-    def revoke_for(self, key: str) -> None:
-        for h in [h for h, r in self._live.items() if r.key == key]:
-            del self._live[h]

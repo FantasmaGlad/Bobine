@@ -17,7 +17,7 @@ from app.storage import availability, fsadvisor, health, library, longevity, pat
 from app.storage.drivers.base import StorageDriver
 from app.storage.drivers.registry import build_storage_driver
 from app.storage.formatting.manager import FormatManager
-from app.storage.lsblk import duplicate_uuids
+from app.storage.lsblk import duplicate_uuids, media_for_kind
 from app.storage.types import Inventory, Volume, volume_public
 
 logger = logging.getLogger(__name__)
@@ -35,10 +35,6 @@ UNMOUNT_BUSY_SECONDS = 1.5
 MOUNT_SETTLE_SECONDS = 1.5
 RECENT_KEEP = 300.0
 _EVENT_MIN_GAP = 0.25
-
-
-def _media_for_kind(kind: str) -> str:
-    return {"hdd": "hdd", "ssd": "ssd"}.get(kind, "flash")
 
 
 @dataclass
@@ -386,7 +382,7 @@ class StorageService:
             "size_bytes": lib["size_bytes"], "kind": lib["kind"], "connected": False, "state": "offline", "mounted": False,
             "mounted_read_only": None, "uuid_known": True, "portable": False, "transport": None, "vendor": None, "model": None,
             "rotational": None, "usage": None, "can_register": False, "register_block": "not_connected",
-            "assessment": fsadvisor.assess_filesystem(lib["fstype"], media=_media_for_kind(lib["kind"])).as_dict(),
+            "assessment": fsadvisor.assess_filesystem(lib["fstype"], media=media_for_kind(lib["kind"])).as_dict(),
             "library": {
                 "registered": True, "id": lib["id"], "nickname": lib["nickname"], "online": False, "stats": lib["stats"],
                 "bytes_written": lib["bytes_written"], "wear_level": health.write_wear_level(lib["kind"], lib["bytes_written"]),
@@ -398,7 +394,7 @@ class StorageService:
     async def _view(self, vol: Volume, lib: dict[str, Any] | None, duplicates: set[str], facts: dict[str, Any]) -> dict[str, Any]:
         settings = lib["settings"] if lib else await self._effective_settings(vol)
         state = "formatting" if vol.key in self._formatting else "ejecting" if vol.key in self._ejecting else "busy" if self._busy.get(vol.key) else "mounted" if vol.mounted else "present"
-        assessment = fsadvisor.assess_filesystem(vol.fstype, media=_media_for_kind(vol.kind), dirty=vol.key in self._dirty)
+        assessment = fsadvisor.assess_filesystem(vol.fstype, media=media_for_kind(vol.kind), dirty=vol.key in self._dirty)
         usage = None
         if vol.mountpoint:
             try:
@@ -494,7 +490,7 @@ class StorageService:
             settings = await self._effective_settings(vol)
             writable = mode == "rw"
             if writable:
-                assessment = fsadvisor.assess_filesystem(vol.fstype, media=_media_for_kind(vol.kind), dirty=vol.key in self._dirty)
+                assessment = fsadvisor.assess_filesystem(vol.fstype, media=media_for_kind(vol.kind), dirty=vol.key in self._dirty)
                 if not assessment.write_allowed:
                     raise DeviceError("write_refused", "Ce système de fichiers n'est pas fiable en écriture (voir le verdict) : lecture seule uniquement.", 409)
             if vol.mounted and vol.mounted_read_only == (not writable):
@@ -669,7 +665,7 @@ class StorageService:
         source = self._source(key)
         vol = source.volume
         assert vol is not None
-        assessment = fsadvisor.assess_filesystem(vol.fstype, media=_media_for_kind(vol.kind), dirty=vol.key in self._dirty)
+        assessment = fsadvisor.assess_filesystem(vol.fstype, media=media_for_kind(vol.kind), dirty=vol.key in self._dirty)
         if not assessment.write_allowed:
             raise DeviceError("write_refused", "Ce système de fichiers n'est pas fiable en écriture : exportez vers un autre support.", 409)
         if not ids:
@@ -987,9 +983,5 @@ class StorageService:
 
     def volume(self, key: str) -> Volume | None:
         return self._by_key.get(key)
-
-    def online_map(self) -> dict[int, str]:
-        return dict(self._online)
-
 
 service = StorageService()

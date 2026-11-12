@@ -96,8 +96,8 @@ class LinuxDriver(DeviceDriver):
         if bus is not None:
             try:
                 bus.disconnect()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("stop : %s", exc)
 
     async def capabilities(self) -> dict[str, dict[str, Any]]:
         now = time.monotonic()

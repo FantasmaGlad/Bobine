@@ -1,3 +1,4 @@
+import logging
 import os
 import platform
 import sys
@@ -11,6 +12,8 @@ except ImportError:
     SettingsConfigDict = None
 
 from app.utils.android_runtime import is_android
+
+logger = logging.getLogger(__name__)
 
 if getattr(sys, "frozen", False):
     if platform.system() == "Darwin":
@@ -28,8 +31,8 @@ def _data_root() -> Path:
             target = Path(android_data_dir)
             try:
                 target.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_data_root : %s", exc)
             return target
         return ROOT_DIR
     if platform.system() == "Windows":
@@ -40,8 +43,8 @@ def _data_root() -> Path:
         target = Path.home() / "Library" / "Application Support" / "Bobine"
         try:
             target.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_data_root : %s", exc)
         return target
     elif platform.system() == "Linux":
         if getattr(sys, "frozen", False) or not os.access(ROOT_DIR, os.W_OK) or os.environ.get("BOBINE_USE_XDG") == "1":
@@ -50,8 +53,8 @@ def _data_root() -> Path:
             target = base / "bobine"
             try:
                 target.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_data_root : %s", exc)
             return target
     return ROOT_DIR
 
@@ -251,8 +254,3 @@ def _apply_db_overrides(settings: "Settings") -> None:
 settings = load_settings()
 
 
-def reload_settings() -> None:
-    new_settings = load_settings()
-    for field in getattr(settings, "model_fields", None) or settings.__fields__:
-        if hasattr(new_settings, field):
-            setattr(settings, field, getattr(new_settings, field))

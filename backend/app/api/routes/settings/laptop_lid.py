@@ -32,8 +32,8 @@ def _has_laptop_lid() -> bool:
         try:
             if any(lid_proc.iterdir()):
                 return True
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_has_laptop_lid : %s", exc)
     try:
         return psutil.sensors_battery() is not None
     except Exception:

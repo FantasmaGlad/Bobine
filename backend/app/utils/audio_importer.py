@@ -189,7 +189,7 @@ def import_audio_course_from_watched_folder(course_dir: str, job_id: str | None 
 
     try:
         shutil.rmtree(path, ignore_errors=True)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("import_audio_course_from_watched_folder : %s", exc)
 
     return course

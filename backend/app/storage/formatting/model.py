@@ -50,10 +50,6 @@ class DiskInfo:
     partitions: tuple[PartInfo, ...] = field(default_factory=tuple)
 
     @property
-    def filesystems(self) -> tuple[PartInfo, ...]:
-        return tuple(p for p in self.partitions if p.fstype)
-
-    @property
     def mountpoints(self) -> tuple[str, ...]:
         return tuple(m for p in self.partitions for m in p.mountpoints)
 
@@ -64,12 +60,6 @@ class DiskInfo:
                 return part.label
         parts = [p for p in (self.vendor, self.model) if p]
         return " ".join(parts) if parts else self.name
-
-    @property
-    def sector_aligned_first_start(self) -> int | None:
-        starts = [p.start_sectors for p in self.partitions if p.start_sectors is not None and not p.whole_disk]
-        return min(starts) if starts else None
-
 
 def identity(disk: DiskInfo) -> dict[str, Any]:
     """Ce qui fait CE support (et pas un autre ayant pris le même nom `/dev/sdX`) : jamais l'état de montage, qui change légitimement pendant l'assistant."""

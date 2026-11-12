@@ -61,14 +61,14 @@ def run_ffmpeg_with_progress(
             if proc.stderr:
                 for s_line in proc.stderr:
                     stderr_chunks.append(s_line)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_read_stderr : %s", exc)
         finally:
             if proc.stderr:
                 try:
                     proc.stderr.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("_read_stderr : %s", exc)
 
     t_err = threading.Thread(target=_read_stderr, daemon=True)
     t_err.start()
@@ -113,8 +113,8 @@ def run_ffmpeg_with_progress(
                                     except ValueError:
                                         pass
                             update_job(job_id, progress_percent=pct, eta_seconds=eta, speed=current_speed)
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("run_ffmpeg_with_progress : %s", exc)
                 elif line == "progress=end":
                     update_job(job_id, progress_percent=100.0, eta_seconds=0)
 
@@ -129,8 +129,8 @@ def run_ffmpeg_with_progress(
         if proc.stdout:
             try:
                 proc.stdout.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("run_ffmpeg_with_progress : %s", exc)
         t_err.join(timeout=1.0)
 
     stderr_text = "".join(stderr_chunks)

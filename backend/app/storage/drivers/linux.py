@@ -100,8 +100,8 @@ class LinuxStorageDriver(StorageDriver):
         if bus is not None:
             try:
                 bus.disconnect()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("stop : %s", exc)
         self.push_active = False
 
     async def _watch_udisks(self) -> None:
@@ -368,8 +368,8 @@ class LinuxStorageDriver(StorageDriver):
             if bus is not None:
                 try:
                     bus.disconnect()
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("_udisks_call : %s", exc)
         if reply.message_type == MessageType.ERROR:
             raise classify_dbus_error(reply.error_name or "", str(reply.body[0]) if reply.body else "")
         return reply.body

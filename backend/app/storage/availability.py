@@ -31,14 +31,8 @@ def media_available(storage_id: int | None) -> bool:
     return storage_id is None or storage_id in _online
 
 
-def mount_root(storage_id: int | None) -> str | None:
-    return _online.get(storage_id) if storage_id is not None else None
-
-
 def placeholder_path(fs_uuid: str, rel_path: str) -> str:
     """Chemin d'attente d'un média dont le support est absent : unique, jamais résolvable sur le disque."""
     return f"{PLACEHOLDER_PREFIX}//{fs_uuid}/{rel_path}"
 
 
-def is_placeholder(path: object) -> bool:
-    return str(path).startswith(PLACEHOLDER_PREFIX)

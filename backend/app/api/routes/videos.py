@@ -167,15 +167,15 @@ def _run_video_import_job(
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_run_video_import_job : %s", exc)
         if subtitle_temps:
             for sub_temp_path, _ in subtitle_temps:
                 if os.path.exists(sub_temp_path):
                     try:
                         os.remove(sub_temp_path)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("_run_video_import_job : %s", exc)
 
 
 def _run_video_archive_job(job_id: str, archive_path: str) -> None:
@@ -488,8 +488,8 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
             if video.thumbnail_path:
                 try:
                     os.remove(video.thumbnail_path)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("bg_normalize : %s", exc)
 
             try:
                 thumb_path = generate_thumbnail(

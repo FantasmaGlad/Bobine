@@ -204,8 +204,8 @@ class ConnectionManager:
             next_kiosk = kiosks[0]
             try:
                 await next_kiosk.send_json({"event": "promoted_primary"})
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_unregister_kiosk : %s", exc)
 
     async def broadcast(self, message: dict):
         """Envoie à tous les clients WebSocket locaux, EN PARALLÈLE."""
@@ -228,8 +228,8 @@ class ConnectionManager:
                 continue
             try:
                 await connection.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("broadcast : %s", exc)
             self.disconnect(connection)
 
     async def broadcast_force_reload(self):
@@ -251,8 +251,8 @@ class ConnectionManager:
                     logger.info("Client WebSocket sans pong dans le délai — fermeture (connexion morte)")
                     try:
                         await websocket.close()
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("_ping_loop : %s", exc)
                     self.disconnect(websocket)
                     return
         except asyncio.CancelledError:

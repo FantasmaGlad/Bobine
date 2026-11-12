@@ -35,15 +35,15 @@ def get_runtime_info() -> dict[str, Any]:
         try:
             from android.os import SystemClock
             system_uptime = int(SystemClock.elapsedRealtime() / 1000)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_runtime_info : %s", exc)
 
     if system_uptime <= 0 and os.path.exists("/proc/uptime"):
         try:
             with open("/proc/uptime", "r", encoding="utf-8") as f:
                 system_uptime = int(float(f.read().split()[0]))
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_runtime_info : %s", exc)
 
     if system_uptime <= 0:
         try:
@@ -108,8 +108,8 @@ def get_system_telemetry_payload() -> dict[str, Any]:
             avail = m.get("MemAvailable", m.get("MemFree", 0))
             mem_used = max(0, mem_total - avail)
             mem_percent = round((mem_used / mem_total) * 100, 1) if mem_total else 0.0
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_system_telemetry_payload : %s", exc)
 
     return {
         "cpu_name": get_cpu_model_name(),
@@ -161,8 +161,8 @@ def record_hardware_snapshot(db, extra: dict[str, Any] | None = None) -> None:
         logger.debug(f"Échec enregistrement télémétrie snapshot: {e}")
         try:
             db.rollback()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("record_hardware_snapshot : %s", exc)
 
 
 def purge_expired_logs_and_metrics(db, retention_days: int = 7) -> dict[str, int]:
@@ -181,6 +181,6 @@ def purge_expired_logs_and_metrics(db, retention_days: int = 7) -> dict[str, int
         logger.error(f"Erreur purge logs/métriques: {e}")
         try:
             db.rollback()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("purge_expired_logs_and_metrics : %s", exc)
     return {"purged_logs": purged_logs, "purged_metrics": purged_metrics}

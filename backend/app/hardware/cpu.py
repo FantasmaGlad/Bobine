@@ -1,4 +1,5 @@
 """Processeur : nom commercial, température, charge lissée."""
+import logging
 
 import glob
 import os
@@ -10,6 +11,8 @@ import time
 import psutil
 
 from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system
+
+logger = logging.getLogger(__name__)
 
 _LAST_CPU_TIMES: tuple[float, float, float] = (0.0, 0.0, 0.0)
 _LAST_SMOOTH_CPU_PCT: float = 0.0
@@ -79,14 +82,14 @@ def get_cpu_model_name() -> str:
             try:
                 with open("/sys/devices/soc0/family", "r", encoding="utf-8") as f:
                     soc_family = f.read().strip()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_cpu_model_name : %s", exc)
         if os.path.exists("/sys/devices/soc0/machine"):
             try:
                 with open("/sys/devices/soc0/machine", "r", encoding="utf-8") as f:
                     soc_machine = f.read().strip()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_cpu_model_name : %s", exc)
 
         for candidate in (soc_model.upper(), platform_code.upper(), soc_machine.upper()):
             if candidate in _SOC_NAME_MAP:
@@ -118,16 +121,16 @@ def get_cpu_model_name() -> str:
                             val = line.split(":", 1)[1].strip()
                             if val and val.lower() not in ("aarch64", "armv8", "armv7"):
                                 name = val
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_cpu_model_name : %s", exc)
 
     if not name and sys.platform == "darwin":
         try:
             out = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
             if out:
                 name = out
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_cpu_model_name : %s", exc)
 
     if not name and sys.platform == "win32":
         try:
@@ -136,8 +139,8 @@ def get_cpu_model_name() -> str:
                 val, _ = winreg.QueryValueEx(k, "ProcessorNameString")
                 if val:
                     name = str(val).strip()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_cpu_model_name : %s", exc)
 
         if not name:
             name = platform.processor() or ""
@@ -163,8 +166,8 @@ def get_cpu_temp() -> float | None:
                 for entry in group:
                     if 10.0 <= entry.current <= 125.0:
                         return round(entry.current, 1)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("get_cpu_temp : %s", exc)
 
     for p in glob.glob("/sys/class/thermal/thermal_zone*/temp"):
         try:
@@ -173,8 +176,8 @@ def get_cpu_temp() -> float | None:
                 c = val / 1000.0 if val > 1000 else float(val)
                 if 10.0 <= c <= 125.0:
                     return round(c, 1)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_cpu_temp : %s", exc)
 
     return None
 
@@ -203,8 +206,8 @@ def get_cpu_percent() -> float:
                         _LAST_SMOOTH_CPU_PCT = round(min(100.0, max(0.0, pct)), 1)
                     _LAST_CPU_TIMES = (now, total, idle)
                     return _LAST_SMOOTH_CPU_PCT
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_cpu_percent : %s", exc)
 
     if os.path.exists("/proc/loadavg"):
         try:
@@ -217,8 +220,8 @@ def get_cpu_percent() -> float:
                     _LAST_SMOOTH_CPU_PCT = pct
                     _LAST_CPU_TIMES = (now, 0.0, 0.0)
                     return _LAST_SMOOTH_CPU_PCT
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_cpu_percent : %s", exc)
 
     try:
         val = psutil.cpu_percent(interval=None)
@@ -226,8 +229,8 @@ def get_cpu_percent() -> float:
             _LAST_SMOOTH_CPU_PCT = round(val, 1)
             _LAST_CPU_TIMES = (now, 0.0, 0.0)
             return _LAST_SMOOTH_CPU_PCT
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("get_cpu_percent : %s", exc)
 
     if os.path.exists("/proc/self/stat"):
         try:
@@ -246,8 +249,8 @@ def get_cpu_percent() -> float:
                     _LAST_SMOOTH_CPU_PCT = round(min(100.0, max(0.0, pct)), 1)
             _LAST_CPU_TIMES = (now, total_ticks, 0.0)
             return _LAST_SMOOTH_CPU_PCT
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_cpu_percent : %s", exc)
 
     _LAST_CPU_TIMES = (now, 0.0, 0.0)
     return _LAST_SMOOTH_CPU_PCT

@@ -206,13 +206,13 @@ def import_background(
         if dest_path and Path(dest_path).exists():
             try:
                 os.remove(dest_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("import_background : %s", exc)
         if thumbnail_path and Path(thumbnail_path).exists():
             try:
                 os.remove(thumbnail_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("import_background : %s", exc)
         raise
 
     except Exception as e:
@@ -220,6 +220,6 @@ def import_background(
         if source == ImportSource.watched_folder and path_obj.exists():
             try:
                 os.remove(src_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("import_background : %s", exc)
         raise e

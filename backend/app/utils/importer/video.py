@@ -151,13 +151,13 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
         if dest_path and Path(dest_path).exists():
             try:
                 os.remove(dest_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("import_video : %s", exc)
         if thumbnail_path and Path(thumbnail_path).exists():
             try:
                 os.remove(thumbnail_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("import_video : %s", exc)
         raise
 
     except Exception as e:
@@ -165,6 +165,6 @@ def import_video(src_path: str, original_filename: str, source: ImportSource, jo
         if source == ImportSource.watched_folder and path_obj.exists():
             try:
                 os.remove(src_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("import_video : %s", exc)
         raise e

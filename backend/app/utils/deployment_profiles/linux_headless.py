@@ -137,8 +137,8 @@ class LinuxHeadlessHandler(ProfileHandler):
             branch = run_checked(["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=repo_dir, timeout=10)
             if branch.stdout.strip():
                 return branch.stdout.strip()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_current_ref : %s", exc)
         return run_checked(["git", "rev-parse", "HEAD"], cwd=repo_dir, timeout=10).stdout.strip()
 
     @staticmethod

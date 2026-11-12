@@ -177,8 +177,8 @@ def _set_display_always_on(enabled: bool) -> None:
                     subprocess.run(["xset", "s", "off", "-dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 else:
                     subprocess.run(["xset", "s", "default", "+dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_set_display_always_on : %s", exc)
 
 
 def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) -> None:
@@ -372,8 +372,8 @@ def _ensure_desktop_shortcut() -> None:
                         try:
                             os.symlink(str(app_path), str(dest))
                             logger.info(f"Raccourci Bureau macOS créé : {dest} -> {app_path}")
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("_ensure_desktop_shortcut : %s", exc)
     except Exception as e:
         logger.debug(f"Vérification du raccourci Bureau ignorée : {e!r}")
 

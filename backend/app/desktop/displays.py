@@ -81,8 +81,8 @@ def _list_monitors_windows() -> list[Monitor]:
     user32 = ctypes.windll.user32  # type: ignore[attr-defined]
     try:
         user32.SetProcessDPIAware()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_list_monitors_windows : %s", exc)
 
     class RECT(ctypes.Structure):
         _fields_ = [("left", wintypes.LONG), ("top", wintypes.LONG), ("right", wintypes.LONG), ("bottom", wintypes.LONG)]
@@ -412,8 +412,8 @@ class ProjectorWindow:
             except Exception:
                 try:
                     process.kill()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("close : %s", exc)
         if self._profile_dir:
             shutil.rmtree(self._profile_dir, ignore_errors=True)
             self._profile_dir = None
@@ -484,10 +484,6 @@ class DisplayOrchestrator:
         self._generation = 0
         self._lock = threading.Lock()
         self._threads: list[threading.Thread] = []
-
-    @property
-    def last_externals(self) -> tuple[Monitor, ...]:
-        return self._last_externals
 
     def _spawn(self, target, *args, name: str) -> None:
         thread = threading.Thread(target=target, args=args, daemon=True, name=name)

@@ -1,4 +1,5 @@
 """Carte graphique : nom, charge, température."""
+import logging
 
 import glob
 import os
@@ -10,6 +11,8 @@ import psutil
 
 from .cpu import get_cpu_model_name
 from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil_which
+
+logger = logging.getLogger(__name__)
 
 
 def get_gpu_info() -> tuple[str, float | None, float | None]:
@@ -30,8 +33,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                             name = f"Qualcomm {m.group(1)} {m.group(2)}"
                         else:
                             name = f"Qualcomm {raw_gpu}"
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_gpu_info : %s", exc)
 
         if not name and shutil_which("dumpsys"):
             try:
@@ -44,8 +47,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                             renderer = parts[1].strip().replace("(TM)", "").strip()
                             name = f"{vendor} {renderer}"
                             break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_gpu_info : %s", exc)
 
         if not name:
             egl = _get_android_prop("ro.hardware.egl").strip()
@@ -67,8 +70,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                                 if 15.0 <= c <= 115.0:
                                     gpu_temp = round(c, 1)
                                     break
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("get_gpu_info : %s", exc)
 
         if gpu_percent is None and os.path.exists("/sys/class/kgsl/kgsl-3d0/gpubusy"):
             try:
@@ -78,8 +81,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                         busy, total = int(vals[0]), int(vals[1])
                         if total > 0:
                             gpu_percent = round((busy / total) * 100.0, 1)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_gpu_info : %s", exc)
 
     if gpu_percent is None:
         for busy_path in glob.glob("/sys/class/drm/card*/device/gpu_busy_percent"):
@@ -89,8 +92,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                     if val.isdigit():
                         gpu_percent = float(val)
                         break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_gpu_info : %s", exc)
 
     if (gpu_percent is None or not name) and shutil_which("nvidia-smi"):
         try:
@@ -107,8 +110,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                 gpu_temp = float(parts[1])
             if len(parts) >= 3 and not name:
                 name = parts[2]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_gpu_info : %s", exc)
 
     if gpu_temp is None:
         try:
@@ -118,8 +121,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                     if k in temps and temps[k]:
                         gpu_temp = round(temps[k][0].current, 1)
                         break
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_gpu_info : %s", exc)
 
     if not name and sys.platform == "darwin":
         try:
@@ -129,8 +132,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                 if sline.startswith("Chipset Model:"):
                     name = sline.split(":", 1)[1].strip()
                     break
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_gpu_info : %s", exc)
 
     if not name and sys.platform == "win32":
         try:
@@ -143,8 +146,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
             valid_gpus = [g for g in lines if not any(x in g.lower() for x in ("virtual", "remote", "rdp", "basic display"))]
             if valid_gpus:
                 name = valid_gpus[0]
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("get_gpu_info : %s", exc)
 
     if not name:
         cpu_model = get_cpu_model_name()
@@ -175,8 +178,8 @@ def get_gpu_info() -> tuple[str, float | None, float | None]:
                         else:
                             name = raw.split("(")[0].strip()
                         break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("get_gpu_info : %s", exc)
 
         if not name:
             if "Intel" in cpu_model:

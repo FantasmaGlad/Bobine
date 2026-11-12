@@ -1,9 +1,12 @@
 """Choix de l'adresse IPv4 à présenter pour joindre Bobine depuis le réseau local."""
+import logging
 
 import ipaddress
 import os
 import socket
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 LAN_IP_ENV = "BOBINE_LAN_IP"
 
@@ -75,8 +78,8 @@ def _enumerate_ipv4() -> list[tuple[str, str]]:
                 if addr.family == socket.AF_INET and addr.address:
                     pairs.append((name, addr.address))
         return pairs
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_enumerate_ipv4 : %s", exc)
     try:
         import fcntl
         import struct
@@ -90,8 +93,8 @@ def _enumerate_ipv4() -> list[tuple[str, str]]:
                 continue
             finally:
                 probe.close()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("_enumerate_ipv4 : %s", exc)
     return pairs
 
 

@@ -98,8 +98,8 @@ class SidecarDriver(DeviceDriver):
             if proc.returncode is None:
                 proc.kill()
             await asyncio.wait_for(proc.wait(), timeout=3)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_kill : %s", exc)
 
     async def stop(self) -> None:
         proc = self._proc
@@ -107,8 +107,8 @@ class SidecarDriver(DeviceDriver):
             try:
                 proc.stdin.close()
                 await asyncio.wait_for(proc.wait(), timeout=2)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("stop : %s", exc)
         await self._kill()
 
     async def _exchange(self, method: str, params: dict[str, Any], timeout: float) -> Any:

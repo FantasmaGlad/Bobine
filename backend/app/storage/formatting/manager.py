@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.storage.lsblk import media_for_kind
 import asyncio
 import hashlib
 import logging
@@ -29,7 +30,6 @@ from .tokens import PlanTokens
 logger = logging.getLogger(__name__)
 
 STEPS = ("unmount", "recheck", "table", "format", "settle", "readback", "mount_ro", "write_test", "back_ro", "health")
-POINT_OF_NO_RETURN = "table"
 UNMOUNT_TRIES = 4
 UNMOUNT_PAUSE = 1.5
 SETTLE_SECONDS = 25.0
@@ -48,10 +48,6 @@ def _env_allow_images() -> bool:
 def _env_allowlist() -> frozenset[str] | None:
     raw = os.environ.get(OWN_ENV_ONLY, "").strip()
     return frozenset(p.strip() for p in raw.split(",") if p.strip()) if raw else None
-
-
-def _media_for_kind(kind: str) -> str:
-    return {"hdd": "hdd", "ssd": "ssd"}.get(kind, "flash")
 
 
 @dataclass
@@ -195,7 +191,7 @@ class FormatManager:
             raise refusal
 
         others = tuple(o for o in travels if o in fsadvisor.OSES and o != "linux")
-        media = _media_for_kind(disk.kind)
+        media = media_for_kind(disk.kind)
         recommended = fsadvisor.recommend_format("linux", others, media)
         tools = support.get("tools", {})
         options = [option_for(fs, disk, tool_present=bool(tools.get(fs)), others=others, media=media) for fs in SUPPORTED]

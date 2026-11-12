@@ -1,4 +1,5 @@
 """Socle des sondes : heure de démarrage, présence d'une commande, propriétés Android, cache des identités matérielles."""
+import logging
 
 import os
 import shutil
@@ -8,6 +9,8 @@ import time
 from typing import Any
 
 from app.utils.android_runtime import is_android
+
+logger = logging.getLogger(__name__)
 
 _SERVICE_START_TIME = time.time()
 
@@ -38,8 +41,8 @@ def _get_android_prop(prop_name: str) -> str:
             out = subprocess.check_output(["getprop", prop_name], text=True, timeout=1).strip()
             if out:
                 return out
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("_get_android_prop : %s", exc)
 
     for build_prop in ("/system/build.prop", "/default.prop", "/vendor/build.prop"):
         if os.path.exists(build_prop):
@@ -48,6 +51,6 @@ def _get_android_prop(prop_name: str) -> str:
                     for line in f:
                         if line.startswith(f"{prop_name}="):
                             return line.split("=", 1)[1].strip()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_get_android_prop : %s", exc)
     return ""

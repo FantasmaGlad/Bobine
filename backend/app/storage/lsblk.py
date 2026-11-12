@@ -27,7 +27,7 @@ _ENCRYPTED = frozenset({"crypto_LUKS", "BitLocker"})
 _OCTAL = re.compile(r"\\([0-7]{3})")
 
 
-def _flag(value: Any) -> bool:
+def as_flag(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     if value is None:
@@ -36,17 +36,17 @@ def _flag(value: Any) -> bool:
 
 
 def _opt_flag(value: Any) -> bool | None:
-    return None if value is None else _flag(value)
+    return None if value is None else as_flag(value)
 
 
-def _int(value: Any) -> int:
+def as_int(value: Any) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
         return 0
 
 
-def _text(value: Any) -> str | None:
+def as_text(value: Any) -> str | None:
     if value is None:
         return None
     cleaned = str(value).strip()
@@ -171,9 +171,9 @@ def parse_lsblk(
             reject("system")
             continue
 
-        removable = _flag(top.get("rm"))
-        hotplug = _flag(top.get("hotplug"))
-        transport = _text(top.get("tran"))
+        removable = as_flag(top.get("rm"))
+        hotplug = as_flag(top.get("hotplug"))
+        transport = as_text(top.get("tran"))
         sd_card = sd_probe(name)
         is_loop = top_type == "loop"
         external = removable or hotplug or transport == "usb" or sd_card or is_loop
@@ -182,9 +182,9 @@ def parse_lsblk(
             continue
 
         rotational = _opt_flag(top.get("rota"))
-        vendor, model, serial = _text(top.get("vendor")), _text(top.get("model")), _text(top.get("serial"))
+        vendor, model, serial = as_text(top.get("vendor")), as_text(top.get("model")), as_text(top.get("serial"))
         for node in nodes:
-            fstype = _text(node.get("fstype"))
+            fstype = as_text(node.get("fstype"))
             node_path = str(node.get("path") or f"/dev/{node.get('name')}")
             if not fstype:
                 continue
@@ -217,23 +217,23 @@ def dedupe_keys(volumes: list[Volume]) -> list[Volume]:
 
 def _build(node, top, disk_name, rotational, transport, removable, hotplug, vendor, model, serial, sd_card, mountinfo, is_loop) -> Volume:
     mounts = tuple(_mountpoints(node))
-    size = _int(node.get("size"))
-    partn = _text(node.get("partn"))
-    fs_uuid = _text(node.get("uuid"))
+    size = as_int(node.get("size"))
+    partn = as_text(node.get("partn"))
+    fs_uuid = as_text(node.get("uuid"))
     dev_type = str(node.get("type") or "part")
-    kind = classify_kind(transport=transport, rotational=rotational, sd_card=sd_card, name=disk_name, size=_int(top.get("size")) or size, dev_type="loop" if is_loop else dev_type)
+    kind = classify_kind(transport=transport, rotational=rotational, sd_card=sd_card, name=disk_name, size=as_int(top.get("size")) or size, dev_type="loop" if is_loop else dev_type)
     return Volume(
         key=make_key(fs_uuid, serial, model, partn or str(node.get("name")), size),
         device=str(node.get("path") or f"/dev/{node.get('name')}"),
         name=str(node.get("name") or ""),
         fs_uuid=fs_uuid,
-        label=_text(node.get("label")),
-        fstype=_text(node.get("fstype")),
+        label=as_text(node.get("label")),
+        fstype=as_text(node.get("fstype")),
         size_bytes=size,
         mountpoint=mounts[0] if mounts else None,
         mounts=mounts,
         mount_options=_mount_options(mountinfo, mounts[0] if mounts else None),
-        read_only_device=_flag(node.get("ro")),
+        read_only_device=as_flag(node.get("ro")),
         removable=removable,
         hotplug=hotplug,
         transport=transport,
@@ -243,7 +243,7 @@ def _build(node, top, disk_name, rotational, transport, removable, hotplug, vend
         rotational=rotational,
         kind=kind,
         dev_type="loop" if is_loop else dev_type,
-        discard_supported=_int(node.get("disc-gran")) > 0,
+        discard_supported=as_int(node.get("disc-gran")) > 0,
         disk=disk_name or None,
         sd_card=sd_card,
     )
@@ -256,3 +256,7 @@ def duplicate_uuids(volumes: Iterable[Volume]) -> set[str]:
         if v.fs_uuid:
             seen[v.fs_uuid.lower()] = seen.get(v.fs_uuid.lower(), 0) + 1
     return {u for u, n in seen.items() if n > 1}
+
+
+def media_for_kind(kind: str) -> str:
+    return {"hdd": "hdd", "ssd": "ssd"}.get(kind, "flash")

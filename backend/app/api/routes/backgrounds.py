@@ -69,8 +69,8 @@ def _run_background_import_job(job_id: str, temp_path: str, filename: str, title
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("_run_background_import_job : %s", exc)
 
 
 @router.post("/upload", response_model=ImportJobAccepted, status_code=202)
