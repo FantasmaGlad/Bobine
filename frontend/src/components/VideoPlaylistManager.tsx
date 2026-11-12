@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import React, { useEffect, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
@@ -309,7 +310,7 @@ export default function VideoPlaylistManager() {
         }
       } else {
         const data = await res.json();
-        showToast(data.detail || t("playlists.saveError"), "error");
+        showToast(errorMessage(data, t("playlists.saveError")), "error");
       }
     } catch {
       showToast(t("playlists.saveConnectionError"), "error");

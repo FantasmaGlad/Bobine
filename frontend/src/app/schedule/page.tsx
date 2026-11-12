@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import PageNav from "@/components/PageNav";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -500,7 +501,7 @@ export default function SchedulePage() {
         fetchOccurrences(weekStart, weekEndExclusive);
       } else {
         const data = await res.json().catch(() => null);
-        showToast(data?.detail || t("schedule.saveError"), "error");
+        showToast(errorMessage(data, t("schedule.saveError")), "error");
       }
     } catch {
       showToast(t("schedule.saveNetworkError"), "error");

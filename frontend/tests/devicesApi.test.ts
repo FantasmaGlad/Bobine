@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import {
   audioKindIcon,
   bluetoothKindIcon,
-  parseApiError,
   secondsLeft,
   signalBars,
   splitBluetooth,
   wifiConnectPlan,
   type BluetoothDevice,
 } from "../src/lib/devicesApi.ts";
+import { errorMessage, parseApiError } from "../src/lib/apiError.ts";
 
 test("erreurs de l'API : détail structuré, texte simple ou absent", () => {
   assert.deepEqual(parseApiError(409, { detail: { code: "busy", message: "Occupé", extra_field: 1 } }), {
@@ -17,6 +17,11 @@ test("erreurs de l'API : détail structuré, texte simple ou absent", () => {
   });
   assert.equal(parseApiError(400, { detail: "Message simple" }).message, "Message simple");
   assert.equal(parseApiError(500, null).code, "error");
+  const invalid = parseApiError(422, { detail: [{ loc: ["body", "x"], msg: "champ requis" }] });
+  assert.equal(invalid.code, "validation_error");
+  assert.equal(invalid.message, "champ requis");
+  assert.equal(errorMessage({ detail: { code: "external_read_only", message: "Lecture seule" } }, "repli"), "Lecture seule");
+  assert.equal(errorMessage(null, "repli"), "repli");
   assert.equal(parseApiError(429, { detail: { code: "timeout", message: "x", retry_after: 60 } }).extra.retry_after, 60);
 });
 

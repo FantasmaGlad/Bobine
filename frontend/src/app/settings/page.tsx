@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
@@ -289,7 +290,7 @@ export default function SettingsPage() {
         showToast(t("settingsPage.logoUploadSuccess"));
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.detail || t("settingsPage.logoUploadError"), "error");
+        showToast(errorMessage(err, t("settingsPage.logoUploadError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -323,7 +324,7 @@ export default function SettingsPage() {
         showToast(t("settingsPage.syncResetSuccess"));
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.detail || t("settingsPage.syncResetError"), "error");
+        showToast(errorMessage(err, t("settingsPage.syncResetError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -383,7 +384,7 @@ export default function SettingsPage() {
       const res = await fetch(getApiUrl(`/updates/store/${action}`), { method: "POST" });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        showToast(typeof body?.detail === "string" ? body.detail : t("settingsPage.storeActionError"), "error");
+        showToast(errorMessage(body, t("settingsPage.storeActionError")), "error");
         return;
       }
       if (action === "start") showToast(t("settingsPage.storeStarted"), "success");
@@ -423,7 +424,7 @@ export default function SettingsPage() {
         showToast(t("settingsPage.updateAlreadyInProgress"), "warning");
       } else {
         const body = await res.json().catch(() => null);
-        showToast(body?.detail || t("settingsPage.updateError"), "error");
+        showToast(errorMessage(body, t("settingsPage.updateError")), "error");
       }
     } catch {
       showToast(t("settingsPage.updateError"), "error");
@@ -445,7 +446,7 @@ export default function SettingsPage() {
         body: JSON.stringify({ proxy: data.update_tor_proxy }),
       });
       const body = await res.json().catch(() => ({}));
-      setTorCheck(res.ok ? body : { ok: false, error: body.detail || t("settingsPage.saveError") });
+      setTorCheck(res.ok ? body : { ok: false, error: errorMessage(body, t("settingsPage.saveError"))});
     } catch {
       setTorCheck({ ok: false, error: t("common.networkError") });
     } finally {
@@ -471,7 +472,7 @@ export default function SettingsPage() {
         showToast(t("settingsPage.autoUpdateSaved"));
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.detail || t("settingsPage.saveError"), "error");
+        showToast(errorMessage(err, t("settingsPage.saveError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -493,7 +494,7 @@ export default function SettingsPage() {
         checkForUpdates();
       } else {
         const err = await res.json().catch(() => ({}));
-        showToast(err.detail || t("settingsPage.saveError"), "error");
+        showToast(errorMessage(err, t("settingsPage.saveError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -532,7 +533,7 @@ export default function SettingsPage() {
           : (body.message || t("settingsPage.logsPurgedSuccess"));
         showToast(msg, "success");
       } else {
-        showToast(body.detail || t("settingsPage.saveError"), "error");
+        showToast(errorMessage(body, t("settingsPage.saveError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -565,7 +566,7 @@ export default function SettingsPage() {
           showToast(t("settingsPage.paths.folderOpened"));
         }
       } else {
-        showToast(resData.detail || t("settingsPage.openFolderError"), "error");
+        showToast(errorMessage(resData, t("settingsPage.openFolderError")), "error");
       }
     } catch {
       showToast(t("common.networkError"), "error");
@@ -609,7 +610,7 @@ export default function SettingsPage() {
         setSelectedBackupFile(null);
       } else {
         const err = await res.json().catch(() => null);
-        showToast(err?.detail || t("settingsPage.restoreError"), "error");
+        showToast(errorMessage(err, t("settingsPage.restoreError")), "error");
       }
     } catch {
       showToast(t("settingsPage.restoreError"), "error");

@@ -1,4 +1,7 @@
+import { parseApiError, type ApiError, type ApiResult } from "./apiError.ts";
 import { getApiUrl } from "./apiUrl.ts";
+
+export type { ApiError, ApiResult };
 
 export interface CapabilityInfo {
   supported: boolean;
@@ -138,27 +141,11 @@ export interface WifiStatus {
   pending_change?: WifiPendingChange | null;
 }
 
-export interface ApiError {
-  status: number;
-  code: string;
-  message: string;
-  extra: Record<string, unknown>;
-}
-
-export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
 export function getDevicesApiUrl(path: string): string {
   return getApiUrl(`/devices${path}`);
 }
 
-export function parseApiError(status: number, body: unknown): ApiError {
-  const detail = (body as { detail?: unknown } | null)?.detail;
-  if (detail && typeof detail === "object") {
-    const { code, message, ...extra } = detail as Record<string, unknown>;
-    return { status, code: typeof code === "string" ? code : "error", message: typeof message === "string" ? message : "", extra };
-  }
-  return { status, code: "error", message: typeof detail === "string" ? detail : "", extra: {} };
-}
 
 export async function devicesRequest<T>(path: string, init?: { method?: string; body?: unknown }): Promise<ApiResult<T>> {
   try {

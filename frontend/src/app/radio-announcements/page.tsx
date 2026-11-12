@@ -1,4 +1,5 @@
 "use client";
+import { errorMessage } from "@/lib/apiError";
 
 import React, { useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -244,7 +245,7 @@ export default function RadioAnnouncementsPage() {
       fetchAll();
     } else {
       const data = await res.json().catch(() => null);
-      showToast(data?.detail || t("radioAnnouncements.ruleError"), "error");
+      showToast(errorMessage(data, t("radioAnnouncements.ruleError")), "error");
     }
   };
 
