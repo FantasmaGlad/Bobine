@@ -2,6 +2,7 @@
 import { errorMessage } from "@/lib/apiError";
 
 import React, { useEffect, useState } from "react";
+import { usePlaylistSequencer } from "@/lib/usePlaylistSequencer";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useIsMobile } from "@/lib/useIsMobile";
@@ -97,12 +98,16 @@ export default function AudioPlaylistManager() {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [playlistName, setPlaylistName] = useState<string>("");
   const [playlistItems, setPlaylistItems] = useState<PlaylistDraftItem[]>([]);
+
+  const {
+    draggedIndex, dragSource, dragOverIndex, setDragOverIndex, remove: handleRemoveTrack, moveUp: handleMoveUp, moveDown: handleMoveDown,
+    handleDragStart, handleDragOver, handleDragLeave, handleDrop, handleDropOnEmptyZone, resetDragState,
+  } = usePlaylistSequencer<PlaylistDraftItem>(setPlaylistItems, (id) => {
+    const track = tracks.find((tr) => tr.id === id);
+    return track ? { track, backgroundId: null } : undefined;
+  });
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [draggedTrackId, setDraggedTrackId] = useState<number | null>(null);
-  const [dragSource, setDragSource] = useState<"sequencer" | "library" | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<AudioPlaylistSummary | null>(null);
@@ -263,27 +268,8 @@ export default function AudioPlaylistManager() {
     showToast(t("audioPlaylists.addedWholeCourseToast", { title: course?.title ?? "", count: courseTracks.length }));
   };
 
-  const handleRemoveTrack = (index: number) => {
-    setPlaylistItems((prev) => prev.filter((_, i) => i !== index));
-  };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    setPlaylistItems((prev) => {
-      const copy = [...prev];
-      [copy[index - 1], copy[index]] = [copy[index], copy[index - 1]];
-      return copy;
-    });
-  };
 
-  const handleMoveDown = (index: number) => {
-    setPlaylistItems((prev) => {
-      if (index === prev.length - 1) return prev;
-      const copy = [...prev];
-      [copy[index], copy[index + 1]] = [copy[index + 1], copy[index]];
-      return copy;
-    });
-  };
 
   const handleSetTrackBackground = (index: number, backgroundId: number | null) => {
     setPlaylistItems((prev) => {
@@ -347,62 +333,11 @@ export default function AudioPlaylistManager() {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, indexOrId: number, source: "sequencer" | "library") => {
-    setDragSource(source);
-    if (source === "sequencer") {
-      setDraggedIndex(indexOrId);
-    } else {
-      setDraggedTrackId(indexOrId);
-    }
-    e.dataTransfer.setData("text/plain", indexOrId.toString());
-  };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    setDragOverIndex(index);
-  };
 
-  const handleDragLeave = () => setDragOverIndex(null);
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (dragSource === "sequencer" && draggedIndex !== null) {
-      if (draggedIndex !== targetIndex) {
-        setPlaylistItems((prev) => {
-          const copy = [...prev];
-          const [moved] = copy.splice(draggedIndex, 1);
-          copy.splice(targetIndex, 0, moved);
-          return copy;
-        });
-      }
-    } else if (dragSource === "library" && draggedTrackId !== null) {
-      const track = tracks.find((tr) => tr.id === draggedTrackId);
-      if (track) {
-        setPlaylistItems((prev) => {
-          const copy = [...prev];
-          copy.splice(targetIndex, 0, { track, backgroundId: null });
-          return copy;
-        });
-      }
-    }
-    resetDragState();
-  };
 
-  const handleDropOnEmptyZone = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (dragSource === "library" && draggedTrackId !== null) {
-      const track = tracks.find((tr) => tr.id === draggedTrackId);
-      if (track) setPlaylistItems((prev) => [...prev, { track, backgroundId: null }]);
-    }
-    resetDragState();
-  };
 
-  const resetDragState = () => {
-    setDraggedIndex(null);
-    setDraggedTrackId(null);
-    setDragSource(null);
-    setDragOverIndex(null);
-  };
 
   const toggleCourseExpanded = (courseId: number) => {
     setExpandedCourseIds((prev) => {

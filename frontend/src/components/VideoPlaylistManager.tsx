@@ -2,6 +2,7 @@
 import { errorMessage } from "@/lib/apiError";
 
 import React, { useEffect, useState } from "react";
+import { usePlaylistSequencer } from "@/lib/usePlaylistSequencer";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useIsMobile } from "@/lib/useIsMobile";
@@ -67,12 +68,13 @@ export default function VideoPlaylistManager() {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [playlistName, setPlaylistName] = useState<string>("");
   const [playlistItems, setPlaylistItems] = useState<Video[]>([]);
+
+  const {
+    draggedIndex, dragSource, dragOverIndex, setDragOverIndex, remove: handleRemoveVideo, moveUp: handleMoveUp, moveDown: handleMoveDown,
+    handleDragStart, handleDragOver, handleDragLeave, handleDrop, handleDropOnEmptyZone, resetDragState,
+  } = usePlaylistSequencer(setPlaylistItems, (id) => videos.find((v) => v.id === id));
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [draggedVideoId, setDraggedVideoId] = useState<number | null>(null);
-  const [dragSource, setDragSource] = useState<"sequencer" | "library" | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
@@ -223,31 +225,8 @@ export default function VideoPlaylistManager() {
     showToast(t("playlists.addedToast", { title: video.title }));
   };
 
-  const handleRemoveVideo = (index: number) => {
-    setPlaylistItems((prev) => prev.filter((_, i) => i !== index));
-  };
 
-  const handleMoveUp = (index: number) => {
-    if (index === 0) return;
-    setPlaylistItems((prev) => {
-      const copy = [...prev];
-      const temp = copy[index];
-      copy[index] = copy[index - 1];
-      copy[index - 1] = temp;
-      return copy;
-    });
-  };
 
-  const handleMoveDown = (index: number) => {
-    setPlaylistItems((prev) => {
-      if (index === prev.length - 1) return prev;
-      const copy = [...prev];
-      const temp = copy[index];
-      copy[index] = copy[index + 1];
-      copy[index + 1] = temp;
-      return copy;
-    });
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,67 +298,11 @@ export default function VideoPlaylistManager() {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, indexOrId: number, source: "sequencer" | "library") => {
-    setDragSource(source);
-    if (source === "sequencer") {
-      setDraggedIndex(indexOrId);
-      e.dataTransfer.setData("text/plain", indexOrId.toString());
-    } else {
-      setDraggedVideoId(indexOrId);
-      e.dataTransfer.setData("text/plain", indexOrId.toString());
-    }
-  };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    setDragOverIndex(index);
-  };
 
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (dragSource === "sequencer" && draggedIndex !== null) {
-      if (draggedIndex !== targetIndex) {
-        setPlaylistItems((prev) => {
-          const copy = [...prev];
-          const [moved] = copy.splice(draggedIndex, 1);
-          copy.splice(targetIndex, 0, moved);
-          return copy;
-        });
-      }
-    } else if (dragSource === "library" && draggedVideoId !== null) {
-      const video = videos.find((v) => v.id === draggedVideoId);
-      if (video) {
-        setPlaylistItems((prev) => {
-          const copy = [...prev];
-          copy.splice(targetIndex, 0, video);
-          return copy;
-        });
-      }
-    }
-    resetDragState();
-  };
 
-  const handleDropOnEmptyZone = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (dragSource === "library" && draggedVideoId !== null) {
-      const video = videos.find((v) => v.id === draggedVideoId);
-      if (video) {
-        setPlaylistItems((prev) => [...prev, video]);
-      }
-    }
-    resetDragState();
-  };
 
-  const resetDragState = () => {
-    setDraggedIndex(null);
-    setDraggedVideoId(null);
-    setDragSource(null);
-    setDragOverIndex(null);
-  };
 
   const availablePrograms = React.useMemo(() => {
     const set = new Set<string>();
