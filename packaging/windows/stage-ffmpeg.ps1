@@ -1,4 +1,5 @@
 # The immutable provider release and archive digests are reviewed together.
+# Pin an end-of-month build: the provider deletes its daily builds after about two weeks.
 param(
     [Parameter(Mandatory = $true)][ValidateSet('x64', 'arm64')][string]$Architecture,
     [string]$Destination = 'backend/dist/Bobine'
