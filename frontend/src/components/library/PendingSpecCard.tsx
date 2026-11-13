@@ -13,8 +13,9 @@ interface Props {
 }
 
 function SubtitleChips({ spec, onUpdate }: Omit<Props, "onRemove">) {
+  const { t } = useAppSettings();
   if (!spec.subtitles || spec.subtitles.length === 0) {
-    return <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>Aucun</span>;
+    return <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>{t("common.none")}</span>;
   }
   return (
     <>
@@ -22,7 +23,7 @@ function SubtitleChips({ spec, onUpdate }: Omit<Props, "onRemove">) {
         <span key={idx} className="badge-pill" style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "color-mix(in srgb, var(--accent-primary) 15%, transparent)", border: "1px solid var(--accent-text)", fontSize: "0.74rem", padding: "2px 8px" }}>
           <Icon name="subtitles" size={12} />
           <span>{subFile.name}</span>
-          <button
+          <button aria-label={t("common.remove")}
             type="button"
             onClick={() => onUpdate({ subtitles: (spec.subtitles ?? []).filter((_, i) => i !== idx) })}
             style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "0 2px" }}
@@ -85,7 +86,7 @@ export default function PendingSpecCard({ spec, onUpdate, onRemove }: Props) {
 
       <textarea
         className="form-control"
-        placeholder="Description / Synopsis du cours (optionnel, style Netflix...)"
+        placeholder={t("common.descriptionOptional")}
         value={spec.description ?? ""}
         onChange={(e) => onUpdate({ description: e.target.value })}
         rows={2}
@@ -94,12 +95,12 @@ export default function PendingSpecCard({ spec, onUpdate, onRemove }: Props) {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", paddingTop: "6px", borderTop: "1px dashed var(--border-color)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>Sous-titres :</span>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>{t("common.subtitles")}</span>
           <SubtitleChips spec={spec} onUpdate={onUpdate} />
         </div>
         <label className="btn btn-secondary olc-press" style={{ height: "26px", padding: "0 8px", fontSize: "0.74rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}>
           <Icon name="add" size={14} />
-          <span>Ajouter .srt</span>
+          <span>{t("common.add")} (.srt)</span>
           <input
             type="file"
             accept={SUBTITLE_ACCEPT}

@@ -248,7 +248,7 @@ export default function RadioAnnouncementsPage() {
               <h3 className="ra-card-title" style={{ margin: 0 }}>
                 <Icon name="upload" size={18} /> {t("radioAnnouncements.importTitle")}
               </h3>
-              <button
+              <button aria-label={t("common.close")}
                 type="button"
                 className="close-btn"
                 style={{ padding: "4px" }}

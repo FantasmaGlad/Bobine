@@ -59,7 +59,7 @@ export default function ScheduleDrawer({ radio, catalog, state }: Props) {
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0 }}>
             {state.editingId ? t("schedule.editScheduleTitle") : t("schedule.newScheduleTitle")}
           </h3>
-          <button className="close-btn" onClick={state.close}>
+          <button aria-label={t("common.close")} className="close-btn" onClick={state.close}>
             <Icon name="close" size={20} />
           </button>
         </div>

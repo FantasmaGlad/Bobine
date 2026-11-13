@@ -30,7 +30,7 @@ export default function BackgroundInspector({ t, bg, isDefault, onClose, onToggl
                   {bg.title}
                 </h3>
               </div>
-              <button
+              <button aria-label={t("common.close")}
                 className="coach-icon-btn olc-press"
                 style={{ width: "36px", height: "36px", fontSize: "0.9rem" }}
                 onClick={onClose}
@@ -82,7 +82,7 @@ export default function BackgroundInspector({ t, bg, isDefault, onClose, onToggl
                 </strong>
               </div>
               <div>
-                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>Mode Coach</span>
+                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("common.coachMode")}</span>
                 <strong style={{ color: isDefault ? "var(--accent-text)" : "var(--text-muted)" }}>
                   {isDefault ? t("backgrounds.isDefault") : t("backgrounds.isOptional")}
                 </strong>

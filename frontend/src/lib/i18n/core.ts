@@ -2,7 +2,6 @@ export type Language = "fr" | "en";
 
 export type Dict = { [key: string]: string | string[] | Dict };
 
-export const LANGUAGES: Language[] = ["fr", "en"];
 
 function lookup(dict: Dict, path: string[]): string | string[] | undefined {
   let node: Dict | string | string[] = dict;

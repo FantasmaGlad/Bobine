@@ -129,7 +129,7 @@ export default function MetricsSystemPage() {
             </div>
           </div>
           <span className="metrics-telemetry-component-name" title={telemetry?.cpu_name}>
-            {telemetry?.cpu_name || "Processeur"}
+            {telemetry?.cpu_name || t("common.processor")}
           </span>
           <div className="metrics-telemetry-metric-val">
             <span className="metrics-telemetry-big-num">
@@ -221,8 +221,8 @@ export default function MetricsSystemPage() {
               <Icon name="storage" size={24} />
             </div>
           </div>
-          <span className="metrics-telemetry-component-name" title={telemetry?.storage_model || "Disque principal"}>
-            {telemetry?.storage_model || "Disque principal"}
+          <span className="metrics-telemetry-component-name" title={telemetry?.storage_model || t("common.mainDisk")}>
+            {telemetry?.storage_model || t("common.mainDisk")}
           </span>
           <div className="metrics-telemetry-metric-val">
             <span className="metrics-telemetry-big-num">

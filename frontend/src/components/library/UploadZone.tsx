@@ -53,7 +53,7 @@ function PendingList({ specs, onPick, onUpdate, onRemove, onSubmit, onClear }: O
           {t("common.cancel")}
         </button>
         <button type="button" className="btn btn-secondary" onClick={onPick} style={{ height: "44px", whiteSpace: "nowrap" }}>
-          + Ajouter
+          + {t("common.add")}
         </button>
       </div>
     </div>

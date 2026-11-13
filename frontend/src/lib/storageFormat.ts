@@ -1,7 +1,6 @@
 import type { Tone, Verdict, VolumeKind } from "./storageApi.ts";
 
 export type FormatFs = "ext4" | "exfat" | "vfat" | "ntfs";
-export const FORMAT_FILESYSTEMS: readonly FormatFs[] = ["ext4", "exfat", "vfat", "ntfs"];
 export type FormatStepId = "unmount" | "recheck" | "table" | "format" | "settle" | "readback" | "mount_ro" | "write_test" | "back_ro" | "health";
 export type FormatStepState = "pending" | "running" | "ok" | "warn" | "skipped" | "failed";
 export type FormatOutcome = "verified" | "verified_with_warnings" | "unchanged" | "erased_blank" | "partial_unknown" | "unverified";

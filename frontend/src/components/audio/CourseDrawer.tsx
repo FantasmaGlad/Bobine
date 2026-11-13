@@ -51,7 +51,7 @@ export default function CourseDrawer({ editor, course, backgrounds, defaultBackg
       <div className="detail-drawer">
         <div className="drawer-header">
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "80%" }}>{course.title}</h3>
-          <button className="close-btn" onClick={editor.close}><Icon name="close" size={20} /></button>
+          <button aria-label={t("common.close")} className="close-btn" onClick={editor.close}><Icon name="close" size={20} /></button>
         </div>
         <div className="drawer-body">
           <form className="drawer-form" onSubmit={editor.save}>

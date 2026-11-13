@@ -96,7 +96,7 @@ export default function BackgroundPicker(props: Props) {
             <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 800 }}>{forTrack ? t("audio.trackAmbianceTitle") : t("dashboard.chooseAmbiance")}</h3>
             {forTrack && <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("audio.ambianceAutoStart")}</span>}
           </div>
-          <button className="coach-icon-btn olc-press" style={{ width: "36px", height: "36px", fontSize: "0.9rem" }} onClick={onClose}><Icon name="close" size={18} /></button>
+          <button aria-label={t("common.close")} className="coach-icon-btn olc-press" style={{ width: "36px", height: "36px", fontSize: "0.9rem" }} onClick={onClose}><Icon name="close" size={18} /></button>
         </div>
         <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
           <FixedOptions {...props} />

@@ -240,7 +240,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             e.stopPropagation();
             setUpdateDismissed(true);
           }}
-          aria-label="Fermer"
+          aria-label={t("common.close")}
         >
           <Icon name="close" size={16} />
         </button>

@@ -63,7 +63,7 @@ export default function NowPlaying({ t, state, connected, now, livePosition, sen
             <button className="radio-transport-btn" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")}>
               <Icon name="skip_previous" size={22} filled />
             </button>
-            <button className="radio-transport-btn main" onClick={handlePlayPause}>
+            <button aria-label={state.playing ? t("common.pause") : t("common.play")} className="radio-transport-btn main" onClick={handlePlayPause}>
               <Icon name={state.playing ? "pause" : "play_arrow"} size={30} filled />
             </button>
             <button className="radio-transport-btn" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")}>

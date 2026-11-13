@@ -25,6 +25,13 @@ const CHANNEL_TABS = [
   { id: "radio_network", icon: "graphic_eq", label: "schedule.channelTabRadioNetwork" },
 ];
 
+const CHANNEL_TITLES: Record<ChannelValue, string> = {
+  cable: "schedule.channelCableTitle",
+  network: "schedule.channelNetworkTitle",
+  radio_cable: "schedule.channelRadioCableTitle",
+  radio_network: "schedule.channelRadioNetworkTitle",
+};
+
 function initialChannel(): ChannelValue {
   if (typeof window === "undefined") return "cable";
   return parseScheduleChannel(new URLSearchParams(window.location.search).get("channel"));
@@ -88,7 +95,7 @@ export default function SchedulePage() {
         tabs={CHANNEL_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
         value={channel}
         onChange={(id) => setChannel(id as ChannelValue)}
-        ariaLabel={t("schedule.channelCableTitle")}
+        ariaLabel={t(CHANNEL_TITLES[channel])}
       />
       <ScheduleToolbar
         view={nav.view}

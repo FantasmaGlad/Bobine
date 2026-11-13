@@ -32,7 +32,7 @@ function MetadataFields({ studio }: { studio: VideoStudioState }) {
           value={fields.title}
           onChange={(e) => setters.setTitle(e.target.value)}
           required
-          placeholder="Ex: RPM 111 Masterclass"
+          placeholder={t("common.titleExample")}
           style={{ fontSize: "0.95rem", fontWeight: 600, padding: "10px 14px" }}
         />
       </div>

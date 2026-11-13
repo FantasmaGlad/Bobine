@@ -171,7 +171,7 @@ export default function UploadFloatingPanel() {
                       </>
                     ) : (
                       <>
-                        {task.stageLabel ?? "Traitement…"}
+                        {task.stageLabel ?? t("common.processing")}
                         {task.stage === "normalizing" && typeof task.estimatedSeconds === "number" &&
                           ` — ${formatEta(task.estimatedSeconds)} (estimation)`}
                       </>
