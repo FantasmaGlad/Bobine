@@ -90,132 +90,62 @@ def resolve_target_display(db: Session, target_type: ScheduleTargetType, target_
     }
 
 
+def _window(schedule: Schedule) -> tuple[str | None, bool]:
+    if not schedule.recurrence_rule:
+        return None, False
+    rule = json.loads(schedule.recurrence_rule)
+    return rule.get("end_time"), rule.get("mode") == "24_7"
+
+
+def _occurrence(db: Session, schedule: Schedule, run_at: datetime, override: ScheduleOverride | None) -> dict:
+    replaced = override is not None and override.action == OverrideAction.replaced
+    cancelled = override is not None and override.action == OverrideAction.cancelled
+    target_type = override.replacement_target_type if replaced else schedule.target_type
+    target_id = override.replacement_target_id if replaced else schedule.target_id
+    display = resolve_target_display(db, target_type, target_id)
+    end_time, is_24_7 = _window(schedule)
+    return {
+        "schedule_id": schedule.id,
+        "channel": schedule.channel or "cable",
+        "schedule_type": schedule.schedule_type,
+        "run_at": run_at,
+        "target_type": target_type,
+        "target_id": target_id,
+        **{key: display[key] for key in ("title", "program", "duration_seconds", "thumbnail_path", "cover_track_id")},
+        "end_time": end_time,
+        "is_24_7": is_24_7,
+        "is_override": replaced or cancelled,
+        "override_action": override.action if replaced or cancelled else None,
+        "override_id": override.id if replaced or cancelled else None,
+    }
+
+
+def _fire_times(schedule: Schedule, start: datetime, end: datetime):
+    trigger = _build_cron_trigger(schedule)
+    fire_time = trigger.get_next_fire_time(None, start)
+    for _ in range(_MAX_OCCURRENCES_PER_SCHEDULE):
+        if fire_time is None or fire_time > end:
+            return
+        yield fire_time
+        fire_time = trigger.get_next_fire_time(fire_time, fire_time)
+
+
 def expand_occurrences(
     db: Session, schedules: list[Schedule], start: datetime, end: datetime
 ) -> list[dict]:
     """Développe une liste de programmations actives en occurrences concrètes dans l'intervalle [start, end], overrides résolus."""
     if not schedules:
         return []
-
-    schedule_ids = [s.id for s in schedules]
-    overrides = (
-        db.query(ScheduleOverride).filter(ScheduleOverride.schedule_id.in_(schedule_ids)).all()
-    )
-    overrides_by_key: dict[tuple[int, date], ScheduleOverride] = {
-        (o.schedule_id, o.occurrence_date.date()): o for o in overrides
-    }
-
+    overrides = db.query(ScheduleOverride).filter(ScheduleOverride.schedule_id.in_([s.id for s in schedules])).all()
+    by_key: dict[tuple[int, date], ScheduleOverride] = {(o.schedule_id, o.occurrence_date.date()): o for o in overrides}
     results: list[dict] = []
     for schedule in schedules:
-        window_end_time, window_is_24_7 = None, False
-        if schedule.recurrence_rule:
-            rule = json.loads(schedule.recurrence_rule)
-            window_end_time = rule.get("end_time")
-            window_is_24_7 = rule.get("mode") == "24_7"
-
         if schedule.schedule_type == ScheduleType.once:
             run_at = ensure_utc(schedule.run_at) if schedule.run_at else None
             if run_at and start <= run_at <= end:
-                display = resolve_target_display(db, schedule.target_type, schedule.target_id)
-                results.append(
-                    {
-                        "schedule_id": schedule.id,
-                        "channel": schedule.channel or "cable",
-                        "schedule_type": schedule.schedule_type,
-                        "run_at": run_at,
-                        "target_type": schedule.target_type,
-                        "target_id": schedule.target_id,
-                        "title": display["title"],
-                        "program": display["program"],
-                        "duration_seconds": display["duration_seconds"],
-                        "thumbnail_path": display["thumbnail_path"],
-                        "cover_track_id": display["cover_track_id"],
-                        "end_time": window_end_time,
-                        "is_24_7": window_is_24_7,
-                        "is_override": False,
-                        "override_action": None,
-                        "override_id": None,
-                    }
-                )
+                results.append(_occurrence(db, schedule, run_at, None))
             continue
-
-        trigger = _build_cron_trigger(schedule)
-        fire_time = trigger.get_next_fire_time(None, start)
-        guard = 0
-        while fire_time is not None and fire_time <= end and guard < _MAX_OCCURRENCES_PER_SCHEDULE:
-            guard += 1
-            override = overrides_by_key.get((schedule.id, fire_time.date()))
-
-            if override is not None and override.action == OverrideAction.cancelled:
-                display = resolve_target_display(db, schedule.target_type, schedule.target_id)
-                results.append(
-                    {
-                        "schedule_id": schedule.id,
-                        "channel": schedule.channel or "cable",
-                        "schedule_type": schedule.schedule_type,
-                        "run_at": fire_time,
-                        "target_type": schedule.target_type,
-                        "target_id": schedule.target_id,
-                        "title": display["title"],
-                        "program": display["program"],
-                        "duration_seconds": display["duration_seconds"],
-                        "thumbnail_path": display["thumbnail_path"],
-                        "cover_track_id": display["cover_track_id"],
-                        "end_time": window_end_time,
-                        "is_24_7": window_is_24_7,
-                        "is_override": True,
-                        "override_action": OverrideAction.cancelled,
-                        "override_id": override.id,
-                    }
-                )
-            elif override is not None and override.action == OverrideAction.replaced:
-                display = resolve_target_display(
-                    db, override.replacement_target_type, override.replacement_target_id
-                )
-                results.append(
-                    {
-                        "schedule_id": schedule.id,
-                        "channel": schedule.channel or "cable",
-                        "schedule_type": schedule.schedule_type,
-                        "run_at": fire_time,
-                        "target_type": override.replacement_target_type,
-                        "target_id": override.replacement_target_id,
-                        "title": display["title"],
-                        "program": display["program"],
-                        "duration_seconds": display["duration_seconds"],
-                        "thumbnail_path": display["thumbnail_path"],
-                        "cover_track_id": display["cover_track_id"],
-                        "end_time": window_end_time,
-                        "is_24_7": window_is_24_7,
-                        "is_override": True,
-                        "override_action": OverrideAction.replaced,
-                        "override_id": override.id,
-                    }
-                )
-            else:
-                display = resolve_target_display(db, schedule.target_type, schedule.target_id)
-                results.append(
-                    {
-                        "schedule_id": schedule.id,
-                        "channel": schedule.channel or "cable",
-                        "schedule_type": schedule.schedule_type,
-                        "run_at": fire_time,
-                        "target_type": schedule.target_type,
-                        "target_id": schedule.target_id,
-                        "title": display["title"],
-                        "program": display["program"],
-                        "duration_seconds": display["duration_seconds"],
-                        "thumbnail_path": display["thumbnail_path"],
-                        "cover_track_id": display["cover_track_id"],
-                        "end_time": window_end_time,
-                        "is_24_7": window_is_24_7,
-                        "is_override": False,
-                        "override_action": None,
-                        "override_id": None,
-                    }
-                )
-
-            fire_time = trigger.get_next_fire_time(fire_time, fire_time)
-
+        results += [_occurrence(db, schedule, fire_time, by_key.get((schedule.id, fire_time.date())))
+                    for fire_time in _fire_times(schedule, start, end)]
     results.sort(key=lambda o: o["run_at"])
     return results

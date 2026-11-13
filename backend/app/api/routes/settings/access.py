@@ -17,9 +17,10 @@ def _port80_redirect() -> bool:
 
 
 def _mdns_host() -> str:
-    if get_mdns_status().get("state") == "external":
+    status = get_mdns_status()
+    if status.get("state") == "external":
         return f"{socket.gethostname().split('.')[0].lower()}.local"
-    return "bobine.local"
+    return status.get("host") or "bobine.local"
 
 
 def _mdns_url() -> str:

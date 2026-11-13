@@ -73,6 +73,8 @@ Appliance : `curl -fsSL https://bobine.fit/install.sh | bash` (options : `sudo .
 ## 8. API
 
 - REST sous `/api` (vidéos, playlists, planning, lecture, radio, imports, réglages, mises à jour, périphériques, stockage, santé). Schéma : `/openapi.json`.
+- Listes paginées par `limit` et `offset`, total dans l'en-tête `X-Total-Count` ; sans ces paramètres, la liste complète. Réponses typées dans le schéma.
+- Nom réseau : `bobine.local`, ou `bobine-2.local` (jusqu'à `bobine-9.local`) quand une autre machine du réseau le porte déjà ; Réglages affiche le nom retenu.
 - WebSocket `/ws/playback` : état de chaque canal avec son horloge, synchronisation du temps, changements de bibliothèque et de périphériques.
 - Lecture par REST : `POST /api/playback/{canal}/{action}` et `POST /api/radio/{sortie}/{action}`, mêmes commandes que le WebSocket ; refus typés (409, 404, 422, 503).
 - Configuration en fichiers JSON rangés par famille (`settings.json`, `machine.json`, `outputs/`, `library/`, `playlists/`, `schedule/`, `radio/`, `manifest.json`) : `GET /api/config/export`, `POST /api/config/apply` (essai à blanc par défaut, tout ou rien) ; copie lisible dans le dossier `config/` des données. Chaque objet porte un `uid` stable : un nom, un titre ou un fichier se modifie sans perdre l'objet, et `"prune": true` supprime ce qui a disparu d'un fichier de playlists ou d'étiquettes.

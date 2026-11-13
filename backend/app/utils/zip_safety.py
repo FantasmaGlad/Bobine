@@ -1,6 +1,8 @@
 """Extraction sûre d'archives ZIP et tar — un membre nommé `../../etc/x`."""
 
 import logging
+import os
+import re
 import shutil
 import tarfile
 import zipfile
@@ -52,6 +54,23 @@ def _check_archive_budget(dest_dir: Path, total_bytes: int) -> None:
         )
 
 
+_WINDOWS_DEVICE = re.compile(r"^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\..*)?$", re.IGNORECASE)
+_WINDOWS = os.name == "nt"
+
+
+def _windows_unsafe(name: str) -> bool:
+    parts = [part for part in re.split(r"[\\/]", name) if part]
+    return any(":" in part or (part.endswith((" ", ".")) and part not in (".", ".."))
+               or _WINDOWS_DEVICE.match(part.rstrip(" .")) for part in parts)
+
+
+def _check_name(dest_dir: Path, name: str) -> None:
+    if _WINDOWS and _windows_unsafe(name):
+        raise UnsafeZipError(f"Archive invalide : le nom {_label(name)} est réservé ou interdit sous Windows.")
+    if not _inside(dest_dir, name):
+        raise UnsafeZipError(f"Archive invalide : le membre {_label(name)} sortirait du dossier de destination.")
+
+
 def _inside(dest_dir: Path, name: str) -> bool:
     resolved = (dest_dir / name).resolve()
     return resolved == dest_dir or dest_dir in resolved.parents
@@ -65,10 +84,7 @@ def safe_extract_zip(zf: zipfile.ZipFile, dest_dir: Path) -> None:
         raise UnsafeZipError(f"Archive ZIP invalide : plus de {MAX_ARCHIVE_MEMBERS} membres.")
     total = 0
     for member in members:
-        if not _inside(dest_dir, member.filename):
-            raise UnsafeZipError(
-                f"Archive ZIP invalide : le membre {_label(member.filename)} sortirait du dossier de destination."
-            )
+        _check_name(dest_dir, member.filename)
         if member.file_size < 0:
             raise UnsafeZipError(f"Archive ZIP invalide : taille invalide pour {_label(member.filename)}.")
         total += member.file_size
@@ -84,8 +100,7 @@ def safe_extract_tar(tf: tarfile.TarFile, dest_dir: Path) -> None:
     for member in tf:
         if len(members) >= MAX_ARCHIVE_MEMBERS:
             raise UnsafeZipError(f"Archive invalide : plus de {MAX_ARCHIVE_MEMBERS} membres.")
-        if not _inside(dest_dir, member.name):
-            raise UnsafeZipError(f"Archive invalide : le membre {_label(member.name)} sortirait du dossier de destination.")
+        _check_name(dest_dir, member.name)
         if not (member.isfile() or member.isdir()):
             raise UnsafeZipError(f"Archive invalide : le membre {_label(member.name)} n'est ni un fichier ni un dossier.")
         if member.size < 0:

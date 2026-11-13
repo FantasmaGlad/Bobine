@@ -1,5 +1,8 @@
+import os
 import tempfile
 from pathlib import Path
+
+os.environ.setdefault("BOBINE_MDNS", "0")
 
 
 def pytest_configure(config):

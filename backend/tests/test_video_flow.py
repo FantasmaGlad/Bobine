@@ -184,7 +184,7 @@ class TestVideoFlow(unittest.TestCase):
             "app.utils.importer.metadata.extract_metadata",
             side_effect=FileNotFoundError(2, "No such file or directory", "ffprobe"),
         ), patch(
-            "app.utils.importer.video.generate_thumbnail",
+            "app.utils.importer.pipeline.generate_thumbnail",
             side_effect=FileNotFoundError(2, "No such file or directory", "ffmpeg"),
         ):
             video = import_video(temp_src, "RPM 108.mp4", ImportSource.upload)

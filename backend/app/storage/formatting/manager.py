@@ -90,6 +90,24 @@ class _Cancelled(Exception):
     pass
 
 
+class _Checks:
+    def __init__(self) -> None:
+        self.items: list[dict[str, Any]] = []
+
+    def add(self, cid: str, ok: bool, **detail: Any) -> None:
+        self.items.append({"id": cid, "ok": ok, **detail})
+
+    def all_ok(self) -> bool:
+        return all(c["ok"] for c in self.items)
+
+    def last_ok(self) -> bool:
+        return bool(self.items) and self.items[-1]["ok"]
+
+
+def _wanted_label(spec: FormatSpec) -> str:
+    return spec.label.upper() if spec.fs == "vfat" else spec.label
+
+
 class FormatManager:
     def __init__(self, service: Any, tokens: PlanTokens | None = None) -> None:
         self.svc = service
@@ -494,80 +512,71 @@ class FormatManager:
             await asyncio.sleep(0.6)
         return None
 
-    async def _verify(self, job: FormatJob, planned: DiskInfo, spec: FormatSpec, old_uuids: set[str], support: dict[str, Any]) -> dict[str, Any]:
-        checks: list[dict[str, Any]] = []
-
-        def add(cid: str, ok: bool, **detail: Any) -> None:
-            checks.append({"id": cid, "ok": ok, **detail})
-
-        self._step(job, "settle", "running")
-        disk = await self._wait_new_disk(planned, spec)
-        if disk is None:
-            self._step(job, "settle", "failed")
-            raise FormatRefusal("format_failed", "Le système n'a pas présenté le nouveau système de fichiers à temps.")
-        self._step(job, "settle", "ok")
+    def _readback(self, job: FormatJob, disk: DiskInfo, planned: DiskInfo, spec: FormatSpec, old_uuids: set[str], checks: "_Checks"):
         self._step(job, "readback", "running")
         parts = [p for p in disk.partitions if not p.whole_disk]
         main = next((p for p in parts if p.fstype), None)
-        add("table", disk.ptable == "gpt" and len(parts) == 1, table=disk.ptable, partitions=len(parts))
+        checks.add("table", disk.ptable == "gpt" and len(parts) == 1, table=disk.ptable, partitions=len(parts))
         if main is None:
-            add("filesystem", False)
+            checks.add("filesystem", False)
             self._step(job, "readback", "failed")
-            return {"ok": False, "checks": checks}
-        add("filesystem", (main.fstype or "").lower() == spec.fs, fstype=main.fstype)
-        want_label = spec.label.upper() if spec.fs == "vfat" else spec.label
-        add("label", (main.label or "") == want_label, label=main.label)
-        add("uuid", bool(main.uuid) and main.uuid.lower() not in old_uuids, new=bool(main.uuid))
-        add("capacity", main.size_bytes >= planned.size_bytes - 4 * ALIGNMENT, size_bytes=main.size_bytes)
-        aligned = main.start_sectors is not None and (main.start_sectors * SECTOR) % ALIGNMENT == 0
-        add("alignment", aligned if main.start_sectors is not None else True, start_sectors=main.start_sectors,
-            known=main.start_sectors is not None)
-        readback_ok = all(c["ok"] for c in checks)
-        self._step(job, "readback", "ok" if readback_ok else "warn")
+            return None
+        checks.add("filesystem", (main.fstype or "").lower() == spec.fs, fstype=main.fstype)
+        checks.add("label", (main.label or "") == _wanted_label(spec), label=main.label)
+        checks.add("uuid", bool(main.uuid) and main.uuid.lower() not in old_uuids, new=bool(main.uuid))
+        checks.add("capacity", main.size_bytes >= planned.size_bytes - 4 * ALIGNMENT, size_bytes=main.size_bytes)
+        known = main.start_sectors is not None
+        checks.add("alignment", (main.start_sectors * SECTOR) % ALIGNMENT == 0 if known else True,
+                   start_sectors=main.start_sectors, known=known)
+        self._step(job, "readback", "ok" if checks.all_ok() else "warn")
+        return main
 
-        volume = await self._wait_volume(main.path)
-        final_ro: bool | None = None
-        write_info: dict[str, Any] = {}
+    async def _mount_step(self, job: FormatJob, step: str, check: str, vkey: str, mode: str, volume, checks: "_Checks", probe):
+        self._step(job, step, "running")
+        try:
+            await self.svc.mount(vkey, mode, _format_job=job.id)
+            volume = self.svc._by_key.get(vkey) or volume
+            await probe(volume)
+            self._step(job, step, "ok" if checks.last_ok() else "warn")
+        except DeviceError as exc:
+            checks.add(check, False, reason=exc.code)
+            self._step(job, step, "failed")
+        return volume
+
+    async def _mount_checks(self, job: FormatJob, volume, checks: "_Checks") -> tuple[Any, bool | None, dict[str, Any]]:
         if volume is None:
-            add("mount_ro", False, reason="not_listed")
+            checks.add("mount_ro", False, reason="not_listed")
             for step in ("mount_ro", "write_test", "back_ro"):
                 self._step(job, step, "skipped")
-        else:
-            vkey = volume.key
-            self._step(job, "mount_ro", "running")
-            try:
-                await self.svc.mount(vkey, "ro", _format_job=job.id)
-                volume = self.svc._by_key.get(vkey) or volume
-                add("mount_ro", volume.mounted and volume.mounted_read_only is True)
-                self._step(job, "mount_ro", "ok" if checks[-1]["ok"] else "warn")
-            except DeviceError as exc:
-                add("mount_ro", False, reason=exc.code)
-                self._step(job, "mount_ro", "failed")
-            self._step(job, "write_test", "running")
-            try:
-                await self.svc.mount(vkey, "rw", _format_job=job.id)
-                volume = self.svc._by_key.get(vkey) or volume
-                if volume.mountpoint:
-                    write_info = await asyncio.to_thread(write_read_delete_test, volume.mountpoint)
-                    add("write_test", bool(write_info.get("ok")), **{k: v for k, v in write_info.items() if k != "ok"})
-                else:
-                    add("write_test", False, reason="not_mounted")
-                self._step(job, "write_test", "ok" if checks[-1]["ok"] else "warn")
-            except DeviceError as exc:
-                add("write_test", False, reason=exc.code)
-                self._step(job, "write_test", "failed")
-            self._step(job, "back_ro", "running")
-            try:
-                await self.svc.mount(vkey, "ro", _format_job=job.id)
-                volume = self.svc._by_key.get(vkey) or volume
-                final_ro = bool(volume.mounted and volume.mounted_read_only is True)
-            except DeviceError as exc:
-                final_ro = False
-                add("back_read_only", False, reason=exc.code)
-            else:
-                add("back_read_only", final_ro)
-            self._step(job, "back_ro", "ok" if final_ro else "warn")
+            return None, None, {}
+        vkey = volume.key
+        write_info: dict[str, Any] = {}
 
+        async def read_only(v) -> None:
+            checks.add("mount_ro", v.mounted and v.mounted_read_only is True)
+
+        async def write_test(v) -> None:
+            if not v.mountpoint:
+                checks.add("write_test", False, reason="not_mounted")
+                return
+            write_info.update(await asyncio.to_thread(write_read_delete_test, v.mountpoint))
+            checks.add("write_test", bool(write_info.get("ok")), **{k: val for k, val in write_info.items() if k != "ok"})
+
+        volume = await self._mount_step(job, "mount_ro", "mount_ro", vkey, "ro", volume, checks, read_only)
+        volume = await self._mount_step(job, "write_test", "write_test", vkey, "rw", volume, checks, write_test)
+        self._step(job, "back_ro", "running")
+        try:
+            await self.svc.mount(vkey, "ro", _format_job=job.id)
+            volume = self.svc._by_key.get(vkey) or volume
+            final_ro = bool(volume.mounted and volume.mounted_read_only is True)
+            checks.add("back_read_only", final_ro)
+        except DeviceError as exc:
+            final_ro = False
+            checks.add("back_read_only", False, reason=exc.code)
+        self._step(job, "back_ro", "ok" if final_ro else "warn")
+        return volume, final_ro, write_info
+
+    async def _health_after_format(self, job: FormatJob, volume) -> dict[str, Any]:
         self._step(job, "health", "running")
         health: dict[str, Any] = {"available": False, "reason": "unknown"}
         if volume is not None:
@@ -578,9 +587,25 @@ class FormatManager:
             except DeviceError as exc:
                 health = {"available": False, "reason": exc.code}
         self._step(job, "health", "ok" if health.get("available") else "skipped")
-        ok = all(c["ok"] for c in checks) and not (health.get("available") and health.get("status") in ("warning", "critical"))
+        return health
+
+    async def _verify(self, job: FormatJob, planned: DiskInfo, spec: FormatSpec, old_uuids: set[str], support: dict[str, Any]) -> dict[str, Any]:
+        checks = _Checks()
+        self._step(job, "settle", "running")
+        disk = await self._wait_new_disk(planned, spec)
+        if disk is None:
+            self._step(job, "settle", "failed")
+            raise FormatRefusal("format_failed", "Le système n'a pas présenté le nouveau système de fichiers à temps.")
+        self._step(job, "settle", "ok")
+        main = self._readback(job, disk, planned, spec, old_uuids, checks)
+        if main is None:
+            return {"ok": False, "checks": checks.items}
+        volume, final_ro, write_info = await self._mount_checks(job, await self._wait_volume(main.path), checks)
+        health = await self._health_after_format(job, volume)
+        ok = checks.all_ok() and not (health.get("available") and health.get("status") in ("warning", "critical"))
         return {
-            "ok": ok, "checks": checks, "filesystem": spec.fs, "label": want_label, "uuid_changed": bool(main.uuid and main.uuid.lower() not in old_uuids),
+            "ok": ok, "checks": checks.items, "filesystem": spec.fs, "label": _wanted_label(spec),
+            "uuid_changed": bool(main.uuid and main.uuid.lower() not in old_uuids),
             "size_bytes": main.size_bytes, "mounted_read_only": final_ro, "health": health,
             "params": {k: v for k, v in write_info.items() if k in ("cluster_bytes", "reserved_blocks", "free_bytes")},
             "mkfs_args": list(spec.mkfs_args),

@@ -64,6 +64,19 @@ def _open_technical_files(stack: ExitStack) -> list[BinaryIO]:
     return handles
 
 
+def _tail(path, lines: int, block: int = 64 * 1024) -> str:
+    with open(path, "rb") as handle:
+        end = handle.seek(0, os.SEEK_END)
+        data = b""
+        while end > 0 and data.count(b"\n") <= lines:
+            start = max(0, end - block)
+            handle.seek(start)
+            data = handle.read(end - start) + data
+            end = start
+    kept = data.splitlines(keepends=True)[-lines:] if lines > 0 else []
+    return b"".join(kept).decode("utf-8", errors="replace")
+
+
 def _parse_technical(handle: BinaryIO) -> tuple[list[dict[str, Any]], int]:
     handle.seek(max(0, os.fstat(handle.fileno()).st_size - _MAX_FILE_BYTES))
     text = handle.read().decode("utf-8", errors="replace")
@@ -170,14 +183,12 @@ def list_activity_event_types(db: Session = Depends(get_db)):
 
 
 @router.get("/technical", response_class=PlainTextResponse)
-def get_technical_log(lines: int = Query(500, le=5000)):
+def get_technical_log(lines: int = Query(500, ge=1, le=5000)):
     """Log technique brut : erreurs backend, échecs de lecture, etc."""
     log_path = settings.technical_log_path
     if not log_path.exists():
         return ""
-    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-        content = f.readlines()
-    return "".join(content[-lines:])
+    return _tail(log_path, lines)
 
 
 @router.get("/technical/download", **binary("text/plain"))

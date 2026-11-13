@@ -45,148 +45,124 @@ def scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, t
     return False
 
 
+async def _launch_radio(db: Session, target_id: int, channel: str) -> None:
+    radio_channel = normalize_radio_channel(channel)
+    paused = False
+    if not _radio_output_is_audible(db, radio_channel):
+        if get_playback_manager("cable").snapshot()["state"] == PlaybackStateEnum.coach_mode.value:
+            paused = True
+            logger.info(f"Programmation radio ({radio_channel}) : mode coach actif, playlist chargée en pause "
+                        "sans basculer l'écran câblé")
+        else:
+            from app.api.routes.settings.display import apply_display_output
+
+            logger.info(f"Programmation radio ({radio_channel}) : l'écran câblé passe sur Radio")
+            await apply_display_output(db, "cable", "radio", activate_radio=False)
+    await _launch_radio_target(db, target_id, radio_channel, start_paused=paused)
+
+
+def _replace_saved_state(db: Session, channel: str, **fields) -> None:
+    db.query(PlaybackState).filter(PlaybackState.channel == channel).delete()
+    db.add(PlaybackState(channel=channel, **fields))
+    db.commit()
+
+
+_IDLE_STATES = (PlaybackStateEnum.waiting.value, PlaybackStateEnum.offline.value, PlaybackStateEnum.playlist_waiting.value)
+
+
+def _manual_video_active(current: dict) -> bool:
+    return (current["current_video"] is not None and current["state"] not in _IDLE_STATES
+            and not current.get("scheduled_launch", False))
+
+
+def _thumbnail(path: str | None) -> str | None:
+    return path.split("/")[-1] if path else None
+
+
+def _playlist_item(video: Video) -> dict:
+    return {
+        "id": video.id, "title": video.title, "duration_seconds": video.duration_seconds, "program": video.program,
+        "release": video.release, "thumbnail_url": _thumbnail(video.thumbnail_path), "description": video.description,
+        "audio_channels": video.audio_channels, "audio_codec": video.audio_codec, "fps": video.fps,
+        "bitrate_kbps": video.bitrate_kbps, "width": video.width, "height": video.height, "storage_id": video.storage_id,
+    }
+
+
+async def _launch_video(db: Session, manager, target_id: int, channel: str, resumed_from: datetime | None) -> bool:
+    video = db.query(Video).filter(Video.id == target_id).first()
+    if not video:
+        logger.warning(f"Cible programmée introuvable : vidéo {target_id}")
+        return False
+    start_position = 0.0
+    if resumed_from is not None:
+        offset = playback_offset(resumed_from, datetime.now(timezone.utc), video.duration_seconds)
+        if offset is None:
+            logger.info(f"Reprise ({channel}) : la vidéo {target_id} est terminée, rien à relancer")
+            scheduled_launch_store.close(db, channel)
+            return False
+        start_position = offset
+    await manager.load(
+        video.id, video.title, video.duration_seconds, video.program, thumbnail_url=_thumbnail(video.thumbnail_path),
+        release=video.release, description=video.description, audio_channels=video.audio_channels,
+        audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width,
+        height=video.height, launch_type="schedule", scheduled=True, start_position=start_position,
+    )
+    return True
+
+
+async def _launch_playlist(db: Session, manager, target_id: int, channel: str, resumed_from: datetime | None) -> bool:
+    playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
+    if not playlist:
+        logger.warning(f"Cible programmée introuvable : playlist {target_id}")
+        return False
+    items = [_playlist_item(item.video) for item in sorted(playlist.items, key=lambda item: item.position)
+             if item.video.available]
+    start_index, start_position = 0, 0.0
+    if resumed_from is not None:
+        elapsed = (datetime.now(timezone.utc) - resumed_from).total_seconds()
+        point = playlist_resume_point([item["duration_seconds"] for item in items],
+                                      float(settings.wait_time_between_courses), elapsed)
+        if point is None:
+            logger.info(f"Reprise ({channel}) : la playlist {target_id} est terminée, rien à relancer")
+            scheduled_launch_store.close(db, channel)
+            return False
+        start_index, start_position = point
+    await manager.load_playlist(playlist.id, playlist.name, items, scheduled=True,
+                                start_index=start_index, start_position=start_position)
+    return True
+
+
 async def launch_target(
     db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable",
     resumed_from: datetime | None = None,
 ) -> None:
     """Lance la cible d'une programmation sur l'état de lecture de SON canal (un planning par canal, zéro interférence entre les deux lectures)."""
     if target_type == ScheduleTargetType.radio_playlist:
-        radio_channel = normalize_radio_channel(channel)
-        paused = False
-        if not _radio_output_is_audible(db, radio_channel):
-            if get_playback_manager("cable").snapshot()["state"] == PlaybackStateEnum.coach_mode.value:
-                paused = True
-                logger.info(
-                    f"Programmation radio ({radio_channel}) : mode coach actif, playlist chargée en pause "
-                    "sans basculer l'écran câblé"
-                )
-            else:
-                from app.api.routes.settings.display import apply_display_output
-
-                logger.info(f"Programmation radio ({radio_channel}) : l'écran câblé passe sur Radio")
-                await apply_display_output(db, "cable", "radio", activate_radio=False)
-        await _launch_radio_target(db, target_id, radio_channel, start_paused=paused)
+        await _launch_radio(db, target_id, channel)
         return
-
     manager = get_playback_manager(channel)
     current = manager.snapshot()
-
+    label = f"{target_type.value} {target_id}"
     if scheduled_target_unavailable(db, target_type, target_id):
-        logger.warning(f"Programmation ({target_type.value} {target_id}) non lancée : support externe indisponible")
+        logger.warning(f"Programmation ({label}) non lancée : support externe indisponible")
         from app.utils.activity_log import log_activity
 
-        log_activity(db, "schedule_media_unavailable", f"{target_type.value} {target_id}")
+        log_activity(db, "schedule_media_unavailable", label)
         return
-
     if current["state"] == PlaybackStateEnum.coach_mode.value:
-        db.query(PlaybackState).filter(PlaybackState.channel == channel).delete()
-        db.add(
-            PlaybackState(
-                target_type=target_type.value,
-                target_id=target_id,
-                cause="coach_priority",
-                channel=channel,
-            )
-        )
-        db.commit()
-        logger.info(
-            f"Programmation ({target_type.value} {target_id}) reportée : mode audio coach actif"
-        )
+        _replace_saved_state(db, channel, target_type=target_type.value, target_id=target_id, cause="coach_priority")
+        logger.info(f"Programmation ({label}) reportée : mode audio coach actif")
         return
-
-    manual_video_active = (
-        current["current_video"] is not None
-        and current["state"] not in (
-            PlaybackStateEnum.waiting.value,
-            PlaybackStateEnum.offline.value,
-            PlaybackStateEnum.playlist_waiting.value,
-        )
-        and not current.get("scheduled_launch", False)
-    )
-
-    if channel == "network" and manual_video_active:
-        logger.info(
-            f"Programmation ({target_type.value} {target_id}) annulée : lecture manuelle en cours sur le "
-            "canal réseau (priorité au manuel)"
-        )
+    if _manual_video_active(current):
+        if channel == "network":
+            logger.info(f"Programmation ({label}) annulée : lecture manuelle en cours sur le canal réseau (priorité au manuel)")
+            return
+        _replace_saved_state(db, channel, video_id=current["current_video"]["id"],
+                             position_seconds=current["position_seconds"], cause="schedule")
+    launch = _launch_video if target_type == ScheduleTargetType.video else _launch_playlist
+    if not await launch(db, manager, target_id, channel, resumed_from):
         return
-
-    if manual_video_active:
-        db.query(PlaybackState).filter(PlaybackState.channel == channel).delete()
-        db.add(
-            PlaybackState(
-                video_id=current["current_video"]["id"],
-                position_seconds=current["position_seconds"],
-                cause="schedule",
-                channel=channel,
-            )
-        )
-        db.commit()
-
-    if target_type == ScheduleTargetType.video:
-        video = db.query(Video).filter(Video.id == target_id).first()
-        if not video:
-            logger.warning(f"Cible programmée introuvable : vidéo {target_id}")
-            return
-        start_position = 0.0
-        if resumed_from is not None:
-            offset = playback_offset(resumed_from, datetime.now(timezone.utc), video.duration_seconds)
-            if offset is None:
-                logger.info(f"Reprise ({channel}) : la vidéo {target_id} est terminée, rien à relancer")
-                scheduled_launch_store.close(db, channel)
-                return
-            start_position = offset
-        thumb = video.thumbnail_path.split("/")[-1] if video.thumbnail_path else None
-        await manager.load(
-            video.id, video.title, video.duration_seconds, video.program, thumbnail_url=thumb, release=video.release,
-            description=video.description, audio_channels=video.audio_channels, audio_codec=video.audio_codec,
-            fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width, height=video.height,
-            launch_type="schedule", scheduled=True, start_position=start_position,
-        )
-    else:
-        playlist = db.query(Playlist).filter(Playlist.id == target_id).first()
-        if not playlist:
-            logger.warning(f"Cible programmée introuvable : playlist {target_id}")
-            return
-        sorted_items = sorted(playlist.items, key=lambda item: item.position)
-        items_data = [
-            {
-                "id": item.video.id,
-                "title": item.video.title,
-                "duration_seconds": item.video.duration_seconds,
-                "program": item.video.program,
-                "release": item.video.release,
-                "thumbnail_url": item.video.thumbnail_path.split("/")[-1] if item.video.thumbnail_path else None,
-                "description": item.video.description,
-                "audio_channels": item.video.audio_channels,
-                "audio_codec": item.video.audio_codec,
-                "fps": item.video.fps,
-                "bitrate_kbps": item.video.bitrate_kbps,
-                "width": item.video.width,
-                "height": item.video.height,
-                "storage_id": item.video.storage_id,
-            }
-            for item in sorted_items
-            if item.video.available
-        ]
-        start_index, start_position = 0, 0.0
-        if resumed_from is not None:
-            elapsed = (datetime.now(timezone.utc) - resumed_from).total_seconds()
-            point = playlist_resume_point(
-                [item["duration_seconds"] for item in items_data], float(settings.wait_time_between_courses), elapsed
-            )
-            if point is None:
-                logger.info(f"Reprise ({channel}) : la playlist {target_id} est terminée, rien à relancer")
-                scheduled_launch_store.close(db, channel)
-                return
-            start_index, start_position = point
-        await manager.load_playlist(
-            playlist.id, playlist.name, items_data, scheduled=True, start_index=start_index, start_position=start_position
-        )
-
-    scheduled_launch_store.remember(
-        db, channel, target_type.value, target_id, resumed_from or datetime.now(timezone.utc)
-    )
+    scheduled_launch_store.remember(db, channel, target_type.value, target_id, resumed_from or datetime.now(timezone.utc))
     manager.note_scheduled_launch_recorded()
 
 

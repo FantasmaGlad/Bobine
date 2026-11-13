@@ -33,6 +33,53 @@ def _app_dir() -> Path:
     )
 
 
+_RUNNER_TEMPLATE = """
+Start-Sleep -Seconds 2
+$installer = "{installer}"
+$tray = "{tray}"
+$statusFile = "{status}"
+
+function Write-Status($step, $message, $error) {{
+    $result = [ordered]@{{
+        step = $step
+        percent = $(if ($step -eq "done") {{ 100 }} else {{ $null }})
+        message = $message
+        error = $error
+        updated_at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    }}
+    $result | ConvertTo-Json | Set-Content -Path $statusFile -Encoding utf8
+}}
+
+$proc = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CLOSEAPPLICATIONS" -Wait -PassThru
+$exitCode = $proc.ExitCode
+Remove-Item -Path $installer -ErrorAction SilentlyContinue
+
+if ($exitCode -ne 0) {{
+    Write-Status "failed" "Installation Windows echouee (code $exitCode)." "install_exit_code_$exitCode"
+    Remove-Item -Path $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
+    exit $exitCode
+}}
+
+# Relance du tray : 5 essais espaces de 3 s (antivirus, verrou de fichier).
+$launched = $false
+for ($i = 0; $i -lt 5; $i++) {{
+    if (Test-Path $tray) {{
+        Start-Process -FilePath $tray
+        $launched = $true
+        break
+    }}
+    Start-Sleep -Seconds 3
+}}
+
+if ($launched) {{
+    Write-Status "done" "Mise a jour installee et application relancee avec succes." $null
+}} else {{
+    Write-Status "failed" "Installation reussie mais BobineTray.exe introuvable pour la relance automatique." "tray_not_found"
+}}
+Remove-Item -Path $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
+"""
+
+
 class WindowsHandler(ProfileHandler):
     profile = "windows"
 
@@ -105,55 +152,7 @@ del "%~f0" > NUL 2>&1
         ps_script_path = temp_dir / "bobine_update_runner.ps1"
         status_path = status_file_path()
         status_path.parent.mkdir(parents=True, exist_ok=True)
-        ps_script = f"""
-Start-Sleep -Seconds 2
-$installer = "{installer_path}"
-$tray = "{tray_exe}"
-$statusFile = "{status_path}"
-
-function Write-Status($step, $message, $error) {{
-    $result = [ordered]@{{
-        step = $step
-        percent = $(if ($step -eq "done") {{ 100 }} else {{ $null }})
-        message = $message
-        error = $error
-        updated_at = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-    }}
-    $result | ConvertTo-Json | Set-Content -Path $statusFile -Encoding utf8
-}}
-
-$proc = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/CLOSEAPPLICATIONS" -Wait -PassThru
-$exitCode = $proc.ExitCode
-Remove-Item -Path $installer -ErrorAction SilentlyContinue
-
-if ($exitCode -ne 0) {{
-    Write-Status "failed" "Installation Windows echouee (code $exitCode)." "install_exit_code_$exitCode"
-    Remove-Item -Path $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
-    exit $exitCode
-}}
-
-# Jusqu'a 5 tentatives espacees de 3s : un antivirus qui scanne encore les
-# fichiers fraichement installes, ou un verrou de fichier qui se libere
-# avec un leger retard, ne doivent pas etre traites comme un echec
-# definitif des la premiere tentative (ancien comportement : un seul
-# `if exist` immediat, sans retry).
-$launched = $false
-for ($i = 0; $i -lt 5; $i++) {{
-    if (Test-Path $tray) {{
-        Start-Process -FilePath $tray
-        $launched = $true
-        break
-    }}
-    Start-Sleep -Seconds 3
-}}
-
-if ($launched) {{
-    Write-Status "done" "Mise a jour installee et application relancee avec succes." $null
-}} else {{
-    Write-Status "failed" "Installation reussie mais BobineTray.exe introuvable pour la relance automatique." "tray_not_found"
-}}
-Remove-Item -Path $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
-"""
+        ps_script = _RUNNER_TEMPLATE.format(installer=installer_path, tray=tray_exe, status=status_path)
         ps_script_path.write_text(ps_script, encoding="utf-8")
 
         report("installing", message="Installation en cours (l'application va redémarrer)…")
