@@ -107,39 +107,39 @@ class ServerTime(BaseModel):
 
 class PlaybackSnapshot(OpenModel):
     state: str
-    current_video: Optional[Dict[str, Any]] = None
-    position_seconds: Optional[float] = None
-    volume: Optional[int] = None
-    speed: Optional[float] = None
-    playlist_id: Optional[int] = None
-    playlist_name: Optional[str] = None
-    playlist_index: Optional[int] = None
-    current_background: Optional[Dict[str, Any]] = None
-    current_audio_course: Optional[Dict[str, Any]] = None
-    audio_track_index: Optional[int] = None
-    audio_playing: Optional[bool] = None
-    audio_position_seconds: Optional[float] = None
-    scheduled_launch: Optional[Dict[str, Any]] = None
-    clock: Optional[Dict[str, Any]] = None
-    audio_clock: Optional[Dict[str, Any]] = None
+    current_video: Any = None
+    position_seconds: Any = None
+    volume: Any = None
+    speed: Any = None
+    playlist_id: Any = None
+    playlist_name: Any = None
+    playlist_index: Any = None
+    current_background: Any = None
+    current_audio_course: Any = None
+    audio_track_index: Any = None
+    audio_playing: Any = None
+    audio_position_seconds: Any = None
+    scheduled_launch: Any = None
+    clock: Any = None
+    audio_clock: Any = None
 
 
 class RadioSnapshot(OpenModel):
     state: str
     channel: str
-    playlist_id: Optional[int] = None
-    playlist_name: Optional[str] = None
-    index: Optional[int] = None
-    current_track: Optional[Dict[str, Any]] = None
-    position_seconds: Optional[float] = None
-    duration_seconds: Optional[float] = None
-    volume: Optional[int] = None
-    shuffle: Optional[bool] = None
-    repeat: Optional[Any] = None
-    playing: Optional[bool] = None
-    current_announcement: Optional[Dict[str, Any]] = None
-    sound: Optional[Dict[str, Any]] = None
-    clock: Optional[Dict[str, Any]] = None
+    playlist_id: Any = None
+    playlist_name: Any = None
+    index: Any = None
+    current_track: Any = None
+    position_seconds: Any = None
+    duration_seconds: Any = None
+    volume: Any = None
+    shuffle: Any = None
+    repeat: Any = None
+    playing: Any = None
+    current_announcement: Any = None
+    sound: Any = None
+    clock: Any = None
 
 
 class UploadState(BaseModel):
