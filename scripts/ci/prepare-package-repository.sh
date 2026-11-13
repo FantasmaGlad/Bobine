@@ -107,7 +107,7 @@ for arch in x86_64 aarch64; do
     [ "${#matches[@]}" = 1 ] || { echo "Un paquet $family/$arch attendu." >&2; exit 1; }
     package="${matches[0]}"
     if [ "$family" = rpm ]; then
-        verification=$(rpmkeys --checksig "$package")
+        verification=$(rpmkeys --dbpath "${BOBINE_RPMDB:?base rpm de verification}" --checksig "$package")
         echo "$verification"
         [[ "$verification" == *"digests signatures OK"* ]] || exit 1
     else
@@ -132,7 +132,7 @@ for arch in x86_64 aarch64; do
     mkdir -p "$target"
     cp "$package" "$target/"
     for rpm_package in "${extra[@]}"; do
-        verification=$(rpmkeys --checksig "$rpm_package")
+        verification=$(rpmkeys --dbpath "${BOBINE_RPMDB:?base rpm de verification}" --checksig "$rpm_package")
         echo "$verification"
         [[ "$verification" == *"digests signatures OK"* ]] || exit 1
         cp "$rpm_package" "$target/"
