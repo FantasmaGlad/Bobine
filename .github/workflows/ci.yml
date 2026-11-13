@@ -849,7 +849,7 @@ jobs:
       matrix:
         include:
           - deb_arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             artifact: bobine-linux-deb
           - deb_arch: arm64
             runner: ubuntu-24.04-arm
