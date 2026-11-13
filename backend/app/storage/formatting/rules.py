@@ -14,11 +14,6 @@ STACK_FILESYSTEMS = frozenset({
 })
 SWAP_FILESYSTEMS = frozenset({"swap", "swsuspend"})
 
-CASCADE = (
-    "platform", "present", "allowed", "not_system", "removable", "not_bobine_data", "not_registered", "not_in_use",
-    "single_operation", "writable", "not_stacked", "size",
-)
-
 
 @dataclass(frozen=True)
 class Check:

@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import ipaddress
-import json
 import os
 import socket
 from collections.abc import Iterable
 from urllib.parse import urlsplit
 
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from app.api.errors import send_forbidden
 
 DEFAULT_DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -96,15 +97,6 @@ class SameOriginGuard:
                 return
         elif scope["type"] == "http" and scope.get("method", "GET") not in _SAFE_METHODS:
             if not self._is_allowed(scope):
-                body = json.dumps(
-                    {"detail": {"code": "cross_origin", "message": "Requête refusée : elle vient d'une page web d'une autre origine, ou d'un nom d'hôte inconnu (à déclarer dans BOBINE_ALLOWED_HOSTS)."}},
-                    ensure_ascii=False,
-                ).encode("utf-8")
-                await send({
-                    "type": "http.response.start",
-                    "status": 403,
-                    "headers": [(b"content-type", b"application/json; charset=utf-8"), (b"content-length", str(len(body)).encode())],
-                })
-                await send({"type": "http.response.body", "body": body})
+                await send_forbidden(send, "cross_origin", "Requête refusée : elle vient d'une page web d'une autre origine, ou d'un nom d'hôte inconnu (à déclarer dans BOBINE_ALLOWED_HOSTS).")
                 return
         await self.app(scope, receive, send)

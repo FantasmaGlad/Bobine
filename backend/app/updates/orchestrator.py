@@ -11,7 +11,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable
 
 from app.utils import tor_proxy
 from app.utils.deployment import UpdateUnsupported, get_profile_handler
@@ -19,11 +19,6 @@ from app.utils.version import get_build_fingerprint
 from app.utils.ws_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
-
-UpdateStep = Literal[
-    "idle", "checking", "downloading", "verifying", "installing",
-    "restarting", "awaiting_user_confirmation", "done", "failed",
-]
 
 DOWNLOAD_CHUNK_SIZE = 64 * 1024
 DOWNLOAD_TIMEOUT_SECONDS = 30
