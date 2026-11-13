@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from .model import Arg, Call, Spec
 from .render import lines
-from .route import route
+from .route import PAGE, route
 from .fields import provided
 
 
 SPECS: tuple[Spec, ...] = (
-    Spec("audio", "list", "lister les cours audio", lambda c, a: Call("GET", "/api/audio"), ("GET /api/audio",), (),
-         lines("{id}  {title}  ({program} {release})")),
+    route("audio", "list", "GET", "/api/audio", "lister les cours audio", query=PAGE, human=lines("{id}  {title}  ({program} {release})")),
     Spec("audio", "get", "détail d'un cours audio et de ses pistes", lambda c, a: Call("GET", f"/api/audio/{a.course_id}"),
          ("GET /api/audio/{course_id}",), (Arg(("course_id",), "identifiant du cours", int),),
          lambda p, a: f"{p.get('id')}  {p.get('title')}\n" + "\n".join(f"  {t.get('number')}  {t.get('title')}" for t in p.get("tracks") or [])),
@@ -19,7 +18,7 @@ SPECS: tuple[Spec, ...] = (
     Spec("audio", "rm", "supprimer un cours audio et ses fichiers", lambda c, a: Call("DELETE", f"/api/audio/{a.course_id}"),
          ("DELETE /api/audio/{course_id}",), (Arg(("course_id",), "identifiant du cours", int),),
          lambda p, a: f"Cours {a.course_id} supprimé.", confirm="Supprimer le cours audio {course_id} et ses fichiers ?"),
-    route("audio", "tracks", "GET", "/api/audio/tracks", "lister toutes les pistes"),
+    route("audio", "tracks", "GET", "/api/audio/tracks", "lister toutes les pistes", query=PAGE),
     route("audio", "programs", "GET", "/api/audio/programs", "programmes connus"),
     route("audio", "track-set", "PUT", "/api/audio/{course_id}/tracks/{track_id}", "modifier une piste",
           body=("title", "number:int", "background_id:int", "clear_background:bool"), require_one=True),

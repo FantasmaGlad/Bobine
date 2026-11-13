@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .model import Arg, Call, Spec
-from .route import route
+from .route import PAGE, route
 
 
 def _video_ids(values: list[int] | None) -> list[dict]:
@@ -63,7 +63,7 @@ SPECS: tuple[Spec, ...] = (
     Spec("playlists", "dup", "dupliquer une playlist", lambda c, a: Call("POST", f"/api/playlists/{a.playlist_id}/duplicate"),
          ("POST /api/playlists/{playlist_id}/duplicate",), (Arg(("playlist_id",), "identifiant de la playlist", int),),
          lambda p, a: f"Copie créée : {p.get('id')}  {p.get('name')}"),
-    route("audio-playlists", "list", "GET", "/api/audio-playlists", "lister les playlists audio"),
+    route("audio-playlists", "list", "GET", "/api/audio-playlists", "lister les playlists audio", query=PAGE),
     route("audio-playlists", "get", "GET", "/api/audio-playlists/{playlist_id}", "détail d'une playlist audio"),
     Spec("audio-playlists", "add", "créer une playlist audio", _audio_playlist_add, ("POST /api/audio-playlists",),
          (Arg(("name",), "nom de la playlist"), _TRACK), lambda p, a: f"Playlist audio {p.get('id')} créée : {p.get('name')}"),

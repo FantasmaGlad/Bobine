@@ -4,7 +4,7 @@ from .model import Spec
 from .route import route
 
 SPECS: tuple[Spec, ...] = (
-    route("logs-admin", "activity", "GET", "/api/logs/activity", "journal d'activité", query=("event_type", "limit:int")),
+    route("logs-admin", "activity", "GET", "/api/logs/activity", "journal d'activité", query=("event_type", "limit:int", "offset:int")),
     route("logs-admin", "types", "GET", "/api/logs/activity/event-types", "types d'évènement du journal d'activité"),
     route("logs-admin", "activity-rm", "DELETE", "/api/logs/activity", "effacer les entrées choisies du journal d'activité",
           query=("ids:ints", "limit:int"), confirm="Effacer ces entrées du journal d'activité ?", require_one=True),

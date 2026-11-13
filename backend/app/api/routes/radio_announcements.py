@@ -14,6 +14,7 @@ except ImportError:
     from pydantic import BaseModel, validator as field_validator
 from sqlalchemy.orm import Session
 
+from app.api.paging import Window, window
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
 from app.radio_manager import LEGACY_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
@@ -106,8 +107,8 @@ def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
 
 
 @router.get("/announcements", response_model=List[RadioAnnouncementResponse])
-def list_announcements(db: Session = Depends(get_db)):
-    return db.query(RadioAnnouncement).order_by(RadioAnnouncement.imported_at.desc()).all()
+def list_announcements(db: Session = Depends(get_db), page: Window = Depends(window)):
+    return page.rows(db.query(RadioAnnouncement).order_by(RadioAnnouncement.imported_at.desc(), RadioAnnouncement.id.desc()))
 
 
 @router.post("/announcements/upload", response_model=RadioAnnouncementResponse, status_code=201)
@@ -222,8 +223,8 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
 
 
 @router.get("/announcement-rules", response_model=List[RadioAnnouncementRuleResponse])
-def list_rules(db: Session = Depends(get_db)):
-    rules = db.query(RadioAnnouncementRule).order_by(RadioAnnouncementRule.created_at.asc()).all()
+def list_rules(db: Session = Depends(get_db), page: Window = Depends(window)):
+    rules = page.rows(db.query(RadioAnnouncementRule).order_by(RadioAnnouncementRule.created_at.asc(), RadioAnnouncementRule.id.asc()))
     return [_rule_response(r) for r in rules]
 
 

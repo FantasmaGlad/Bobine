@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
@@ -60,13 +61,12 @@ class PlaylistSummaryResponse(OrmModel):
 
 
 @router.get("", response_model=List[PlaylistSummaryResponse])
-def list_playlists(db: Session = Depends(get_db)):
+def list_playlists(db: Session = Depends(get_db), page: Window = Depends(window)):
     """Liste toutes les playlists avec le nombre d'éléments, la durée totale et une miniature de repli (1er élément en ayant une)."""
-    playlists = (
+    playlists = page.rows(
         db.query(Playlist)
         .options(selectinload(Playlist.items).joinedload(PlaylistItem.video))
-        .order_by(Playlist.name.asc())
-        .all()
+        .order_by(Playlist.name.asc(), Playlist.id.asc())
     )
     response = []
     for p in playlists:

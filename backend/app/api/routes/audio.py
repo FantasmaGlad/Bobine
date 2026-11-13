@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, contains_eager, joinedload, selectinload
@@ -109,25 +110,23 @@ def _to_summary(course: AudioCourse) -> dict:
 
 
 @router.get("", response_model=List[AudioCourseResponse])
-def list_audio_courses(db: Session = Depends(get_db)):
-    courses = (
+def list_audio_courses(db: Session = Depends(get_db), page: Window = Depends(window)):
+    courses = page.rows(
         db.query(AudioCourse)
         .options(selectinload(AudioCourse.tracks), joinedload(AudioCourse.background))
-        .order_by(AudioCourse.imported_at.desc())
-        .all()
+        .order_by(AudioCourse.imported_at.desc(), AudioCourse.id.desc())
     )
     return [_to_summary(c) for c in courses]
 
 
 @router.get("/tracks", response_model=List[AudioTrackWithCourseResponse])
-def list_all_tracks(db: Session = Depends(get_db)):
+def list_all_tracks(db: Session = Depends(get_db), page: Window = Depends(window)):
     """Toutes les pistes de tous les cours audio, à plat, avec leur contexte de cours d'origine."""
-    tracks = (
+    tracks = page.rows(
         db.query(AudioTrack)
         .join(AudioCourse, AudioTrack.audio_course_id == AudioCourse.id)
         .options(contains_eager(AudioTrack.course), joinedload(AudioTrack.background))
-        .order_by(AudioCourse.title.asc(), AudioTrack.position.asc())
-        .all()
+        .order_by(AudioCourse.title.asc(), AudioTrack.position.asc(), AudioTrack.id.asc())
     )
     return [
         {

@@ -11,6 +11,7 @@ from .model import Arg, Call, Spec, UsageError
 from .render import summary
 
 _FIELD = re.compile(r"^(?P<name>[a-z_]+)(?::(?P<kind>int|float|bool|ints|strs|json))?(?:=(?P<choices>[\w|.:-]+))?$")
+PAGE = ("limit:int", "offset:int")
 _TEXT_IDS = {"device_id", "upload_id", "job_id"}
 _RESERVED = {"host", "port", "json", "verbose", "quiet", "timeout", "yes", "run", "spec", "command", "no_color"}
 _TRUE, _FALSE = {"1", "true", "on", "oui", "yes"}, {"0", "false", "off", "non", "no"}

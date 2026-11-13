@@ -56,7 +56,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les cours audio",
      "name": "list"
     },
@@ -135,7 +152,24 @@
      "name": "rm"
     },
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister toutes les pistes",
      "name": "tracks"
     },
@@ -282,7 +316,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les playlists audio",
      "name": "list"
     },
@@ -404,7 +455,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les fonds animés",
      "name": "list"
     },
@@ -1153,7 +1221,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "taille de page (total dans X-Total-Count)",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "rang du premier élément",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "tâches d'import en cours et récentes",
      "name": "list"
     },
@@ -1279,6 +1364,22 @@
        "flag": false,
        "help": "",
        "name": "--order",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "taille de page (total dans X-Total-Count)",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "rang du premier élément",
+       "name": "--offset",
        "positional": false,
        "repeat": false
       }
@@ -1737,6 +1838,14 @@
        "flag": false,
        "help": "int",
        "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
        "positional": false,
        "repeat": false
       }
@@ -2223,7 +2332,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "taille de page (total dans X-Total-Count)",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "rang du premier élément",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les playlists",
      "name": "list"
     },
@@ -2376,7 +2502,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les annonces",
      "name": "list"
     },
@@ -2502,7 +2645,64 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--q",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--artist",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--album",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--genre",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--tag",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les morceaux de la bibliothèque radio",
      "name": "list"
     },
@@ -2666,7 +2866,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les playlists radio",
      "name": "list"
     },
@@ -2816,7 +3033,24 @@
   {
    "actions": [
     {
-     "arguments": [],
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
      "help": "lister les règles de rappel",
      "name": "list"
     },
@@ -3142,6 +3376,22 @@
        "flag": false,
        "help": "",
        "name": "--channel",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "taille de page (total dans X-Total-Count)",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "rang du premier élément",
+       "name": "--offset",
        "positional": false,
        "repeat": false
       }
@@ -3472,6 +3722,22 @@
        "flag": false,
        "help": "",
        "name": "--channel",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
        "positional": false,
        "repeat": false
       }

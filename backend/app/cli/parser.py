@@ -23,6 +23,7 @@ from .config import cmd_backup, cmd_config, cmd_restore, cmd_settings
 from .control import cmd_api, cmd_diagnose, cmd_open, cmd_playback, cmd_update, cmd_update_status
 from .core import DEFAULT_TIMEOUT, EXIT_OK, Output
 from .declared import add_import_commands, add_spec_commands
+from .paging import paged
 from .read import cmd_devices, cmd_display, cmd_imports, cmd_library, cmd_logs, cmd_metrics, cmd_playlists, cmd_schedule, cmd_status, cmd_storage
 
 
@@ -69,12 +70,13 @@ def build_parser() -> argparse.ArgumentParser:
     library_list.add_argument("--program")
     library_list.add_argument("--sort-by", dest="sort_by", choices=VIDEO_SORT_FIELDS, default="imported_at")
     library_list.add_argument("--order", choices=SORT_ORDERS, default="desc")
+    paged(library_list)
     library_get = library_sub.add_parser("get", parents=[sub_common], help="détail d'une vidéo")
     library_get.add_argument("video_id", type=int)
     library.set_defaults(run=cmd_library)
     playlists = sub.add_parser("playlists", parents=[sub_common], help="playlists vidéo")
     playlists_sub = playlists.add_subparsers(dest="playlists_action", required=True)
-    playlists_sub.add_parser("list", parents=[sub_common], help="lister les playlists")
+    paged(playlists_sub.add_parser("list", parents=[sub_common], help="lister les playlists"))
     playlists_get = playlists_sub.add_parser("get", parents=[sub_common], help="détail d'une playlist")
     playlists_get.add_argument("playlist_id", type=int)
     playlists.set_defaults(run=cmd_playlists)
@@ -83,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     channels = SCHEDULE_CHANNELS
     schedule_list = schedule_sub.add_parser("list", parents=[sub_common], help="lister les programmations")
     schedule_list.add_argument("--channel", choices=channels)
+    paged(schedule_list)
     schedule_next = schedule_sub.add_parser("next", parents=[sub_common], help="prochaine occurrence")
     schedule_next.add_argument("--channel", choices=channels)
     schedule_get = schedule_sub.add_parser("get", parents=[sub_common], help="détail d'une programmation")
@@ -119,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     metrics.set_defaults(run=cmd_metrics)
     imports = sub.add_parser("imports", parents=[sub_common], help="file d'import et chaîne d'import")
     imports_sub = imports.add_subparsers(dest="imports_action", required=True)
-    imports_sub.add_parser("list", parents=[sub_common], help="tâches d'import en cours et récentes")
+    paged(imports_sub.add_parser("list", parents=[sub_common], help="tâches d'import en cours et récentes"))
     imports_cancel = imports_sub.add_parser("cancel", parents=[sub_common], help="annuler une tâche")
     imports_cancel.add_argument("job_id")
     imports_sub.add_parser("diagnose", parents=[sub_common], help="diagnostic de la chaîne d'import")

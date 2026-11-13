@@ -7,6 +7,7 @@ import uuid
 from sqlalchemy import create_engine, event
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
+from app.catalog.fold import fold
 from app.config import settings
 from app.models import Base
 
@@ -32,6 +33,7 @@ engine = create_engine(
 def _set_sqlite_pragma(dbapi_connection, connection_record):
     if not _IS_SQLITE:
         return
+    dbapi_connection.create_function("bobine_fold", 1, fold, deterministic=True)
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA synchronous=NORMAL")

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.paging import Window, window
 from app.database import get_db
 from app.models import ScheduleTargetType, RadioPlaylist, RadioPlaylistItem, RadioTrack
 from app.scheduling.targets import drop_schedules_targeting, remove_jobs
@@ -107,12 +108,11 @@ def _replace_items(playlist: RadioPlaylist, track_ids: List[int], db: Session) -
 
 
 @router.get("", response_model=List[RadioPlaylistSummaryResponse])
-def list_playlists(db: Session = Depends(get_db)):
-    playlists = (
+def list_playlists(db: Session = Depends(get_db), page: Window = Depends(window)):
+    playlists = page.rows(
         db.query(RadioPlaylist)
         .options(selectinload(RadioPlaylist.items).joinedload(RadioPlaylistItem.track))
-        .order_by(RadioPlaylist.is_default.desc(), RadioPlaylist.name.asc())
-        .all()
+        .order_by(RadioPlaylist.is_default.desc(), RadioPlaylist.name.asc(), RadioPlaylist.id.asc())
     )
     out = []
     for p in playlists:

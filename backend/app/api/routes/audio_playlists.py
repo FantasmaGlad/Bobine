@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload, selectinload
@@ -97,13 +98,12 @@ def _validate_background_id(background_id: int | None, db: Session) -> None:
 
 
 @router.get("", response_model=List[AudioPlaylistSummaryResponse])
-def list_audio_playlists(db: Session = Depends(get_db)):
+def list_audio_playlists(db: Session = Depends(get_db), page: Window = Depends(window)):
     """Liste toutes les playlists audio ("éditions mixées") avec le nombre de pistes et la durée totale."""
-    playlists = (
+    playlists = page.rows(
         db.query(AudioPlaylist)
         .options(selectinload(AudioPlaylist.items).joinedload(AudioPlaylistItem.track))
-        .order_by(AudioPlaylist.name.asc())
-        .all()
+        .order_by(AudioPlaylist.name.asc(), AudioPlaylist.id.asc())
     )
     response = []
     for p in playlists:

@@ -5,7 +5,7 @@ from typing import Any
 from app.api.contract import DEFAULT_CHANNEL, OVERRIDE_ACTIONS, SCHEDULE_CHANNELS, SCHEDULE_TARGETS
 
 from .model import Arg, Call, Spec, UsageError
-from .route import route
+from .route import PAGE, route
 
 
 def _schedule_body(args, base: dict | None = None) -> dict:
@@ -95,5 +95,5 @@ SPECS: tuple[Spec, ...] = (
          (Arg(("schedule_id",), "identifiant de la programmation", int), Arg(("override_id",), "identifiant de l'exception", int)),
          lambda p, a: "Occurrence rétablie."),
     route("schedule", "occurrences", "GET", "/api/schedule/occurrences", "occurrences entre deux dates (ISO 8601)",
-          query=("start", "end", "channel=" + "|".join(SCHEDULE_CHANNELS)), pos=("start", "end")),
+          query=("start", "end", "channel=" + "|".join(SCHEDULE_CHANNELS)) + PAGE, pos=("start", "end")),
 )

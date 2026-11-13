@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.paging import Window, window
 from app.config import settings
 from app.database import get_db
 from app.models import RadioPlaylist, RadioTag, RadioTrack, radio_track_tags
@@ -150,6 +151,7 @@ def list_tracks(
     genre: str | None = None,
     tag: str | None = None,
     db: Session = Depends(get_db),
+    page: Window = Depends(window),
 ):
     """Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/ genre/tag des autres vues)."""
     query = db.query(RadioTrack).options(selectinload(RadioTrack.tags))
@@ -173,8 +175,9 @@ def list_tracks(
         RadioTrack.disc_number.asc(),
         RadioTrack.track_number.asc(),
         RadioTrack.title.asc(),
+        RadioTrack.id.asc(),
     )
-    return [_to_track_response(t) for t in query.all()]
+    return [_to_track_response(t) for t in page.rows(query)]
 
 
 @router.get("/tracks/{track_id}", response_model=RadioTrackResponse)

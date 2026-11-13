@@ -17,6 +17,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -251,6 +252,7 @@ def list_videos(
     sort_by: str = Query("imported_at", pattern=regex(VIDEO_SORT_FIELDS)),
     order: str = Query("desc", pattern=regex(SORT_ORDERS)),
     db: Session = Depends(get_db),
+    page: Window = Depends(window),
 ):
     """Récupère la liste des vidéos de la bibliothèque avec filtres et tris."""
     query = db.query(Video)
@@ -270,11 +272,11 @@ def list_videos(
         col = Video.imported_at
 
     if order == "asc":
-        query = query.order_by(col.asc())
+        query = query.order_by(col.asc(), Video.id.asc())
     else:
-        query = query.order_by(col.desc())
+        query = query.order_by(col.desc(), Video.id.desc())
 
-    return query.all()
+    return page.rows(query)
 
 
 @router.get("/programs", response_model=List[str])

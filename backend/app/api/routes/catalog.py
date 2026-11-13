@@ -37,6 +37,5 @@ async def list_media(
     db: Session = Depends(get_db),
 ) -> MediaPage:
     """Médias de toutes les bibliothèques avec leur identifiant de lecture, filtrés et paginés."""
-    entries = await run_in_threadpool(catalog, db, (kind,) if kind else MEDIA_KINDS, q)
-    page = [MediaEntry(**entry.as_dict()) for entry in entries[offset:offset + limit]]
-    return MediaPage(items=page, total=len(entries), limit=limit, offset=offset)
+    entries, total = await run_in_threadpool(catalog, db, (kind,) if kind else MEDIA_KINDS, q, limit, offset)
+    return MediaPage(items=[MediaEntry(**entry.as_dict()) for entry in entries], total=total, limit=limit, offset=offset)
