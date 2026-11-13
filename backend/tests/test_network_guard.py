@@ -51,6 +51,7 @@ def _app(client_host: str) -> TestClient:
     return TestClient(LocalNetworkGuard(inner), client=(client_host, 50000))
 
 
+@pytest.mark.recent_stack
 def test_http_and_websocket_from_internet_refused():
     client = _app("8.8.8.8")
     response = client.get("/api/state")
@@ -62,6 +63,7 @@ def test_http_and_websocket_from_internet_refused():
     assert closed.value.code == 1008
 
 
+@pytest.mark.recent_stack
 @pytest.mark.parametrize("headers", [
     {"X-Forwarded-For": "8.8.8.8"},
     {"X-Forwarded-For": "192.168.1.9, 8.8.8.8"},
@@ -79,6 +81,7 @@ def test_relayed_public_or_unreadable_client_refused(peer, headers):
     assert _app(peer).get("/api/state", headers=headers).status_code == 403
 
 
+@pytest.mark.recent_stack
 @pytest.mark.parametrize("headers", [
     {"X-Forwarded-For": "192.168.1.9"},
     {"X-Forwarded-For": "10.0.0.2:5000, 100.64.1.1"},
@@ -89,10 +92,12 @@ def test_relayed_local_client_passes(headers):
     assert _app("127.0.0.1").get("/api/state", headers=headers).status_code == 200
 
 
+@pytest.mark.recent_stack
 def test_headers_never_widen_access():
     assert _app("8.8.8.8").get("/api/state", headers={"X-Forwarded-For": "127.0.0.1"}).status_code == 403
 
 
+@pytest.mark.recent_stack
 def test_http_and_websocket_from_lan_pass():
     client = _app("192.168.1.20")
     assert client.get("/api/state").json() == {"ok": True}
@@ -104,6 +109,7 @@ def test_guard_is_outermost_middleware():
     assert real_app.user_middleware[0].cls is LocalNetworkGuard
 
 
+@pytest.mark.recent_stack
 def test_real_app_refuses_public_client():
     client = TestClient(real_app, client=("8.8.8.8", 50000))
     for path in ("/api/state", "/", "/api/videos"):

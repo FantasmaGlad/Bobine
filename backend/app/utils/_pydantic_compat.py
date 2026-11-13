@@ -33,6 +33,11 @@ def list_max_items(limit: int, **kwargs):
 
 from pydantic import VERSION as _PYDANTIC_VERSION, BaseModel
 
+
+def pattern_arg(pattern: str) -> dict[str, str]:
+    """Argument de `Query` imposant un motif : `regex` avec FastAPI 0.99 (Android), `pattern` ensuite."""
+    return {"regex" if _PYDANTIC_VERSION.startswith("1.") else "pattern": pattern}
+
 if _PYDANTIC_VERSION.startswith("1."):
 
     class OrmModel(BaseModel):

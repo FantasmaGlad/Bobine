@@ -68,5 +68,5 @@ PLAYABLE_MEDIA = {
 
 
 def regex(values: tuple[str, ...]) -> str:
-    """Motif de validation d'un paramètre de requête (`Query(pattern=...)`) qui n'accepte que ces valeurs."""
+    """Motif de validation d'un paramètre de requête (`Query(**pattern_arg(...))`) qui n'accepte que ces valeurs."""
     return "^(" + "|".join(re.escape(value) for value in values) + ")$"

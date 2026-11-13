@@ -149,7 +149,7 @@ async def _run_restart():
 
 
 @router.post("/system/restart")
-async def restart_system(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str | bool]:
+async def restart_system(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, Any]:
     """Redémarrage simple (sans effacer de données), par exemple pour appliquer un changement de langue."""
     log_activity(db, "settings", "Redémarrage demandé")
     background_tasks.add_task(_run_restart)
