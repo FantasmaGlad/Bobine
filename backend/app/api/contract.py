@@ -1,6 +1,8 @@
 """Valeurs que l'API, l'interface et la commande `bobine` doivent partager : canaux, sorties, périodes, niveaux, actions."""
 from __future__ import annotations
 
+import re
+
 DEFAULT_PORT = 1903
 GITHUB_REPO = "FantasmaGlad/Bobine"
 
@@ -45,8 +47,26 @@ RADIO_ACTIONS = (
     "radio_play_announcement",
 )
 RADIO_OUTPUTS = {"cable": "radio_cable", "network": "radio_network"}
+ANNOUNCEMENT_RULE_TYPES = ("every_n_tracks", "every_x_minutes", "fixed_times")
+ANNOUNCEMENT_TARGETS = RADIO_CHANNELS + ("both",)
+STORAGE_IMPORT_KINDS = ("video", "radio", "audio_course")
+MOUNT_MODES = ("ro", "rw")
+AUDIO_TEST_CHANNELS = ("left", "right", "both")
+ROUTING_FALLBACKS = ("default", "mute")
+CABLE_ONLY_MEDIA = ("audio", "audio-playlist")
+COACH_CHANNELS = (DEFAULT_CHANNEL,)
+MEDIA_KINDS = ("video", "playlist", "audio", "audio-playlist", "background", "radio-track", "radio-playlist")
+PLAYABLE_MEDIA = {
+    "video": ("playback", "load", "video_id"),
+    "playlist": ("playback", "load_playlist", "playlist_id"),
+    "audio": ("playback", "load_audio_course", "audio_course_id"),
+    "audio-playlist": ("playback", "load_audio_playlist", "audio_playlist_id"),
+    "background": ("playback", "load_background", "background_id"),
+    "radio-playlist": ("radio", "load_radio_playlist", "playlist_id"),
+    "radio-track": ("radio", "radio_play_next", "track_id"),
+}
 
 
 def regex(values: tuple[str, ...]) -> str:
     """Motif de validation d'un paramètre de requête (`Query(pattern=...)`) qui n'accepte que ces valeurs."""
-    return "^(" + "|".join(values) + ")$"
+    return "^(" + "|".join(re.escape(value) for value in values) + ")$"

@@ -24,7 +24,7 @@ def rec(monkeypatch):
     recorder = Recorder()
     monkeypatch.setenv("BOBINE_PORT", "1903")
     monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: recorder.request(self, method, path, **kw))
-    monkeypatch.setattr(cli.Client, "upload", lambda self, path, files, fields=None: recorder.uploads.append((path, files, fields)) or {"job_id": "job-1"})
+    monkeypatch.setattr(cli.Client, "upload", lambda self, path, files, fields=None, method="POST": recorder.uploads.append((path, files, fields)) or {"job_id": "job-1"})
     return recorder
 
 

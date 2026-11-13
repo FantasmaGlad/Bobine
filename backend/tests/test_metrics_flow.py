@@ -261,11 +261,11 @@ class TestMetricsFlow(unittest.TestCase):
 
             with self.assertRaises(HTTPException) as cm:
                 asyncio.run(update_settings(SettingsUpdate(logs_retention_days=0), db=db))
-            self.assertEqual(cm.exception.status_code, 400)
+            self.assertEqual(cm.exception.status_code, 422)
 
             with self.assertRaises(HTTPException) as cm_neg:
                 asyncio.run(update_settings(SettingsUpdate(logs_retention_days=-5), db=db))
-            self.assertEqual(cm_neg.exception.status_code, 400)
+            self.assertEqual(cm_neg.exception.status_code, 422)
 
             asyncio.run(update_settings(SettingsUpdate(logs_retention_days=7), db=db))
 

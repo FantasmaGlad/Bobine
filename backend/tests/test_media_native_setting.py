@@ -101,7 +101,7 @@ def test_setting_alone_activates_the_native_path_and_a_failure_falls_back(monkey
 
 def test_api_default_write_validation_and_persistence(client):
     assert client.get("/api/settings").json()["media_native"] == "false"
-    assert client.put("/api/settings", json={"media_native": "maybe"}).status_code == 400
+    assert client.put("/api/settings", json={"media_native": "maybe"}).status_code == 422
     assert media_native.is_enabled() is False
     response = client.put("/api/settings", json={"media_native": "true"})
     assert response.status_code == 200 and response.json()["media_native"] == "true"

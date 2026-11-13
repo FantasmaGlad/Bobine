@@ -169,7 +169,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         upload = UploadFile(filename="corrupt.zip", file=io.BytesIO(b"not a zip file"))
         with self.assertRaises(HTTPException) as ctx:
             await restore_backup(file=upload, db=MagicMock())
-        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.status_code, 422)
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
@@ -178,7 +178,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         upload = UploadFile(filename="missing_db.zip", file=buf)
         with self.assertRaises(HTTPException) as ctx:
             await restore_backup(file=upload, db=MagicMock())
-        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.status_code, 422)
         self.assertIn("database.db manquant", ctx.exception.detail)
 
         buf = io.BytesIO()
@@ -188,7 +188,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         upload = UploadFile(filename="fake_db.zip", file=buf)
         with self.assertRaises(HTTPException) as ctx:
             await restore_backup(file=upload, db=MagicMock())
-        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.status_code, 422)
         self.assertIn("pas une base SQLite valide", ctx.exception.detail)
 
     async def test_restore_backup_success(self):
@@ -229,7 +229,7 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
     async def test_reset_data_confirmation_required(self):
         with self.assertRaises(HTTPException) as ctx:
             await reset_data_system(ResetDataRequest(confirm="OUI"), MagicMock())
-        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.status_code, 422)
         self.assertIn("REINITIALISER", ctx.exception.detail)
 
     async def test_reset_data_success(self):

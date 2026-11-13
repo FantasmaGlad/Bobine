@@ -46,7 +46,7 @@ def _parse_since(value: str | None) -> datetime | None:
     except ValueError:
         parsed = None
     if parsed is None or parsed.tzinfo is None:
-        raise HTTPException(status_code=400, detail={
+        raise HTTPException(status_code=422, detail={
             "code": "invalid_since", "message": "since attend une date ISO 8601 avec fuseau, par exemple 2026-11-05T00:00:00Z.",
         })
     return parsed
@@ -97,9 +97,9 @@ def read_logs(
 ) -> dict[str, Any]:
     """Journaux en JSON stable, du plus récent au plus ancien."""
     if source not in ("technical", "activity"):
-        raise HTTPException(status_code=400, detail={"code": "invalid_source", "message": "source attend technical ou activity."})
+        raise HTTPException(status_code=422, detail={"code": "invalid_source", "message": "source attend technical ou activity."})
     if level is not None and level not in LEVELS:
-        raise HTTPException(status_code=400, detail={"code": "invalid_level", "message": f"level attend l'un de : {', '.join(LEVELS)}."})
+        raise HTTPException(status_code=422, detail={"code": "invalid_level", "message": f"level attend l'un de : {', '.join(LEVELS)}."})
     threshold = LEVELS.index(level) if level else 0
     start = _parse_since(since)
     entries: list[dict[str, Any]] = []

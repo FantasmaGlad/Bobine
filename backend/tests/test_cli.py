@@ -136,7 +136,7 @@ def _http_error(status, detail):
 @pytest.mark.parametrize("raised, code, message", [
     (urllib.error.URLError("Connection refused"), cli.EXIT_UNREACHABLE, "injoignable"),
     (_http_error(409, {"code": "radio_locked", "message": "Le canal cable affiche la radio."}), cli.EXIT_REFUSED, "radio"),
-    (_http_error(404, {"code": "unknown_action", "message": "Action inconnue(e) : x.", "allowed": ["play", "pause"]}), cli.EXIT_REFUSED, "Admis : play, pause"),
+    (_http_error(404, {"code": "unknown_action", "message": "Action inconnue(e) : x.", "allowed": ["play", "pause"]}), cli.EXIT_NOT_FOUND, "Admis : play, pause"),
     (_http_error(422, {"code": "invalid_config", "message": "Rien n'a été appliqué.", "errors": ["settings.json : thème"]}), cli.EXIT_USAGE, "- settings.json"),
 ])
 
@@ -490,7 +490,7 @@ def test_unexpected_response_shape_is_a_message_not_a_traceback(monkeypatch, cap
     assert "réponse inattendue" in err and "Traceback" not in err
 
 
-@pytest.mark.parametrize("status, code", [(400, 2), (422, 2), (403, 4), (404, 4), (409, 4), (503, 4), (500, 1)])
+@pytest.mark.parametrize("status, code", [(400, 2), (422, 2), (403, 4), (404, 5), (409, 4), (503, 4), (500, 1)])
 def test_http_statuses_map_to_stable_exit_codes(monkeypatch, status, code):
     class Response:
         def __init__(self, body=b"{}"): self.body = body; self.status = status

@@ -156,7 +156,7 @@ async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
         try:
             tor_proxy.parse_proxy(proxy)
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     return await asyncio.to_thread(tor_proxy.check, proxy)
 
 
@@ -190,7 +190,7 @@ async def android_update_callback(payload: AndroidUpdateCallback) -> dict[str, s
 async def _store_action(action: str) -> dict[str, Any]:
     handler = get_profile_handler()
     if not handler.is_store_managed():
-        raise HTTPException(status_code=400, detail="Cette installation ne vient pas d'une boutique.")
+        raise HTTPException(status_code=409, detail="Cette installation ne vient pas d'une boutique.")
     try:
         result = await asyncio.wait_for(asyncio.to_thread(getattr(handler, action)), timeout=30)
     except UpdateUnsupported as exc:
@@ -224,12 +224,12 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     handler = get_profile_handler()
     if handler.is_store_managed():
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail="Cette application est installée depuis une boutique : ses mises à jour passent par la boutique.",
         )
     if not handler.can_auto_apply():
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail=(
                 "La mise à jour automatique n'est pas encore disponible sur ce profil — "
                 "téléchargez la dernière version depuis les releases GitHub du projet."
@@ -251,21 +251,21 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
         profile, local_info, release_data, evaluate_update(channel, local_info, release_data)
     )
     if evaluation.get("downgrade_blocked"):
-        raise HTTPException(status_code=400, detail=ANDROID_DOWNGRADE_MESSAGE)
+        raise HTTPException(status_code=409, detail=ANDROID_DOWNGRADE_MESSAGE)
     if not evaluation["has_update"]:
-        raise HTTPException(status_code=400, detail="Aucune mise à jour à appliquer : la version installée est déjà la bonne.")
+        raise HTTPException(status_code=409, detail="Aucune mise à jour à appliquer : la version installée est déjà la bonne.")
 
     target_tag = release_data.get("tag_name") or None
     asset = resolve_asset(profile, release_data, handler.asset_variant())
     if not handler.supports_git_versioning():
         if not asset["download_url"]:
             raise HTTPException(
-                status_code=400,
+                status_code=409,
                 detail=f"La release {target_tag or ''} ne contient aucun paquet pour ce profil ({profile}) — téléchargement manuel requis.",
             )
         if not asset["asset_digest"]:
             raise HTTPException(
-                status_code=400,
+                status_code=409,
                 detail="Empreinte SHA-256 indisponible pour le paquet de cette release — installation automatique refusée par précaution.",
             )
 

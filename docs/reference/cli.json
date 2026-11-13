@@ -1,0 +1,4376 @@
+{
+ "commands": [
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE"
+     ],
+     "flag": false,
+     "help": "",
+     "name": "method",
+     "positional": true,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "chemin de la route, /api/...",
+     "name": "path",
+     "positional": true,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "paramètre de requête (répétable)",
+     "name": "--query",
+     "positional": false,
+     "repeat": true
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "corps JSON : texte, @fichier ou - (entrée standard)",
+     "name": "--body",
+     "positional": false,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": true,
+     "help": "confirmer une écriture",
+     "name": "--yes",
+     "positional": false,
+     "repeat": false
+    }
+   ],
+   "help": "appeler directement une route de l'API (ce qu'aucune commande ne couvre)",
+   "name": "api"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les cours audio",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du cours",
+       "name": "course_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'un cours audio et de ses pistes",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du cours",
+       "name": "course_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--program",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--release",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier titre, programme ou release d'un cours audio",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du cours",
+       "name": "course_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer un cours audio et ses fichiers",
+     "name": "rm"
+    },
+    {
+     "arguments": [],
+     "help": "lister toutes les pistes",
+     "name": "tracks"
+    },
+    {
+     "arguments": [],
+     "help": "programmes connus",
+     "name": "programs"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "course_id",
+       "name": "course_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "track_id",
+       "name": "track_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--number",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--background-id",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--clear-background",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier une piste",
+     "name": "track-set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "course_id",
+       "name": "course_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ints",
+       "name": "track_ids",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "réordonner les pistes",
+     "name": "reorder"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "files",
+       "positional": true,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--program",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--release",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "attendre la fin des tâches d'import (code de sortie 1 si l'une échoue)",
+       "name": "--wait",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--wait-timeout",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "envoyer une archive .zip ou des fichiers",
+     "name": "import"
+    }
+   ],
+   "arguments": [],
+   "help": "cours audio du mode coach",
+   "name": "audio"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les playlists audio",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'une playlist audio",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "nom de la playlist",
+       "name": "name",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant d'une piste audio (répétable, dans l'ordre)",
+       "name": "--track",
+       "positional": false,
+       "repeat": true
+      }
+     ],
+     "help": "créer une playlist audio",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la playlist audio",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "nouveau nom",
+       "name": "--name",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant d'une piste audio (répétable, dans l'ordre)",
+       "name": "--track",
+       "positional": false,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "vide la playlist",
+       "name": "--clear",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "renommer ou recomposer une playlist audio",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une playlist audio",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "dupliquer une playlist audio",
+     "name": "dup"
+    }
+   ],
+   "arguments": [],
+   "help": "playlists audio du mode coach",
+   "name": "audio-playlists"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les fonds animés",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du fond",
+       "name": "background_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'un fond animé",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du fond",
+       "name": "background_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "nouveau titre",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "renommer un fond animé",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du fond",
+       "name": "background_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer un fond animé",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "files",
+       "positional": true,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "attendre la fin des tâches d'import (code de sortie 1 si l'une échoue)",
+       "name": "--wait",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--wait-timeout",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "envoyer une archive .zip ou des fichiers",
+     "name": "import"
+    }
+   ],
+   "arguments": [],
+   "help": "fonds animés",
+   "name": "backgrounds"
+  },
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": [
+      "bash",
+      "zsh",
+      "fish"
+     ],
+     "flag": false,
+     "help": "",
+     "name": "shell",
+     "positional": true,
+     "repeat": false
+    }
+   ],
+   "help": "script de complétion pour bash, zsh ou fish",
+   "name": "completion"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "dossier de destination (sinon stdout)",
+       "name": "directory",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "un seul fichier, ex. schedule-cable.json",
+       "name": "--file",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "exporter (un fichier par type de réglage)",
+     "name": "export"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "paths",
+       "positional": true,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "appliquer réellement",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "appliquer aussi machine.json",
+       "name": "--include-machine",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "appliquer des fichiers (essai à blanc sans --yes)",
+     "name": "apply"
+    }
+   ],
+   "arguments": [],
+   "help": "configuration en fichiers JSON",
+   "name": "config"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "état du pilote",
+     "name": "status"
+    },
+    {
+     "arguments": [],
+     "help": "sorties audio",
+     "name": "audio"
+    },
+    {
+     "arguments": [],
+     "help": "Bluetooth",
+     "name": "bluetooth"
+    },
+    {
+     "arguments": [],
+     "help": "Wi-Fi",
+     "name": "wifi"
+    },
+    {
+     "arguments": [],
+     "help": "carte des périphériques",
+     "name": "topology"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'une sortie audio",
+     "name": "audio-details"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "choisir la sortie audio par défaut",
+     "name": "audio-default"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "float",
+       "name": "--volume",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--muted",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "volume ou sourdine d'une sortie",
+     "name": "audio-volume"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "float",
+       "name": "balance",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "balance gauche-droite (-1 à 1)",
+     "name": "audio-balance"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "left",
+        "right",
+        "both"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "channel",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "son de test sur un canal",
+     "name": "audio-test"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "index",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "choisir un profil de carte son",
+     "name": "audio-profile"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--alias",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--hidden",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "nom affiché ou masquage d'une sortie",
+     "name": "audio-meta"
+    },
+    {
+     "arguments": [],
+     "help": "demander l'autorisation Bluetooth",
+     "name": "bt-permission"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "on",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "allumer ou éteindre le Bluetooth",
+     "name": "bt-power"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "on",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "lancer ou arrêter la recherche",
+     "name": "bt-scan"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "address",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "appairer un appareil",
+     "name": "bt-pair"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "address",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "accept",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "accepter ou refuser un appairage",
+     "name": "bt-respond"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "address",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "connecter un appareil",
+     "name": "bt-connect"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "address",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "déconnecter un appareil",
+     "name": "bt-disconnect"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "address",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "oublier un appareil",
+     "name": "bt-forget"
+    },
+    {
+     "arguments": [],
+     "help": "rechercher les réseaux Wi-Fi",
+     "name": "wifi-scan"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "on",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--acknowledge-disconnect",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "allumer ou éteindre le Wi-Fi",
+     "name": "wifi-power"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "ssid",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--password",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--acknowledge-disconnect",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "se connecter à un réseau (à confirmer ensuite)",
+     "name": "wifi-connect"
+    },
+    {
+     "arguments": [],
+     "help": "confirmer le nouveau réseau Wi-Fi",
+     "name": "wifi-confirm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "ssid",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--acknowledge-disconnect",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "oublier un réseau",
+     "name": "wifi-forget"
+    },
+    {
+     "arguments": [],
+     "help": "sortie audio de chaque canal",
+     "name": "routing"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "channel",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--sink-id",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "default",
+        "mute"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--fallback",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--clear",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "diriger un canal vers une sortie audio",
+     "name": "routing-set"
+    },
+    {
+     "arguments": [],
+     "help": "table de mixage par canal",
+     "name": "mixer"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "channel",
+       "name": "channel",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "json",
+       "name": "--mix",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "json",
+       "name": "--sound",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "régler le mixage d'un canal (JSON)",
+     "name": "mixer-set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "target",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "ouvrir un réglage du système sur la machine",
+     "name": "system-settings"
+    }
+   ],
+   "arguments": [],
+   "help": "périphériques de la machine",
+   "name": "devices"
+  },
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": null,
+     "flag": true,
+     "help": "corriger ce qui peut l'être sans risque (import bloqué, composant natif inutilisé)",
+     "name": "--auto-fix",
+     "positional": false,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": true,
+     "help": "avec --auto-fix : appliquer réellement",
+     "name": "--yes",
+     "positional": false,
+     "repeat": false
+    }
+   ],
+   "help": "diagnostic typé (code de sortie 1 si un problème est trouvé)",
+   "name": "diagnose"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lire les sorties câblé et réseau",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "channel",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "kiosk",
+        "cinema",
+        "radio"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "output",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "basculer un canal",
+     "name": "set"
+    }
+   ],
+   "arguments": [],
+   "help": "sortie affichée par canal",
+   "name": "display"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "tâches d'import en cours et récentes",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "job_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "annuler une tâche",
+     "name": "cancel"
+    },
+    {
+     "arguments": [],
+     "help": "diagnostic de la chaîne d'import",
+     "name": "diagnose"
+    }
+   ],
+   "arguments": [],
+   "help": "file d'import et chaîne d'import",
+   "name": "imports"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lecture interrompue par un redémarrage",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "reprendre la lecture interrompue",
+     "name": "resume"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "oublier la lecture interrompue",
+     "name": "dismiss"
+    }
+   ],
+   "arguments": [],
+   "help": "lecture interrompue par un redémarrage",
+   "name": "interrupted"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--search",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--program",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "imported_at",
+        "title",
+        "duration"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--sort-by",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "asc",
+        "desc"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--order",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lister les vidéos",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'une vidéo",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la vidéo",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--program",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--release",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--description",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier titre, programme, release ou description d'une vidéo",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la vidéo",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une vidéo et son fichier (elle quitte aussi les playlists et le planning)",
+     "name": "rm"
+    },
+    {
+     "arguments": [],
+     "help": "programmes connus",
+     "name": "programs"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "créer la version web légère",
+     "name": "rendition"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "retirer la version web légère",
+     "name": "rendition-rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "remplacer la miniature",
+     "name": "thumbnail"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "réencoder pour une lecture universelle",
+     "name": "normalize"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "lister les sous-titres",
+     "name": "subtitles"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--language-code",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--language-label",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "ajouter des sous-titres .srt ou .vtt",
+     "name": "subtitle-add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "subtitle_id",
+       "name": "subtitle_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "retirer des sous-titres",
+     "name": "subtitle-rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "lister les chapitres",
+     "name": "chapters"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "json",
+       "name": "chapters",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "remplacer les chapitres",
+     "name": "chapters-set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "importer des chapitres d'un fichier",
+     "name": "chapters-import"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "lire les chapitres du fichier vidéo",
+     "name": "chapters-embedded"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "exporter les chapitres",
+     "name": "chapters-export"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "files",
+       "positional": true,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--program",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--release",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--description",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "attendre la fin des tâches d'import (code de sortie 1 si l'une échoue)",
+       "name": "--wait",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--wait-timeout",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "envoyer une archive .zip ou des fichiers",
+     "name": "import"
+    }
+   ],
+   "arguments": [],
+   "help": "bibliothèque vidéo",
+   "name": "library"
+  },
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": [
+      "technical",
+      "activity"
+     ],
+     "flag": false,
+     "help": "",
+     "name": "--source",
+     "positional": false,
+     "repeat": false
+    },
+    {
+     "choices": [
+      "debug",
+      "info",
+      "warning",
+      "error",
+      "critical"
+     ],
+     "flag": false,
+     "help": "",
+     "name": "--level",
+     "positional": false,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "date ISO 8601 avec fuseau, ex. 2026-11-05T08:00:00Z",
+     "name": "--since",
+     "positional": false,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "",
+     "name": "--limit",
+     "positional": false,
+     "repeat": false
+    }
+   ],
+   "help": "journaux",
+   "name": "logs"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--event-type",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "journal d'activité",
+     "name": "activity"
+    },
+    {
+     "arguments": [],
+     "help": "types d'évènement du journal d'activité",
+     "name": "types"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ints",
+       "name": "--ids",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "effacer les entrées choisies du journal d'activité",
+     "name": "activity-rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--lines",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "fin du journal technique",
+     "name": "technical"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "vider le journal technique",
+     "name": "technical-clear"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--retention-days",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "purger journaux et métriques anciens",
+     "name": "purge"
+    }
+   ],
+   "arguments": [],
+   "help": "journal d'activité et journal technique",
+   "name": "logs-admin"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": [
+        "video",
+        "playlist",
+        "audio",
+        "audio-playlist",
+        "background",
+        "radio-track",
+        "radio-playlist"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--kind",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--q",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "médias de toutes les bibliothèques, avec leur identifiant de lecture",
+     "name": "list"
+    }
+   ],
+   "arguments": [],
+   "help": "catalogue de tous les médias et de leurs identifiants",
+   "name": "media"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": [
+        "7d",
+        "30d",
+        "this_month",
+        "all"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--period",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "all",
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "tableau de bord",
+     "name": "dashboard"
+    },
+    {
+     "arguments": [],
+     "help": "télémétrie matérielle courante",
+     "name": "system"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--metric",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "1h",
+        "6h",
+        "24h",
+        "7d",
+        "30d",
+        "this_month",
+        "all"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--period",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "historique d'une métrique",
+     "name": "history"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--video-id",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "all",
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "notes données aux cours",
+     "name": "ratings"
+    }
+   ],
+   "arguments": [],
+   "help": "métriques et télémétrie",
+   "name": "metrics"
+  },
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": null,
+     "flag": false,
+     "help": "admin, grid, cinema, kiosk ou radio",
+     "name": "page",
+     "positional": true,
+     "repeat": false
+    }
+   ],
+   "help": "ouvrir une page de Bobine dans le navigateur (port réel)",
+   "name": "open"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type video",
+     "name": "video"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type playlist",
+     "name": "playlist"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type audio",
+     "name": "audio"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type audio-playlist",
+     "name": "audio-playlist"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type background",
+     "name": "background"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type radio-playlist",
+     "name": "radio-playlist"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant (bobine media list)",
+       "name": "id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal de diffusion",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lire un média de type radio-track",
+     "name": "radio-track"
+    }
+   ],
+   "arguments": [],
+   "help": "lire un média par son identifiant",
+   "name": "play"
+  },
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": null,
+     "flag": false,
+     "help": "canal (cable, network)",
+     "name": "target",
+     "positional": true,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "ex. play, pause, stop, seek, volume, load",
+     "name": "action",
+     "positional": true,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "",
+     "name": "params",
+     "positional": true,
+     "repeat": true
+    }
+   ],
+   "help": "commande de lecture d'un canal",
+   "name": "playback"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les playlists",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'une playlist",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "nom de la playlist",
+       "name": "name",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant d'une vidéo (répétable, dans l'ordre)",
+       "name": "--video",
+       "positional": false,
+       "repeat": true
+      }
+     ],
+     "help": "créer une playlist vidéo",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la playlist",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "nouveau nom",
+       "name": "--name",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "remplace le contenu : identifiant d'une vidéo (répétable, dans l'ordre)",
+       "name": "--video",
+       "positional": false,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "vide la playlist",
+       "name": "--clear",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "renommer ou recomposer une playlist",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la playlist",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une playlist",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la playlist",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "dupliquer une playlist",
+     "name": "dup"
+    }
+   ],
+   "arguments": [],
+   "help": "playlists vidéo",
+   "name": "playlists"
+  },
+  {
+   "actions": [],
+   "arguments": [
+    {
+     "choices": null,
+     "flag": false,
+     "help": "sortie (cable, network)",
+     "name": "target",
+     "positional": true,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "ex. play, pause, stop, seek, volume, load",
+     "name": "action",
+     "positional": true,
+     "repeat": false
+    },
+    {
+     "choices": null,
+     "flag": false,
+     "help": "",
+     "name": "params",
+     "positional": true,
+     "repeat": true
+    }
+   ],
+   "help": "commande d'une sortie radio",
+   "name": "radio"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les annonces",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "description",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "importer une annonce",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "files",
+       "positional": true,
+       "repeat": true
+      }
+     ],
+     "help": "importer plusieurs annonces",
+     "name": "add-batch"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "announcement_id",
+       "name": "announcement_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--description",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--enabled",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier une annonce",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "announcement_id",
+       "name": "announcement_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une annonce",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "announcement_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network",
+        "both"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--target",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "diffuser une annonce maintenant",
+     "name": "play"
+    }
+   ],
+   "arguments": [],
+   "help": "annonces de la radio",
+   "name": "radio-announcements"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les morceaux de la bibliothèque radio",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du morceau",
+       "name": "track_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--title",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--artist",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--album",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--genre",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--year",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier les informations d'un morceau",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant du morceau",
+       "name": "track_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer un morceau",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "track_id",
+       "name": "track_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'un morceau",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "track_id",
+       "name": "track_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "remplacer la pochette",
+     "name": "cover"
+    },
+    {
+     "arguments": [],
+     "help": "lister les artistes",
+     "name": "artists"
+    },
+    {
+     "arguments": [],
+     "help": "lister les albums",
+     "name": "albums"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "files",
+       "positional": true,
+       "repeat": true
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "attendre la fin des tâches d'import (code de sortie 1 si l'une échoue)",
+       "name": "--wait",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--wait-timeout",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "envoyer une archive .zip ou des fichiers",
+     "name": "import"
+    }
+   ],
+   "arguments": [],
+   "help": "morceaux de la radio",
+   "name": "radio-library"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les playlists radio",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'une playlist radio",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "name",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ints",
+       "name": "--track-ids",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "créer une playlist radio",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la playlist radio",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "nouveau nom",
+       "name": "--name",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "morceaux, dans l'ordre (1,2,3)",
+       "name": "--track-ids",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "renommer ou recomposer une playlist radio (le reste est conservé)",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une playlist radio",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "track_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "ajouter un morceau à la fin",
+     "name": "track-add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "en faire l'ambiance par défaut",
+     "name": "default"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "playlist_id",
+       "name": "playlist_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "ne plus en faire l'ambiance par défaut",
+     "name": "default-rm"
+    }
+   ],
+   "arguments": [],
+   "help": "playlists et ambiances de la radio",
+   "name": "radio-playlists"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les règles de rappel",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "every_n_tracks",
+        "every_x_minutes",
+        "fixed_times"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "rule_type",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--n-tracks",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--interval-minutes",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "strs",
+       "name": "--times-of-day",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--enabled",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network",
+        "both"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--target",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "créer une règle de rappel",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la règle",
+       "name": "rule_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "every_n_tracks",
+        "every_x_minutes",
+        "fixed_times"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--rule-type",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--n-tracks",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--interval-minutes",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "strs",
+       "name": "--times-of-day",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--enabled",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network",
+        "both"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--target",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier une règle de rappel (le reste est conservé)",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "rule_id",
+       "name": "rule_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une règle de rappel",
+     "name": "rm"
+    }
+   ],
+   "arguments": [],
+   "help": "règles de rappel des annonces",
+   "name": "radio-rules"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "réglages de son d'une sortie radio",
+     "name": "sound"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "json",
+       "name": "sound",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "régler le son d'une sortie radio (JSON)",
+     "name": "sound-set"
+    },
+    {
+     "arguments": [],
+     "help": "ambiances par défaut des sorties",
+     "name": "defaults"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "channel",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--playlist-id",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "choisir l'ambiance par défaut d'une sortie",
+     "name": "default-set"
+    }
+   ],
+   "arguments": [],
+   "help": "son et ambiance par défaut des sorties radio",
+   "name": "radio-settings"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "lister les étiquettes",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "name",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "créer une étiquette",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "tag_id",
+       "name": "tag_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "name",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "renommer une étiquette",
+     "name": "rename"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "tag_id",
+       "name": "tag_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une étiquette",
+     "name": "rm"
+    }
+   ],
+   "arguments": [],
+   "help": "étiquettes de la radio",
+   "name": "radio-tags"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network",
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "lister les programmations",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network",
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "prochaine occurrence",
+     "name": "next"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "schedule_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "détail d'une programmation",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "video",
+        "playlist",
+        "radio_playlist"
+       ],
+       "flag": false,
+       "help": "ce qui est diffusé",
+       "name": "target_type",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la vidéo ou de la playlist",
+       "name": "target_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network",
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "canal (câblé par défaut)",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "date et heure ISO 8601 d'une programmation ponctuelle (2026-12-24T09:00:00+01:00)",
+       "name": "--at",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "jours d'une récurrence, de 0 (lundi) à 6 (dimanche), séparés par des virgules",
+       "name": "--days",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "heure d'une récurrence, HH:MM",
+       "name": "--time",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fin de la fenêtre radio, HH:MM",
+       "name": "--end",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "radio : toute la journée (24 h sur 24)",
+       "name": "--all-day",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "activer la programmation",
+       "name": "--active",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "la désactiver",
+       "name": "--inactive",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "créer une programmation (ponctuelle ou récurrente)",
+     "name": "add"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la programmation",
+       "name": "schedule_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "date et heure ISO 8601 d'une programmation ponctuelle (2026-12-24T09:00:00+01:00)",
+       "name": "--at",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "jours d'une récurrence, de 0 (lundi) à 6 (dimanche), séparés par des virgules",
+       "name": "--days",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "heure d'une récurrence, HH:MM",
+       "name": "--time",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fin de la fenêtre radio, HH:MM",
+       "name": "--end",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "radio : toute la journée (24 h sur 24)",
+       "name": "--all-day",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "activer la programmation",
+       "name": "--active",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "la désactiver",
+       "name": "--inactive",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "modifier une programmation (les champs non cités restent)",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la programmation",
+       "name": "schedule_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "supprimer une programmation",
+     "name": "rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la programmation",
+       "name": "schedule_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "jour de l'occurrence, YYYY-MM-DD",
+       "name": "--date",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cancelled",
+        "replaced"
+       ],
+       "flag": false,
+       "help": "annuler ou remplacer",
+       "name": "--action",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "video",
+        "playlist",
+        "radio_playlist"
+       ],
+       "flag": false,
+       "help": "avec replaced : ce qui remplace",
+       "name": "--replace-type",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "avec replaced : identifiant du remplaçant",
+       "name": "--replace-id",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "annuler ou remplacer une occurrence d'une programmation récurrente",
+     "name": "override"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de la programmation",
+       "name": "schedule_id",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "identifiant de l'exception",
+       "name": "override_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "rétablir une occurrence (retirer son exception)",
+     "name": "override-rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "start",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "end",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "cable",
+        "network",
+        "radio_cable",
+        "radio_network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "occurrences entre deux dates (ISO 8601)",
+     "name": "occurrences"
+    }
+   ],
+   "arguments": [],
+   "help": "planning de diffusion",
+   "name": "schedule"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "pairs",
+       "positional": true,
+       "repeat": true
+      }
+     ],
+     "help": "",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier à créer (rien n'est écrasé)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "écrire une sauvegarde (zip) de la base et de la configuration",
+     "name": "backup"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "restaurer une sauvegarde (remplace la base, redémarre Bobine)",
+     "name": "restore"
+    },
+    {
+     "arguments": [],
+     "help": "état du composant média natif",
+     "name": "media-native"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "fichier(s)",
+       "name": "file",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "importer un logo personnalisé",
+     "name": "logo"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "retirer le logo personnalisé",
+     "name": "logo-rm"
+    },
+    {
+     "arguments": [],
+     "help": "comportement à la fermeture du capot",
+     "name": "lid"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "prevent_sleep",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "rester allumé capot fermé (on/off)",
+     "name": "lid-set"
+    },
+    {
+     "arguments": [],
+     "help": "occupation du stockage",
+     "name": "storage"
+    }
+   ],
+   "arguments": [],
+   "help": "lire ou modifier un réglage",
+   "name": "settings"
+  },
+  {
+   "actions": [],
+   "arguments": [],
+   "help": "santé et lecture en cours",
+   "name": "status"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "état du service de stockage",
+     "name": "status"
+    },
+    {
+     "arguments": [],
+     "help": "supports amovibles",
+     "name": "volumes"
+    },
+    {
+     "arguments": [],
+     "help": "téléphones",
+     "name": "portable"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--path",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--limit",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "parcourir un support",
+     "name": "browse"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "ro",
+        "rw"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--mode",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "monter un support",
+     "name": "mount"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "démonter un support",
+     "name": "unmount"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "éjecter un support",
+     "name": "eject"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--refresh",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "santé d'un support",
+     "name": "health"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "libérer les blocs inutilisés (TRIM)",
+     "name": "trim"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--read-only",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--noatime",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--noexec",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--standby-minutes",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--smart-monitor",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--auto-mount-library",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "options d'un support",
+     "name": "volume-set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--read-only",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--noatime",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--noexec",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--standby-minutes",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--smart-monitor",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--auto-mount-library",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "options par défaut des supports",
+     "name": "defaults-set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "video",
+        "radio",
+        "audio_course"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "kind",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "json",
+       "name": "entries",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--force",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "copier des fichiers du support dans la bibliothèque",
+     "name": "import"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "video",
+        "radio",
+        "audio_course"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "kind",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "json",
+       "name": "entries",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--force",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "indexer des fichiers sans les copier",
+     "name": "index"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "kind",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ints",
+       "name": "ids",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--dest",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "copier des médias vers le support",
+     "name": "export"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--nickname",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "déclarer le support comme bibliothèque",
+     "name": "library"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "key",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--purge",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "retirer la bibliothèque (fichiers conservés)",
+     "name": "library-rm"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--for-host",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--others",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--media",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--legacy",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "système de fichiers conseillé",
+     "name": "advisor"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "device_id",
+       "name": "device_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "monter un appareil portable",
+     "name": "portable-mount"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "device_id",
+       "name": "device_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "démonter un appareil portable",
+     "name": "portable-unmount"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "strs",
+       "name": "--travels",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "préparer le formatage d'un support (jeton)",
+     "name": "format-plan"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "key",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "fs",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "label",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--token",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--confirm",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--acknowledged",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "formater un support (efface tout)",
+     "name": "format"
+    },
+    {
+     "arguments": [],
+     "help": "formatage en cours",
+     "name": "format-active"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "job_id",
+       "name": "job_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "état d'un formatage",
+     "name": "format-job"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "job_id",
+       "name": "job_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "annuler un formatage",
+     "name": "format-cancel"
+    }
+   ],
+   "arguments": [],
+   "help": "stockage externe",
+   "name": "storage"
+  },
+  {
+   "actions": [
+    {
+     "arguments": [],
+     "help": "",
+     "name": "check"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (Bobine redémarre)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "",
+     "name": "apply"
+    },
+    {
+     "arguments": [],
+     "help": "",
+     "name": "status"
+    },
+    {
+     "arguments": [],
+     "help": "acquitter le résultat de la dernière mise à jour",
+     "name": "acknowledge"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--proxy",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "tester le passage par Tor (contacte check.torproject.org)",
+     "name": "tor-check"
+    }
+   ],
+   "arguments": [],
+   "help": "mises à jour",
+   "name": "update"
+  },
+  {
+   "actions": [],
+   "arguments": [],
+   "help": "version de cette installation",
+   "name": "version"
+  }
+ ],
+ "exit_codes": [
+  {
+   "code": 0,
+   "meaning": "succès"
+  },
+  {
+   "code": 1,
+   "meaning": "échec de l'opération ou problème détecté"
+  },
+  {
+   "code": 2,
+   "meaning": "arguments ou valeur invalides"
+  },
+  {
+   "code": 3,
+   "meaning": "Bobine injoignable"
+  },
+  {
+   "code": 4,
+   "meaning": "refusé par l'état courant (conflit, interdit, indisponible)"
+  },
+  {
+   "code": 5,
+   "meaning": "cible introuvable"
+  }
+ ],
+ "options": [
+  {
+   "choices": null,
+   "flag": false,
+   "help": "machine à piloter (défaut : 127.0.0.1, ou BOBINE_HOST)",
+   "name": "--host",
+   "positional": false,
+   "repeat": false
+  },
+  {
+   "choices": null,
+   "flag": false,
+   "help": "port de Bobine (défaut : port réel de la machine locale, ou BOBINE_PORT)",
+   "name": "--port",
+   "positional": false,
+   "repeat": false
+  },
+  {
+   "choices": null,
+   "flag": false,
+   "help": "délai d'une requête (défaut : 30 s, ou BOBINE_TIMEOUT)",
+   "name": "--timeout",
+   "positional": false,
+   "repeat": false
+  },
+  {
+   "choices": null,
+   "flag": true,
+   "help": "réponse JSON brute sur stdout",
+   "name": "--json",
+   "positional": false,
+   "repeat": false
+  },
+  {
+   "choices": null,
+   "flag": true,
+   "help": "détail sur stderr (-vv : requêtes et réponses)",
+   "name": "--verbose",
+   "positional": false,
+   "repeat": false
+  },
+  {
+   "choices": null,
+   "flag": true,
+   "help": "erreurs seulement",
+   "name": "--quiet",
+   "positional": false,
+   "repeat": false
+  },
+  {
+   "choices": null,
+   "flag": true,
+   "help": "sans couleur (aussi : variable NO_COLOR)",
+   "name": "--no-color",
+   "positional": false,
+   "repeat": false
+  }
+ ]
+}

@@ -7,5 +7,8 @@ OFFLINE_FLAGS = (
     "--disable-domain-reliability",
     "--disable-client-side-phishing-detection",
     "--no-pings",
+    "--disable-breakpad",
+    "--disable-crash-reporter",
+    "--metrics-recording-only",
     "--disable-features=Translate,OptimizationHints,MediaRouter,AutofillServerCommunication",
 )

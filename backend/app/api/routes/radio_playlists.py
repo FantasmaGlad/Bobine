@@ -102,7 +102,7 @@ def _replace_items(playlist: RadioPlaylist, track_ids: List[int], db: Session) -
     db.query(RadioPlaylistItem).filter(RadioPlaylistItem.playlist_id == playlist.id).delete()
     for position, track_id in enumerate(track_ids):
         if not db.query(RadioTrack).filter(RadioTrack.id == track_id).first():
-            raise HTTPException(status_code=400, detail=f"Morceau {track_id} introuvable")
+            raise HTTPException(status_code=404, detail=f"Morceau {track_id} introuvable")
         db.add(RadioPlaylistItem(playlist_id=playlist.id, radio_track_id=track_id, position=position))
 
 
@@ -138,7 +138,7 @@ def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=RadioPlaylistDetailResponse)
 def create_playlist(data: RadioPlaylistInput, db: Session = Depends(get_db)):
     if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le nom de la playlist ne peut pas être vide")
     playlist = RadioPlaylist(name=data.name.strip())
     db.add(playlist)
     db.flush()
@@ -153,7 +153,7 @@ def create_playlist(data: RadioPlaylistInput, db: Session = Depends(get_db)):
 def update_playlist(playlist_id: int, data: RadioPlaylistInput, db: Session = Depends(get_db)):
     playlist = _get_or_404(playlist_id, db)
     if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le nom de la playlist ne peut pas être vide")
     playlist.name = data.name.strip()
     _replace_items(playlist, data.track_ids, db)
     db.commit()
@@ -167,7 +167,7 @@ def add_track(playlist_id: int, data: AddTrackInput, db: Session = Depends(get_d
     """Ajoute un morceau à la fin de la playlist (bouton « ajouter à la playlist » depuis la vue Morceaux)."""
     playlist = _get_or_404(playlist_id, db)
     if not db.query(RadioTrack).filter(RadioTrack.id == data.track_id).first():
-        raise HTTPException(status_code=400, detail=f"Morceau {data.track_id} introuvable")
+        raise HTTPException(status_code=404, detail=f"Morceau {data.track_id} introuvable")
     max_pos = max((item.position for item in playlist.items), default=-1)
     db.add(RadioPlaylistItem(playlist_id=playlist.id, radio_track_id=data.track_id, position=max_pos + 1))
     db.commit()

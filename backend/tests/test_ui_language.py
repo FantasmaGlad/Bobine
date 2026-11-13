@@ -87,7 +87,7 @@ def test_simplified_ui_setting_roundtrip_and_validation(client):
     assert client.get("/api/settings").json()["simplified_ui"] == "false"
     assert client.put("/api/settings", json={"simplified_ui": "true"}).status_code == 200
     assert client.get("/api/settings").json()["simplified_ui"] == "true"
-    assert client.put("/api/settings", json={"simplified_ui": "peut-etre"}).status_code == 400
+    assert client.put("/api/settings", json={"simplified_ui": "peut-etre"}).status_code == 422
 
 
 def test_restart_endpoint_restarts_the_service(client, monkeypatch):

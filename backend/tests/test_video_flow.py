@@ -242,7 +242,7 @@ class TestVideoFlow(unittest.TestCase):
         bad_upload = UploadFile(file=io.BytesIO(b"not an image"), filename="bad.png")
         with self.assertRaises(HTTPException) as ctx:
             asyncio.run(upload_video_thumbnail(video.id, bad_upload, self.db))
-        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(ctx.exception.status_code, 422)
 
     def test_10_target_bitrate_heavy_video_4k_60(self):
         from app.utils.video_utils.encoders import get_target_bitrate

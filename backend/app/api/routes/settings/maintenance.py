@@ -179,7 +179,7 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
     """Remise à zéro complète de la machine."""
     phrase = payload.confirm.strip().upper().replace("É", "E")
     if phrase != "DESINSTALLER":
-        raise HTTPException(status_code=400, detail="Phrase de confirmation incorrecte.")
+        raise HTTPException(status_code=422, detail="Phrase de confirmation incorrecte.")
 
     handler = get_profile_handler()
     if not handler.can_self_uninstall():
@@ -187,7 +187,7 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
 
     if handler.profile == "linux-headless" and (not UNINSTALL_WRAPPER.exists() or not SUDOERS_FILE.exists()):
         raise HTTPException(
-            status_code=400,
+            status_code=409,
             detail=(
                 "Cette machine n'est pas une installation gérée (désinstalleur système absent). "
                 "Depuis un poste de dev, lancez à la main : sudo ./install.sh --uninstall --purge --purge-data"

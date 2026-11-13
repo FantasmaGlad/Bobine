@@ -119,26 +119,26 @@ def _check_target_exists(db: Session, target_type: ScheduleTargetType, target_id
     else:
         found = db.query(Playlist).filter(Playlist.id == target_id).first()
     if not found:
-        raise HTTPException(status_code=400, detail=f"Cible introuvable ({target_type.value} {target_id})")
+        raise HTTPException(status_code=404, detail=f"Cible introuvable ({target_type.value} {target_id})")
 
 
 def _validate_and_normalize(data: ScheduleInput) -> tuple[datetime | None, str | None]:
     if data.schedule_type == ScheduleType.once:
         if data.run_at is None:
-            raise HTTPException(status_code=400, detail="Une programmation ponctuelle nécessite une date/heure")
+            raise HTTPException(status_code=422, detail="Une programmation ponctuelle nécessite une date/heure")
         run_at = ensure_utc(data.run_at)
         if run_at <= datetime.now(timezone.utc):
-            raise HTTPException(status_code=400, detail="Une programmation ponctuelle doit être dans le futur")
+            raise HTTPException(status_code=422, detail="Une programmation ponctuelle doit être dans le futur")
         return run_at, None
 
     if not data.days_of_week:
         raise HTTPException(
-            status_code=400, detail="Une programmation récurrente nécessite au moins un jour de la semaine"
+            status_code=422, detail="Une programmation récurrente nécessite au moins un jour de la semaine"
         )
     if any(d < 0 or d > 6 for d in data.days_of_week):
-        raise HTTPException(status_code=400, detail="Jour de semaine invalide (attendu 0=lundi à 6=dimanche)")
+        raise HTTPException(status_code=422, detail="Jour de semaine invalide (attendu 0=lundi à 6=dimanche)")
     if not data.time_of_day or not _TIME_RE.match(data.time_of_day):
-        raise HTTPException(status_code=400, detail="Heure invalide (attendu HH:MM)")
+        raise HTTPException(status_code=422, detail="Heure invalide (attendu HH:MM)")
 
     rule_dict: dict = {"days_of_week": sorted(set(data.days_of_week)), "time": data.time_of_day}
 
@@ -147,10 +147,10 @@ def _validate_and_normalize(data: ScheduleInput) -> tuple[datetime | None, str |
             rule_dict["mode"] = "24_7"
         elif data.end_time:
             if not _TIME_RE.match(data.end_time):
-                raise HTTPException(status_code=400, detail="Heure de fin invalide (attendu HH:MM)")
+                raise HTTPException(status_code=422, detail="Heure de fin invalide (attendu HH:MM)")
             if data.end_time <= data.time_of_day:
                 raise HTTPException(
-                    status_code=400,
+                    status_code=422,
                     detail="L'heure de fin doit être après l'heure de début "
                     "(fenêtres à cheval sur minuit non prises en charge)",
                 )
@@ -203,7 +203,7 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
     """Occurrences résolues (récurrence + overrides) dans [start, end], pour les vues planning calendrier/liste."""
     start, end = ensure_utc(start), ensure_utc(end)
     if end <= start:
-        raise HTTPException(status_code=400, detail="La date de fin doit être postérieure à la date de début")
+        raise HTTPException(status_code=422, detail="La date de fin doit être postérieure à la date de début")
     query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
     if _normalize_channel(channel):
         query = query.filter(Schedule.channel == _normalize_channel(channel))
@@ -299,16 +299,16 @@ def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends
     if not schedule:
         raise HTTPException(status_code=404, detail="Programmation non trouvée")
     if schedule.schedule_type != ScheduleType.recurring:
-        raise HTTPException(status_code=400, detail="Les overrides ne s'appliquent qu'aux programmations récurrentes")
+        raise HTTPException(status_code=409, detail="Les overrides ne s'appliquent qu'aux programmations récurrentes")
 
     try:
         occurrence_date = datetime.strptime(data.occurrence_date, "%Y-%m-%d")
     except ValueError:
-        raise HTTPException(status_code=400, detail="Date d'occurrence invalide (attendu YYYY-MM-DD)")
+        raise HTTPException(status_code=422, detail="Date d'occurrence invalide (attendu YYYY-MM-DD)")
 
     if data.action == OverrideAction.replaced:
         if not data.replacement_target_type or not data.replacement_target_id:
-            raise HTTPException(status_code=400, detail="Une occurrence remplacée nécessite une cible de remplacement")
+            raise HTTPException(status_code=422, detail="Une occurrence remplacée nécessite une cible de remplacement")
         _check_target_exists(db, data.replacement_target_type, data.replacement_target_id)
 
     existing = (

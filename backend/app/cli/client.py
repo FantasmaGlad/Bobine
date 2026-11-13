@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from app.api.contract import DEFAULT_PORT
-from .core import _REFUSAL_STATUSES, DEFAULT_TIMEOUT, EXIT_ERROR, EXIT_REFUSED, EXIT_UNREACHABLE, EXIT_USAGE, CliError, Output
+from .core import _REFUSAL_STATUSES, DEFAULT_TIMEOUT, EXIT_ERROR, EXIT_NOT_FOUND, EXIT_REFUSED, EXIT_UNREACHABLE, EXIT_USAGE, CliError, Output
 
 
 class Client:
@@ -26,9 +26,9 @@ class Client:
 
     def request(
         self, method: str, path: str, *, query: dict | None = None, body: Any = None,
-        accept_status: frozenset[int] = frozenset(),
+        accept_status: frozenset[int] = frozenset(), text: bool = False,
     ) -> Any:
-        url = self.base + path + (f"?{urllib.parse.urlencode({k: v for k, v in query.items() if v is not None})}" if query else "")
+        url = self.base + path + (f"?{urllib.parse.urlencode({k: v for k, v in query.items() if v is not None}, doseq=True)}" if query else "")
         data = json.dumps(body).encode("utf-8") if body is not None else None
         self.out.log(1, f"{method} {url}")
         if data is not None:
@@ -44,6 +44,8 @@ class Client:
         except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as exc:
             raise CliError(f"Bobine injoignable sur {self.base} ({getattr(exc, 'reason', exc)}).", EXIT_UNREACHABLE) from exc
         self.out.log(2, f"< {status} en {1000 * (time.monotonic() - started):.0f} ms : {raw[:2000].decode('utf-8', 'replace')}")
+        if text and status < 400:
+            return raw.decode("utf-8", "replace")
         return self._interpret(status, raw, url, accept_status)
 
     def _interpret(self, status: int, raw: bytes, url: str, accept_status: frozenset[int] = frozenset()) -> Any:
@@ -64,13 +66,14 @@ class Client:
             errors = detail.get("errors") if isinstance(detail, dict) else None
             if errors:
                 message = message + "\n" + "\n".join(f"  - {e}" for e in errors)
-            code = EXIT_REFUSED if status in _REFUSAL_STATUSES else EXIT_USAGE if status in (400, 422) else EXIT_ERROR
+            code = (EXIT_NOT_FOUND if status == 404 else EXIT_REFUSED if status in _REFUSAL_STATUSES
+                    else EXIT_USAGE if status in (400, 422) else EXIT_ERROR)
             raise CliError(f"Refusé ({status}) : {message}", code, payload)
         if payload is not None and not isinstance(payload, (dict, list)):
             raise CliError(f"réponse non JSON ({status}) de {url} : {raw[:200]!r}", EXIT_ERROR, payload)
         return payload
 
-    def upload(self, path: str, files: list[tuple[str, Path]], fields: dict[str, str] | None = None) -> Any:
+    def upload(self, path: str, files: list[tuple[str, Path]], fields: dict[str, str] | None = None, method: str = "POST") -> Any:
         """Envoie des fichiers en multipart sans les charger en mémoire (une vidéo peut peser plusieurs Gio)."""
         boundary = "bobine" + uuid.uuid4().hex
         parts: list[bytes | Path] = []
@@ -92,11 +95,11 @@ class Client:
         except OSError as exc:
             raise CliError(f"fichier illisible : {exc}", EXIT_USAGE) from exc
         url = self.base + path
-        self.out.log(1, f"POST {url} ({len(files)} fichier(s), {length} octets)")
+        self.out.log(1, f"{method} {url} ({len(files)} fichier(s), {length} octets)")
         parsed = urllib.parse.urlsplit(url)
         connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=self.timeout)
         try:
-            connection.putrequest("POST", parsed.path)
+            connection.putrequest(method, parsed.path)
             connection.putheader("Content-Type", f"multipart/form-data; boundary={boundary}")
             connection.putheader("Content-Length", str(length))
             connection.endheaders()

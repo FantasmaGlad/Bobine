@@ -411,7 +411,7 @@ def test_store_managed_apply_is_refused(monkeypatch):
     monkeypatch.setattr(updates, "get_profile_handler", lambda: _StoreHandler())
     with pytest.raises(HTTPException) as exc:
         asyncio.run(updates.apply_update(BackgroundTasks(), db=None))
-    assert exc.value.status_code == 400
+    assert exc.value.status_code == 409
 
 
 def test_rolling_release_target_is_the_tag_commit_not_the_stale_release_field(monkeypatch):

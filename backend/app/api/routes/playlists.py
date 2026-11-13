@@ -114,7 +114,7 @@ def get_playlist(playlist_id: int, db: Session = Depends(get_db)):
 def create_playlist(data: PlaylistInput, db: Session = Depends(get_db)):
     """Crée une nouvelle playlist avec ses éléments."""
     if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le nom de la playlist ne peut pas être vide")
 
     playlist = Playlist(name=data.name.strip())
     db.add(playlist)
@@ -123,7 +123,7 @@ def create_playlist(data: PlaylistInput, db: Session = Depends(get_db)):
     for i, item_input in enumerate(data.items):
         video = db.query(Video).filter(Video.id == item_input.video_id).first()
         if not video:
-            raise HTTPException(status_code=400, detail=f"Vidéo {item_input.video_id} introuvable")
+            raise HTTPException(status_code=404, detail=f"Vidéo {item_input.video_id} introuvable")
 
         position = item_input.position if item_input.position is not None else i
         item = PlaylistItem(
@@ -148,7 +148,7 @@ def update_playlist(playlist_id: int, data: PlaylistInput, db: Session = Depends
         raise HTTPException(status_code=404, detail="Playlist non trouvée")
 
     if not data.name.strip():
-        raise HTTPException(status_code=400, detail="Le nom de la playlist ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le nom de la playlist ne peut pas être vide")
 
     playlist.name = data.name.strip()
 
@@ -157,7 +157,7 @@ def update_playlist(playlist_id: int, data: PlaylistInput, db: Session = Depends
     for i, item_input in enumerate(data.items):
         video = db.query(Video).filter(Video.id == item_input.video_id).first()
         if not video:
-            raise HTTPException(status_code=400, detail=f"Vidéo {item_input.video_id} introuvable")
+            raise HTTPException(status_code=404, detail=f"Vidéo {item_input.video_id} introuvable")
 
         position = item_input.position if item_input.position is not None else i
         item = PlaylistItem(

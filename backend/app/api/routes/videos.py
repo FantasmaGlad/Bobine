@@ -325,7 +325,7 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Vidéo non trouvée")
 
     if payload.title is not None and not payload.title.strip():
-        raise HTTPException(status_code=400, detail="Le titre ne peut pas être vide")
+        raise HTTPException(status_code=422, detail="Le titre ne peut pas être vide")
     if payload.title is not None and payload.title != video.title:
         rename_video_file(video, payload.title)
         video.title = payload.title
@@ -430,7 +430,7 @@ async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db
     try:
         new_thumb_path = await run_in_threadpool(_write_manual_thumbnail, file.file)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Fichier image invalide")
+        raise HTTPException(status_code=422, detail="Fichier image invalide")
 
     old_thumb_path = Path(video.thumbnail_path) if video.thumbnail_path else None
     video.thumbnail_path = str(new_thumb_path)
@@ -529,7 +529,7 @@ def manual_normalize(
     try:
         meta = extract_metadata(video.file_path)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Impossible d'analyser la vidéo : {e}")
+        raise HTTPException(status_code=422, detail=f"Impossible d'analyser la vidéo : {e}")
 
     compat = check_compatibility(meta, video.file_path)
     if not compat["needs_normalization"]:
@@ -576,7 +576,7 @@ async def upload_subtitle(
     filename = file.filename or "subtitles.srt"
     ext = Path(filename).suffix.lower()
     if ext not in (".srt", ".vtt"):
-        raise HTTPException(status_code=400, detail="Seuls les formats .srt et .vtt sont acceptés.")
+        raise HTTPException(status_code=422, detail="Seuls les formats .srt et .vtt sont acceptés.")
 
     content_bytes = await file.read(MAX_SUBTITLE_BYTES + 1)
     if len(content_bytes) > MAX_SUBTITLE_BYTES:
@@ -591,7 +591,7 @@ async def upload_subtitle(
     detected_code, detected_label = detect_language_from_filename(filename)
     final_code = normalize_language_code(language_code or detected_code)
     if final_code is None:
-        raise HTTPException(status_code=400, detail="Code de langue invalide (ex. fr, en, pt-br).")
+        raise HTTPException(status_code=422, detail="Code de langue invalide (ex. fr, en, pt-br).")
     final_label = normalize_language_label(language_label, LANGUAGE_MAP.get(final_code, detected_label))
 
     subtitles_dir = get_subtitles_directory()

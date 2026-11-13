@@ -53,8 +53,8 @@ def client():
 def test_le_serveur_traduit_un_ancien_theme_et_valide_le_mode(client):
     original = client.get("/api/settings").json()
     try:
-        assert client.put("/api/settings", json={"theme_mode": "nuit"}).status_code == 400
-        assert client.put("/api/settings", json={"theme": "violet"}).status_code == 400
+        assert client.put("/api/settings", json={"theme_mode": "nuit"}).status_code == 422
+        assert client.put("/api/settings", json={"theme": "violet"}).status_code == 422
         assert client.put("/api/settings", json={"theme": "lavande"}).status_code == 200
         got = client.get("/api/settings").json()
         assert (got["theme"], got["theme_mode"]) == ("orchidee", "light")

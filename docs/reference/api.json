@@ -1,0 +1,4668 @@
+{
+ "errors": {
+  "codes": {
+   "400": "bad_request",
+   "401": "unauthorized",
+   "403": "forbidden",
+   "404": "not_found",
+   "405": "method_not_allowed",
+   "409": "conflict",
+   "413": "too_large",
+   "422": "invalid",
+   "429": "too_many_requests",
+   "500": "internal_error",
+   "503": "unavailable",
+   "504": "timeout",
+   "507": "insufficient_storage"
+  },
+  "shape": {
+   "detail": {
+    "code": "string",
+    "message": "string"
+   }
+  }
+ },
+ "groups": [
+  {
+   "name": "audio",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Audio Courses"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio/programs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Catégories (programmes) réellement présentes parmi les cours audio, triées."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio/tracks",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Toutes les pistes de tous les cours audio, à plat, avec leur contexte de cours d'origine."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio/tracks/{track_id}/stream",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Stream Audio Track"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "files",
+        "required": true,
+        "type": "string[]"
+       },
+       {
+        "choices": null,
+        "name": "title",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "program",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "release",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/audio/upload",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import multi-fichiers MP3 d'un cours, traité en arrière-plan — voir `_run_audio_files_import_job` et `GET /api/import-jobs`."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "title",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "program",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "release",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/audio/upload-zip",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import d'une archive ZIP d'un cours complet, traité en arrière-plan — voir `_run_audio_zip_import_job` et `GET /api/import-jobs`."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/audio/{course_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "course_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Audio Course"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio/{course_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "course_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Get Audio Course"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "program",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "release",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "background_id",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "clear_background",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/audio/{course_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "course_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Audio Course"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "track_ids",
+        "required": true,
+        "type": "integer[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/audio/{course_id}/tracks/reorder",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "course_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Réordonnancement des pistes par glisser-déposer."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "number",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "background_id",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "clear_background",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/audio/{course_id}/tracks/{track_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "course_id",
+       "required": true,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Audio Track"
+    }
+   ]
+  },
+  {
+   "name": "audio-playlists",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio-playlists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Liste toutes les playlists audio (\"éditions mixées\") avec le nombre de pistes et la durée totale."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "items",
+        "required": false,
+        "type": "object[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/audio-playlists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Create Audio Playlist"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/audio-playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Audio Playlist"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/audio-playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Get Audio Playlist"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "items",
+        "required": false,
+        "type": "object[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/audio-playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Audio Playlist"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/audio-playlists/{playlist_id}/duplicate",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Duplicate Audio Playlist"
+    }
+   ]
+  },
+  {
+   "name": "backgrounds",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/backgrounds",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Backgrounds"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/backgrounds/upload",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Upload web d'un fond animé — traité en arrière-plan, voir `_run_background_import_job` et `GET /api/import-jobs`."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/backgrounds/upload-zip",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import d'une archive (ZIP ou tar) de fonds animés et d'images : un fond par fichier, en une seule tâche."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/backgrounds/{background_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "background_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Background"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/backgrounds/{background_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "background_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Get Background"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/backgrounds/{background_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "background_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Background"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/backgrounds/{background_id}/stream",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "background_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Stream Background"
+    }
+   ]
+  },
+  {
+   "name": "config",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/config",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Fichiers disponibles et dossier de la copie à jour (lecture seule, jamais relue par Bobine)."
+    },
+    {
+     "body": {
+      "fields": [],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/config/apply",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "dry_run",
+       "required": false,
+       "type": "boolean"
+      },
+      {
+       "choices": null,
+       "name": "include_machine",
+       "required": false,
+       "type": "boolean"
+      }
+     ],
+     "summary": "Applique un ou plusieurs fichiers (`{\"files\": {\"settings.json\": {...}}}`) en une seule transaction."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/config/export",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Tous les fichiers d'un coup : `{\"schema\": 2, \"files\": {\"settings.json\": {...}, \"playlists/video.json\": {...}, ...}}`."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/config/export/{name}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "name",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Export Config File"
+    }
+   ]
+  },
+  {
+   "name": "devices",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/audio",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Audio List"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "id",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "balance",
+        "required": true,
+        "type": "number"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/audio/balance",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Audio Balance"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "id",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/audio/default",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Audio Set Default"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/audio/details",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "summary": "Audio Details"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "id",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "alias",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "hidden",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/devices/audio/meta",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Nom personnalisé et masquage d'une sortie : réglages de Bobine, communs à toutes les plateformes."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "id",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "index",
+        "required": true,
+        "type": "integer"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/audio/profile",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Audio Profile"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "id",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "channel",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/audio/test",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Audio Test"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "id",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "volume",
+        "required": false,
+        "type": "number"
+       },
+       {
+        "choices": null,
+        "name": "muted",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/audio/volume",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Audio Set Volume"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/bluetooth",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Status"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "address",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/connect",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Connect"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "address",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/disconnect",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Disconnect"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "address",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/forget",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Forget"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "address",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/pair",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Pair"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "address",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "accept",
+        "required": true,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/pairing/respond",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Pairing Respond"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/devices/bluetooth/permission",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Android : affiche sur l'appareil la demande d'autorisation « Appareils à proximité »."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "on",
+        "required": true,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/power",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Power"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "on",
+        "required": true,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/bluetooth/scan",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bluetooth Scan"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/mixer",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Get Mixer"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "mix",
+        "required": false,
+        "type": "object"
+       },
+       {
+        "choices": null,
+        "name": "sound",
+        "required": false,
+        "type": "object"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/devices/mixer/{channel}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Modifie le mixage et/ou l'égaliseur de la musique d'une sortie radio."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/routing",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Get Routing"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "channel",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "sink_id",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "fallback",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "clear",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/devices/routing",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Choisit (ou efface) la sortie audio d'une sortie radio, ou change son repli quand la sortie est absente."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/status",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Get Status"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "target",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/system-settings",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Ouvre l'écran de réglages correspondant SUR la machine (pour l'écran local ou la télécommande)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/topology",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Graphe machine → sorties audio, Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/devices/wifi",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Wifi Status"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/devices/wifi/confirm",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Wifi Confirm"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "ssid",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "password",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "acknowledge_disconnect",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/wifi/connect",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Wifi Connect"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "ssid",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "acknowledge_disconnect",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/wifi/forget",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Wifi Forget"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "on",
+        "required": true,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "acknowledge_disconnect",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/devices/wifi/power",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Wifi Power"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/devices/wifi/scan",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Wifi Scan"
+    }
+   ]
+  },
+  {
+   "name": "diagnostics",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/diagnostics/import",
+     "path_parameters": [],
+     "query": [],
+     "summary": "État de la chaîne d'import : binaires, dossiers, exécuteur et tâches."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/diagnostics/system",
+     "path_parameters": [],
+     "query": [],
+     "summary": "État de santé de Bobine : `status` (`ok`, `warning`, `critical`, ou `unknown` si une sonde n'a pas pu répondre sans qu'aucun problème soit trouvé), `problems` triés par gravité, chacun `{code, severity, message, remedy}` avec un code stable, et `checks` (chaque sonde, même saine)."
+    }
+   ]
+  },
+  {
+   "name": "display",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/display/state",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Get Display State"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "external_count",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "source",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "resolution",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/display/state",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Put Display State"
+    }
+   ]
+  },
+  {
+   "name": "health",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/health",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Contrôle de santé lisible par machine, consommé par le chien de garde `bobine-watchdog` (redémarrage auto d'un composant mort) et par toute supervision externe."
+    }
+   ]
+  },
+  {
+   "name": "import-jobs",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/import-jobs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "File d'attente des imports en direct : uploads web ET dossiers surveillés confondus, triés par ordre de création."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/import-jobs/{job_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "job_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Annule immédiatement une tâche d'importation en cours ou en attente, interrompt FFmpeg le cas échéant et supprime les fichiers temporaires."
+    }
+   ]
+  },
+  {
+   "name": "logs",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/logs",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "source",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "level",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "since",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Journaux en JSON stable, du plus récent au plus ancien."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/logs/activity",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "ids",
+       "required": false,
+       "type": "integer[]"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Supprime des logs d'activité : par identifiants précis (sélection dans le tableau), les `limit` plus récents (purge), ou tout si aucun des deux n'est fourni (bouton \"vider\")."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/logs/activity",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "event_type",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Log d'activité filtrable."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/logs/activity/event-types",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Activity Event Types"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/logs/technical",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Vide le log technique."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/logs/technical",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "lines",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Log technique brut : erreurs backend, échecs de lecture, etc."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/logs/technical/download",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Téléchargement du log technique complet."
+    }
+   ]
+  },
+  {
+   "name": "media",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/media",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": [
+        "video",
+        "playlist",
+        "audio",
+        "audio\\-playlist",
+        "background",
+        "radio\\-track",
+        "radio\\-playlist"
+       ],
+       "name": "kind",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "q",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Médias de toutes les bibliothèques avec leur identifiant de lecture, filtrés et paginés."
+    }
+   ]
+  },
+  {
+   "name": "metrics",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/metrics/dashboard",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": [
+        "7d",
+        "30d",
+        "this_month",
+        "all"
+       ],
+       "name": "period",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": [
+        "all",
+        "cable",
+        "network"
+       ],
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Tableau de bord unifié des métriques club et télémétrie matérielle."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/metrics/hardware/history",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "metric",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": [
+        "1h",
+        "6h",
+        "24h",
+        "7d",
+        "30d",
+        "this_month",
+        "all"
+       ],
+       "name": "period",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j, 30j, mois en cours, tout l'historique conservé) avec statistiques et points échantillonnés."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/metrics/ratings",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Liste les évaluations récentes."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "video_id",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "rating",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "channel",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "source",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/metrics/ratings",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Enregistre l'évaluation 5 étoiles d'un cours vidéo."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "session_id",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "position_seconds",
+        "required": false,
+        "type": "number"
+       },
+       {
+        "choices": null,
+        "name": "completed",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/metrics/sessions/end",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Clôture manuellement une session de lecture."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "video_id",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "channel",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "launch_type",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "total_duration_seconds",
+        "required": false,
+        "type": "number"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/metrics/sessions/start",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Démarre manuellement une session de lecture."
+    }
+   ]
+  },
+  {
+   "name": "playback",
+   "routes": [
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/playback/interrupted",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Abandonne la lecture interrompue du canal sans la relancer."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/playback/interrupted",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Dernière action différée en attente de reprise/relance explicite depuis l'interface, POUR UN CANAL DONNÉ."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/playback/interrupted/resume",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Relance l'action différée du canal : reprise à la position exacte pour une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/playback/state",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Snapshot ponctuel de l'état de lecture d'UN canal (utile au premier rendu, avant connexion WebSocket)."
+    },
+    {
+     "body": {
+      "fields": [],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/playback/{channel}/{action}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": true,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "action",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Commande de lecture d'un canal (`cable`, `network`) ; corps JSON : les paramètres de la commande WebSocket."
+    }
+   ]
+  },
+  {
+   "name": "playlists",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/playlists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Liste toutes les playlists avec le nombre d'éléments, la durée totale et une miniature de repli (1er élément en ayant une)."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "items",
+        "required": false,
+        "type": "object[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/playlists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Crée une nouvelle playlist avec ses éléments."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Supprime la playlist (les éléments associés sont supprimés en cascade)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Détails d'une playlist avec ses éléments ordonnés et les métadonnées des vidéos associées."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "items",
+        "required": false,
+        "type": "object[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Met à jour le nom et/ou les éléments d'une playlist (remplace proprement la liste ordonnée des éléments)."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/playlists/{playlist_id}/duplicate",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Duplique une playlist existante (copie le nom en y ajoutant \" (copie)\" et clone ses éléments)."
+    }
+   ]
+  },
+  {
+   "name": "radio",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/albums",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Albums dérivés par regroupement (album_artist, album)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/announcement-rules",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Rules"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": [
+         "every_n_tracks",
+         "every_x_minutes",
+         "fixed_times"
+        ],
+        "name": "rule_type",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "n_tracks",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "interval_minutes",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "times_of_day",
+        "required": false,
+        "type": "string[]"
+       },
+       {
+        "choices": null,
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "target",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/radio/announcement-rules",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Create Rule"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/radio/announcement-rules/{rule_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "rule_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Rule"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": [
+         "every_n_tracks",
+         "every_x_minutes",
+         "fixed_times"
+        ],
+        "name": "rule_type",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "n_tracks",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "interval_minutes",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "times_of_day",
+        "required": false,
+        "type": "string[]"
+       },
+       {
+        "choices": null,
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "target",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/announcement-rules/{rule_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "rule_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Rule"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/announcements",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Announcements"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "announcement_id",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "target",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/radio/announcements/play-now",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Déclenchement manuel — toujours en mode « duck » (fondu immédiat, la musique continue)."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "description",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/radio/announcements/upload",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import synchrone (un seul fichier + description obligatoire) : pas de job d'arrière-plan, contrairement aux morceaux — le traitement ffprobe/ffmpeg d'un unique fichier reste rapide."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "files",
+        "required": true,
+        "type": "string[]"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/radio/announcements/upload-batch",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import groupé (plusieurs fichiers ou dossier entier) : traité en arrière-plan comme les morceaux — voir GET /api/import-jobs."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/radio/announcements/{announcement_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "announcement_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Announcement"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "description",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "enabled",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/announcements/{announcement_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "announcement_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Announcement"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/announcements/{announcement_id}/stream",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "announcement_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Flux audio d'un rappel."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/artists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Artistes dérivés par regroupement (album_artist sinon artist)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/default-playlist",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Ambiance par défaut de chaque sortie radio."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "channel",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "playlist_id",
+        "required": false,
+        "type": "integer"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/default-playlist",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Choisit l'ambiance par défaut d'UNE sortie radio (démarrage automatique, fin de fenêtre de planning, bascule de la sortie câblée sur Radio)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/playlists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Playlists"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "track_ids",
+        "required": false,
+        "type": "integer[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/radio/playlists",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Create Playlist"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/radio/playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Playlist"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Get Playlist"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "track_ids",
+        "required": false,
+        "type": "integer[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/playlists/{playlist_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Playlist"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/radio/playlists/{playlist_id}/default",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Retire le statut « par défaut » (plus aucune playlist d'ambiance)."
+    },
+    {
+     "body": null,
+     "method": "PUT",
+     "path": "/api/radio/playlists/{playlist_id}/default",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Désigne la playlist d'ambiance par défaut : une seule à la fois, garantie applicativement."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "track_id",
+        "required": true,
+        "type": "integer"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/radio/playlists/{playlist_id}/tracks",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "playlist_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Ajoute un morceau à la fin de la playlist (bouton « ajouter à la playlist » depuis la vue Morceaux)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/sound",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Réglages de son courants d'UNE sortie radio (réseau par défaut) : même valeur que le champ `sound` de l'état diffusé, pour les clients sans WebSocket."
+    },
+    {
+     "body": {
+      "fields": [],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/sound",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Modifie les réglages de son d'UNE sortie radio."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/state",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Snapshot ponctuel de l'état d'UNE sortie radio."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/tags",
+     "path_parameters": [],
+     "query": [],
+     "summary": "List Tags"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/radio/tags",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Create Tag"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/radio/tags/{tag_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "tag_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Tag"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "name",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/tags/{tag_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "tag_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Rename Tag"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/tracks",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "q",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "artist",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "album",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "genre",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "tag",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/ genre/tag des autres vues)."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "files",
+        "required": true,
+        "type": "string[]"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/radio/tracks/upload",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import multi-fichiers de morceaux (tous formats audio), traité en arrière-plan — voir GET /api/import-jobs."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/radio/tracks/upload-zip",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import d'une archive ZIP de morceaux, traité en arrière-plan."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/radio/tracks/{track_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Track"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/tracks/{track_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Get Track"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "artist",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "album",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "album_artist",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "track_number",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "disc_number",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "year",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "genre",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "tags",
+        "required": false,
+        "type": "string[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/radio/tracks/{track_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Édition manuelle des métadonnées et des tags."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/tracks/{track_id}/cover",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Pochette d'un morceau radio (JPEG normalisé, extrait ID3 ou uploadé)."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/radio/tracks/{track_id}/cover",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Pochette fournie manuellement : remplace la pochette existante."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/radio/tracks/{track_id}/stream",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "track_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Flux audio d'un morceau radio."
+    },
+    {
+     "body": {
+      "fields": [],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/radio/{output}/{action}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "output",
+       "required": true,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "action",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Commande d'une sortie radio (`cable`, `network`) ; même contrat que `/api/playback/{channel}/{action}`."
+    }
+   ]
+  },
+  {
+   "name": "schedule",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/schedule",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Liste des programmations, filtrable par canal de diffusion."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": [
+         "video",
+         "playlist",
+         "radio_playlist"
+        ],
+        "name": "target_type",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "target_id",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "channel",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": [
+         "once",
+         "recurring"
+        ],
+        "name": "schedule_type",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "run_at",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "days_of_week",
+        "required": false,
+        "type": "integer[]"
+       },
+       {
+        "choices": null,
+        "name": "time_of_day",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "active",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "end_time",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "is_24_7",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/schedule",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Create Schedule"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/schedule/next",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Prochaine occurrence active à venir, récurrence et overrides résolus, pour le bloc « prochain cours » de l'écran d'attente."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/schedule/occurrences",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "start",
+       "required": true,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "end",
+       "required": true,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Occurrences résolues (récurrence + overrides) dans [start, end], pour les vues planning calendrier/liste."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/schedule/{schedule_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "schedule_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Schedule"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/schedule/{schedule_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "schedule_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Get Schedule"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": [
+         "video",
+         "playlist",
+         "radio_playlist"
+        ],
+        "name": "target_type",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "target_id",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "channel",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": [
+         "once",
+         "recurring"
+        ],
+        "name": "schedule_type",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "run_at",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "days_of_week",
+        "required": false,
+        "type": "integer[]"
+       },
+       {
+        "choices": null,
+        "name": "time_of_day",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "active",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "end_time",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "is_24_7",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/schedule/{schedule_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "schedule_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Update Schedule"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "occurrence_date",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": [
+         "cancelled",
+         "replaced"
+        ],
+        "name": "action",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": [
+         "video",
+         "playlist",
+         "radio_playlist"
+        ],
+        "name": "replacement_target_type",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "replacement_target_id",
+        "required": false,
+        "type": "integer"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/schedule/{schedule_id}/overrides",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "schedule_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Create Override"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/schedule/{schedule_id}/overrides/{override_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "schedule_id",
+       "required": true,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "override_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Override"
+    }
+   ]
+  },
+  {
+   "name": "settings",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Get Settings"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "wait_time_between_courses",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "volume_default",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "audio_chain_timer_seconds",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "radio_announcement_fade_ms",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "logs_retention_days",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "default_coach_background_id",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "theme",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "theme_mode",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "language",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "active_logo",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "update_channel",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "wired_display_mode",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "display_mode_setting",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "auto_update_enabled",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "auto_update_time",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "auto_web_rendition",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "media_native",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "update_tor",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "update_tor_proxy",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "simplified_ui",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/settings",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Update Settings"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/backup/export",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Exporte une archive ZIP de sauvegarde contenant."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/settings/backup/restore",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Restaure une sauvegarde depuis une archive ZIP uploadée."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/display-output",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Sortie active des deux canaux : câblé (écran du Wyse) et réseau (tout autre appareil du LAN)."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "channel",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "output",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/settings/display-output",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Bascule un canal (câblé ou réseau) entre kiosk et cinéma, indépendamment de l'autre."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/laptop-lid",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Vérifie si la machine a un capot et renvoie le réglage actuel."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "prevent_sleep",
+        "required": true,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/settings/laptop-lid",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Active ou désactive la mise en veille à la fermeture du capot."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/settings/logo",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Retire le logo personnalisé et repasse le réglage actif sur le logo par défaut."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/settings/logo",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Upload d'un logo personnalisé : normalisé en PNG sous un nom fixe (`_LOGO_FILENAME`) pour une URL stable (/api/branding/logo.png), remplace tout logo custom précédent."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/settings/logs/purge",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "retention_days",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Purge manuelle des journaux d'activité et historiques de métriques."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/media-native",
+     "path_parameters": [],
+     "query": [],
+     "summary": "État réel du composant audio natif : désactivé, actif, en repli ou absent."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "path",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/settings/open-path",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Ouvre un dossier de données Bobine dans le gestionnaire de fichiers natif de l'OS (xdg-open, explorer, open)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/storage",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Indicateur de capacité de stockage : espace disque du volume qui héberge les médias (total / utilisé / libre) et empreinte propre de l'application (somme des dossiers de médias)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/system",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Charge CPU, GPU, RAM, Températures, Puissance (W), Modèles des composants et Runtime."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/settings/system/reset",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Réinitialisation complète : force le rechargement de tous les écrans connectés puis redémarre le kiosk et le backend."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "confirm",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/settings/system/reset-data",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Remise à zéro d'usine : médias, journaux et base de données."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/settings/system/restart",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Redémarrage simple (sans effacer de données), par exemple pour appliquer un changement de langue."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "confirm",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/settings/system/uninstall",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Remise à zéro complète de la machine."
+    }
+   ]
+  },
+  {
+   "name": "storage",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/advisor/format",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "host",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "others",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "media",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "legacy",
+       "required": false,
+       "type": "boolean"
+      }
+     ],
+     "summary": "Système de fichiers conseillé selon l'OS hôte et les OS qui brancheront le support."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/format/active",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Format Active"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "key",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "token",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "fs",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "label",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "confirm",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "acknowledged",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/format/execute",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Format Execute"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/storage/format/jobs/{job_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "job_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Annule AVANT le point de non-retour (aucun effacement n'a eu lieu) ; refusé ensuite."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/format/jobs/{job_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "job_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Format Job"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "key",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "travels",
+        "required": false,
+        "type": "string[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/format/plan",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Plan de formatage : n'écrit RIEN."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/portable",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Portable"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/storage/portable/{device_id}/mount",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "device_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Portable Mount"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/storage/portable/{device_id}/unmount",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "device_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Portable Unmount"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "read_only",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "noatime",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "noexec",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "standby_minutes",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "smart_monitor",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "auto_mount_library",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/storage/settings",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Valeurs par défaut des réglages de longévité (supports non enregistrés et nouveaux supports)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/status",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Status"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/volumes",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Volumes"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/volumes/{key}/browse",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [
+      {
+       "choices": null,
+       "name": "path",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "show_hidden",
+       "required": false,
+       "type": "boolean"
+      },
+      {
+       "choices": null,
+       "name": "media_only",
+       "required": false,
+       "type": "boolean"
+      }
+     ],
+     "summary": "Browse"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/eject",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Eject"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "kind",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "ids",
+        "required": true,
+        "type": "integer[]"
+       },
+       {
+        "choices": null,
+        "name": "dest",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/export",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Copie de médias locaux vers le support : remontage en écriture temporaire et explicite, puis retour en lecture seule."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/storage/volumes/{key}/health",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [
+      {
+       "choices": null,
+       "name": "refresh",
+       "required": false,
+       "type": "boolean"
+      }
+     ],
+     "summary": "Health"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "entries",
+        "required": true,
+        "type": "object[]"
+       },
+       {
+        "choices": null,
+        "name": "kind",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "force",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/import",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Copie vérifiée vers le stockage local puis importeur existant ; suivi par `GET /api/import-jobs`."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "entries",
+        "required": true,
+        "type": "object[]"
+       },
+       {
+        "choices": null,
+        "name": "kind",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "force",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/index",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "« Utiliser comme extension » : indexe les médias sélectionnés sans les copier (lecture directe, lecture seule)."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/storage/volumes/{key}/library",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [
+      {
+       "choices": null,
+       "name": "purge",
+       "required": false,
+       "type": "boolean"
+      }
+     ],
+     "summary": "Unregister Library"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "nickname",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/library",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Register Library"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "mode",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/mount",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Mount"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "read_only",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "noatime",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "noexec",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "standby_minutes",
+        "required": false,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "smart_monitor",
+        "required": false,
+        "type": "boolean"
+       },
+       {
+        "choices": null,
+        "name": "auto_mount_library",
+        "required": false,
+        "type": "boolean"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/storage/volumes/{key}/settings",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Update Volume Settings"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/trim",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Trim"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/storage/volumes/{key}/unmount",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "key",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Unmount"
+    }
+   ]
+  },
+  {
+   "name": "time",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/time",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Retourne l'heure serveur en millisecondes Unix."
+    }
+   ]
+  },
+  {
+   "name": "updates",
+   "routes": [
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "status",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "message",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "percent",
+        "required": false,
+        "type": "integer"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/updates/_android-callback",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Rappel interne (boucle locale uniquement, jamais exposé au delà de 127.0.0.1 par la configuration réseau du profil Android) : `UpdateManager."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/updates/acknowledge",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Acquitte le cycle de mise à jour courant."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/updates/apply",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Déclenche la mise à jour du système en tâche de fond."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/updates/check",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "refresh",
+       "required": false,
+       "type": "boolean"
+      }
+     ],
+     "summary": "Vérifie la disponibilité d'une nouvelle release officielle sur GitHub, en respectant le canal choisi dans Réglages → Mises à jour (Stable, Bêta ou Canary)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/updates/status",
+     "path_parameters": [],
+     "query": [],
+     "summary": "État courant (ou dernier connu) du pipeline de mise à jour."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/updates/store/complete",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Build Google Play : installe la mise à jour téléchargée (l'application redémarre)."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/updates/store/open",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Build Google Play : ouvre la fiche de l'application dans Google Play."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/updates/store/start",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Build Google Play : lance la mise à jour par Google Play (téléchargement en arrière-plan)."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "proxy",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/updates/tor-check",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Vérifie par le service de contrôle de Tor que les mises à jour sortiraient bien par Tor."
+    }
+   ]
+  },
+  {
+   "name": "uploads",
+   "routes": [
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "filename",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "size",
+        "required": true,
+        "type": "integer"
+       },
+       {
+        "choices": null,
+        "name": "fingerprint",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/uploads",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Create Upload"
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/uploads/{upload_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "upload_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Cancel Upload"
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/uploads/{upload_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "upload_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Get Upload"
+    },
+    {
+     "body": null,
+     "method": "PATCH",
+     "path": "/api/uploads/{upload_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "upload_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Append Chunk"
+    }
+   ]
+  },
+  {
+   "name": "videos",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "search",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "program",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "release",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": [
+        "imported_at",
+        "title",
+        "duration"
+       ],
+       "name": "sort_by",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": [
+        "asc",
+        "desc"
+       ],
+       "name": "order",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Récupère la liste des vidéos de la bibliothèque avec filtres et tris."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/programs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Catégories (programmes) réellement présentes dans la bibliothèque, triées."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "program",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "release",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "description",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "subtitles",
+        "required": false,
+        "type": "string[]"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/videos/upload",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Upload une vidéo en HTTP et enregistre une tâche d'import suivie en arrière-plan (normalisation automatique si requise) — voir `_run_video_import_job` et `GET /api/import-jobs`."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/videos/upload-zip",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import d'une archive (ZIP ou tar) de vidéos : un cours par fichier, en une seule tâche."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/videos/{video_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Supprime physiquement les fichiers de la vidéo et de sa miniature, puis supprime son entrée en BDD."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/{video_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Récupère les détails d'une vidéo spécifique."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "program",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "release",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "description",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/videos/{video_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Met à jour les métadonnées modifiables d'une vidéo (titre, programme, release)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/{video_id}/chapters",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "List Chapters"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "chapters",
+        "required": true,
+        "type": "object[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/videos/{video_id}/chapters",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Remplace tous les chapitres du cours (liste vide = les supprimer)."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/{video_id}/chapters/export",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Chapitres au format d'import JSON (téléchargeable)."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/videos/{video_id}/chapters/from-file",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Lit les chapitres incorporés à la vidéo (MKV, MP4) et remplace ceux du cours."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/videos/{video_id}/chapters/import",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Importe un fichier de chapitres (.json, .vtt ou texte « 05:00 Titre ») et remplace ceux du cours."
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/videos/{video_id}/normalize",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Déclenche manuellement la normalisation d'une vidéo si elle n'est pas Direct Play."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/{video_id}/stream",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [
+      {
+       "choices": null,
+       "name": "profile",
+       "required": false,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "accept",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Flux d'une vidéo, avec négociation de la version lisible."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/{video_id}/subtitles",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Liste les pistes de sous-titres associées à une vidéo."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "language_code",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "language_label",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/videos/{video_id}/subtitles",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Importe un fichier .srt ou .vtt pour une vidéo, le convertit en WebVTT si nécessaire et l'enregistre."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/videos/{video_id}/subtitles/{subtitle_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "subtitle_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Supprime une piste de sous-titres sur disque et en base."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/videos/{video_id}/subtitles/{subtitle_id}/vtt",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "subtitle_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Sert le fichier WebVTT pour les balises HTML5 <track> avec les bons en-têtes CORS et Content-Type."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "PUT",
+     "path": "/api/videos/{video_id}/thumbnail",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Miniature manuelle."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/videos/{video_id}/web-rendition",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Delete Web Rendition"
+    },
+    {
+     "body": null,
+     "method": "POST",
+     "path": "/api/videos/{video_id}/web-rendition",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Lance la production de la version « lisible partout » (H.264 8 bits, ≤ 1080p, AAC) — suivie via `GET /api/import-jobs`, état dans `web_status`."
+    }
+   ]
+  }
+ ]
+}

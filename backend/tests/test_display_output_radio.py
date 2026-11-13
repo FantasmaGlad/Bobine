@@ -93,9 +93,9 @@ def test_le_cable_accepte_radio_et_le_reseau_le_refuse(client):
     assert _put_output(client, "cable", "radio").status_code == 200
     assert client.get("/api/settings/display-output").json()["cable"] == "radio"
     refused = _put_output(client, "network", "radio")
-    assert refused.status_code == 400
+    assert refused.status_code == 422
     assert client.get("/api/settings/display-output").json()["network"] != "radio"
-    assert _put_output(client, "cable", "n'importe quoi").status_code == 400
+    assert _put_output(client, "cable", "n'importe quoi").status_code == 422
 
 
 def test_la_valeur_radio_stockee_l_emporte_sur_la_regle_dual_screen(client):
@@ -231,7 +231,7 @@ def test_ambiance_repli_sur_toute_la_bibliotheque_sans_playlist_par_defaut(clien
 
 
 def test_default_playlist_valide_les_entrees(client):
-    assert client.put("/api/radio/default-playlist", json={"channel": "radio", "playlist_id": None}).status_code == 400
+    assert client.put("/api/radio/default-playlist", json={"channel": "radio", "playlist_id": None}).status_code == 422
     assert client.put("/api/radio/default-playlist", json={"channel": "radio_cable", "playlist_id": 999999}).status_code == 404
 
 
@@ -264,7 +264,7 @@ def test_les_regles_de_rappel_ont_une_cible_validee_et_ancienne_valeur_reseau(cl
     assert cable.json()["target"] == "radio_cable"
     both = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "target": "both"})
     assert both.json()["target"] == "both"
-    assert client.post("/api/radio/announcement-rules", json={**base, "target": "zzz"}).status_code == 400
+    assert client.post("/api/radio/announcement-rules", json={**base, "target": "zzz"}).status_code == 422
     kept = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "enabled": False})
     assert kept.status_code == 200 and kept.json()["target"] == "both"
     listed = client.get("/api/radio/announcement-rules").json()

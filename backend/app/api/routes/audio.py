@@ -172,6 +172,25 @@ def get_audio_course(course_id: int, db: Session = Depends(get_db)):
     return course
 
 
+@router.put("/{course_id}/tracks/reorder", response_model=AudioCourseDetailResponse)
+def reorder_tracks(course_id: int, payload: TrackReorderInput, db: Session = Depends(get_db)):
+    """Réordonnancement des pistes par glisser-déposer."""
+    course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Cours audio non trouvé")
+
+    tracks_by_id = {t.id: t for t in course.tracks}
+    if set(payload.track_ids) != set(tracks_by_id.keys()):
+        raise HTTPException(status_code=422, detail="La liste fournie ne correspond pas exactement aux pistes du cours")
+
+    for position, track_id in enumerate(payload.track_ids):
+        tracks_by_id[track_id].position = position
+
+    db.commit()
+    db.refresh(course)
+    return course
+
+
 @router.put("/{course_id}/tracks/{track_id}", response_model=AudioTrackResponse)
 def update_audio_track(
     course_id: int,
@@ -241,7 +260,7 @@ def upload_audio_course(
 ):
     """Import multi-fichiers MP3 d'un cours, traité en arrière-plan — voir `_run_audio_files_import_job` et `GET /api/import-jobs`."""
     if not title.strip():
-        raise HTTPException(status_code=400, detail="Le titre du cours est requis")
+        raise HTTPException(status_code=422, detail="Le titre du cours est requis")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="olmc_audio_upload_"))
     temp_paths = []
@@ -254,7 +273,7 @@ def upload_audio_course(
     except Exception as e:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         logger.error(f"Erreur lors de la réception de l'upload du cours audio: {e}", exc_info=True)
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
 
     job_id = create_job("audio", title.strip(), title.strip())
     io_executor.submit(_run_audio_files_import_job, job_id, tmp_dir, temp_paths, title.strip(), program, release)
@@ -271,7 +290,7 @@ def upload_audio_course_zip(
 ):
     """Import d'une archive ZIP d'un cours complet, traité en arrière-plan — voir `_run_audio_zip_import_job` et `GET /api/import-jobs`."""
     if not title.strip():
-        raise HTTPException(status_code=400, detail="Le titre du cours est requis")
+        raise HTTPException(status_code=422, detail="Le titre du cours est requis")
 
     temp_path, _ = receive_single_upload(file, upload_id, forced_suffix=".zip")
 
@@ -296,25 +315,6 @@ def update_audio_course(course_id: int, payload: AudioCourseUpdate, db: Session 
         course.background_id = None
     elif payload.background_id is not None:
         course.background_id = payload.background_id
-
-    db.commit()
-    db.refresh(course)
-    return course
-
-
-@router.put("/{course_id}/tracks/reorder", response_model=AudioCourseDetailResponse)
-def reorder_tracks(course_id: int, payload: TrackReorderInput, db: Session = Depends(get_db)):
-    """Réordonnancement des pistes par glisser-déposer."""
-    course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Cours audio non trouvé")
-
-    tracks_by_id = {t.id: t for t in course.tracks}
-    if set(payload.track_ids) != set(tracks_by_id.keys()):
-        raise HTTPException(status_code=400, detail="La liste fournie ne correspond pas exactement aux pistes du cours")
-
-    for position, track_id in enumerate(payload.track_ids):
-        tracks_by_id[track_id].position = position
 
     db.commit()
     db.refresh(course)

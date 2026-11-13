@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from app.api.contract import STORAGE_IMPORT_KINDS
 from app.storage import library, paths
 
 logger = logging.getLogger(__name__)
@@ -253,7 +254,7 @@ class Plan:
         return sum(len(u.files) for u in self.units)
 
 
-KIND_TO_MEDIA = {"video": {"video"}, "radio": {"audio"}, "audio_course": {"audio"}}
+KIND_TO_MEDIA = dict(zip(STORAGE_IMPORT_KINDS, ({"video"}, {"audio"}, {"audio"})))
 JOB_KIND = {"video": "video", "radio": "radio", "audio_course": "audio"}
 
 
