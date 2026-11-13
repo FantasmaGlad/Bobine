@@ -80,3 +80,14 @@ def test_unknown_format_is_a_clear_error(tmp_path):
     archive.write_bytes(b"7z\xbc\xaf\x27\x1c pas un tar")
     with pytest.raises(InvalidArchiveError):
         safe_extract_archive(archive, tmp_path)
+
+
+def test_nul_byte_in_a_member_name_is_refused(tmp_path):
+    archive = tmp_path / "nul.tar"
+    with tarfile.open(archive, "w", format=tarfile.PAX_FORMAT) as tf:
+        member = tarfile.TarInfo("ok.txt")
+        member.size = 1
+        member.pax_headers = {"path": "a\x00b.txt"}
+        tf.addfile(member, io.BytesIO(b"x"))
+    with pytest.raises(UnsafeZipError):
+        safe_extract_archive(archive, tmp_path / "out")

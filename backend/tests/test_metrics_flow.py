@@ -124,7 +124,7 @@ class TestMetricsFlow(unittest.TestCase):
                 )
             self.assertEqual(cm.exception.status_code, 404)
 
-            ratings = list_course_ratings(video_id=self.video_id, db=db)
+            ratings = list_course_ratings(video_id=self.video_id, limit=50, db=db)
             self.assertEqual(len(ratings), 2)
 
     def test_dashboard_aggregation(self):
