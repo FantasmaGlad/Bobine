@@ -6,7 +6,7 @@ import Icon from "@/components/Icon";
 import LibraryMedia from "@/components/library/LibraryMedia";
 import { useLibraryUploads } from "@/components/library/useLibraryUploads";
 import PageNav from "@/components/PageNav";
-import VideoPlaylistManager from "@/components/VideoPlaylistManager";
+import VideoPlaylistManager from "@/components/library/VideoPlaylistManager";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { ARCHIVE_ACCEPT, VIDEO_ACCEPT } from "@/lib/mediaFiles";
 import { useToast } from "@/lib/useToast";
