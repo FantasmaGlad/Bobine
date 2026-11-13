@@ -184,6 +184,7 @@ def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):
         assert message["is_primary"] is True
 
 
+@pytest.mark.recent_stack
 def test_commande_ciblee_sur_une_sortie_ne_touche_pas_l_autre(client):
     cable, network = get_radio_manager("radio_cable"), get_radio_manager("radio_network")
     cable.state["volume"], network.state["volume"] = 100, 100

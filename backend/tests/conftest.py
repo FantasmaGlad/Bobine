@@ -8,6 +8,18 @@ os.environ.setdefault("BOBINE_MDNS", "0")
 def pytest_configure(config):
     if getattr(config.option, "basetemp", None) is None:
         config.option.basetemp = Path(tempfile.gettempdir()) / "pytest-bobine"
+    config.addinivalue_line("markers", "recent_stack: banc qui exige le client de test de Starlette recent")
+
+
+def pytest_collection_modifyitems(config, items):
+    import fastapi
+
+    if tuple(int(part) for part in fastapi.__version__.split(".")[:2]) >= (0, 100):
+        return
+    skip = pytest.mark.skip(reason="client de test de Starlette trop ancien (profil Android)")
+    for item in items:
+        if "recent_stack" in item.keywords:
+            item.add_marker(skip)
 
 
 import pytest
