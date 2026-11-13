@@ -59,6 +59,12 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.2.0" date="2026-11-13">
+      <description>
+        <p>Version 5.2.0 "Ruby": nothing leaves the machine except the update check, every API route has its bobine command, lists are paged, and a second Bobine on the network publishes itself as bobine-2.local.</p>
+        <p xml:lang="fr">Version 5.2.0 « Ruby » : rien ne quitte la machine hormis la recherche de mise à jour, chaque route de l'API a sa commande bobine, les listes sont paginées, et un second Bobine sur le réseau se publie en bobine-2.local.</p>
+      </description>
+    </release>
     <release version="5.1.2" date="2026-11-12">
       <description>
         <p>Version 5.1.2: a scheduled class resumes at the position it would have reached after a power cut, the mini PC returns to the previous version when an update does not start, and the code is reorganised into short packages.</p>
