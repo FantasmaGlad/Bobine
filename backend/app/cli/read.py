@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import urllib.error
-import urllib.parse
-import urllib.request
 
 from app.api.contract import CHANNELS
 
@@ -30,6 +27,7 @@ def cmd_library(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.library_action == "list":
         videos = client.request("GET", "/api/videos", query={
             "search": args.search, "program": args.program, "sort_by": args.sort_by, "order": args.order, **window(args),
+            **({"release": args.release} if args.release else {}),
         })
         lines = []
         for video in videos:
@@ -133,9 +131,9 @@ def cmd_devices(client: Client, out: Output, args: argparse.Namespace) -> int:
 def cmd_storage(client: Client, out: Output, args: argparse.Namespace) -> int:
     action = args.storage_action
     if action == "browse":
-        key = urllib.parse.quote(args.key, safe="")
-        payload = client.request("GET", f"/api/storage/volumes/{segment(key)}/browse", query={
-            "path": args.path, "limit": args.limit,
+        payload = client.request("GET", f"/api/storage/volumes/{segment(args.key)}/browse", query={
+            "path": args.path, "limit": args.limit, **({"offset": args.offset} if args.offset else {}),
+            **{name: "true" for name in ("show_hidden", "media_only") if getattr(args, name)},
         })
         lines = [f"{payload.get('path') or '/'} ({payload.get('total', 0)} élément(s))"]
         lines += [
