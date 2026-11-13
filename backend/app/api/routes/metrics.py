@@ -82,7 +82,7 @@ def create_course_rating(payload: RatingCreate, db: Session = Depends(get_db)):
 def list_course_ratings(
     video_id: int | None = None,
     channel: str | None = None,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=1000),
     db: Session = Depends(get_db),
 ):
     """Liste les évaluations récentes."""

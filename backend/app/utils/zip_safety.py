@@ -72,7 +72,10 @@ def _check_name(dest_dir: Path, name: str) -> None:
 
 
 def _inside(dest_dir: Path, name: str) -> bool:
-    resolved = (dest_dir / name).resolve()
+    try:
+        resolved = (dest_dir / name).resolve()
+    except ValueError:
+        return False
     return resolved == dest_dir or dest_dir in resolved.parents
 
 

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.responses import DefaultPlaylists, Message, RadioAlbum, RadioArtist, RadioSnapshot, RadioSound, RadioTagEntry, RadioTagCount
 from app.api.paging import Window, window
+from app.utils._pydantic_compat import fields_set
 from app.config import settings
 from app.database import get_db
 from app.models import RadioPlaylist, RadioTag, RadioTrack, radio_track_tags
@@ -263,16 +264,16 @@ def update_track(track_id: int, payload: RadioTrackUpdate, db: Session = Depends
     if not track:
         raise HTTPException(status_code=404, detail="Morceau non trouvé")
 
-    fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
+    provided = fields_set(payload)
     text_fields = ("title", "artist", "album", "album_artist", "genre")
     for field in text_fields:
-        if field in fields_set:
+        if field in provided:
             value = getattr(payload, field)
             setattr(track, field, value.strip() if value and value.strip() else None)
-    if "title" in fields_set and not track.title:
+    if "title" in provided and not track.title:
         raise HTTPException(status_code=422, detail="Le titre ne peut pas être vide")
     for field in ("track_number", "disc_number", "year"):
-        if field in fields_set:
+        if field in provided:
             setattr(track, field, getattr(payload, field))
     if payload.tags is not None:
         _apply_tags(db, track, payload.tags)

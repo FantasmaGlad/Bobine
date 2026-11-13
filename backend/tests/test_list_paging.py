@@ -42,6 +42,8 @@ def test_window_pages_and_counts():
         assert [p["id"] for p in answer.json()] == whole[1:3]
         assert answer.headers["x-total-count"] == str(len(whole))
         assert client.get("/api/playlists", params={"limit": 0}).status_code == 422
+        assert client.get("/api/playlists", params={"limit": 2, "offset": 10**30}).status_code == 422
+        assert client.get("/api/metrics/ratings", params={"limit": -1}).status_code == 422
     finally:
         with SessionLocal() as db:
             db.query(Playlist).filter(Playlist.id.in_(ids)).delete()

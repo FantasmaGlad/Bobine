@@ -13,6 +13,7 @@ from app.utils._pydantic_compat import OrmModel
 from sqlalchemy.orm import Session
 
 from app.api.contract import LOG_LEVELS
+from app.api.paging import MAX_OFFSET
 from app.config import settings
 from app.database import get_db
 from app.models import ActivityLog
@@ -166,7 +167,7 @@ def read_logs(
 def list_activity_logs(
     event_type: str | None = None,
     limit: int = Query(200, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_OFFSET),
     db: Session = Depends(get_db),
 ):
     """Log d'activité filtrable."""
