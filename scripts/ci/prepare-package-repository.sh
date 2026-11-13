@@ -138,7 +138,7 @@ for arch in x86_64 aarch64; do
         cp "$rpm_package" "$target/"
     done
     if [ "$family" = rpm ]; then
-        createrepo_c "$target"
+        createrepo_c --general-compress-type=gz "$target"
         gpg --batch --yes --local-user "$fingerprint" --armor --detach-sign "$target/repodata/repomd.xml"
         gpg --batch --verify "$target/repodata/repomd.xml.asc" "$target/repodata/repomd.xml"
     else
