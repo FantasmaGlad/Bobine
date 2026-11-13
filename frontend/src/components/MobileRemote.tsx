@@ -175,7 +175,7 @@ export default function MobileRemote({
             </div>
 
             <div className="mobile-remote-controls" style={{ marginTop: 0 }}>
-              <button
+              <button aria-label={cinemaLive.playing ? t("common.pause") : t("common.play")}
                 className="coach-btn coach-btn-main olc-press"
                 style={{ background: "var(--accent-primary)" }}
                 onClick={onCinemaPlayPause}
@@ -274,14 +274,14 @@ export default function MobileRemote({
       {!channelCinema && (
         <>
           <div className="mobile-remote-controls">
-            <button
+            <button aria-label={t("common.previous")}
               className="coach-btn olc-press"
               onClick={() => sendCommand("previous_video")}
               disabled={state.playlist_index === null || state.playlist_index === 0}
             >
               <Icon name="skip_previous" size={28} filled />
             </button>
-            <button
+            <button aria-label={state.state === "playing" ? t("common.pause") : t("common.play")}
               className="coach-btn coach-btn-main olc-press"
               style={
                 !isActive || state.state === "background"
@@ -293,7 +293,7 @@ export default function MobileRemote({
             >
               <Icon name={state.state === "playing" ? "pause" : "play_arrow"} size={38} filled />
             </button>
-            <button
+            <button aria-label={t("common.next")}
               className="coach-btn olc-press"
               onClick={() => sendCommand("next_video")}
               disabled={state.playlist_items === null || state.playlist_index === (state.playlist_items?.length ?? 1) - 1}
@@ -317,14 +317,14 @@ export default function MobileRemote({
           </button>
 
           <div className="coach-volume-row" style={{ maxWidth: "none" }}>
-            <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
+            <button aria-label={t("common.volumeDown")} className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
               <Icon name="remove" size={20} />
             </button>
             <span className="coach-volume-value">
               <Icon name="volume_up" size={18} style={{ marginRight: "6px" }} />
               {state.volume}%
             </span>
-            <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.min(100, state.volume + 10) })}>
+            <button aria-label={t("common.volumeUp")} className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.min(100, state.volume + 10) })}>
               <Icon name="add" size={20} />
             </button>
           </div>

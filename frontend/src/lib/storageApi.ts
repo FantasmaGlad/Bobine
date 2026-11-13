@@ -106,14 +106,6 @@ export interface PortableListing {
   devices: PortableDevice[];
 }
 
-export interface StorageStatus {
-  driver: string;
-  capabilities: Record<string, { supported: boolean; reason?: string }>;
-  ready: boolean;
-  error: { code: string; message: string } | null;
-  free_local_bytes: number;
-}
-
 export interface BrowseEntry {
   name: string;
   path: string;

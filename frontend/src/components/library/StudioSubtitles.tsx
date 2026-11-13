@@ -67,7 +67,7 @@ export default function StudioSubtitles({ studio }: { studio: VideoStudioState }
           />
           <button type="button" className="btn btn-secondary olc-press" style={{ height: "30px", padding: "0 10px", fontSize: "0.78rem" }} onClick={() => input.current?.click()}>
             <Icon name="add" size={14} />
-            <span>Ajouter (.srt, .vtt)</span>
+            <span>{t("common.add")} (.srt, .vtt)</span>
           </button>
         </div>
       </div>

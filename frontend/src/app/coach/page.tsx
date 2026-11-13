@@ -183,7 +183,7 @@ export default function CoachModePage() {
               className="coach-btn coach-btn-main olc-press"
               style={{ background: accent, color: accentFg }}
               onClick={() => sendCommand(state.audio_playing ? "pause" : "play")}
-              title={state.audio_playing ? "Pause" : "Lecture"}
+              title={state.audio_playing ? t("common.pause") : t("common.play")}
             >
               <Icon name={state.audio_playing ? "pause" : "play_arrow"} size={36} color={accentFg} filled />
             </button>
@@ -191,7 +191,7 @@ export default function CoachModePage() {
               className="coach-btn olc-press"
               onClick={() => sendCommand("audio_next_track")}
               disabled={trackIndex >= tracks.length - 1}
-              title="Suivant"
+              title={t("common.next")}
             >
               <Icon name="skip_next" size={28} filled />
             </button>
@@ -203,14 +203,14 @@ export default function CoachModePage() {
           </button>
 
           <div className="coach-volume-row">
-            <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
+            <button aria-label={t("common.volumeDown")} className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.max(0, state.volume - 10) })}>
               <Icon name="remove" size={18} />
             </button>
             <span className="coach-volume-value">
               <Icon name="volume_up" size={16} style={{ marginRight: "4px" }} />
               {state.volume}%
             </span>
-            <button className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.min(100, state.volume + 10) })}>
+            <button aria-label={t("common.volumeUp")} className="coach-btn coach-btn-square olc-press" onClick={() => sendCommand("volume", { volume: Math.min(100, state.volume + 10) })}>
               <Icon name="add" size={18} />
             </button>
           </div>

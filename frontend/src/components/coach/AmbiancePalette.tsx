@@ -105,7 +105,7 @@ export default function AmbiancePalette({ t, backgrounds, activeBgId, chooseBack
                           fontWeight: 600,
                         }}
                       >
-                        {bg.is_image ? "Image" : bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : "Boucle"}
+                        {bg.is_image ? t("common.image") : bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : t("common.loop")}
                       </span>
                     </div>
                     <div

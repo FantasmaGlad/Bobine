@@ -204,7 +204,7 @@ export default function BackgroundsPage() {
             onClick={() => fileInputRef.current?.click()}
           >
             <Icon name="cloud_upload" size={18} />
-            <span>Importer</span>
+            <span>{t("common.import")}</span>
           </button>
         </div>
       </div>

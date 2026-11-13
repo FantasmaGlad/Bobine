@@ -74,14 +74,14 @@ export default function PlaylistDrawer({ editor, playlist, tracks, suggestions, 
             onChange={(e) => editor.setPlaylist({ ...playlist, name: e.target.value })}
             onBlur={(e) => editor.rename(e.target.value.trim() || playlist.name)}
             aria-label={t("radioLibrary.playlistNameLabel")} />
-          <button className="close-btn" onClick={editor.close}><Icon name="close" size={20} /></button>
+          <button aria-label={t("common.close")} className="close-btn" onClick={editor.close}><Icon name="close" size={20} /></button>
         </div>
         <Meta editor={editor} playlist={playlist} />
         <Outputs editor={editor} playlist={playlist} />
         <div className="rl-pl-search-bar">
           <Icon name="search" size={18} style={{ opacity: 0.5 }} />
           <SearchBox className="rl-pl-search-input" placeholder={t("radioLibrary.addTracksSearch")} value={query} onChange={setQuery} suggestions={suggestions} />
-          {query && <button type="button" className="rl-pl-search-clear" onClick={() => setQuery("")}><Icon name="close" size={16} /></button>}
+          {query && <button aria-label={t("common.clear")} type="button" className="rl-pl-search-clear" onClick={() => setQuery("")}><Icon name="close" size={16} /></button>}
         </div>
         <div className="rl-pl-list">
           {query.trim()

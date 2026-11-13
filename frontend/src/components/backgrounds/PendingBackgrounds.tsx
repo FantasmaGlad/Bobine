@@ -52,7 +52,7 @@ export default function PendingBackgrounds({
                     <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={spec.file?.name}>
                       {spec.file?.name} ({((spec.file?.size ?? 0) / (1024 * 1024)).toFixed(1)} Mo)
                     </span>
-                    <button onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex" }}>
+                    <button aria-label={t("common.remove")} onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex" }}>
                       <Icon name="close" size={16} />
                     </button>
                   </div>
@@ -75,7 +75,7 @@ export default function PendingBackgrounds({
                 {t("common.cancel")}
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} style={{ height: "44px", whiteSpace: "nowrap" }}>
-                + Ajouter
+                + {t("common.add")}
               </button>
             </div>
           </div>

@@ -191,7 +191,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
           progress: 100,
           jobId: body.job_id,
           stage: "queued",
-          stageLabel: "En attente",
+          stageLabel: translate("common.pending"),
           phase: "processing",
           notice: null,
           abort: undefined,
@@ -244,7 +244,7 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
               progress: 100,
               jobId: body.job_id,
               stage: "queued",
-              stageLabel: "En attente",
+              stageLabel: translate("common.pending"),
               phase: "processing",
             });
           } catch {

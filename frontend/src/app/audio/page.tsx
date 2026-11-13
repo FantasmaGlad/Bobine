@@ -76,7 +76,7 @@ export default function AudioLibraryPage() {
             />
             <button type="button" className="btn btn-primary" style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }} onClick={upload.toggle}>
               <Icon name="cloud_upload" size={18} />
-              <span>Importer</span>
+              <span>{t("common.import")}</span>
             </button>
           </div>
         )}</>}

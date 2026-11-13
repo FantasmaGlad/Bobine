@@ -48,7 +48,7 @@ export default function AmbianceModal({ backgrounds, onLaunch, onClose }: Props)
             <h3 style={{ margin: "0 0 4px", fontSize: "1.2rem", fontWeight: 800 }}>{t("dashboard.chooseAmbiance")}</h3>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>{t("dashboard.chooseAmbianceHint")}</p>
           </div>
-          <button type="button" className="close-btn" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><Icon name="close" size={20} /></button>
+          <button aria-label={t("common.close")} type="button" className="close-btn" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><Icon name="close" size={20} /></button>
         </div>
         {backgrounds.length === 0 ? (
           <p className="live-empty" style={{ margin: "24px 0" }}>{t("backgrounds.noBackgrounds")}</p>

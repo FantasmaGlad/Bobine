@@ -49,7 +49,7 @@ function TagChips({ editor, tags }: Omit<Props, "coverUrl">) {
       <div className="rl-chip-add">
         <input type="text" className="form-control" placeholder={t("radioLibrary.addTagPlaceholder")} value={chip}
           onChange={(e) => setChip(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
-        <button type="button" className="btn btn-secondary" onClick={add}><Icon name="add" size={16} /></button>
+        <button aria-label={t("common.add")} type="button" className="btn btn-secondary" onClick={add}><Icon name="add" size={16} /></button>
       </div>
       <span style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>{t("radioLibrary.tagsChipsHint")}</span>
     </div>
@@ -88,7 +88,7 @@ export default function TrackDrawer({ editor, tags, coverUrl }: Props) {
       <div className="detail-drawer">
         <div className="drawer-header">
           <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "80%" }}>{t("radioLibrary.editTitle")}</h3>
-          <button className="close-btn" onClick={editor.close}><Icon name="close" size={20} /></button>
+          <button aria-label={t("common.close")} className="close-btn" onClick={editor.close}><Icon name="close" size={20} /></button>
         </div>
         <div className="drawer-body">
           <Cover editor={editor} coverUrl={coverUrl} />

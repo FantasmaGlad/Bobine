@@ -106,7 +106,7 @@ const CinemaRow = React.memo(function CinemaRow({
           <button
             className="cinema-row-arrow cinema-row-arrow-right"
             onClick={() => scrollBy(1)}
-            aria-label="Suivant"
+            aria-label={t("common.next")}
           >
             <Icon name="chevron_right" size={32} />
           </button>

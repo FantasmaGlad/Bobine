@@ -39,7 +39,7 @@ export default function LibraryPage() {
             <input ref={fileInput} type="file" accept={`${VIDEO_ACCEPT},${ARCHIVE_ACCEPT}`} multiple style={{ display: "none" }} onChange={uploads.onFileChange} />
             <button type="button" className="btn btn-primary" style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }} onClick={pick}>
               <Icon name="cloud_upload" size={18} />
-              <span>Importer</span>
+              <span>{t("common.import")}</span>
             </button>
           </div>
         )}</>}
