@@ -116,9 +116,11 @@ def _register_or_update(zc: Any, port: int) -> str:
     host = _hostname if already_registered else _free_hostname(zc, local_ip)
     if _stop_event.is_set():
         return local_ip
+    with _state_lock:
+        name = _service_info.name if _service_info is not None else "Bobine._http._tcp.local."
     info = ServiceInfo(
         "_http._tcp.local.",
-        "Bobine._http._tcp.local.",
+        name,
         addresses=[socket.inet_aton(local_ip)],
         port=port,
         server=f"{host}.local.",
@@ -144,13 +146,14 @@ def _run_loop(port: int) -> None:
         _set_status("unavailable", "bibliothèque zeroconf absente")
         return
 
-    zc = Zeroconf()
-    with _state_lock:
-        _zeroconf = zc
-
+    zc = None
     attempt = 0
     while not _stop_event.is_set():
         try:
+            if zc is None:
+                zc = Zeroconf()
+                with _state_lock:
+                    _zeroconf = zc
             announced_ip = _register_or_update(zc, port)
             platform_label = "Android" if is_android() else platform.system()
             if _status.get("state") != "ok":
@@ -180,6 +183,8 @@ def start_mdns_responder(port: int) -> None:
         state = "disabled" if headless else "external"
         _set_status(state)
         return
+    if _thread is not None and _thread.is_alive():
+        return
     _stop_event.clear()
     _thread = threading.Thread(target=_run_loop, args=(port,), daemon=True, name="bobine-mdns")
     _thread.start()
@@ -197,6 +202,9 @@ def stop_mdns_responder() -> None:
         try:
             if info is not None:
                 zc.unregister_service(info)
+        except Exception as e:
+            logger.warning(f"Échec du retrait de l'annonce mDNS : {e!r}")
+        try:
             zc.close()
         except Exception as e:
             logger.warning(f"Échec de l'arrêt propre du répondeur mDNS : {e!r}")
