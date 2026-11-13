@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import ipaddress
-import json
 import logging
 import os
 import re
 from collections.abc import Iterable
 
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from app.api.errors import send_forbidden
 
 from app.utils.local_networks import TRUSTED_NETWORKS
 
@@ -100,15 +101,6 @@ class LocalNetworkGuard:
                 if scope["type"] == "websocket":
                     await send({"type": "websocket.close", "code": 1008})
                     return
-                body = json.dumps(
-                    {"detail": {"code": "public_client", "message": "Bobine n'est joignable que depuis le réseau local ou un VPN (réseaux à ajouter dans BOBINE_ALLOWED_NETWORKS, qui n'ouvre pas le pare-feu)."}},
-                    ensure_ascii=False,
-                ).encode("utf-8")
-                await send({
-                    "type": "http.response.start",
-                    "status": 403,
-                    "headers": [(b"content-type", b"application/json; charset=utf-8"), (b"content-length", str(len(body)).encode())],
-                })
-                await send({"type": "http.response.body", "body": body})
+                await send_forbidden(send, "public_client", "Bobine n'est joignable que depuis le réseau local ou un VPN (réseaux à ajouter dans BOBINE_ALLOWED_NETWORKS, qui n'ouvre pas le pare-feu).")
                 return
         await self.app(scope, receive, send)

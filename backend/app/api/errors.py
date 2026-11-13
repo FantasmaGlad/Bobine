@@ -1,9 +1,12 @@
 """Forme unique des erreurs de l'API : `{"detail": {"code", "message", ...}}`."""
 
+import json
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import Send
 
 CODE_BY_STATUS = {
     400: "bad_request",
@@ -26,6 +29,17 @@ def error_body(status: int, detail: object) -> dict:
     if isinstance(detail, dict):
         return {"code": CODE_BY_STATUS.get(status, "error"), "message": "", **detail}
     return {"code": CODE_BY_STATUS.get(status, "error"), "message": "" if detail is None else str(detail)}
+
+
+async def send_forbidden(send: Send, code: str, message: str) -> None:
+    """Réponse 403 d'un middleware ASGI, sous la forme commune des erreurs."""
+    body = json.dumps({"detail": {"code": code, "message": message}}, ensure_ascii=False).encode("utf-8")
+    await send({
+        "type": "http.response.start",
+        "status": 403,
+        "headers": [(b"content-type", b"application/json; charset=utf-8"), (b"content-length", str(len(body)).encode())],
+    })
+    await send({"type": "http.response.body", "body": body})
 
 
 async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:

@@ -145,6 +145,11 @@ class Settings(BaseSettings):
         return Path(self.logs_dir) / "technical.log"
 
 
+DATA_DIRS = (
+    "media_dir", "watch_dir", "thumbnails_dir", "backgrounds_dir", "backgrounds_watch_dir", "audio_dir", "audio_watch_dir",
+    "radio_dir", "radio_covers_dir", "radio_announcements_dir", "radio_watch_dir", "branding_dir", "logs_dir", "subtitles_dir",
+)
+
 def load_settings() -> Settings:
     local_config = ROOT_DIR / "config.toml"
     global_config = _global_config_path()
@@ -177,22 +182,7 @@ def load_settings() -> Settings:
 
     settings = Settings(**flat_config)
 
-    for path_attr in [
-        "media_dir",
-        "watch_dir",
-        "thumbnails_dir",
-        "backgrounds_dir",
-        "backgrounds_watch_dir",
-        "audio_dir",
-        "audio_watch_dir",
-        "radio_dir",
-        "radio_covers_dir",
-        "radio_announcements_dir",
-        "radio_watch_dir",
-        "branding_dir",
-        "logs_dir",
-        "subtitles_dir",
-    ]:
+    for path_attr in DATA_DIRS:
         path_str = getattr(settings, path_attr)
         path = Path(path_str)
         if not path.is_absolute():

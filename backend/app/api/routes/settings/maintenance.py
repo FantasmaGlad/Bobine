@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.config import (
+    DATA_DIRS,
     settings as runtime_settings,
 )
 from app.database import get_db
@@ -37,22 +38,6 @@ from .core import router
 from app.api.responses import OpenedPath
 
 logger = logging.getLogger(__name__)
-
-
-_STORAGE_TRACKED_DIRS = (
-    "media_dir",
-    "watch_dir",
-    "thumbnails_dir",
-    "backgrounds_dir",
-    "backgrounds_watch_dir",
-    "audio_dir",
-    "audio_watch_dir",
-    "radio_dir",
-    "radio_covers_dir",
-    "radio_announcements_dir",
-    "radio_watch_dir",
-    "logs_dir",
-)
 
 
 def _dir_size(path: Path) -> int:
@@ -88,7 +73,7 @@ def get_storage() -> dict[str, Any]:
 
     app_bytes = 0
     seen: set[str] = set()
-    for attr in _STORAGE_TRACKED_DIRS:
+    for attr in DATA_DIRS:
         raw = getattr(runtime_settings, attr, None)
         if not raw:
             continue

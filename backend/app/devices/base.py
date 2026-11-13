@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 ChangeCallback = Callable[[str], None]
 
-SCOPES = ("audio", "bluetooth", "wifi")
 
 CAPABILITY_KEYS = (
     "audio_list",
@@ -198,7 +197,6 @@ class NullDriver(DeviceDriver):
 
 __all__: list[str] = [
     "CAPABILITY_KEYS",
-    "SCOPES",
     "ChangeCallback",
     "DeviceDriver",
     "DeviceError",
