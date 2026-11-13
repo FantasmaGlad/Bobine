@@ -24,3 +24,4 @@ Chaque version **Stable** majeure ou marquante reçoit, en plus de son numéro `
 | V5.0.7 | Aurora | 2026-10-29 |
 | V5.1.0 | Coco | 2026-11-06 |
 | V5.1.1 | Ardoise | 2026-11-07 |
+| V5.2.0 | Ruby | 2026-11-13 |
