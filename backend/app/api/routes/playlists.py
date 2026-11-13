@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.api.responses import Message
 from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
@@ -174,7 +175,7 @@ def update_playlist(playlist_id: int, data: PlaylistInput, db: Session = Depends
     return get_playlist(playlist.id, db)
 
 
-@router.delete("/{playlist_id}")
+@router.delete("/{playlist_id}", response_model=Message)
 def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
     """Supprime la playlist (les éléments associés sont supprimés en cascade)."""
     playlist = db.query(Playlist).filter(Playlist.id == playlist_id).first()

@@ -14,6 +14,7 @@ except ImportError:
     from pydantic import BaseModel, validator as field_validator
 from sqlalchemy.orm import Session
 
+from app.api.responses import AnnouncementPlayed, Message
 from app.api.paging import Window, window
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
@@ -190,7 +191,7 @@ def update_announcement(announcement_id: int, payload: RadioAnnouncementUpdate, 
     return announcement
 
 
-@router.delete("/announcements/{announcement_id}")
+@router.delete("/announcements/{announcement_id}", response_model=Message)
 def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
     announcement = db.query(RadioAnnouncement).filter(RadioAnnouncement.id == announcement_id).first()
     if not announcement:
@@ -208,7 +209,7 @@ def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
     return {"message": "Rappel supprimé"}
 
 
-@router.post("/announcements/play-now")
+@router.post("/announcements/play-now", response_model=AnnouncementPlayed)
 async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get_db)):
     """Déclenchement manuel — toujours en mode « duck » (fondu immédiat, la musique continue)."""
     from app.radio_manager import RADIO_CHANNELS, RULE_TARGET_BOTH, get_radio_manager, normalize_rule_target
@@ -263,7 +264,7 @@ def update_rule(rule_id: int, payload: RadioAnnouncementRuleInput, db: Session =
     return _rule_response(rule)
 
 
-@router.delete("/announcement-rules/{rule_id}")
+@router.delete("/announcement-rules/{rule_id}", response_model=Message)
 def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     rule = db.query(RadioAnnouncementRule).filter(RadioAnnouncementRule.id == rule_id).first()
     if not rule:

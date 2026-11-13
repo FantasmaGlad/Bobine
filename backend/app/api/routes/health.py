@@ -7,6 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.api.responses import Health, ServerTime
 from app.database import SessionLocal
 from app.utils.android_runtime import is_android
 from app.api.static_files import frontend_out
@@ -19,7 +20,7 @@ router = APIRouter()
 _IS_ANDROID = is_android()
 
 
-@router.get("/api/health")
+@router.get("/api/health", response_model=Health)
 async def health():
     """Contrôle de santé lisible par machine, consommé par le chien de garde `bobine-watchdog` (redémarrage auto d'un composant mort) et par toute supervision externe."""
     components: dict[str, str] = {}
@@ -49,7 +50,7 @@ async def health():
     return payload
 
 
-@router.get("/api/time")
+@router.get("/api/time", response_model=ServerTime)
 def get_server_time():
     """Retourne l'heure serveur en millisecondes Unix."""
     return {"server_ts": int(time.time() * 1000)}

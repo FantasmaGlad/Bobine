@@ -6,6 +6,7 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.responses import Message, PlaybackSnapshot
 from app.database import get_db
 from app.models import (
     PlaybackState,
@@ -32,7 +33,7 @@ class InterruptedStateResponse(BaseModel):
     target_id: int | None = None
 
 
-@router.get("/api/playback/state")
+@router.get("/api/playback/state", response_model=PlaybackSnapshot)
 def get_playback_state(channel: str = DEFAULT_CHANNEL):
     """Snapshot ponctuel de l'état de lecture d'UN canal (utile au premier rendu, avant connexion WebSocket)."""
     return get_playback_manager(_resolve_channel(channel)).snapshot()
@@ -75,7 +76,7 @@ def get_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(
     }
 
 
-@router.post("/api/playback/interrupted/resume")
+@router.post("/api/playback/interrupted/resume", response_model=Message)
 async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
     """Relance l'action différée du canal : reprise à la position exacte pour une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach."""
     resolved = _resolve_channel(channel)
@@ -147,7 +148,7 @@ async def resume_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session =
     return {"message": "Lecture reprise"}
 
 
-@router.delete("/api/playback/interrupted")
+@router.delete("/api/playback/interrupted", response_model=Message)
 def dismiss_interrupted_state(channel: str = DEFAULT_CHANNEL, db: Session = Depends(get_db)):
     """Abandonne la lecture interrompue du canal sans la relancer."""
     state = (

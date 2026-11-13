@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.responses import Message
 from app.api.paging import Window, window
 from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
@@ -138,7 +139,7 @@ def update_background(background_id: int, payload: BackgroundUpdate, db: Session
     return background
 
 
-@router.delete("/{background_id}")
+@router.delete("/{background_id}", response_model=Message)
 def delete_background(background_id: int, db: Session = Depends(get_db)):
     background = db.query(Background).filter(Background.id == background_id).first()
     if not background:

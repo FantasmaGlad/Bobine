@@ -34,6 +34,7 @@ from app.utils.deployment import (
 from app.utils.ws_manager import manager as ws_manager
 
 from .core import router
+from app.api.responses import OpenedPath
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +217,7 @@ def _openable_roots() -> list[Path]:
     return roots
 
 
-@router.post("/open-path")
+@router.post("/open-path", response_model=OpenedPath)
 def open_path(payload: OpenPathRequest):
     """Ouvre un dossier de données Bobine dans le gestionnaire de fichiers natif de l'OS (xdg-open, explorer, open)."""
     raw_path = payload.path.strip()

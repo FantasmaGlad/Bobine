@@ -8,6 +8,7 @@ from typing import Any, BinaryIO, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import PlainTextResponse
+from app.api.responses import binary, DeletedEntries, Message
 from app.utils._pydantic_compat import OrmModel
 from sqlalchemy.orm import Session
 
@@ -179,7 +180,7 @@ def get_technical_log(lines: int = Query(500, le=5000)):
     return "".join(content[-lines:])
 
 
-@router.get("/technical/download")
+@router.get("/technical/download", **binary("text/plain"))
 def download_technical_log():
     """Téléchargement du log technique complet."""
     from fastapi.responses import FileResponse
@@ -190,7 +191,7 @@ def download_technical_log():
     return FileResponse(log_path, filename="bobine-technical.log", media_type="text/plain")
 
 
-@router.delete("/activity")
+@router.delete("/activity", response_model=DeletedEntries)
 def delete_activity_logs(
     ids: List[int] | None = Query(None),
     limit: int | None = Query(None, gt=0),
@@ -213,7 +214,7 @@ def delete_activity_logs(
     return {"message": f"{deleted} entrée(s) supprimée(s)", "deleted": deleted}
 
 
-@router.delete("/technical")
+@router.delete("/technical", response_model=Message)
 def clear_technical_log():
     """Vide le log technique."""
     log_path = settings.technical_log_path

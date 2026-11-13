@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.responses import DefaultPlaylists, Message, RadioAlbum, RadioArtist, RadioSnapshot, RadioSound, RadioTagEntry, RadioTagCount
 from app.api.paging import Window, window
 from app.config import settings
 from app.database import get_db
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/radio", tags=["radio"])
 
 
-@router.get("/state")
+@router.get("/state", response_model=RadioSnapshot)
 def get_radio_state(channel: str | None = None):
     """Snapshot ponctuel de l'état d'UNE sortie radio."""
     from app.radio_manager import get_radio_manager
@@ -34,7 +35,7 @@ def get_radio_state(channel: str | None = None):
     return get_radio_manager(channel).snapshot()
 
 
-@router.get("/sound")
+@router.get("/sound", response_model=RadioSound)
 def get_radio_sound(channel: str | None = None):
     """Réglages de son courants d'UNE sortie radio (réseau par défaut) : même valeur que le champ `sound` de l'état diffusé, pour les clients sans WebSocket."""
     from app.radio_manager import get_radio_manager
@@ -42,7 +43,7 @@ def get_radio_sound(channel: str | None = None):
     return get_radio_manager(channel).state["sound"]
 
 
-@router.put("/sound")
+@router.put("/sound", response_model=RadioSound)
 async def set_radio_sound(payload: dict = Body(...), channel: str | None = None, db: Session = Depends(get_db)):
     """Modifie les réglages de son d'UNE sortie radio."""
     from app.radio_manager import get_radio_manager
@@ -56,7 +57,7 @@ class DefaultPlaylistInput(BaseModel):
     playlist_id: int | None = None
 
 
-@router.get("/default-playlist")
+@router.get("/default-playlist", response_model=DefaultPlaylists)
 def get_default_playlists(db: Session = Depends(get_db)):
     """Ambiance par défaut de chaque sortie radio."""
     from app.radio_manager import RADIO_CHANNELS
@@ -72,7 +73,7 @@ def get_default_playlists(db: Session = Depends(get_db)):
     return result
 
 
-@router.put("/default-playlist")
+@router.put("/default-playlist", response_model=DefaultPlaylists)
 def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(get_db)):
     """Choisit l'ambiance par défaut d'UNE sortie radio (démarrage automatique, fin de fenêtre de planning, bascule de la sortie câblée sur Radio)."""
     from app.radio_manager import RADIO_CHANNELS
@@ -319,7 +320,7 @@ def upload_track_cover(track_id: int, file: UploadFile = File(...), db: Session 
     return _to_track_response(track)
 
 
-@router.delete("/tracks/{track_id}")
+@router.delete("/tracks/{track_id}", response_model=Message)
 def delete_track(track_id: int, db: Session = Depends(get_db)):
     track = db.query(RadioTrack).filter(RadioTrack.id == track_id).first()
     if not track:
@@ -339,7 +340,7 @@ def delete_track(track_id: int, db: Session = Depends(get_db)):
     return {"message": "Morceau supprimé"}
 
 
-@router.get("/artists")
+@router.get("/artists", response_model=List[RadioArtist])
 def list_artists(db: Session = Depends(get_db)):
     """Artistes dérivés par regroupement (album_artist sinon artist)."""
     name_col = func.coalesce(RadioTrack.album_artist, RadioTrack.artist)
@@ -357,7 +358,7 @@ def list_artists(db: Session = Depends(get_db)):
     return [{"name": r.name, "track_count": r.track_count, "album_count": r.album_count} for r in rows]
 
 
-@router.get("/albums")
+@router.get("/albums", response_model=List[RadioAlbum])
 def list_albums(db: Session = Depends(get_db)):
     """Albums dérivés par regroupement (album_artist, album)."""
     albums: dict[tuple, dict] = {}
@@ -382,7 +383,7 @@ def list_albums(db: Session = Depends(get_db)):
     return sorted(albums.values(), key=lambda a: ((a["album_artist"] or "").lower(), (a["album"] or "").lower()))
 
 
-@router.get("/tags")
+@router.get("/tags", response_model=List[RadioTagCount])
 def list_tags(db: Session = Depends(get_db)):
     rows = (
         db.query(RadioTag.id, RadioTag.name, func.count(radio_track_tags.c.radio_track_id).label("track_count"))
@@ -394,7 +395,7 @@ def list_tags(db: Session = Depends(get_db)):
     return [{"id": r.id, "name": r.name, "track_count": r.track_count} for r in rows]
 
 
-@router.post("/tags")
+@router.post("/tags", response_model=RadioTagEntry)
 def create_tag(payload: TagInput, db: Session = Depends(get_db)):
     name = payload.name.strip()
     if not name:
@@ -408,7 +409,7 @@ def create_tag(payload: TagInput, db: Session = Depends(get_db)):
     return {"id": tag.id, "name": tag.name}
 
 
-@router.put("/tags/{tag_id}")
+@router.put("/tags/{tag_id}", response_model=RadioTagEntry)
 def rename_tag(tag_id: int, payload: TagInput, db: Session = Depends(get_db)):
     tag = db.query(RadioTag).filter(RadioTag.id == tag_id).first()
     if not tag:
@@ -424,7 +425,7 @@ def rename_tag(tag_id: int, payload: TagInput, db: Session = Depends(get_db)):
     return {"id": tag.id, "name": tag.name}
 
 
-@router.delete("/tags/{tag_id}")
+@router.delete("/tags/{tag_id}", response_model=Message)
 def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     tag = db.query(RadioTag).filter(RadioTag.id == tag_id).first()
     if not tag:

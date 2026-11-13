@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.api.responses import binary
 from app.config import (
     ROOT_DIR,
     _global_config_path,
@@ -59,7 +60,7 @@ def _sanitized_db_bytes(db_path: Path) -> bytes:
         return copy_path.read_bytes()
 
 
-@router.get("/backup/export")
+@router.get("/backup/export", **binary("application/zip"))
 def export_backup() -> Response:
     """Exporte une archive ZIP de sauvegarde contenant."""
     if not _IS_SQLITE:

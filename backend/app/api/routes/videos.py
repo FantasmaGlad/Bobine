@@ -17,6 +17,7 @@ from fastapi import (
 )
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from app.api.responses import binary, Message
 from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
@@ -345,7 +346,7 @@ def update_video(video_id: int, payload: VideoUpdate, db: Session = Depends(get_
     return video
 
 
-@router.delete("/{video_id}")
+@router.delete("/{video_id}", response_model=Message)
 def delete_video(video_id: int, db: Session = Depends(get_db)):
     """Supprime physiquement les fichiers de la vidéo et de sa miniature, puis supprime son entrée en BDD."""
     video = db.query(Video).filter(Video.id == video_id).first()
@@ -392,7 +393,7 @@ def create_web_rendition(video_id: int, db: Session = Depends(get_db)):
     return {"job_id": job_id}
 
 
-@router.delete("/{video_id}/web-rendition")
+@router.delete("/{video_id}/web-rendition", response_model=Message)
 def delete_web_rendition(video_id: int, db: Session = Depends(get_db)):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
@@ -513,7 +514,7 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
         db.close()
 
 
-@router.post("/{video_id}/normalize")
+@router.post("/{video_id}/normalize", response_model=Message)
 def manual_normalize(
     video_id: int,
     db: Session = Depends(get_db),
@@ -624,7 +625,7 @@ async def upload_subtitle(
     )
 
 
-@router.delete("/{video_id}/subtitles/{subtitle_id}")
+@router.delete("/{video_id}/subtitles/{subtitle_id}", response_model=Message)
 async def delete_subtitle(video_id: int, subtitle_id: int, db: Session = Depends(get_db)):
     """Supprime une piste de sous-titres sur disque et en base."""
     sub = db.query(VideoSubtitle).filter(VideoSubtitle.id == subtitle_id, VideoSubtitle.video_id == video_id).first()
@@ -642,10 +643,10 @@ async def delete_subtitle(video_id: int, subtitle_id: int, db: Session = Depends
     db.commit()
 
     await ws_manager.broadcast({"type": "library_change"})
-    return {"status": "ok"}
+    return {"message": "Sous-titre supprimé"}
 
 
-@router.get("/{video_id}/subtitles/{subtitle_id}/vtt")
+@router.get("/{video_id}/subtitles/{subtitle_id}/vtt", **binary("text/vtt"))
 def get_subtitle_vtt(video_id: int, subtitle_id: int, db: Session = Depends(get_db)):
     """Sert le fichier WebVTT pour les balises HTML5 <track> avec les bons en-têtes CORS et Content-Type."""
     sub = db.query(VideoSubtitle).filter(VideoSubtitle.id == subtitle_id, VideoSubtitle.video_id == video_id).first()

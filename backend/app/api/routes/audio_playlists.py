@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from app.api.responses import Message
 from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
@@ -214,7 +215,7 @@ def update_audio_playlist(playlist_id: int, data: AudioPlaylistInput, db: Sessio
     return get_audio_playlist(playlist.id, db)
 
 
-@router.delete("/{playlist_id}")
+@router.delete("/{playlist_id}", response_model=Message)
 def delete_audio_playlist(playlist_id: int, db: Session = Depends(get_db)):
     playlist = db.query(AudioPlaylist).filter(AudioPlaylist.id == playlist_id).first()
     if not playlist:

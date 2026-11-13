@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from app.api.responses import Message
 from app.api.paging import Window, window
 from app.utils._pydantic_compat import OrmModel
 from pydantic import BaseModel
@@ -320,7 +321,7 @@ def update_audio_course(course_id: int, payload: AudioCourseUpdate, db: Session 
     return course
 
 
-@router.delete("/{course_id}")
+@router.delete("/{course_id}", response_model=Message)
 def delete_audio_course(course_id: int, db: Session = Depends(get_db)):
     course = db.query(AudioCourse).filter(AudioCourse.id == course_id).first()
     if not course:
