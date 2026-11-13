@@ -3,149 +3,39 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-# shellcheck source=packaging/common/channel.sh
-source "${REPO_DIR}/packaging/common/channel.sh"
+COMMON_DIR="${REPO_DIR}/packaging/common"
 # shellcheck source=packaging/common/glibc_floor.sh
-source "${REPO_DIR}/packaging/common/glibc_floor.sh"
+source "${COMMON_DIR}/glibc_floor.sh"
 
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
-
-DEB_FILENAME_VERSION="${DEB_FILENAME_VERSION:-$VERSION}"
-PKG_NAME="bobine"
 ARCH="${ARCH:-$(dpkg --print-architecture)}"
-DEB_NAME="${PKG_NAME}_${DEB_FILENAME_VERSION}_${ARCH}.deb"
-
-echo "=== [1/5] Vérification de l'environnement ==="
-if ! command -v dpkg-deb >/dev/null 2>&1; then
-    echo "Erreur: dpkg-deb est requis pour construire le paquet .deb." >&2
-    exit 1
-fi
-
-PYTHON_BIN="${REPO_DIR}/backend/.venv/bin/python"
-
-if [ -x "${PYTHON_BIN}" ]; then
-    PYINSTALLER_CMD=("${PYTHON_BIN}" -m PyInstaller)
-elif command -v pyinstaller >/dev/null 2>&1; then
-    PYINSTALLER_CMD=("$(command -v pyinstaller)")
-else
-    echo "Erreur: pyinstaller est introuvable." >&2
-    exit 1
-fi
-
-echo "=== [2/5] Vérification / Build du frontend Next.js ==="
-if [ ! -f "${REPO_DIR}/frontend/out/fr/index.html" ] || [ ! -f "${REPO_DIR}/frontend/out/en/index.html" ]; then
-    echo "Construction du frontend Next.js (export statique)..."
-    (cd "${REPO_DIR}/frontend" && npm run build)
-fi
-
-echo "=== [3/5] Compilation PyInstaller (BobineBackend + BobineTray) ==="
-(cd "${REPO_DIR}/backend" && "${PYINSTALLER_CMD[@]}" --noconfirm "${SCRIPT_DIR}/bobine.spec")
-
-DIST_DIR="${REPO_DIR}/backend/dist/Bobine"
-if [ ! -f "${DIST_DIR}/BobineBackend" ] || [ ! -f "${DIST_DIR}/BobineTray" ]; then
-    echo "Erreur: la compilation PyInstaller n'a pas produit les exécutables attendus dans ${DIST_DIR}" >&2
-    exit 1
-fi
-
-MEDIA_BINARY="${BOBINE_MEDIA_BINARY:-${REPO_DIR}/media/target/release/bobine-media}"
-if [ -x "${MEDIA_BINARY}" ]; then
-    cp "${MEDIA_BINARY}" "${DIST_DIR}/bobine-media"
-    chmod 0755 "${DIST_DIR}/bobine-media"
-    echo "Composant audio natif inclus : ${MEDIA_BINARY}"
-else
-    echo "Composant audio natif absent : paquet sans bobine-media (repli ffprobe/ffmpeg)." >&2
-fi
-
-python3 "${REPO_DIR}/packaging/common/sanitize_elf.py" "${DIST_DIR}"
-
-echo "=== [4/5] Assemblage de l'arborescence Debian ==="
+DEB_NAME="bobine_${DEB_FILENAME_VERSION:-$VERSION}_${ARCH}.deb"
 OUTPUT_DIR="${REPO_DIR}/dist-deb"
 STAGING_DIR="${OUTPUT_DIR}/bobine_${VERSION}_${ARCH}"
 
-rm -rf "${STAGING_DIR}"
-mkdir -p "${STAGING_DIR}/DEBIAN"
-mkdir -p "${STAGING_DIR}/usr/lib/bobine"
-mkdir -p "${STAGING_DIR}/usr/bin"
-mkdir -p "${STAGING_DIR}/usr/share/applications"
-mkdir -p "${STAGING_DIR}/etc/xdg/autostart"
-mkdir -p "${STAGING_DIR}/usr/lib/systemd/user"
-mkdir -p "${STAGING_DIR}/usr/share/pixmaps"
-mkdir -p "${STAGING_DIR}/usr/share/icons"
-mkdir -p "${STAGING_DIR}/usr/share/metainfo"
-mkdir -p "${STAGING_DIR}/usr/share/appdata"
-mkdir -p "${STAGING_DIR}/usr/share/doc/bobine"
+echo "=== [1/4] Vérification de l'environnement ==="
+command -v dpkg-deb >/dev/null 2>&1 || { echo "Erreur: dpkg-deb est requis pour construire le paquet .deb." >&2; exit 1; }
+DIST_DIR="$(BOBINE_BUILD_DIST="${BOBINE_BUILD_DIST:-1}" "${COMMON_DIR}/ensure_dist.sh" | tail -n1)"
 
-mkdir -p "${STAGING_DIR}/usr/share/bobine"
-cp "${REPO_DIR}/packaging/storage/49-bobine-storage.rules.in" "${STAGING_DIR}/usr/share/bobine/"
-cp "${REPO_DIR}/packaging/storage/configure-storage-access" "${STAGING_DIR}/usr/lib/bobine/"
-chmod 0755 "${STAGING_DIR}/usr/lib/bobine/configure-storage-access"
-install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" "${STAGING_DIR}/etc/ufw/applications.d/bobine"
-install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" "${STAGING_DIR}/usr/lib/firewalld/services/bobine.xml"
-install -m 0755 "${REPO_DIR}/packaging/linux/firewall/configure-firewall" "${STAGING_DIR}/usr/lib/bobine/configure-firewall"
+echo "=== [2/4] Assemblage de l'arborescence ==="
+"${COMMON_DIR}/stage_root.sh" "${DIST_DIR}" "${STAGING_DIR}" "${VERSION}"
+install -D -m 0644 "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo.xml" "${STAGING_DIR}/usr/share/appdata/com.bobine.app.appdata.xml"
 
-cp -a "${DIST_DIR}/"* "${STAGING_DIR}/usr/lib/bobine/"
-
-cat << 'EOF' > "${STAGING_DIR}/usr/bin/bobine"
-#!/bin/sh
-exec /usr/lib/bobine/BobineTray "$@"
-EOF
-chmod 0755 "${STAGING_DIR}/usr/bin/bobine"
-
-cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/usr/share/applications/com.bobine.app.desktop"
-cp "${SCRIPT_DIR}/bobine.desktop" "${STAGING_DIR}/etc/xdg/autostart/com.bobine.app.desktop"
-
-APPSTREAM_TMP="$(mktemp)"
-cp "${SCRIPT_DIR}/bobine.metainfo.xml" "${APPSTREAM_TMP}"
-APPSTREAM_VERSION="${VERSION//[~+]/-}"
-if ! grep -q "<release version=\"${APPSTREAM_VERSION}\"" "${APPSTREAM_TMP}"; then
-    sed -i "s|<releases>|<releases>\n    <release version=\"${APPSTREAM_VERSION}\" date=\"$(date -u +%F)\"/>|" "${APPSTREAM_TMP}"
-fi
-cp "${APPSTREAM_TMP}" "${STAGING_DIR}/usr/share/metainfo/com.bobine.app.metainfo.xml"
-cp "${APPSTREAM_TMP}" "${STAGING_DIR}/usr/share/appdata/com.bobine.app.appdata.xml"
-rm -f "${APPSTREAM_TMP}"
-
-cp "${SCRIPT_DIR}/copyright" "${STAGING_DIR}/usr/share/doc/bobine/copyright"
-
-cp "${SCRIPT_DIR}/bobine.service" "${STAGING_DIR}/usr/lib/systemd/user/bobine.service"
-
-install_channel_icons "$(bobine_channel_of_version "${VERSION}")" "${SCRIPT_DIR}/icons" "${STAGING_DIR}"
-
-cp "${SCRIPT_DIR}/DEBIAN/control" "${STAGING_DIR}/DEBIAN/control"
-cp "${SCRIPT_DIR}/DEBIAN/postinst" "${STAGING_DIR}/DEBIAN/postinst"
-cp "${SCRIPT_DIR}/DEBIAN/prerm" "${STAGING_DIR}/DEBIAN/prerm"
-cp "${SCRIPT_DIR}/DEBIAN/postrm" "${STAGING_DIR}/DEBIAN/postrm"
-
-sed -i "s/^Version:.*/Version: ${VERSION}/" "${STAGING_DIR}/DEBIAN/control"
-sed -i "s/^Architecture:.*/Architecture: ${ARCH}/" "${STAGING_DIR}/DEBIAN/control"
-
+echo "=== [3/4] Métadonnées Debian ==="
+install -d -m 0755 "${STAGING_DIR}/DEBIAN"
+install -m 0644 "${SCRIPT_DIR}/DEBIAN/control" "${STAGING_DIR}/DEBIAN/control"
+for script in postinst prerm postrm; do
+    install -m 0755 "${SCRIPT_DIR}/DEBIAN/${script}" "${STAGING_DIR}/DEBIAN/${script}"
+done
+CONTROL="${STAGING_DIR}/DEBIAN/control"
+sed -i "s/^Version:.*/Version: ${VERSION}/; s/^Architecture:.*/Architecture: ${ARCH}/" "${CONTROL}"
 GLIBC_MIN="$(bobine_glibc_check "${DIST_DIR}")"
-bobine_deb_require_glibc "${STAGING_DIR}/DEBIAN/control" "${GLIBC_MIN}"
+bobine_deb_require_glibc "${CONTROL}" "${GLIBC_MIN}"
 echo "Dépendance libc6 (>= ${GLIBC_MIN}) ajoutée au paquet."
+sed -i '/^Installed-Size:/d' "${CONTROL}"
+echo "Installed-Size: $(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')" >> "${CONTROL}"
 
-INSTALLED_SIZE=$(du -sk "${STAGING_DIR}/usr" | awk '{print $1}')
-if ! grep -q "^Installed-Size:" "${STAGING_DIR}/DEBIAN/control"; then
-    echo "Installed-Size: ${INSTALLED_SIZE}" >> "${STAGING_DIR}/DEBIAN/control"
-else
-    sed -i "s/^Installed-Size:.*/Installed-Size: ${INSTALLED_SIZE}/" "${STAGING_DIR}/DEBIAN/control"
-fi
-
-chmod 0755 "${STAGING_DIR}/DEBIAN/postinst"
-chmod 0755 "${STAGING_DIR}/DEBIAN/prerm"
-chmod 0755 "${STAGING_DIR}/DEBIAN/postrm"
-chmod 0644 "${STAGING_DIR}/DEBIAN/control"
-
-find "${STAGING_DIR}" -type d -exec chmod 0755 {} +
-find "${STAGING_DIR}/usr/share" -type f -exec chmod 0644 {} +
-chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineBackend"
-chmod 0755 "${STAGING_DIR}/usr/lib/bobine/BobineTray"
-
-echo "=== [5/5] Création du paquet .deb via dpkg-deb ==="
-mkdir -p "${OUTPUT_DIR}"
+echo "=== [4/4] dpkg-deb ==="
 dpkg-deb --build --root-owner-group "${STAGING_DIR}" "${OUTPUT_DIR}/${DEB_NAME}"
-
-echo ""
-echo " Paquet Debian généré avec succès :"
-echo "  Fichier : ${OUTPUT_DIR}/${DEB_NAME}"
-echo "  Taille  : $(du -h "${OUTPUT_DIR}/${DEB_NAME}" | cut -f1)"
-echo ""
+echo " Paquet Debian généré : ${OUTPUT_DIR}/${DEB_NAME} ($(du -h "${OUTPUT_DIR}/${DEB_NAME}" | cut -f1))"
 dpkg-deb -I "${OUTPUT_DIR}/${DEB_NAME}"

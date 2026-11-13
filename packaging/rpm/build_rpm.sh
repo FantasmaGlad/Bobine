@@ -9,13 +9,7 @@ source "${SCRIPT_DIR}/../common/version.sh"
 source "${SCRIPT_DIR}/../common/glibc_floor.sh"
 
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
-RPM_ARCH="${RPM_ARCH:-$(uname -m)}"
-case "${RPM_ARCH}" in
-    x86_64|aarch64) ;;
-    arm64) RPM_ARCH=aarch64 ;;
-    amd64) RPM_ARCH=x86_64 ;;
-    *) echo "Erreur: architecture non prise en charge : ${RPM_ARCH}" >&2; exit 1 ;;
-esac
+RPM_ARCH="$(bobine_package_arch "${RPM_ARCH:-$(uname -m)}")"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_DIR}/dist-rpm}"
 split_bobine_version "${VERSION}"
 RELEASE="${RPM_RELEASE}"
