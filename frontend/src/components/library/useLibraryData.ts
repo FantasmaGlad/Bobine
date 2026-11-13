@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
@@ -40,31 +40,30 @@ export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
   const { libraryVersion } = usePlaybackSocket();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  const fetchVideos = async () => {
-    await Promise.resolve();
-    if (recallCatalog<Video>(CACHE_KEY) === undefined) setLoading(true);
-    try {
-      const res = await fetch(getApiUrl(`/videos?${videosQuery(filters)}`), { cache: "no-store" });
+  const query = videosQuery(filters);
+  const cacheable = !filters.search && !filters.program && !filters.release;
+
+  const fetchVideos = useCallback(() => Promise.resolve()
+    .then(() => {
+      if (recallCatalog<Video>(CACHE_KEY) === undefined) setLoading(true);
+      return fetch(getApiUrl(`/videos?${query}`), { cache: "no-store" });
+    })
+    .then(async (res) => {
       if (!res.ok) {
         showToast(t("library.fetchError"), "error");
         return;
       }
       const data = await res.json();
       setVideos(data);
-      if (!filters.search && !filters.program && !filters.release) rememberCatalog(CACHE_KEY, data as Video[]);
-    } catch {
-      showToast(t("library.connectionError"), "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (cacheable) rememberCatalog(CACHE_KEY, data as Video[]);
+    })
+    .catch(() => showToast(t("library.connectionError"), "error"))
+    .finally(() => setLoading(false)), [query, cacheable, showToast, t]);
 
-  const fetchPrograms = () => {
-    fetch(getApiUrl("/videos/programs"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: string[]) => setPrograms(Array.isArray(data) ? data : []))
-      .catch(() => {});
-  };
+  const fetchPrograms = useCallback(() => fetch(getApiUrl("/videos/programs"), { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : []))
+    .then((data: string[]) => setPrograms(Array.isArray(data) ? data : []))
+    .catch(() => {}), []);
 
   useEffect(() => {
     const newlyDone = uploads.filter(
@@ -72,15 +71,12 @@ export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
     );
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
-    fetchVideos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploads]);
+    void fetchVideos();
+  }, [uploads, fetchVideos]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchVideos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.search, filters.program, filters.release, filters.sortBy]);
+    void fetchVideos();
+  }, [fetchVideos]);
 
   useEffect(() => {
     fetch(getApiUrl("/playlists"), { cache: "no-store" })
@@ -89,13 +85,19 @@ export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
       .catch(() => setPlaylists([]));
   }, []);
 
-  useEffect(fetchPrograms, []);
-
   useEffect(() => {
-    if (libraryVersion === 0) return;
-    fetchVideos();
-    fetchPrograms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void fetchPrograms();
+  }, [fetchPrograms]);
+
+  const reload = useRef(() => {});
+  useEffect(() => {
+    reload.current = () => {
+      void fetchVideos();
+      void fetchPrograms();
+    };
+  }, [fetchVideos, fetchPrograms]);
+  useEffect(() => {
+    if (libraryVersion !== 0) reload.current();
   }, [libraryVersion]);
 
   const suggestions = React.useMemo(() => videos.flatMap((v) => (v.program ? [v.title, v.program] : [v.title])), [videos]);

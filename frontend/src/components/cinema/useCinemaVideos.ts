@@ -52,17 +52,15 @@ export function useProgramRows(videos: CinemaVideo[], otherLabel: string) {
 }
 
 export function useFeatured(videos: CinemaVideo[]) {
-  const [tick, setTick] = useState(0);
+  const [bucket, setBucket] = useState(() => Math.floor(Date.now() / SCRAMBLE_INTERVAL_MS));
   useEffect(() => {
-    const id = setInterval(() => setTick((v) => v + 1), 60_000);
+    const id = setInterval(() => setBucket(Math.floor(Date.now() / SCRAMBLE_INTERVAL_MS)), 60_000);
     return () => clearInterval(id);
   }, []);
-  return useMemo(() => {
-    if (videos.length === 0) return null;
-    const bucket = Math.floor(Date.now() / SCRAMBLE_INTERVAL_MS);
-    return videos[Math.abs((bucket * 2654435761) % videos.length)];
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tick force le recalcul periodique
-  }, [videos, tick]);
+  return useMemo(
+    () => (videos.length === 0 ? null : videos[Math.abs((bucket * 2654435761) % videos.length)]),
+    [videos, bucket],
+  );
 }
 
 export function useTicker(intervalMs: number): number {

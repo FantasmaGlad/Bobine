@@ -45,7 +45,6 @@ export default function TimelineBlock({ occurrence: o, style, cutsPrevious, cont
     >
       <div className="schedule-timeline-block-thumb">
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" />
         ) : (
           <Icon name={TARGET_ICONS[o.target_type] ?? "movie"} size={18} style={{ opacity: 0.35 }} />

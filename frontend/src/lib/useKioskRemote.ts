@@ -41,7 +41,9 @@ const ANDROID_TV_KEYCODES: Partial<Record<number, keyof RemoteHandlers>> = {
 
 export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true) {
   const handlersRef = useRef(getHandlers);
-  handlersRef.current = getHandlers;
+  useEffect(() => {
+    handlersRef.current = getHandlers;
+  });
 
   useEffect(() => {
     if (!enabled) return;

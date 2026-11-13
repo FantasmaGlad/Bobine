@@ -369,7 +369,6 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
                   queueResults.map((track) => (
                     <div key={track.id} className="rq-row">
                       {track.has_cover ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API locale, export statique
                         <img className="rq-cover" src={getApiUrl(`/radio/tracks/${track.id}/cover`)} alt="" loading="lazy" />
                       ) : (
                         <span className="rq-cover rq-cover--empty" aria-hidden="true">

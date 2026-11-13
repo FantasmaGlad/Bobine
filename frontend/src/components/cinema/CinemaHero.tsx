@@ -41,7 +41,6 @@ export default function CinemaHero({ featured, scrolled, onSelect, children }: P
     <section className="cinema-hero" data-remote-scroll-top>
       {backdrop && (
         <div className="cinema-hero-backdrop-wrap">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="cinema-hero-backdrop" src={backdrop} alt="" />
         </div>
       )}

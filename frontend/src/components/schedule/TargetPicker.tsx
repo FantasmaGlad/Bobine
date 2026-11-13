@@ -45,7 +45,6 @@ function RadioOption({ playlist, label, query, selected, onSelect }: { playlist:
       }}
     >
       {cover ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img src={cover} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
       ) : (
         <span style={{ width: 44, height: 44, borderRadius: 6, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--bg-surface-elevated)" }}>

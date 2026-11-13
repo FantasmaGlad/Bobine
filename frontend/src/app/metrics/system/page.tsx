@@ -53,17 +53,12 @@ export default function MetricsSystemPage() {
     iconName: string;
   } | null>(null);
 
-  const fetchTelemetry = useCallback(async () => {
-    try {
-      const res = await fetch(getApiUrl("/settings/system"), { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setTelemetry(data);
-      }
-    } catch (err) {
-      console.error("Erreur chargement télémétrie système:", err);
-    }
-  }, []);
+  const fetchTelemetry = useCallback(() => fetch(getApiUrl("/settings/system"), { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data) setTelemetry(data);
+    })
+    .catch((err) => console.error("Erreur chargement télémétrie système:", err)), []);
 
   useEffect(() => {
     fetchTelemetry();

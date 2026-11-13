@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
@@ -55,26 +55,22 @@ export function useOccurrences(weekStart: Date, channel: ChannelValue, showToast
   const weekEnd = useMemo(() => addDays(weekStart, 7), [weekStart]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
-  const refresh = async () => {
-    await Promise.resolve();
-    setLoading(true);
-    try {
+  const refresh = useCallback(() => Promise.resolve()
+    .then(() => {
+      setLoading(true);
       const params = new URLSearchParams({ start: weekStart.toISOString(), end: weekEnd.toISOString(), channel });
-      const res = await fetch(getApiUrl(`/schedule/occurrences?${params.toString()}`), { cache: "no-store" });
+      return fetch(getApiUrl(`/schedule/occurrences?${params.toString()}`), { cache: "no-store" });
+    })
+    .then(async (res) => {
       if (res.ok) setOccurrences(await res.json());
       else showToast(t("schedule.fetchError"), "error");
-    } catch {
-      showToast(t("schedule.fetchNetworkError"), "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+    })
+    .catch(() => showToast(t("schedule.fetchNetworkError"), "error"))
+    .finally(() => setLoading(false)), [weekStart, weekEnd, channel, showToast, t]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [weekStart, channel]);
+    void refresh();
+  }, [refresh]);
 
   const byDay = useMemo(
     () => weekDays.map((day) => occurrences.filter((o) => isSameLocalDay(new Date(o.run_at), day)).sort(byRunAt)),

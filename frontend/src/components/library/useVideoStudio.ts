@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 import { errorMessage } from "@/lib/apiError";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -21,22 +21,16 @@ export function useVideoStudio(video: Video, showToast: ShowToast, onUpdated: (v
   const [subtitles, setSubtitles] = useState<VideoSubtitleItem[]>([]);
   const base = `/videos/${video.id}`;
 
-  const fetchSubtitles = async () => {
-    try {
-      const res = await fetch(getApiUrl(`${base}/subtitles`));
-      if (res.ok) {
-        const data = await res.json();
-        setSubtitles(Array.isArray(data) ? data : []);
-      }
-    } catch {
-    }
-  };
+  const fetchSubtitles = useCallback(() => fetch(getApiUrl(`${base}/subtitles`))
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data !== null) setSubtitles(Array.isArray(data) ? data : []);
+    })
+    .catch(() => {}), [base]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchSubtitles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [video.id]);
+    void fetchSubtitles();
+  }, [fetchSubtitles]);
 
   const saveFailed = async (res: Response) => {
     const errData = await res.json();

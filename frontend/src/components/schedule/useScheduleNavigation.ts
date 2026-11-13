@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { addDays, getWeekStart } from "@/lib/scheduleTime";
 
@@ -15,19 +15,13 @@ export function useScheduleNavigation(isMobile: boolean) {
   const [day, setDay] = useState<Date>(startOfToday);
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()));
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise avec le viewport (matchMedia)
+  const [wasMobile, setWasMobile] = useState(isMobile);
+  if (wasMobile !== isMobile) {
+    setWasMobile(isMobile);
     if (isMobile && view === "week") setView("day");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile]);
+  }
 
-  useEffect(() => {
-    if (view !== "day") return;
-    const dayWeekStart = getWeekStart(day);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resynchronise la fenetre de fetch avec le jour affiche
-    if (dayWeekStart.getTime() !== weekStart.getTime()) setWeekStart(dayWeekStart);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day, view]);
+  if (view === "day" && getWeekStart(day).getTime() !== weekStart.getTime()) setWeekStart(getWeekStart(day));
 
   const step = (direction: -1 | 1) => {
     if (view === "day") setDay((prev) => addDays(prev, direction));

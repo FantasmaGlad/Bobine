@@ -31,7 +31,6 @@ export default function PauseOverlay({ t, state, programAccent, onResume }: Paus
                 {(() => {
                   const thumbSrc = getThumbnailSrc(state.current_video?.thumbnail_url || state.current_video?.thumbnail_path);
                   return thumbSrc ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={thumbSrc}
                       alt={state.current_video?.title || ""}

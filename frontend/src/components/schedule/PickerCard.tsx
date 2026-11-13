@@ -47,7 +47,6 @@ export default function PickerCard({ payload, thumb, fallbackIcon, duration, tit
     >
       <div className="thumbnail-wrapper">
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" className="card-thumbnail" />
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>

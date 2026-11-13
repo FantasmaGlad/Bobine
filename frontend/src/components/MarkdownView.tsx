@@ -25,7 +25,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
         const alt = imgMatch[1];
         const src = imgMatch[2];
         nodes.push(
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             key={`img-${keyIdx++}`}
             src={src}
@@ -42,7 +41,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       if (htmlImgMatch) {
         const src = htmlImgMatch[2];
         nodes.push(
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             key={`himg-${keyIdx++}`}
             src={src}

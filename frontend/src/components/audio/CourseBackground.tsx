@@ -16,7 +16,6 @@ interface Props {
 function Preview({ selected, fallback, chosenId }: Omit<Props, "onChange">) {
   const shown = selected?.thumbnail_path ? selected : !chosenId && fallback?.thumbnail_path ? fallback : null;
   if (shown) {
-    // eslint-disable-next-line @next/next/no-img-element
     return <img src={thumbnailUrl(shown.thumbnail_path)!} alt={shown.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
   }
   return (

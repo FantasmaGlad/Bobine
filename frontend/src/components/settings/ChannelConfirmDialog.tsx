@@ -14,7 +14,6 @@ export default function ChannelConfirmDialog({ t, confirmingChannel, changingCha
   return (
           <div className="modal-overlay">
             <div className="modal-content">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={channelLogoUrl(confirmingChannel)}
                 alt=""

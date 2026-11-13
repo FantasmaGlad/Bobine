@@ -64,7 +64,6 @@ function Cover({ editor, coverUrl }: Omit<Props, "tags">) {
     <div style={{ display: "flex", gap: "16px", alignItems: "flex-start", marginBottom: "16px" }}>
       <div style={{ width: "120px", height: "120px", flexShrink: 0, borderRadius: "8px", overflow: "hidden", background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {track.has_cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl(track.id)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : <Icon name="music_note" size={36} style={{ opacity: 0.25 }} />}
       </div>

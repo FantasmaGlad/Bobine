@@ -88,7 +88,6 @@ export default function VideoPicker({ t, isMobile, videos, sequencer, handleAddV
                         >
                           <div className="thumbnail-wrapper">
                             {thumbSrc ? (
-                              // eslint-disable-next-line @next/next/no-img-element
                               <img src={thumbSrc} alt="" className="card-thumbnail" />
                             ) : (
                               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>

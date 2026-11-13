@@ -28,12 +28,40 @@ function isNavLinkActive(pathname: string, href: string): boolean {
 
 const UPDATE_TOAST_MS = 8000;
 
+type NavInfo = { iconName: string; label: string } | null;
+
+function activeNavInfoFor(
+  navEntries: ReturnType<typeof visibleNavEntries>,
+  footerLinks: Array<{ href: string; iconName: string; label: string }>,
+  pathname: string,
+  t: (key: string) => string,
+): NavInfo {
+  for (const entry of navEntries) {
+    if (isNavGroup(entry)) {
+      const activeChild = entry.children.find((c) => isNavLinkActive(pathname, c.href));
+      if (activeChild) {
+        return { iconName: activeChild.iconName, label: t(activeChild.labelKey) };
+      }
+    } else {
+      const isActive = entry.href === "/" ? pathname === "/" : isNavLinkActive(pathname, entry.href);
+      if (isActive) {
+        return { iconName: entry.iconName, label: t(entry.labelKey) };
+      }
+    }
+  }
+  const activeFooter = footerLinks.find((l) => (l.href === "/" ? pathname === "/" : isNavLinkActive(pathname, l.href)));
+  if (activeFooter) {
+    return { iconName: activeFooter.iconName, label: activeFooter.label };
+  }
+  return null;
+}
+
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isMobile = useIsMobile();
   const { t, network, simplifiedUi } = useAppSettings();
-  const navEntries = visibleNavEntries(simplifiedUi);
+  const navEntries = React.useMemo(() => visibleNavEntries(simplifiedUi), [simplifiedUi]);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(false);
@@ -70,50 +98,30 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       .catch(() => {});
   }, [isFullscreenRoute]);
 
-  const footerLinks = visibleFooterLinks(simplifiedUi).map((link) => ({ ...link, label: t(link.labelKey) }));
+  const footerLinks = React.useMemo(
+    () => visibleFooterLinks(simplifiedUi).map((link) => ({ ...link, label: t(link.labelKey) })),
+    [simplifiedUi, t],
+  );
 
-  const [activeGroup, setActiveGroup] = useState<string | null>(() => {
+  const groupOfPath = (path: string) => {
     for (const entry of navEntries) {
-      if (isNavGroup(entry) && entry.children.some((c) => isNavLinkActive(pathname, c.href))) {
-        return entry.groupKey;
-      }
+      if (isNavGroup(entry) && entry.children.some((c) => isNavLinkActive(path, c.href))) return entry.groupKey;
     }
     return null;
-  });
-
-  useEffect(() => {
-    for (const entry of navEntries) {
-      if (isNavGroup(entry) && entry.children.some((c) => isNavLinkActive(pathname, c.href))) {
-        setActiveGroup(entry.groupKey);
-        return;
-      }
-    }
-  }, [pathname]);
+  };
+  const [activeGroup, setActiveGroup] = useState<string | null>(() => groupOfPath(pathname));
+  const [groupPath, setGroupPath] = useState(pathname);
+  if (groupPath !== pathname) {
+    setGroupPath(pathname);
+    const group = groupOfPath(pathname);
+    if (group) setActiveGroup(group);
+  }
 
   const toggleGroup = (key: string) => {
     setActiveGroup((curr) => (curr === key ? null : key));
   };
 
-  const activeNavInfo = React.useMemo(() => {
-    for (const entry of navEntries) {
-      if (isNavGroup(entry)) {
-        const activeChild = entry.children.find((c) => isNavLinkActive(pathname, c.href));
-        if (activeChild) {
-          return { iconName: activeChild.iconName, label: t(activeChild.labelKey) };
-        }
-      } else {
-        const isActive = entry.href === "/" ? pathname === "/" : isNavLinkActive(pathname, entry.href);
-        if (isActive) {
-          return { iconName: entry.iconName, label: t(entry.labelKey) };
-        }
-      }
-    }
-    const activeFooter = footerLinks.find((l) => (l.href === "/" ? pathname === "/" : isNavLinkActive(pathname, l.href)));
-    if (activeFooter) {
-      return { iconName: activeFooter.iconName, label: activeFooter.label };
-    }
-    return null;
-  }, [pathname, t, footerLinks]);
+  const activeNavInfo = activeNavInfoFor(navEntries, footerLinks, pathname, t);
 
   const renderNavEntries = (onNavigate?: () => void) =>
     navEntries.map((entry, i) => {

@@ -34,6 +34,7 @@ export default function MapSection({ refreshKey, t, onOpen }: Props) {
   }, [reload]);
 
   const layout = useMemo(() => (data ? layoutOrbits(data) : null), [data]);
+  const hasLayout = layout !== null;
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -42,7 +43,7 @@ export default function MapSection({ refreshKey, t, onOpen }: Props) {
     observer.observe(frame);
     setSize({ width: frame.clientWidth, height: frame.clientHeight });
     return () => observer.disconnect();
-  }, [layout !== null]); // eslint-disable-line react-hooks/exhaustive-deps -- le cadre n'existe qu'une fois la carte chargée
+  }, [hasLayout]);
 
   const recenter = useCallback(() => {
     interacted.current = false;
@@ -65,7 +66,7 @@ export default function MapSection({ refreshKey, t, onOpen }: Props) {
     };
     frame.addEventListener("wheel", onWheel, { passive: false });
     return () => frame.removeEventListener("wheel", onWheel);
-  }, [layout !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasLayout]);
 
   const onPointerDown = (event: React.PointerEvent) => {
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });

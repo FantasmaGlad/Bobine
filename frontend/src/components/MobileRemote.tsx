@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import Link from "next/link";
 import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -61,9 +61,7 @@ export default function MobileRemote({
   const channelCinema = (channel === "network" ? displayOutputNetwork : displayOutputCable) === "cinema";
   const channelRadio = channel !== "network" && displayOutputCable === "radio";
 
-  useEffect(() => {
-    if (channelCinema || channelRadio) setSheet("none");
-  }, [channelCinema, channelRadio]);
+  if ((channelCinema || channelRadio) && sheet !== "none") setSheet("none");
 
   const isActive = state.current_video !== null || state.state === "playlist_waiting" || state.state === "background";
   const duration = state.current_video?.duration_seconds ?? 0;

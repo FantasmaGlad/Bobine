@@ -83,7 +83,6 @@ const CinemaRow = React.memo(function CinemaRow({
               >
                 <div className="cinema-card-thumb">
                   {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" loading="lazy" />
                   ) : (
                     <div className="cinema-card-thumb-fallback">

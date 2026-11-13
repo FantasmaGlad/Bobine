@@ -11,6 +11,7 @@ import Icon from "@/components/Icon";
 import CinemaRow from "@/components/cinema/CinemaRow";
 import CinemaAllList from "@/components/cinema/CinemaAllList";
 import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
+import { useFeatured, useProgramRows } from "@/components/cinema/useCinemaVideos";
 import AppLogo from "@/components/AppLogo";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
@@ -19,6 +20,7 @@ import { formatMinutes, formatWallClock } from "@/lib/format";
 import GridRadioActive from "@/components/grid/GridRadioActive";
 import GridStandby from "@/components/grid/GridStandby";
 import NowPlayingCard from "@/components/grid/NowPlayingCard";
+import { useNowPlaying } from "@/components/cinema/useNowPlaying";
 import { useRatingPrompt } from "@/components/grid/useRatingPrompt";
 
 export default function GridPage() {
@@ -112,147 +114,16 @@ export default function GridPage() {
     };
   }, []);
 
-  const [nowPlayingTick, setNowPlayingTick] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowPlayingTick(Date.now()), 250);
-    return () => clearInterval(id);
-  }, []);
-  const cinemaReceivedAtRef = React.useRef(0);
-  const [pendingPlaying, setPendingPlaying] = useState<boolean | null>(null);
-  const [optimisticSeek, setOptimisticSeek] = useState<{ position: number; timestamp: number } | null>(null);
-  const optimisticTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const smoothedPositionRef = useRef<number>(0);
-  const lastTickTimeRef = useRef<number>(Date.now());
-
-  useEffect(() => {
-    cinemaReceivedAtRef.current = Date.now();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- réaction à un rapport externe, le rapport redevient la vérité
-    setPendingPlaying(null);
-    setOptimisticSeek((current) => {
-      if (!current) return null;
-      const elapsed = (Date.now() - current.timestamp) / 1000;
-      const expected = current.position + (cinemaState?.playing ? elapsed : 0);
-      if (Math.abs((cinemaState?.position_seconds ?? 0) - expected) < 2.5 || elapsed > 1.2) {
-        return null;
-      }
-      return current;
-    });
-  }, [cinemaState]);
-
-  useEffect(() => {
-    return () => {
-      if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
-    };
-  }, []);
-
-  const nowPlayingRaw =
-    cinemaState && cinemaState.title && nowPlayingTick - cinemaReceivedAtRef.current < 8000 ? cinemaState : null;
-  const isPlayingEffective = pendingPlaying ?? nowPlayingRaw?.playing ?? false;
-
-  const rawPosition = optimisticSeek
-    ? Math.min(
-        nowPlayingRaw?.duration_seconds || Infinity,
-        optimisticSeek.position +
-          (isPlayingEffective ? Math.max(0, (nowPlayingTick - optimisticSeek.timestamp) / 1000) : 0),
-      )
-    : nowPlayingRaw
-    ? Math.min(
-        nowPlayingRaw.duration_seconds || Infinity,
-        nowPlayingRaw.position_seconds +
-          (nowPlayingRaw.playing ? Math.max(0, (nowPlayingTick - cinemaReceivedAtRef.current) / 1000) : 0),
-      )
-    : 0;
-
-  const nowMs = Date.now();
-  const dt = Math.max(0, Math.min(1.0, (nowMs - lastTickTimeRef.current) / 1000));
-  lastTickTimeRef.current = nowMs;
-
-  let computedPosition: number;
-  if (!nowPlayingRaw) {
-    smoothedPositionRef.current = 0;
-    computedPosition = 0;
-  } else if (optimisticSeek) {
-    smoothedPositionRef.current = rawPosition;
-    computedPosition = rawPosition;
-  } else if (!isPlayingEffective) {
-    smoothedPositionRef.current = nowPlayingRaw.position_seconds;
-    computedPosition = nowPlayingRaw.position_seconds;
-  } else {
-    const expected = smoothedPositionRef.current + dt;
-    if (Math.abs(expected - rawPosition) >= 2.5) {
-      smoothedPositionRef.current = rawPosition;
-    } else {
-      smoothedPositionRef.current = Math.max(expected, rawPosition - 0.5);
-    }
-    const duration = nowPlayingRaw.duration_seconds || Infinity;
-    computedPosition = Math.min(duration, smoothedPositionRef.current);
-  }
-
-  const nowPlaying = nowPlayingRaw
-    ? {
-        ...nowPlayingRaw,
-        playing: isPlayingEffective,
-        position_seconds: computedPosition,
-      }
-    : null;
-  const commitSeek = useCallback((value: number) => {
-    setOptimisticSeek({ position: value, timestamp: Date.now() });
-    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
-    optimisticTimerRef.current = setTimeout(() => setOptimisticSeek(null), 2000);
-    sendCommand("cinema_command", { action: "seek", position_seconds: value });
-  }, [sendCommand]);
-
-  const handleNowPlayingPlayPause = useCallback(() => {
-    if (!nowPlaying) return;
-    const next = !nowPlaying.playing;
-    setPendingPlaying(next);
-    sendCommand("cinema_command", { action: next ? "play" : "pause" });
-  }, [nowPlaying, sendCommand]);
-
-  const handleNowPlayingSeekDelta = useCallback((delta: number) => {
-    if (!nowPlaying) return;
-    const currentBase = optimisticSeek ? optimisticSeek.position : nowPlaying.position_seconds;
-    const target = Math.max(0, Math.min(currentBase + delta, nowPlaying.duration_seconds || Infinity));
-    const now = Date.now();
-    setOptimisticSeek({ position: target, timestamp: now });
-    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
-    optimisticTimerRef.current = setTimeout(() => {
-      setOptimisticSeek(null);
-    }, 2000);
-    sendCommand("cinema_command", { action: "seek", position_seconds: target });
-  }, [nowPlaying, optimisticSeek, sendCommand]);
-
-  const handleNowPlayingStop = useCallback(() => {
-    sendCommand("cinema_command", { action: "stop" });
-  }, [sendCommand]);
+  const {
+    nowPlaying, playPause: handleNowPlayingPlayPause, seekDelta: handleNowPlayingSeekDelta, commitSeek, stop: handleNowPlayingStop,
+  } = useNowPlaying(cinemaState, sendCommand, true);
 
   const [ratingCourse, setRatingCourse] = useRatingPrompt(nowPlaying);
 
-  const [scrambleTick, setScrambleTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setScrambleTick((v) => v + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
-  const SCRAMBLE_INTERVAL_MS = 15 * 60 * 1000;
-  const featured = React.useMemo(() => {
-    if (videos.length === 0) return null;
-    const bucket = Math.floor(Date.now() / SCRAMBLE_INTERVAL_MS);
-    const hash = Math.abs((bucket * 2654435761) % videos.length);
-    return videos[hash];
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scrambleTick ne sert qu'à forcer le recalcul périodique
-  }, [videos, scrambleTick]);
+  const featured = useFeatured(videos);
   const featuredThumb = featured ? thumbnailUrl(featured) : null;
 
-  const rows = React.useMemo(() => {
-    const byProgram = new Map<string, CinemaVideo[]>();
-    for (const v of videos) {
-      const key = v.program || t("cinema.otherProgram");
-      if (!byProgram.has(key)) byProgram.set(key, []);
-      byProgram.get(key)!.push(v);
-    }
-    return [...byProgram.entries()].sort((a, b) => b[1].length - a[1].length);
-  }, [videos, t]);
+  const rows = useProgramRows(videos, t("cinema.otherProgram"));
 
   useKioskRemote(() => {
     if (wiredDisplayMode === "headless") {
@@ -312,7 +183,6 @@ export default function GridPage() {
           <section className="cinema-hero">
             {featuredThumb && (
               <div className="cinema-hero-backdrop-wrap">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img className="cinema-hero-backdrop" src={featuredThumb} alt="" />
               </div>
             )}

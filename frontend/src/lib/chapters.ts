@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useVideoList } from "./useVideoList.ts";
 
 export interface Chapter {
   id: number;
@@ -11,30 +11,7 @@ export interface Chapter {
 }
 
 export function useVideoChapters(videoId: number | null | undefined, getApiUrl: (path: string) => string): Chapter[] {
-  const [chapters, setChapters] = useState<Chapter[]>([]);
-
-  useEffect(() => {
-    if (!videoId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- remise à zéro quand le cours disparaît (état dérivé d'une requête externe)
-      setChapters([]);
-      return;
-    }
-    let cancelled = false;
-    fetch(getApiUrl(`/videos/${videoId}/chapters`))
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (!cancelled) setChapters(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (!cancelled) setChapters([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoId]);
-
-  return chapters;
+  return useVideoList<Chapter>(videoId, getApiUrl, "chapters");
 }
 
 export function chapterIndexAt(chapters: Chapter[], position: number): number {

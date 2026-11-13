@@ -167,7 +167,7 @@ export function usePlaybackSocket(
   const [isPrimary, setIsPrimary] = useState(false);
   const [libraryVersion, setLibraryVersion] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
-  const lastMessageAtRef = useRef(Date.now());
+  const lastMessageAtRef = useRef(0);
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
   const bootIdRef = useRef<string | null>(null);
   const lastTickSeqRef = useRef<number | null>(null);
@@ -364,7 +364,7 @@ export function usePlaybackSocket(
       }
       wsRef.current?.close();
     };
-  }, [role, channel]);
+  }, [role, channel, page]);
 
   useEffect(() => {
     let cancelled = false;

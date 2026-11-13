@@ -68,27 +68,29 @@ export default function TelemetryHistoryDrawer({
   const [historyData, setHistoryData] = useState<HistoryResponse | null>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(() => {
     if (!metric) return;
-    try {
-      setLoading(true);
-      const res = await fetch(getApiUrl(`/metrics/hardware/history?metric=${encodeURIComponent(metric)}&period=${apiPeriod}`));
-      if (res.ok) {
-        const data: HistoryResponse = await res.json();
-        setHistoryData(data);
-      }
-    } catch (err) {
-      console.error("Erreur chargement historique télémétrie:", err);
-    } finally {
-      setLoading(false);
-    }
+    fetch(getApiUrl(`/metrics/hardware/history?metric=${encodeURIComponent(metric)}&period=${apiPeriod}`))
+      .then((res) => (res.ok ? (res.json() as Promise<HistoryResponse>) : null))
+      .then((data) => {
+        if (data) setHistoryData(data);
+      })
+      .catch((err) => console.error("Erreur chargement historique télémétrie:", err))
+      .finally(() => setLoading(false));
   }, [metric, apiPeriod]);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchHistory();
+  const [requested, setRequested] = useState<string | null>(null);
+  const request = isOpen ? `${metric}|${apiPeriod}` : null;
+  if (requested !== request) {
+    setRequested(request);
+    if (request) {
+      setLoading(true);
       setHoverIndex(null);
     }
+  }
+
+  useEffect(() => {
+    if (isOpen) fetchHistory();
   }, [isOpen, fetchHistory]);
 
   useEffect(() => {

@@ -294,13 +294,17 @@ export function UploadManagerProvider({ children }: { children: React.ReactNode 
     [runChunkedUpload, runMultipartUpload],
   );
 
+  const fillSlotsRef = useRef<() => void>(() => {});
   const fillSlots = useCallback(() => {
     const activeCount = uploadsRef.current.filter((t) => t.status === "uploading").length;
     const slotsFree = maxConcurrentUploads() - activeCount;
     if (slotsFree <= 0) return;
     const toStart = uploadsRef.current.filter((t) => t.status === "pending").slice(0, slotsFree);
-    toStart.forEach((task) => runUpload(task, fillSlots));
+    toStart.forEach((task) => runUpload(task, () => fillSlotsRef.current()));
   }, [runUpload]);
+  useEffect(() => {
+    fillSlotsRef.current = fillSlots;
+  }, [fillSlots]);
 
   const addUploads = useCallback(
     (specs: PendingUploadSpec[]) => {
