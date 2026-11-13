@@ -31,7 +31,6 @@ function UpNextCard({ upNext, remaining, onPlay, onBack }: { upNext: CinemaVideo
       <span className="cinema-upnext-label">{t("cinema.upNext")}</span>
       <button className="cinema-upnext-thumb" onClick={onPlay} title={t("cinema.playNow")}>
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" />
         ) : (
           <Icon name="movie" size={48} color="var(--text-dim)" />

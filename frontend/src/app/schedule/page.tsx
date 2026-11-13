@@ -46,9 +46,11 @@ export default function SchedulePage() {
   const drag = useScheduleDrag();
   const radio = isRadioLane(channel);
 
-  useEffect(() => {
+  const [wasMobile, setWasMobile] = useState(isMobile);
+  if (wasMobile !== isMobile) {
+    setWasMobile(isMobile);
     if (isMobile) setLibraryOpen(false);
-  }, [isMobile]);
+  }
 
   useEffect(() => {
     if ((nav.view === "week" || nav.view === "day") && scroll.current) scroll.current.scrollTop = Math.max(0, 450 * nav.pxPerMinute - 20);

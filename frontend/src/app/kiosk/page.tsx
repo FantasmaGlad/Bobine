@@ -260,7 +260,6 @@ export default function KioskPage() {
 
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && backgroundIsImage ? "visible" : ""}`}>
         {backgroundIsImage && coachBackgroundId !== null && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img className="kiosk-video" src={getApiUrl(`/backgrounds/${coachBackgroundId}/stream`)} alt="" />
         )}
       </div>

@@ -28,7 +28,6 @@ function ThumbnailRow({ video, studio }: Omit<Props, "onDelete">) {
     <div className="course-studio-thumb-row">
       <div className="course-studio-thumb-preview">
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <Icon name="movie" size={24} style={{ opacity: 0.3 }} />

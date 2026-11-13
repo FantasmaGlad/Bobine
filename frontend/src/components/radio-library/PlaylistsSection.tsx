@@ -25,7 +25,6 @@ function PlaylistCard({ playlist: p, catalog, outputDefaults, onOpen, onShowTrac
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } }}>
       <div className="rl-pcard-cover">
         {p.cover_track_id != null ? (
-          // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
           <img src={catalog.coverUrl(p.cover_track_id)} alt="" loading="lazy" />
         ) : <Icon name="queue_music" size={36} style={{ opacity: 0.3 }} />}
         {p.is_default && <span className="rl-pcard-star" title={t("radioLibrary.setDefault")}><Icon name="star" size={14} filled /></span>}

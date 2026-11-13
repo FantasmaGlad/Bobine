@@ -2,7 +2,7 @@
 import { errorMessage } from "@/lib/apiError";
 
 import PageNav from "@/components/PageNav";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { Language } from "@/lib/i18n";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
@@ -51,16 +51,30 @@ export default function LogsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
 
-  const fetchActivity = () => {
-    setLoading(true);
-    setSelectedIds([]);
+  const loadActivity = useCallback(() => {
     const qs = filter ? `?event_type=${encodeURIComponent(filter)}` : "";
     fetch(getApiUrl(`/logs/activity${qs}`), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
       .then(setEntries)
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
+  }, [filter]);
+
+  const fetchActivity = () => {
+    setLoading(true);
+    setSelectedIds([]);
+    loadActivity();
   };
+
+  const activityRequest = tab === "activity" ? filter : null;
+  const [shownActivity, setShownActivity] = useState<string | null>(null);
+  if (shownActivity !== activityRequest) {
+    setShownActivity(activityRequest);
+    if (activityRequest !== null) {
+      setLoading(true);
+      setSelectedIds([]);
+    }
+  }
 
   const toggleSelected = (id: number) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -108,23 +122,31 @@ export default function LogsPage() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchActivity() met setLoading(true) en premier, motif déjà utilisé ailleurs dans le projet
-    if (tab === "activity") fetchActivity();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, filter]);
+    if (tab === "activity") loadActivity();
+  }, [tab, loadActivity]);
 
-  const fetchTechnical = () => {
-    setTechnicalLoading(true);
+  const loadTechnical = useCallback(() => {
     fetch(getApiUrl("/logs/technical"), { cache: "no-store" })
       .then((res) => (res.ok ? res.text() : ""))
       .then(setTechnicalLog)
       .catch(() => setTechnicalLog(t("logs.technicalLoadError")))
       .finally(() => setTechnicalLoading(false));
+  }, [t]);
+
+  const fetchTechnical = () => {
+    setTechnicalLoading(true);
+    loadTechnical();
   };
 
+  const [technicalTab, setTechnicalTab] = useState(false);
+  if (technicalTab !== (tab === "technical")) {
+    setTechnicalTab(tab === "technical");
+    if (tab === "technical") setTechnicalLoading(true);
+  }
+
   useEffect(() => {
-    if (tab === "technical") fetchTechnical();
-  }, [tab]);
+    if (tab === "technical") loadTechnical();
+  }, [tab, loadTechnical]);
 
   return (
     <div className="library-container">

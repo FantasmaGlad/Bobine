@@ -41,7 +41,6 @@ function Thumb({ video, position, duration, onResume }: Omit<Props, "onBack">) {
     <div className="pause-media-col">
       <div className="pause-thumb-wrap" onClick={onResume} title={t("cinema.play")}>
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt={video!.title} className="pause-thumb-img" />
         ) : (
           <div className="pause-thumb-fallback"><AppLogo size={90} className="pause-logo" /></div>

@@ -50,7 +50,6 @@ function FixedOptions({ forTrack, defaultBackground, selectedId, onSelect }: Omi
         <OptionRow
           active={selectedId === null}
           thumb={defaultThumb
-            // eslint-disable-next-line @next/next/no-img-element
             ? <img src={defaultThumb} alt={defaultBackground.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             : <Icon name="bookmark" size={18} color="var(--accent-text)" />}
           title={<><span>{defaultBackground.title}</span><span style={{ fontSize: "0.72rem", background: "var(--accent-primary)", color: "var(--accent-primary-fg)", padding: "2px 6px", borderRadius: "4px" }}>{t("backgrounds.defaultBadge")}</span></>}
@@ -69,7 +68,6 @@ function BackgroundTile({ background, selected, onClick }: { background: Backgro
     <div className="olc-press" onClick={onClick} style={{ background: selected ? "var(--bg-surface-hover)" : "var(--bg-surface-elevated)", border: `2px solid ${selected ? "var(--accent-text)" : "var(--border-color)"}`, borderRadius: "8px", overflow: "hidden", cursor: "pointer", display: "flex", flexDirection: "column" }}>
       <div style={{ width: "100%", aspectRatio: "16/9", background: "var(--bg-surface-hover)", position: "relative" }}>
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt={background.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>

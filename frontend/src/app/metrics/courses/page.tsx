@@ -61,17 +61,12 @@ export default function MetricsCoursesPage() {
   const [channel, setChannel] = useState<"all" | "cable" | "network">("all");
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      const res = await fetch(getApiUrl(`/metrics/dashboard?period=${period}&channel=${channel}`));
-      if (res.ok) {
-        const data = await res.json();
-        setMetrics(data);
-      }
-    } catch (err) {
-      console.error("Erreur chargement métriques cours:", err);
-    }
-  }, [period, channel]);
+  const fetchDashboard = useCallback(() => fetch(getApiUrl(`/metrics/dashboard?period=${period}&channel=${channel}`))
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data) setMetrics(data);
+    })
+    .catch((err) => console.error("Erreur chargement métriques cours:", err)), [period, channel]);
 
   useEffect(() => {
     fetchDashboard();
@@ -336,7 +331,6 @@ export default function MetricsCoursesPage() {
                         <div className="metrics-course-cell">
                           <div className="metrics-course-thumb">
                             {thumbSrc ? (
-                              // eslint-disable-next-line @next/next/no-img-element
                               <img src={thumbSrc} alt="" className="card-thumbnail" />
                             ) : (
                               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>

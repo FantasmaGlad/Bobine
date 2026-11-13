@@ -1,7 +1,7 @@
 "use client";
 import { errorMessage } from "@/lib/apiError";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { usePlaylistSequencer } from "@/lib/usePlaylistSequencer";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -35,36 +35,22 @@ export default function VideoPlaylistManager() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
 
-  const fetchPlaylists = async () => {
-    try {
-      const res = await fetch(getApiUrl("/playlists"), { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setPlaylists(data);
-      } else {
-        showToast(t("playlists.fetchError"), "error");
-      }
-    } catch {
-      showToast(t("playlists.fetchNetworkError"), "error");
-    }
-  };
+  const fetchPlaylists = useCallback(() => fetch(getApiUrl("/playlists"), { cache: "no-store" })
+    .then(async (res) => {
+      if (res.ok) setPlaylists(await res.json());
+      else showToast(t("playlists.fetchError"), "error");
+    })
+    .catch(() => showToast(t("playlists.fetchNetworkError"), "error")), [showToast, t]);
 
-  const fetchVideos = async () => {
-    try {
-      const res = await fetch(getApiUrl("/videos?sort_by=imported_at&order=desc"), { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setVideos(data);
-      }
-    } catch {
-      showToast(t("playlists.videosNetworkError"), "error");
-    }
-  };
+  const fetchVideos = useCallback(() => fetch(getApiUrl("/videos?sort_by=imported_at&order=desc"), { cache: "no-store" })
+    .then(async (res) => {
+      if (res.ok) setVideos(await res.json());
+    })
+    .catch(() => showToast(t("playlists.videosNetworkError"), "error")), [showToast, t]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     Promise.all([fetchPlaylists(), fetchVideos()]).finally(() => setLoading(false));
-  }, []);
+  }, [fetchPlaylists, fetchVideos]);
 
   const handleLaunch = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();

@@ -30,7 +30,6 @@ const CinemaAllList = React.memo(function CinemaAllList({
           >
             <div className="cinema-all-thumb">
               {thumb ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={thumb} alt="" loading="lazy" />
               ) : (
                 <Icon name="movie" size={22} color="var(--text-dim)" />

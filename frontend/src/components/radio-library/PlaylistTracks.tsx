@@ -20,7 +20,6 @@ function Thumb({ hasCover, id, coverUrl }: { hasCover: boolean; id: number; cove
   return (
     <div className="rl-pl-row-thumb">
       {hasCover ? (
-        // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
         <img src={coverUrl(id)} alt="" />
       ) : <Icon name="music_note" size={18} style={{ opacity: 0.3 }} />}
     </div>

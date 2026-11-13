@@ -68,15 +68,12 @@ export default function CoachModePage() {
   const trackIndex = state.audio_track_index ?? 0;
   const currentTrack = tracks[trackIndex] || null;
 
-  const [localPos, setLocalPos] = useState<number>(0);
+  const [anchoredPos, setLocalPos] = useState<number>(0);
 
   const audioAnchor = state.audio_clock;
   const trackDuration = currentTrack?.duration_seconds;
   useEffect(() => {
-    if (!audioAnchor) {
-      setLocalPos(state.audio_position_seconds || 0);
-      return;
-    }
+    if (!audioAnchor) return;
     const compute = () => {
       const position = anchorPosition(audioAnchor, serverNow());
       setLocalPos(trackDuration ? Math.min(position, trackDuration) : position);
@@ -85,7 +82,8 @@ export default function CoachModePage() {
     if (!audioAnchor.running) return;
     const timer = setInterval(compute, 100);
     return () => clearInterval(timer);
-  }, [audioAnchor, trackDuration, serverNow, state.audio_position_seconds]);
+  }, [audioAnchor, trackDuration, serverNow]);
+  const localPos = audioAnchor ? anchoredPos : state.audio_position_seconds || 0;
 
   const remaining = currentTrack?.duration_seconds
     ? Math.max(0, currentTrack.duration_seconds - localPos)

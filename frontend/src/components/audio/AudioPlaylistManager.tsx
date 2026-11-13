@@ -1,7 +1,7 @@
 "use client";
 import { errorMessage } from "@/lib/apiError";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { usePlaylistSequencer } from "@/lib/usePlaylistSequencer";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -40,54 +40,28 @@ export default function AudioPlaylistManager() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [playlistToDelete, setPlaylistToDelete] = useState<AudioPlaylistSummary | null>(null);
 
-  const fetchPlaylists = async () => {
-    try {
-      const res = await fetch(getApiUrl("/audio-playlists"), { cache: "no-store" });
-      if (res.ok) {
-        setPlaylists(await res.json());
-      } else {
-        showToast(t("audioPlaylists.fetchError"), "error");
-      }
-    } catch {
-      showToast(t("audioPlaylists.fetchNetworkError"), "error");
-    }
-  };
+  const fetchPlaylists = useCallback(() => fetch(getApiUrl("/audio-playlists"), { cache: "no-store" })
+    .then(async (res) => {
+      if (res.ok) setPlaylists(await res.json());
+      else showToast(t("audioPlaylists.fetchError"), "error");
+    })
+    .catch(() => showToast(t("audioPlaylists.fetchNetworkError"), "error")), [showToast, t]);
 
-  const fetchTracks = async () => {
-    try {
-      const res = await fetch(getApiUrl("/audio/tracks"), { cache: "no-store" });
-      if (res.ok) {
-        setTracks(await res.json());
-      }
-    } catch {
-      showToast(t("audioPlaylists.coursesNetworkError"), "error");
-    }
-  };
-
-  const fetchCourses = async () => {
-    try {
-      const res = await fetch(getApiUrl("/audio"), { cache: "no-store" });
-      if (res.ok) {
-        setCourses(await res.json());
-      }
-    } catch {
-    }
-  };
-
-  const fetchBackgrounds = async () => {
-    try {
-      const res = await fetch(getApiUrl("/backgrounds"), { cache: "no-store" });
-      if (res.ok) {
-        setBackgrounds(await res.json());
-      }
-    } catch {
-    }
-  };
+  const fetchTracks = useCallback(() => fetch(getApiUrl("/audio/tracks"), { cache: "no-store" })
+    .then(async (res) => {
+      if (res.ok) setTracks(await res.json());
+    })
+    .catch(() => showToast(t("audioPlaylists.coursesNetworkError"), "error")), [showToast, t]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    Promise.all([fetchPlaylists(), fetchTracks(), fetchCourses(), fetchBackgrounds()]).finally(() => setLoading(false));
-  }, []);
+    const quiet = <T,>(path: string, apply: (data: T) => void) => fetch(getApiUrl(path), { cache: "no-store" })
+      .then(async (res) => {
+        if (res.ok) apply(await res.json());
+      })
+      .catch(() => {});
+    Promise.all([fetchPlaylists(), fetchTracks(), quiet("/audio", setCourses), quiet("/backgrounds", setBackgrounds)])
+      .finally(() => setLoading(false));
+  }, [fetchPlaylists, fetchTracks]);
 
   const handleLaunch = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();

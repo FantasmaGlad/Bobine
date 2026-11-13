@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { ARCHIVE_ACCEPT, VIDEO_ACCEPT, isArchiveName } from "@/lib/mediaFiles";
@@ -34,39 +34,25 @@ export default function BackgroundsPage() {
 
   const [toDelete, setToDelete] = useState<BackgroundItem | null>(null);
 
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch(getApiUrl("/settings"), { cache: "no-store" });
-      if (res.ok) {
-        const data = await res.json();
-        setDefaultCoachBgId(
-          typeof data.default_coach_background_id === "number" ? data.default_coach_background_id : null
-        );
-      }
-    } catch {
-    }
-  };
+  const fetchSettings = useCallback(() => fetch(getApiUrl("/settings"), { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data) setDefaultCoachBgId(typeof data.default_coach_background_id === "number" ? data.default_coach_background_id : null);
+    })
+    .catch(() => {}), []);
 
-  const fetchBackgrounds = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(getApiUrl("/backgrounds"), { cache: "no-store" });
-      if (res.ok) {
-        setBackgrounds(await res.json());
-      } else {
-        showToast(t("backgrounds.fetchError"), "error");
-      }
-    } catch {
-      showToast(t("backgrounds.connectionError"), "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchBackgrounds = useCallback(() => fetch(getApiUrl("/backgrounds"), { cache: "no-store" })
+    .then(async (res) => {
+      if (res.ok) setBackgrounds(await res.json());
+      else showToast(t("backgrounds.fetchError"), "error");
+    })
+    .catch(() => showToast(t("backgrounds.connectionError"), "error"))
+    .finally(() => setLoading(false)), [showToast, t]);
 
   useEffect(() => {
-    fetchBackgrounds();
-    fetchSettings();
-  }, []);
+    void fetchBackgrounds();
+    void fetchSettings();
+  }, [fetchBackgrounds, fetchSettings]);
 
   useEffect(() => {
     const newlyDone = uploads.filter(
@@ -74,8 +60,8 @@ export default function BackgroundsPage() {
     );
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
-    fetchBackgrounds();
-  }, [uploads]);
+    void fetchBackgrounds();
+  }, [uploads, fetchBackgrounds]);
 
   const addFiles = (all: File[]) => {
     const archives = all.filter((f) => isArchiveName(f.name));

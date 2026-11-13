@@ -42,7 +42,6 @@ function OptionBody({ option, query = "" }: { option: SelectOption; query?: stri
   return (
     <>
       {option.thumbnail ? (
-        // eslint-disable-next-line @next/next/no-img-element -- aperçu servi par l'API locale, export statique
         <img
           className={`sheet-option__thumb${option.square ? " is-square" : ""}`}
           src={option.thumbnail}

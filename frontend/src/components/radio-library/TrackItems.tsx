@@ -48,7 +48,6 @@ export function TrackCard({ track, selected, coverUrl, onOpen, onToggle }: Props
       <Check selected={selected} className="rl-card-check" onToggle={onToggle} />
       <div className="thumbnail-wrapper rl-thumb">
         {track.has_cover ? (
-          // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
           <img src={coverUrl(track.id)} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           <Icon name="music_note" size={40} style={{ opacity: 0.25 }} />
@@ -73,7 +72,6 @@ export function TrackRow({ track, selected, coverUrl, onOpen, onToggle }: Props)
       <Check selected={selected} className="rl-list-check" onToggle={onToggle} />
       <span className="rl-list-cover">
         {track.has_cover ? (
-          // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
           <img src={coverUrl(track.id)} alt="" loading="lazy" />
         ) : <Icon name="music_note" size={18} style={{ opacity: 0.3 }} />}
       </span>

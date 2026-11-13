@@ -90,7 +90,7 @@ export default function RoutingGraph({ model, t, disabled, onAssign }: Props) {
     setDrag(null);
     startRef.current = null;
     if (svgRef.current?.hasPointerCapture(event.pointerId)) svgRef.current.releasePointerCapture(event.pointerId);
-    suppressClickUntil.current = performance.now() + 400;
+    suppressClickUntil.current = event.timeStamp + 400;
     if (!current.moved) {
       const source = sourceOf(current.id);
       if (source) onSourceActivate(source);
@@ -150,7 +150,7 @@ export default function RoutingGraph({ model, t, disabled, onAssign }: Props) {
                 transform={`translate(${node.x} ${node.y})`}
                 className={`rt-node rt-node--source${source.playing ? " is-playing" : ""}${source.draggable ? " is-draggable" : ""}${picked === source.id ? " is-picked" : ""}${drag?.id === source.id && drag.moved ? " is-dragging" : ""}`}
                 onPointerDown={(e) => onPointerDown(e, source)}
-                onClick={() => { if (performance.now() >= suppressClickUntil.current) onSourceActivate(source); }}
+                onClick={(event) => { if (event.timeStamp >= suppressClickUntil.current) onSourceActivate(source); }}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSourceActivate(source); } }}
               >
                 <rect className="rt-node-card" width={node.width} height={node.height} rx={14} />

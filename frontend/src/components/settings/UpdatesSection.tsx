@@ -249,7 +249,6 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
                     }}
                     disabled={changingChannel}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={channelLogoUrl(channel)} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
                     {t(`settingsPage.updateChannel${channelI18nSuffix(channel)}`)}
                   </button>

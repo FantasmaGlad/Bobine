@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
@@ -54,7 +54,7 @@ export default function RadioAnnouncementsPage() {
     el.click();
   };
 
-  const fetchAll = () => {
+  const fetchAll = useCallback(() => {
     Promise.all([
       fetch(getApiUrl("/radio/announcements"), { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
       fetch(getApiUrl("/radio/announcement-rules"), { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
@@ -65,12 +65,11 @@ export default function RadioAnnouncementsPage() {
       })
       .catch(() => showToast(t("radioAnnouncements.genericError"), "error"))
       .finally(() => setLoading(false));
-  };
+  }, [showToast, t]);
 
   useEffect(() => {
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chargement initial uniquement
-  }, []);
+  }, [fetchAll]);
 
   useEffect(() => {
     const newlyDone = uploads.filter(
@@ -79,8 +78,7 @@ export default function RadioAnnouncementsPage() {
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
     fetchAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploads]);
+  }, [uploads, fetchAll]);
 
   const handleUpload = async () => {
     const file = fileInputRef.current?.files?.[0];

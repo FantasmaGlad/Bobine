@@ -170,7 +170,6 @@ export default function RadioQueueList({ tracks, baseIndex, getApiUrl, onRemove,
             </button>
             <span className="rq-pos">{i + 1}</span>
             {cover ? (
-              // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API locale, export statique
               <img className="rq-cover" src={cover} alt="" loading="lazy" draggable={false} />
             ) : (
               <span className="rq-cover rq-cover--empty" aria-hidden="true">

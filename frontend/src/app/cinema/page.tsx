@@ -317,16 +317,18 @@ export default function CinemaPage() {
   const duration = selected?.duration_seconds ?? 0;
   const shownPosition = seekDrag ?? position;
 
+  const reportPosition = useCallback((seconds: number) => {
+    if (Date.now() - lastPositionUpdate.current < 1000) return;
+    lastPositionUpdate.current = Date.now();
+    setPosition(seconds);
+  }, []);
+
   const deckProps = (deck: Deck) => ({
     active: activeDeck === deck,
     subtitles,
     onClick: playPause,
     onEnded: handleEnded,
-    onPosition: (seconds: number) => {
-      if (Date.now() - lastPositionUpdate.current < 1000) return;
-      lastPositionUpdate.current = Date.now();
-      setPosition(seconds);
-    },
+    onPosition: reportPosition,
     onPlaying: (playing: boolean) => {
       setIsPlaying(playing);
       reportNow.current?.();

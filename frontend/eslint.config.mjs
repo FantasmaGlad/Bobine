@@ -9,11 +9,13 @@ const eslintConfig = defineConfig([
   compat.configs["flat/recommended"],
   {
     rules: {
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/immutability": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/preserve-manual-memoization": "warn",
+      "@next/next/no-img-element": "off",
+      "react-hooks/set-state-in-effect": "error",
+      "react-hooks/refs": "error",
+      "react-hooks/immutability": "error",
+      "react-hooks/purity": "error",
+      "react-hooks/preserve-manual-memoization": "error",
+      "react-hooks/exhaustive-deps": "error",
     },
   },
   globalIgnores([

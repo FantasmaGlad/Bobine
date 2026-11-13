@@ -31,7 +31,7 @@ export default function CourseRatingWidget({
 
   const duration = autoCloseSeconds > 0 ? autoCloseSeconds : 20;
   const [remainingSeconds, setRemainingSeconds] = useState(duration);
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(0);
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
@@ -40,7 +40,6 @@ export default function CourseRatingWidget({
 
   useEffect(() => {
     if (submitted) return;
-    setRemainingSeconds(duration);
     startTimeRef.current = Date.now();
 
     const timer = setInterval(() => {

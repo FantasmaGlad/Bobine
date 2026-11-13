@@ -22,7 +22,6 @@ function CourseCard({ course, onOpen }: { course: AudioCourseSummary; onOpen: ()
     <div className="video-card program-autre" onClick={onOpen}>
       <div className="thumbnail-wrapper" style={{ background: "var(--bg-surface-elevated)" }}>
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" className="card-thumbnail" />
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>

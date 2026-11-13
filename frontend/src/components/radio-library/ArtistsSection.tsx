@@ -40,7 +40,6 @@ function Albums({ catalog, onFilter }: Props) {
         <button key={`${al.album}-${al.album_artist ?? ""}`} type="button" className="rl-pcard rl-pcard--simple glass-interactive" onClick={() => onFilter({ type: "album", value: al.album })}>
           <div className="rl-pcard-cover">
             {al.cover_track_id != null ? (
-              // eslint-disable-next-line @next/next/no-img-element -- pochette servie par l'API
               <img src={catalog.coverUrl(al.cover_track_id)} alt="" loading="lazy" />
             ) : <Icon name="album" size={36} style={{ opacity: 0.3 }} />}
           </div>

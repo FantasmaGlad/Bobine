@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
+import { useVideoList } from "./useVideoList.ts";
 
 export interface SubtitleTrack {
   id: number;
@@ -17,30 +18,7 @@ export function useVideoSubtitles(
   videoId: number | null | undefined,
   getApiUrl: (path: string) => string,
 ): SubtitleTrack[] {
-  const [tracks, setTracks] = useState<SubtitleTrack[]>([]);
-
-  useEffect(() => {
-    if (!videoId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- remise à zéro quand le cours disparaît (état dérivé d'une requête externe)
-      setTracks([]);
-      return;
-    }
-    let cancelled = false;
-    fetch(getApiUrl(`/videos/${videoId}/subtitles`))
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (!cancelled) setTracks(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (!cancelled) setTracks([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoId]);
-
-  return tracks;
+  return useVideoList<SubtitleTrack>(videoId, getApiUrl, "subtitles");
 }
 
 export function applySubtitleMode(
@@ -63,6 +41,5 @@ export function useApplySubtitleMode(
 ): void {
   useEffect(() => {
     videoRefs.forEach((ref) => applySubtitleMode(ref.current, tracks, activeId));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tracks, activeId]);
+  }, [videoRefs, tracks, activeId]);
 }

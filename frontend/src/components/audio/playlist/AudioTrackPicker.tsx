@@ -109,7 +109,6 @@ export default function AudioTrackPicker({ t, isMobile, tracks, courses, sequenc
                           <div className="picker-course-header" onClick={() => toggleCourseExpanded(course.id)}>
                             <div className="picker-course-thumb">
                               {thumbSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src={thumbSrc} alt="" />
                               ) : (
                                 <Icon name="library_music" size={18} style={{ opacity: 0.3 }} />
