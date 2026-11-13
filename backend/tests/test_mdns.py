@@ -100,3 +100,18 @@ def test_environment_switch_disables_the_responder(monkeypatch):
     assert mdns._should_self_publish() is False
     mdns.start_mdns_responder(1903)
     assert mdns.get_status()["state"] == "disabled"
+
+
+def test_old_zeroconf_without_address_resolver_publishes_the_default_name(monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def old_zeroconf(name, *args, **kwargs):
+        if name == "zeroconf" and "AddressResolverIPv4" in (args[2] if len(args) > 2 and args[2] else ()):
+            raise ImportError("cannot import name 'AddressResolverIPv4' from 'zeroconf'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.undo()
+    monkeypatch.setattr(builtins, "__import__", old_zeroconf)
+    assert mdns._held_by_other(MagicMock(), "bobine", "10.0.0.5") is False
