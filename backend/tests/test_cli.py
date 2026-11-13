@@ -670,3 +670,17 @@ def test_update_check_offline_is_a_failure(monkeypatch, capsys):
     monkeypatch.setenv("BOBINE_PORT", "1903")
     assert cli.main(["update", "check"]) == cli.EXIT_ERROR
     assert "Hors ligne" in capsys.readouterr().out
+
+
+def test_filters_and_fields_of_the_api_are_reachable(recorder):
+    recorder.responses[("GET", "/api/videos")] = []
+    recorder.responses[("GET", "/api/storage/volumes/u-1/browse")] = {"path": "", "total": 0, "entries": []}
+    assert cli.main(["library", "list", "--release", "42"]) == cli.EXIT_OK
+    assert recorder.calls[-1][2]["release"] == "42"
+    assert cli.main(["storage", "browse", "u-1", "--offset", "200", "--show-hidden", "--media-only"]) == cli.EXIT_OK
+    assert recorder.calls[-1][2] == {"path": "", "limit": 200, "offset": 200, "show_hidden": "true", "media_only": "true"}
+    assert cli.main(["audio", "set", "7", "--background-id", "3"]) == cli.EXIT_OK
+    assert recorder.calls[-1] == ("PUT", "/api/audio/7", None, {"background_id": 3})
+    assert cli.main(["radio-library", "set", "9", "--album-artist", "Divers", "--track-number", "2", "--tags", "cardio, force"]) == cli.EXIT_OK
+    assert recorder.calls[-1] == ("PUT", "/api/radio/tracks/9", None, {"album_artist": "Divers", "track_number": 2, "tags": ["cardio", "force"]})
+    assert cli.main(["audio", "set", "7"]) == cli.EXIT_USAGE

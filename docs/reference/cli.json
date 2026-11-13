@@ -96,7 +96,7 @@
       {
        "choices": null,
        "flag": false,
-       "help": "identifiant du cours",
+       "help": "course_id",
        "name": "course_id",
        "positional": true,
        "repeat": false
@@ -124,9 +124,25 @@
        "name": "--release",
        "positional": false,
        "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--background-id",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "bool",
+       "name": "--clear-background",
+       "positional": false,
+       "repeat": false
       }
      ],
-     "help": "modifier titre, programme ou release d'un cours audio",
+     "help": "modifier titre, programme, release ou fond d'un cours audio",
      "name": "set"
     },
     {
@@ -1341,6 +1357,14 @@
        "flag": false,
        "help": "",
        "name": "--program",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--release",
        "positional": false,
        "repeat": false
       },
@@ -2711,7 +2735,7 @@
       {
        "choices": null,
        "flag": false,
-       "help": "identifiant du morceau",
+       "help": "track_id",
        "name": "track_id",
        "positional": true,
        "repeat": false
@@ -2744,7 +2768,7 @@
        "choices": null,
        "flag": false,
        "help": "",
-       "name": "--genre",
+       "name": "--album-artist",
        "positional": false,
        "repeat": false
       },
@@ -2752,12 +2776,44 @@
        "choices": null,
        "flag": false,
        "help": "",
+       "name": "--genre",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
        "name": "--year",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--track-number",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "int",
+       "name": "--disc-number",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "strs",
+       "name": "--tags",
        "positional": false,
        "repeat": false
       }
      ],
-     "help": "modifier les informations d'un morceau",
+     "help": "modifier les informations et les étiquettes d'un morceau",
      "name": "set"
     },
     {
@@ -3924,6 +3980,30 @@
        "flag": false,
        "help": "",
        "name": "--limit",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "--offset",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "montrer les fichiers cachés",
+       "name": "--show-hidden",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "ne montrer que les médias",
+       "name": "--media-only",
        "positional": false,
        "repeat": false
       }
