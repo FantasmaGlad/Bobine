@@ -10,6 +10,8 @@ from app.utils import mdns
 def _reset_mdns_state(monkeypatch):
     saved_status = dict(mdns._status)
     monkeypatch.setattr(mdns, "_held_by_other", lambda zc, host, ip: False)
+    monkeypatch.delenv("BOBINE_MDNS", raising=False)
+    mdns._stop_event.clear()
     yield
     mdns._hostname = mdns.MDNS_HOSTNAME
     mdns._status.clear()
@@ -90,3 +92,11 @@ def test_register_publishes_the_free_hostname(monkeypatch):
     info = zc.register_service.call_args.args[0]
     assert info.server == "bobine-2.local."
     assert mdns.get_status()["host"] == "bobine-2.local"
+
+
+def test_environment_switch_disables_the_responder(monkeypatch):
+    monkeypatch.setenv("BOBINE_MDNS", "0")
+    monkeypatch.setattr(deployment, "get_deployment_profile", lambda: "windows")
+    assert mdns._should_self_publish() is False
+    mdns.start_mdns_responder(1903)
+    assert mdns.get_status()["state"] == "disabled"

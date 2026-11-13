@@ -1,6 +1,7 @@
 """Répondeur mDNS embarqué (bibliothèque `zeroconf`), publiant `bobine.local` sur le réseau local."""
 
 import logging
+import os
 import platform
 import socket
 import threading
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 MDNS_HOSTNAME = "bobine"
 _MAX_HOST_SUFFIX = 9
 _PROBE_TIMEOUT_MS = 1500
+_STOP_JOIN_SECONDS = 5.0
 
 _REANNOUNCE_INTERVAL_SECONDS = 5 * 60
 _RETRY_DELAYS_SECONDS = (2.0, 5.0, 10.0, 30.0, 60.0)
@@ -51,12 +53,18 @@ def _held_by_other(zc: Any, host: str, own_ip: str) -> bool:
             return False
     except Exception:
         return False
-    return any(address != own_ip for address in resolver.parsed_addresses())
+    from app.devices.locality import own_ip_addresses
+
+    addresses = set(resolver.parsed_addresses())
+    return bool(addresses) and not addresses & (own_ip_addresses() | {own_ip})
 
 
 def _free_hostname(zc: Any, own_ip: str) -> str:
     candidates = [MDNS_HOSTNAME] + [f"{MDNS_HOSTNAME}-{n}" for n in range(2, _MAX_HOST_SUFFIX + 1)]
-    return next((host for host in candidates if not _held_by_other(zc, host, own_ip)), candidates[0])
+    for host in candidates:
+        if _stop_event.is_set() or not _held_by_other(zc, host, own_ip):
+            return host
+    return candidates[0]
 
 
 def _avahi_daemon_active() -> bool:
@@ -66,9 +74,15 @@ def _avahi_daemon_active() -> bool:
         return False
 
 
+def _disabled_by_environment() -> bool:
+    return os.environ.get("BOBINE_MDNS", "").strip().lower() in ("0", "off", "false", "no")
+
+
 def _should_self_publish() -> bool:
     from app.utils.deployment import get_deployment_profile
 
+    if _disabled_by_environment():
+        return False
     profile = get_deployment_profile()
     if profile == "linux-headless":
         return False
@@ -97,6 +111,8 @@ def _register_or_update(zc: Any, port: int) -> str:
         return local_ip
 
     host = _hostname if already_registered else _free_hostname(zc, local_ip)
+    if _stop_event.is_set():
+        return local_ip
     info = ServiceInfo(
         "_http._tcp.local.",
         "Bobine._http._tcp.local.",
@@ -157,7 +173,8 @@ def start_mdns_responder(port: int) -> None:
     if not _should_self_publish():
         from app.utils.deployment import get_deployment_profile
 
-        state = "disabled" if get_deployment_profile() == "linux-headless" else "external"
+        headless = _disabled_by_environment() or get_deployment_profile() == "linux-headless"
+        state = "disabled" if headless else "external"
         _set_status(state)
         return
     _stop_event.clear()
@@ -168,6 +185,8 @@ def start_mdns_responder(port: int) -> None:
 def stop_mdns_responder() -> None:
     global _zeroconf, _service_info, _last_announced_ip, _thread, _hostname
     _stop_event.set()
+    if _thread is not None:
+        _thread.join(timeout=_STOP_JOIN_SECONDS)
     with _state_lock:
         zc, info = _zeroconf, _service_info
         _zeroconf, _service_info, _last_announced_ip, _hostname = None, None, None, MDNS_HOSTNAME
