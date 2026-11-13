@@ -135,6 +135,7 @@ def test_local_client_detection():
     assert not locality.is_local_client(None)
 
 
+@pytest.mark.recent_stack
 def test_remote_client_reads_status_without_cookie(driver):
     response = remote("192.168.1.42").get("/api/devices/status")
     assert response.status_code == 200
@@ -233,6 +234,7 @@ def test_null_driver_reports_unsupported(local):
         service.set_driver(None)
 
 
+@pytest.mark.recent_stack
 def test_wifi_password_only_on_local_screen(driver, local, monkeypatch):
     local_client = TestClient(app)
     ok = local_client.post("/api/devices/wifi/connect", json={"ssid": "Nouveau", "password": "secret-wifi"})
@@ -249,6 +251,7 @@ def test_wifi_password_only_on_local_screen(driver, local, monkeypatch):
     assert refused.status_code == 403 and refused.json()["detail"]["code"] == "password_local_only"
 
 
+@pytest.mark.recent_stack
 def test_wifi_change_requires_ack_when_reached_through_wifi_and_confirm_clears(driver, local, monkeypatch):
     monkeypatch.undo()
     client = remote("10.0.0.77")

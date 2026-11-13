@@ -19,7 +19,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from app.api.responses import binary, Message
 from app.api.paging import Window, window
-from app.utils._pydantic_compat import OrmModel
+from app.utils._pydantic_compat import OrmModel, pattern_arg
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -250,8 +250,8 @@ def list_videos(
     search: str | None = None,
     program: str | None = None,
     release: str | None = None,
-    sort_by: str = Query("imported_at", pattern=regex(VIDEO_SORT_FIELDS)),
-    order: str = Query("desc", pattern=regex(SORT_ORDERS)),
+    sort_by: str = Query("imported_at", **pattern_arg(regex(VIDEO_SORT_FIELDS))),
+    order: str = Query("desc", **pattern_arg(regex(SORT_ORDERS))),
     db: Session = Depends(get_db),
     page: Window = Depends(window),
 ):
