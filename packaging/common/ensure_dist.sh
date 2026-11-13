@@ -7,7 +7,7 @@ DIST_DIR="${BOBINE_DIST_DIR:-${REPO_DIR}/backend/dist/Bobine}"
 if [ ! -f "${DIST_DIR}/BobineBackend" ] || [ ! -f "${DIST_DIR}/BobineTray" ]; then
     if [ "${BOBINE_BUILD_DIST:-0}" != "1" ]; then
         echo "Erreur: arbre PyInstaller introuvable dans ${DIST_DIR}." >&2
-        echo "  - fournir BOBINE_DIST_DIR (arbre dist/Bobine, p. ex. extrait de l'artefact CI bobine-dist-linux-<arch>),"  >&2
+        echo "  - fournir BOBINE_DIST_DIR (arbre dist/Bobine deja construit par PyInstaller),"  >&2
         echo "  - ou lancer avec BOBINE_BUILD_DIST=1 pour le construire ici (frontend + PyInstaller)." >&2
         exit 1
     fi

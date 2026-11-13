@@ -127,7 +127,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: android/app/src/main/jniLibs/armeabi-v7a
-          key: ffmpeg-armv7-${{ hashFiles('android/scripts/build_ffmpeg_armv7.sh') }}
+          key: ffmpeg-armv7-${{ hashFiles('android/scripts/build_ffmpeg_armv7.sh', 'android/toolchain.json') }}
       - name: Compiler ffmpeg/ffprobe armeabi-v7a (NDK r28c)
         if: steps.check_secrets.outputs.configured == 'true' && steps.ffmpeg_armv7_cache.outputs.cache-hit != 'true'
         run: android/scripts/build_ffmpeg_armv7.sh
