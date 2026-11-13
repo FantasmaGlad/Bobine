@@ -31,7 +31,20 @@
      "method": "GET",
      "path": "/api/audio",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "List Audio Courses"
     },
     {
@@ -47,7 +60,20 @@
      "method": "GET",
      "path": "/api/audio/tracks",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "Toutes les pistes de tous les cours audio, à plat, avec leur contexte de cours d'origine."
     },
     {
@@ -306,7 +332,20 @@
      "method": "GET",
      "path": "/api/audio-playlists",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "Liste toutes les playlists audio (\"éditions mixées\") avec le nombre de pistes et la durée totale."
     },
     {
@@ -419,7 +458,20 @@
      "method": "GET",
      "path": "/api/backgrounds",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "List Backgrounds"
     },
     {
@@ -1238,7 +1290,20 @@
      "method": "GET",
      "path": "/api/import-jobs",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "File d'attente des imports en direct : uploads web ET dossiers surveillés confondus, triés par ordre de création."
     },
     {
@@ -1330,6 +1395,12 @@
       {
        "choices": null,
        "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
        "required": false,
        "type": "integer"
       }
@@ -1713,7 +1784,20 @@
      "method": "GET",
      "path": "/api/playlists",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "Liste toutes les playlists avec le nombre d'éléments, la durée totale et une miniature de repli (1er élément en ayant une)."
     },
     {
@@ -1834,7 +1918,20 @@
      "method": "GET",
      "path": "/api/radio/announcement-rules",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "List Rules"
     },
     {
@@ -1968,7 +2065,20 @@
      "method": "GET",
      "path": "/api/radio/announcements",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "List Announcements"
     },
     {
@@ -2143,7 +2253,20 @@
      "method": "GET",
      "path": "/api/radio/playlists",
      "path_parameters": [],
-     "query": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
      "summary": "List Playlists"
     },
     {
@@ -2435,6 +2558,18 @@
        "name": "tag",
        "required": false,
        "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
       }
      ],
      "summary": "Liste filtrable des morceaux (vue « Morceaux » + filtres artiste/album/ genre/tag des autres vues)."
@@ -2679,6 +2814,18 @@
        "name": "channel",
        "required": false,
        "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
       }
      ],
      "summary": "Liste des programmations, filtrable par canal de diffusion."
@@ -2800,6 +2947,18 @@
        "name": "channel",
        "required": false,
        "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
       }
      ],
      "summary": "Occurrences résolues (récurrence + overrides) dans [start, end], pour les vues planning calendrier/liste."
@@ -4212,6 +4371,18 @@
        "name": "order",
        "required": false,
        "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
       }
      ],
      "summary": "Récupère la liste des vidéos de la bibliothèque avec filtres et tris."

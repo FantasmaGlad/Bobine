@@ -3,7 +3,7 @@ from __future__ import annotations
 from app.api.contract import ANNOUNCEMENT_RULE_TYPES, ANNOUNCEMENT_TARGETS
 
 from .model import Arg, Call, Spec, UsageError
-from .route import Field, route
+from .route import PAGE, Field, route
 
 _TARGET = "target=" + "|".join(ANNOUNCEMENT_TARGETS)
 _RULE = ("rule_type=" + "|".join(ANNOUNCEMENT_RULE_TYPES), "n_tracks:int", "interval_minutes:int", "times_of_day:strs",
@@ -22,7 +22,7 @@ def _rule_set(client, args) -> Call:
 
 
 SPECS: tuple[Spec, ...] = (
-    route("radio-announcements", "list", "GET", "/api/radio/announcements", "lister les annonces"),
+    route("radio-announcements", "list", "GET", "/api/radio/announcements", "lister les annonces", query=PAGE),
     route("radio-announcements", "add", "POST", "/api/radio/announcements/upload", "importer une annonce",
           files=("file",), body=("description",), pos=("description",)),
     route("radio-announcements", "add-batch", "POST", "/api/radio/announcements/upload-batch", "importer plusieurs annonces",
@@ -33,7 +33,7 @@ SPECS: tuple[Spec, ...] = (
           confirm="Supprimer l'annonce {announcement_id} ?"),
     route("radio-announcements", "play", "POST", "/api/radio/announcements/play-now", "diffuser une annonce maintenant",
           body=("announcement_id:int", _TARGET), pos=("announcement_id",)),
-    route("radio-rules", "list", "GET", "/api/radio/announcement-rules", "lister les règles de rappel"),
+    route("radio-rules", "list", "GET", "/api/radio/announcement-rules", "lister les règles de rappel", query=PAGE),
     route("radio-rules", "add", "POST", "/api/radio/announcement-rules", "créer une règle de rappel", body=_RULE, pos=("rule_type",)),
     Spec("radio-rules", "set", "modifier une règle de rappel (le reste est conservé)", _rule_set,
          ("PUT /api/radio/announcement-rules/{rule_id}",),

@@ -1,8 +1,9 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.api.paging import Window, window
 from app.utils.import_jobs import list_jobs, cancel_job
 
 router = APIRouter(prefix="/api/import-jobs", tags=["import-jobs"])
@@ -37,9 +38,9 @@ class ImportJobResponse(BaseModel):
 
 
 @router.get("", response_model=List[ImportJobResponse])
-def get_import_jobs():
+def get_import_jobs(page: Window = Depends(window)):
     """File d'attente des imports en direct : uploads web ET dossiers surveillés confondus, triés par ordre de création."""
-    return list_jobs()
+    return page.items(list_jobs())
 
 
 @router.delete("/{job_id}")

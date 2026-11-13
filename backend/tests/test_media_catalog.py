@@ -60,3 +60,17 @@ def test_catalog_lists_searches_and_pages():
 def test_unknown_kind_is_invalid():
     answer = TestClient(app).get("/api/media", params={"kind": "cassette"})
     assert answer.status_code == 422 and answer.json()["detail"]["code"] == "invalid"
+
+
+def test_pages_follow_one_another_in_order():
+    video_id, playlist_id = _seed()
+    try:
+        client = TestClient(app)
+        full = client.get("/api/media", params={"limit": 1000}).json()
+        keys = [(e["kind"], e["id"]) for e in full["items"]]
+        assert full["total"] == len(keys) and len(set(keys)) == len(keys)
+        second = client.get("/api/media", params={"limit": 1, "offset": 1}).json()["items"]
+        assert [(e["kind"], e["id"]) for e in second] == keys[1:2]
+        assert client.get("/api/media", params={"q": "introuvable zzz"}).json() == {"items": [], "total": 0, "limit": 100, "offset": 0}
+    finally:
+        _cleanup(video_id, playlist_id)

@@ -151,14 +151,15 @@ def read_logs(
 @router.get("/activity", response_model=List[ActivityLogResponse])
 def list_activity_logs(
     event_type: str | None = None,
-    limit: int = Query(200, le=1000),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """Log d'activité filtrable."""
     query = db.query(ActivityLog).order_by(ActivityLog.id.desc())
     if event_type:
         query = query.filter(ActivityLog.event_type == event_type)
-    return query.limit(limit).all()
+    return query.offset(offset).limit(limit).all()
 
 
 @router.get("/activity/event-types", response_model=List[str])

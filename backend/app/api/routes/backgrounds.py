@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.paging import Window, window
 from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
 from app.utils.importer.background import import_background
@@ -113,8 +114,8 @@ def upload_backgrounds_archive(file: UploadFile | None = File(None), upload_id: 
 
 
 @router.get("", response_model=List[BackgroundResponse])
-def list_backgrounds(db: Session = Depends(get_db)):
-    return db.query(Background).order_by(Background.imported_at.desc()).all()
+def list_backgrounds(db: Session = Depends(get_db), page: Window = Depends(window)):
+    return page.rows(db.query(Background).order_by(Background.imported_at.desc(), Background.id.desc()))
 
 
 @router.get("/{background_id}", response_model=BackgroundResponse)

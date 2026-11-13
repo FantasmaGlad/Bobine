@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from .model import Arg, Call, Spec
 from .render import lines
-from .route import route
+from .route import PAGE, route
 from .fields import provided
 
 
 SPECS: tuple[Spec, ...] = (
-    Spec("radio-library", "list", "lister les morceaux de la bibliothèque radio", lambda c, a: Call("GET", "/api/radio/tracks"),
-         ("GET /api/radio/tracks",), (), lines("{id}  {title}  ({artist})")),
+    route("radio-library", "list", "GET", "/api/radio/tracks", "lister les morceaux de la bibliothèque radio",
+          query=("q", "artist", "album", "genre", "tag") + PAGE, human=lines("{id}  {title}  ({artist})")),
     Spec("radio-library", "set", "modifier les informations d'un morceau",
          lambda c, a: Call("PUT", f"/api/radio/tracks/{a.track_id}", provided(a, ("title", "artist", "album", "genre", "year"))),
          ("PUT /api/radio/tracks/{track_id}",),

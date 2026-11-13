@@ -11,6 +11,7 @@ os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_schedule_database.db"
 
 from fastapi import HTTPException
 
+from app.api.paging import whole  # noqa: E402
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.models import (
@@ -142,7 +143,7 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(recurring["time_of_day"], "18:30")
         self.assertEqual(recurring["target_title"], "Enchainement test")
 
-        self.assertEqual(len(list_schedules(db=self.db)), 2)
+        self.assertEqual(len(list_schedules(db=self.db, page=whole())), 2)
         self.assertEqual(get_schedule(recurring["id"], self.db)["id"], recurring["id"])
 
         updated = await update_schedule(

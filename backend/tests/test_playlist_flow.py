@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_playlist_database.db"
 
+from app.api.paging import whole  # noqa: E402
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.models import Video, Playlist, PlaylistItem, ImportSource
@@ -75,7 +76,7 @@ class TestPlaylistFlow(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(pl["total_duration_seconds"], 4500.0)
 
-        pl_list = list_playlists(self.db)
+        pl_list = list_playlists(self.db, whole())
         self.assertEqual(len(pl_list), 1)
         self.assertEqual(pl_list[0]["item_count"], 2)
         self.assertEqual(pl_list[0]["total_duration_seconds"], 4500.0)

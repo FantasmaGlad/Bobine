@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.paging import Window, window
 from app.api.contract import CHANNELS, DEFAULT_CHANNEL, SCHEDULE_CHANNELS
 from app.database import get_db
 from app.models import (
@@ -190,16 +191,17 @@ def _to_response(db: Session, schedule: Schedule) -> dict:
 
 
 @router.get("", response_model=List[ScheduleResponse])
-def list_schedules(channel: str | None = None, db: Session = Depends(get_db)):
+def list_schedules(channel: str | None = None, db: Session = Depends(get_db), page: Window = Depends(window)):
     """Liste des programmations, filtrable par canal de diffusion."""
     query = db.query(Schedule)
     if _normalize_channel(channel):
         query = query.filter(Schedule.channel == _normalize_channel(channel))
-    return [_to_response(db, s) for s in query.order_by(Schedule.id.desc()).all()]
+    return [_to_response(db, s) for s in page.rows(query.order_by(Schedule.id.desc()))]
 
 
 @router.get("/occurrences", response_model=List[OccurrenceResponse])
-def list_occurrences(start: datetime, end: datetime, channel: str | None = None, db: Session = Depends(get_db)):
+def list_occurrences(start: datetime, end: datetime, channel: str | None = None, db: Session = Depends(get_db),
+                     page: Window = Depends(window)):
     """Occurrences résolues (récurrence + overrides) dans [start, end], pour les vues planning calendrier/liste."""
     start, end = ensure_utc(start), ensure_utc(end)
     if end <= start:
@@ -207,7 +209,7 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
     query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
     if _normalize_channel(channel):
         query = query.filter(Schedule.channel == _normalize_channel(channel))
-    return expand_occurrences(db, query.all(), start, end)
+    return page.items(expand_occurrences(db, query.all(), start, end))
 
 
 @router.get("/next")

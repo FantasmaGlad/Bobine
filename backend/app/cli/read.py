@@ -11,6 +11,7 @@ from app.api.contract import CHANNELS
 
 from .client import Client
 from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output, segment
+from .paging import window
 
 
 def cmd_status(client: Client, out: Output, args: argparse.Namespace) -> int:
@@ -28,7 +29,7 @@ def cmd_status(client: Client, out: Output, args: argparse.Namespace) -> int:
 def cmd_library(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.library_action == "list":
         videos = client.request("GET", "/api/videos", query={
-            "search": args.search, "program": args.program, "sort_by": args.sort_by, "order": args.order,
+            "search": args.search, "program": args.program, "sort_by": args.sort_by, "order": args.order, **window(args),
         })
         lines = []
         for video in videos:
@@ -44,7 +45,7 @@ def cmd_library(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 def cmd_playlists(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.playlists_action == "list":
-        playlists = client.request("GET", "/api/playlists")
+        playlists = client.request("GET", "/api/playlists", query=window(args))
         lines = [f"{p.get('id')}  {p.get('name')} ({p.get('item_count', 0)} élément(s))" for p in playlists]
         out.result(playlists, "\n".join(lines))
         return EXIT_OK
@@ -59,7 +60,7 @@ def cmd_playlists(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 def cmd_schedule(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.schedule_action == "list":
-        schedules = client.request("GET", "/api/schedule", query={"channel": args.channel})
+        schedules = client.request("GET", "/api/schedule", query={"channel": args.channel, **window(args)})
         lines = []
         for schedule in schedules:
             when = schedule.get("time_of_day") or schedule.get("run_at") or "?"
@@ -197,7 +198,7 @@ def cmd_metrics(client: Client, out: Output, args: argparse.Namespace) -> int:
 
 def cmd_imports(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.imports_action == "list":
-        jobs = client.request("GET", "/api/import-jobs")
+        jobs = client.request("GET", "/api/import-jobs", query=window(args))
         lines = [
             f"{job.get('id')}  {job.get('stage')}  {job.get('filename')}  {job.get('progress_percent') or 0} %"
             for job in jobs

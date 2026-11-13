@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .model import Arg, Call, Spec
-from .route import _ints, route
+from .route import PAGE, _ints, route
 
 
 def _set(client, args) -> Call:
@@ -10,7 +10,7 @@ def _set(client, args) -> Call:
     return Call("PUT", f"/api/radio/playlists/{args.playlist_id}", {"name": args.name or current.get("name"), "track_ids": track_ids})
 
 SPECS: tuple[Spec, ...] = (
-    route("radio-playlists", "list", "GET", "/api/radio/playlists", "lister les playlists radio"),
+    route("radio-playlists", "list", "GET", "/api/radio/playlists", "lister les playlists radio", query=PAGE),
     route("radio-playlists", "get", "GET", "/api/radio/playlists/{playlist_id}", "détail d'une playlist radio"),
     route("radio-playlists", "add", "POST", "/api/radio/playlists", "créer une playlist radio",
           body=("name", "track_ids:ints"), pos=("name",)),
