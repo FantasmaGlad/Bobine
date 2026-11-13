@@ -48,3 +48,15 @@ else:
         """Modèle lu depuis un objet SQLAlchemy."""
 
         model_config = ConfigDict(from_attributes=True)
+
+
+if _PYDANTIC_VERSION.startswith("1."):
+
+    class OpenModel(BaseModel):
+        class Config:
+            extra = "allow"
+
+else:
+
+    class OpenModel(BaseModel):
+        model_config = ConfigDict(extra="allow")

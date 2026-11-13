@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.api.responses import UploadState
 from app.utils import staged_uploads as staged
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ def _state(session: staged.Session) -> dict:
     }
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, response_model=UploadState)
 def create_upload(payload: UploadCreate) -> dict:
     return _state(staged.create_session(payload.filename, payload.size, payload.fingerprint))
 
@@ -42,7 +43,7 @@ def get_upload(upload_id: str) -> dict:
     return _state(staged.get_session(upload_id))
 
 
-@router.patch("/{upload_id}")
+@router.patch("/{upload_id}", response_model=UploadState)
 async def append_chunk(upload_id: str, request: Request) -> JSONResponse:
     session = staged.get_session(upload_id)
     try:

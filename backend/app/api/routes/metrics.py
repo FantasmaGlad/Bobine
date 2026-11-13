@@ -1,3 +1,4 @@
+from typing import List
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -6,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.api.responses import CourseRatingEntry, Message, SessionStarted
 from app.api.contract import CHANNELS, DASHBOARD_CHANNELS, DEFAULT_CHANNEL, DASHBOARD_PERIODS, HISTORY_PERIODS, regex
 from app.database import get_db
 from app.models import CourseRating, PlaybackSession, SystemMetricsHistory, Video
@@ -58,7 +60,7 @@ def _resolve_period_start(period: str) -> datetime | None:
     return None
 
 
-@router.post("/ratings", status_code=201)
+@router.post("/ratings", status_code=201, response_model=CourseRatingEntry)
 def create_course_rating(payload: RatingCreate, db: Session = Depends(get_db)):
     """Enregistre l'évaluation 5 étoiles d'un cours vidéo."""
     video = db.query(Video).filter(Video.id == payload.video_id).first()
@@ -92,7 +94,7 @@ def create_course_rating(payload: RatingCreate, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/ratings")
+@router.get("/ratings", response_model=List[CourseRatingEntry])
 def list_course_ratings(
     video_id: int | None = None,
     channel: str | None = None,
@@ -120,7 +122,7 @@ def list_course_ratings(
     ]
 
 
-@router.post("/sessions/start")
+@router.post("/sessions/start", response_model=SessionStarted)
 def start_session(payload: SessionStartRequest, db: Session = Depends(get_db)):
     """Démarre manuellement une session de lecture."""
     session_id = start_playback_session(
@@ -135,7 +137,7 @@ def start_session(payload: SessionStartRequest, db: Session = Depends(get_db)):
     return {"session_id": session_id}
 
 
-@router.post("/sessions/end")
+@router.post("/sessions/end", response_model=Message)
 def end_session(payload: SessionEndRequest, db: Session = Depends(get_db)):
     """Clôture manuellement une session de lecture."""
     close_playback_session(

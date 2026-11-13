@@ -13,6 +13,7 @@ from fastapi import (
 from pydantic import BaseModel
 
 from .core import router
+from app.api.responses import LaptopLid
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,7 @@ def _set_lid_prevent_sleep(prevent: bool) -> bool:
     return False
 
 
-@router.get("/laptop-lid")
+@router.get("/laptop-lid", response_model=LaptopLid)
 def get_laptop_lid():
     """Vérifie si la machine a un capot et renvoie le réglage actuel."""
     has_lid = _has_laptop_lid()
@@ -109,7 +110,7 @@ def get_laptop_lid():
     return {"has_lid": has_lid, "prevent_sleep": prevent}
 
 
-@router.post("/laptop-lid")
+@router.post("/laptop-lid", response_model=LaptopLid)
 def set_laptop_lid(payload: LaptopLidPayload):
     """Active ou désactive la mise en veille à la fermeture du capot."""
     if not _has_laptop_lid():

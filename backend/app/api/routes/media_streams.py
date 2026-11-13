@@ -8,6 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.api.responses import binary
 from app.database import SessionLocal, get_db
 from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Setting, Video
 from app.storage import availability as storage_availability
@@ -51,7 +52,7 @@ async def _range_stream_response(
 
 
 @router.head("/api/videos/{video_id}/stream", include_in_schema=False)
-@router.get("/api/videos/{video_id}/stream")
+@router.get("/api/videos/{video_id}/stream", **binary("video/mp4", "video/webm"))
 async def stream_video(
     video_id: int,
     request: Request,
@@ -105,7 +106,7 @@ _IMAGE_CONTENT_TYPES = {
 
 
 @router.head("/api/backgrounds/{background_id}/stream", include_in_schema=False)
-@router.get("/api/backgrounds/{background_id}/stream")
+@router.get("/api/backgrounds/{background_id}/stream", **binary("video/mp4", "image/jpeg", "image/png", "image/webp"))
 async def stream_background(
     background_id: int,
     request: Request,
@@ -122,7 +123,7 @@ async def stream_background(
 
 
 @router.head("/api/audio/tracks/{track_id}/stream", include_in_schema=False)
-@router.get("/api/audio/tracks/{track_id}/stream")
+@router.get("/api/audio/tracks/{track_id}/stream", **binary("audio/mpeg", "audio/mp4", "audio/ogg"))
 async def stream_audio_track(
     track_id: int,
     request: Request,
@@ -135,7 +136,7 @@ async def stream_audio_track(
 
 
 @router.head("/api/radio/tracks/{track_id}/stream", include_in_schema=False)
-@router.get("/api/radio/tracks/{track_id}/stream")
+@router.get("/api/radio/tracks/{track_id}/stream", **binary("audio/mpeg", "audio/mp4", "audio/ogg"))
 async def stream_radio_track(
     track_id: int,
     request: Request,
@@ -149,7 +150,7 @@ async def stream_radio_track(
 
 
 @router.head("/api/radio/tracks/{track_id}/cover", include_in_schema=False)
-@router.get("/api/radio/tracks/{track_id}/cover")
+@router.get("/api/radio/tracks/{track_id}/cover", **binary("image/jpeg", "image/png", "image/webp"))
 async def stream_radio_cover(
     track_id: int,
     request: Request,
@@ -163,7 +164,7 @@ async def stream_radio_cover(
 
 
 @router.head("/api/radio/announcements/{announcement_id}/stream", include_in_schema=False)
-@router.get("/api/radio/announcements/{announcement_id}/stream")
+@router.get("/api/radio/announcements/{announcement_id}/stream", **binary("audio/mpeg", "audio/mp4", "audio/ogg"))
 async def stream_radio_announcement(
     announcement_id: int,
     request: Request,

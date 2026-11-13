@@ -1,3 +1,4 @@
+from typing import Optional
 import json
 import re
 from datetime import datetime, timedelta, timezone
@@ -7,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.api.responses import Message, NextSchedule
 from app.api.paging import Window, window
 from app.api.contract import CHANNELS, DEFAULT_CHANNEL, SCHEDULE_CHANNELS
 from app.database import get_db
@@ -212,7 +214,7 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
     return page.items(expand_occurrences(db, query.all(), start, end))
 
 
-@router.get("/next")
+@router.get("/next", response_model=Optional[NextSchedule])
 def get_next_schedule(channel: str | None = None, db: Session = Depends(get_db)):
     """Prochaine occurrence active à venir, récurrence et overrides résolus, pour le bloc « prochain cours » de l'écran d'attente."""
     now = datetime.now(timezone.utc)
@@ -282,7 +284,7 @@ async def update_schedule(schedule_id: int, data: ScheduleInput, db: Session = D
     return _to_response(db, schedule)
 
 
-@router.delete("/{schedule_id}")
+@router.delete("/{schedule_id}", response_model=Message)
 async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     if not schedule:
@@ -352,7 +354,7 @@ def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends
     }
 
 
-@router.delete("/{schedule_id}/overrides/{override_id}")
+@router.delete("/{schedule_id}/overrides/{override_id}", response_model=Message)
 def delete_override(schedule_id: int, override_id: int, db: Session = Depends(get_db)):
     override = (
         db.query(ScheduleOverride)

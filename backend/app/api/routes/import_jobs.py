@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.api.responses import CancelledJob
 from app.api.paging import Window, window
 from app.utils.import_jobs import list_jobs, cancel_job
 
@@ -43,7 +44,7 @@ def get_import_jobs(page: Window = Depends(window)):
     return page.items(list_jobs())
 
 
-@router.delete("/{job_id}")
+@router.delete("/{job_id}", response_model=CancelledJob)
 def cancel_import_job(job_id: str):
     """Annule immédiatement une tâche d'importation en cours ou en attente, interrompt FFmpeg le cas échéant et supprime les fichiers temporaires."""
     found = cancel_job(job_id)

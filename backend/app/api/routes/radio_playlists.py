@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, selectinload
 
+from app.api.responses import Message
 from app.api.paging import Window, window
 from app.database import get_db
 from app.models import ScheduleTargetType, RadioPlaylist, RadioPlaylistItem, RadioTrack
@@ -199,7 +200,7 @@ def unset_default(playlist_id: int, db: Session = Depends(get_db)):
     return _detail(playlist)
 
 
-@router.delete("/{playlist_id}")
+@router.delete("/{playlist_id}", response_model=Message)
 def delete_playlist(playlist_id: int, db: Session = Depends(get_db)):
     playlist = _get_or_404(playlist_id, db)
     name = playlist.name
