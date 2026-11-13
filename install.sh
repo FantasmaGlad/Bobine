@@ -10,7 +10,7 @@ else
     REPO_DIR="${PWD}"
 fi
 SELF_SHA="$([[ -f "${SELF_PATH}" ]] && sha256sum "${SELF_PATH}" 2>/dev/null | cut -d' ' -f1 || true)"
-SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.2.0")"
+SCRIPT_VERSION="$(cat "${REPO_DIR}/VERSION" 2>/dev/null || echo "5.2.2")"
 CONFIG_DIR="/etc/bobine"
 
 if [[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then

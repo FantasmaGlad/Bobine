@@ -1,6 +1,6 @@
 #define MyAppName "Bobine"
 #ifndef MyAppVersion
-  #define MyAppVersion "5.2.0"
+  #define MyAppVersion "5.2.2"
 #endif
 #ifndef MyOutputVersion
   #define MyOutputVersion MyAppVersion

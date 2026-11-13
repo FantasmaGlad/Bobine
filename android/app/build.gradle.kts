@@ -10,7 +10,7 @@ val androidKeyPassword: String? = System.getenv("ANDROID_KEY_PASSWORD")
 val hasReleaseSigningConfig = listOf(androidKeystorePath, androidKeystorePassword, androidKeyAlias, androidKeyPassword).all { !it.isNullOrBlank() }
 
 val rootVersionFile = rootProject.projectDir.resolve("../VERSION")
-val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.2.0"
+val fallbackVersionName = if (rootVersionFile.exists()) rootVersionFile.readText().trim() else "5.2.2"
 val androidVersionName: String = System.getenv("ANDROID_VERSION_NAME") ?: fallbackVersionName
 @Suppress("UNCHECKED_CAST")
 val releaseChannelRegistry = groovy.json.JsonSlurper()
