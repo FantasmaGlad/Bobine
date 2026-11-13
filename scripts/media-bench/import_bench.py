@@ -1,30 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end import benchmark: reference path (ffprobe/ffmpeg) against bobine-media.
-
-Each run imports the same staged files through the real importers (radio or audio
-course), in a fresh child Python process with an isolated data directory, a new
-SQLite database and a copy of the corpus. The parent samples the whole process tree
-while the child works. Nothing touches an installed Bobine, a real library or the
-network, and the corpus itself is never modified (importers move files, so every
-run stages its own copy).
-
-Reported per run: wall time, CPU time of the child and of every reaped sub-process
-(ffprobe, ffmpeg, the native component), peak resident memory (largest single
-process and sum over the tree; proportional set size on Linux when readable), peak
-number of processes, bytes written to the data directory, and the imported rows.
-After the runs the rows of both modes are compared field by field, so a faster
-result is never reported without proving that the library it produced is the same.
-
-Scope and honesty: figures are measured on the machine that runs the script and
-say nothing about any other device. `--cache cold` is a best effort
-(`posix_fadvise(DONTNEED)` on the staged files; it cannot drop caches without root
-and is a no-op on Windows/macOS). Cancellation and concurrent playback are not
-exercised here.
-
-    backend/.venv/bin/python scripts/media-bench/generate.py /var/tmp/corpus --scale 540
-    backend/.venv/bin/python scripts/media-bench/import_bench.py /var/tmp/corpus \
-        --binary media/target/release/bobine-media --output /var/tmp/corpus/import-bench.json
-"""
+"""End-to-end import benchmark: reference path (ffprobe/ffmpeg) against bobine-media."""
 import argparse
 import base64
 from collections import Counter

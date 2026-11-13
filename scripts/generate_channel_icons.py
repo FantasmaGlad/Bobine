@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""Génère toutes les icônes dérivées des icônes de canal (Stable, Bêta, Canary).
-
-Source de vérité unique : `Assets/Images/channel-icons/bobine-channel-<canal>.png`
-(512 x 512, RGBA, fond transparent) et `banner-wordmark.png` (texte « obine » de la
-bannière Android TV). Tout le reste est DÉRIVÉ et ne se modifie jamais à la main :
-relancer ce script. Ajouter un canal commence dans `backend/app/release_channel.py`.
-
-    python3 scripts/generate_channel_icons.py            # écrit tous les fichiers
-    python3 scripts/generate_channel_icons.py --check    # échoue si un fichier est périmé
-    python3 scripts/generate_channel_icons.py --list     # liste les fichiers produits
-
-Principe de câblage :
-  - icône de lanceur / d'installeur / d'exécutable : fixée À LA CONSTRUCTION par le
-    canal du build (suffixe de `VERSION` : `-beta`, `-canary`, sinon Stable) ;
-  - icônes affichées dans l'application (barre système, logo, favicon, écran de
-    démarrage) : suivent le canal choisi à l'exécution.
-"""
+"""Génère toutes les icônes dérivées des icônes de canal (Stable, Bêta, Canary)."""
 
 from __future__ import annotations
 

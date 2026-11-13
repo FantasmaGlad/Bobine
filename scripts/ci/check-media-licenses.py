@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Check that every crate shipped inside bobine-media is under a permissive license.
-
-The executable is distributed with the AGPL-3.0-or-later application. Each crate of
-its normal and build dependency graph must offer at least one license from ALLOWED
-(an `A OR B` expression needs one allowed side, `A AND B` needs both). Development
-dependencies are not shipped and are ignored. Cargo.lock pins the exact graph; this
-check runs with --locked so it cannot silently resolve other versions.
-"""
+"""Check that every crate shipped inside bobine-media is under a permissive license."""
 import argparse
 import json
 from pathlib import Path

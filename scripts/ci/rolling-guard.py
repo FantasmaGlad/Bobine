@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Garde de monotonie des canaux glissants : refuse de publier un build plus ancien que celui déjà publié.
-
-Sans elle, la relance d'un ancien run republie un ancien build et écrase le tag mobile, la release et les dépôts.
-
-  rolling-guard.py --tag canary --sha <commit> --event push --attempt 1 [--require-tip origin/main]
-
-Règles, dans l'ordre :
-  1. avec --require-tip (Canary), le commit doit être la tête de la branche : sinon un run plus récent existe ou va exister ;
-  2. le commit ne doit pas être un ancêtre strict de celui que porte déjà le tag mobile, sauf déclenchement manuel neuf
-     (workflow_dispatch, première tentative) : revenir en arrière est alors un choix du mainteneur, signalé par un avertissement.
-Écrit `publish=true|false` et `reason=` dans $GITHUB_OUTPUT ; sort avec 0 dans les deux cas, 2 si l'appel est invalide
-(une référence introuvable est une erreur : jamais de publication à l'aveugle).
-"""
+"""Garde de monotonie des canaux glissants : refuse de publier un build plus ancien que celui déjà publié."""
 import argparse
 import os
 import subprocess

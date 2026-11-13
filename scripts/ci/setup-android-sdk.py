@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare the pinned Android SDK on Linux builders, validating the NDK before use.
-
-sdkmanager installs the small SDK packages. The NDK ZIP is checked against Google's
-repository checksum and size, tested, extracted privately and only then published.
-An incomplete existing NDK is retained under a diagnostic name, never reused.
-"""
+"""Prepare the pinned Android SDK on Linux builders, validating the NDK before use."""
 from __future__ import annotations
 
 import argparse

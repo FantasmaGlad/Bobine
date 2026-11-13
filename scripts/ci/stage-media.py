@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""Build bobine-media for the host (or a target), check it, and stage it in a directory.
-
-This is the single step the packaging jobs call to put the audio component next to
-BobineBackend (Linux .deb, Windows) or inside the macOS bundle (Contents/MacOS). The
-component is optional for the application: a package built without it works, and the
-`media_native` setting then reports it as absent. Android uses
-scripts/ci/build-media-android.sh instead.
-
-`--check PATH` only starts an already installed executable (for example the one a package
-installed) and applies the same `hello` and exit-on-EOF checks.
-
-After copying, the staged executable is started and must answer `hello` with protocol
-version 1 and exit with status 0 when its stdin closes; a cross-compiled executable
-cannot run here, so use --no-smoke for it and run the check on the target.
-"""
+"""Build bobine-media for the host (or a target), check it, and stage it in a directory."""
 import argparse
 import hashlib
 import json

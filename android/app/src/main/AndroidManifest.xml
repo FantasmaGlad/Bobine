@@ -5,44 +5,21 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- aucun type standard (mediaPlayback, location...) ne
-         correspond a "serveur local + affichage externe" - specialUse est
-         le mecanisme prevu par Android 14+ pour ce cas, avec justification
-         explicite (PROPERTY_SPECIAL_USE_FGS_SUBTYPE ci-dessous). -->
+    <!-- specialUse : aucun type standard ne couvre un serveur local avec affichage externe -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- relance du serveur et de l'ecran apres un redemarrage ou une mise a jour (BootReceiver) -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- permission normale (accordee automatiquement a
-         l'installation, pas de prompt runtime) - condition necessaire
-         pour etre eligible a l'exemption Doze/optimisation batterie via
-         ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (MainActivity). -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
-    <!-- permission normale, evite seulement l'ecran "Autoriser
-         les sources inconnues" avant l'installation d'un APK via
-         Intent.ACTION_VIEW (UpdateManager.kt) - la boite de dialogue de
-         confirmation d'installation elle-meme reste toujours affichee. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Onglet Peripheriques : etat du Wi-Fi en lecture seule (permission normale, aucune demande a l'utilisateur).
-         Le nom du reseau (SSID) n'est PAS lu : il exigerait la localisation precise, permission sensible que
-         Bobine ne demande pas. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Bluetooth : permissions « Appareils a proximite » demandees a l'execution, seulement quand
-         l'utilisateur ouvre l'onglet Peripheriques. BLUETOOTH_SCAN est declaree neverForLocation : aucune
-         deduction de position, donc aucune permission de localisation. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
-    <!-- Le Bluetooth est facultatif : boitiers Android TV et tablettes sans Bluetooth restent installables. -->
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
-    <!-- Affichage Presentation sur ecran externe HDMI (mode bureau étendu) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- android:icon / roundIcon : le calque avant de ic_launcher_foreground est celui du canal du
-         build (stable, beta, canary), fourni par src/channel-<canal>/res via bobineChannel dans
-         app/build.gradle.kts ; le fond et la forme adaptative sont communs (res/mipmap-anydpi-v26). -->
     <application
         android:name="com.chaquo.python.android.PyApplication"
         android:allowBackup="false"
@@ -87,11 +64,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- Device Owner sans Lock Task. exported=true
-             + BIND_DEVICE_ADMIN + l'intent-filter DEVICE_ADMIN_ENABLED
-             sont IMPOSES par l'API DevicePolicyManager, pas une decision
-             de securite laxiste ici - BIND_DEVICE_ADMIN restreint deja
-             qui peut interagir avec ce receiver au systeme uniquement. -->
+        <!-- exported et BIND_DEVICE_ADMIN imposes par DevicePolicyManager -->
         <receiver
             android:name=".BobineDeviceAdminReceiver"
             android:exported="true"
@@ -104,9 +77,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- expose uniquement cacheDir/updates/ (cf.
-             res/xml/file_paths.xml) a l'installeur de paquets systeme, le
-             temps de l'installation d'une mise a jour telechargee. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

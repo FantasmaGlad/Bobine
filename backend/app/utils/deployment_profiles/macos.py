@@ -18,10 +18,9 @@ _NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
 _APP_PATH = Path("/Applications/Bobine.app")
 
 _RELAUNCH_SCRIPT = """#!/bin/sh
-# Le backend qui a lancé ce script se termine juste après (os._exit).
 n=0
 while kill -0 "$BOBINE_BACKEND_PID" 2>/dev/null && [ "$n" -lt 40 ]; do sleep 0.5; n=$((n+1)); done
-# Tray d'abord : le superviseur ne relance plus de backend de l'ancienne version.
+# tray d'abord : le superviseur ne relance plus l'ancien backend
 kill -TERM "$BOBINE_TRAY_PID" 2>/dev/null
 pkill -TERM -f "$BOBINE_BACKEND_BIN" 2>/dev/null
 n=0

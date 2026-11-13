@@ -1,21 +1,11 @@
-"""Canal du build et icônes par canal pour les outils de construction.
+"""Canal du build et icônes par canal, lus du registre backend/app/release_channel.py.
 
-Aucune règle n'est écrite ici : le registre des canaux et la règle « canal d'un build d'après
-le suffixe de VERSION » vivent dans backend/app/release_channel.py (source unique), chargé par
-son chemin (il n'importe que la bibliothèque standard). Ce module en est l'adaptateur pour :
-
-  - les `.spec` PyInstaller (windows, macos, linux) :
-        sys.path.insert(0, str(SPEC_DIR.parent / "common")); import channel
-  - les scripts shell de paquetage, via la ligne de commande :
-        python3 packaging/common/channel.py channel-of-version 5.0.6~0.canary.42   ->  canary
-        python3 packaging/common/channel.py build-channel [dépôt]                ->  canal de VERSION
-        python3 packaging/common/channel.py split-version 5.0.6~0.canary.42        ->  « base canal numéro »
-        python3 packaging/common/channel.py is-channel canary                    ->  code 0 si c'est un canal
-        python3 packaging/common/channel.py is-rolling beta                      ->  code 0 si c'est un canal rolling
-
-Le canal du BUILD fixe l'icône de l'exécutable / de l'installeur / du bundle. Il est distinct du
-canal choisi à l'exécution (barre système, logo, favicon), pour lequel les icônes de TOUS les
-canaux sont embarquées (`runtime_icon_datas`).
+  channel.py channel-of-version <version>   canal d'une version
+  channel.py build-channel [dépôt]          canal de VERSION
+  channel.py split-version <version>        base, canal, numéro
+  channel.py package-fields <version>       champs de version des paquets
+  channel.py is-channel <nom>               code 0 si c'est un canal
+  channel.py is-rolling <nom>               code 0 si le canal est glissant
 """
 
 from __future__ import annotations

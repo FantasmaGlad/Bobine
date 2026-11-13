@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """Render the download and installation sections of the rolling release notes (canary, beta).
 
-One source for both channels: the same platforms, architectures and installation methods as the
-README and the Stable release, with the fixed asset names that scripts/ci/verify-release-assets.sh
-requires. The release jobs append the result to the channel introduction, then add the changelog.
-
 Usage: render-rolling-notes.py <canary|beta> [--without-manifests]
 """
 from __future__ import annotations

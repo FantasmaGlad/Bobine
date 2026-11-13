@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""Contrôle l'alignement des segments LOAD des bibliothèques natives Android.
-
-Android 15+ sur des appareils à pages de 16 Kio refuse de charger une
-bibliothèque ou un exécutable dont un segment PT_LOAD est aligné sur 4 Kio, et
-Google Play l'exige pour les applications 64 bits. `zipalign -P 16` ne regarde
-que l'archive : avec `useLegacyPackaging` les .so sont compressés puis extraits à
-l'installation, c'est donc l'ELF lui-même qu'il faut lire.
-
-Lecture directe des en-têtes de programme (aucun outil du NDK requis, utilisable
-dans tous les jobs). Usage :
-    check-elf-alignment.py --apk <fichier.apk> [--enforce-abi ABI ...]
-    check-elf-alignment.py --dir <jniLibs> [--enforce-abi ABI ...]
-Les .so sont rangés par ABI (`lib/<abi>/` dans l'APK, `<abi>/` dans jniLibs) ;
-un défaut sur une ABI imposée (arm64-v8a par défaut) fait échouer, sur les autres
-(armeabi-v7a 32 bits : jamais concernée par les pages de 16 Kio ; x86_64 : émulateur
-de développement) il est seulement signalé.
-"""
+"""Contrôle l'alignement sur 16 Kio des segments LOAD des bibliothèques natives Android."""
 from __future__ import annotations
 
 import argparse
