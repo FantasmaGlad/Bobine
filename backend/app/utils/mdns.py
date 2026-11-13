@@ -45,7 +45,10 @@ def get_status() -> dict[str, Any]:
 
 
 def _held_by_other(zc: Any, host: str, own_ip: str) -> bool:
-    from zeroconf import AddressResolverIPv4
+    try:
+        from zeroconf import AddressResolverIPv4
+    except ImportError:
+        return False
 
     resolver = AddressResolverIPv4(f"{host}.local.")
     try:
