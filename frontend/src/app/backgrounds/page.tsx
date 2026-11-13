@@ -8,198 +8,10 @@ import { useUploadManager, PendingUploadSpec } from "@/lib/UploadManager";
 import Icon from "@/components/Icon";
 import { getApiUrl } from "@/lib/apiUrl";
 import { useToast } from "@/lib/useToast";
-
-interface BackgroundItem {
-  id: number;
-  file_path: string;
-  title: string;
-  duration_seconds: number | null;
-  thumbnail_path: string | null;
-  is_image: boolean;
-}
-
-function BackgroundCard({
-  bg,
-  isDefault,
-  isActiveCable,
-  isActiveNetwork,
-  onClick,
-  onDelete,
-}: {
-  bg: BackgroundItem;
-  isDefault: boolean;
-  isActiveCable: boolean;
-  isActiveNetwork: boolean;
-  onClick: () => void;
-  onDelete: () => void;
-}) {
-  const { t } = useAppSettings();
-  const [hovering, setHovering] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (hovering && !bg.is_image) {
-      video.currentTime = 0;
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-    }
-  }, [hovering, bg.is_image]);
-
-  const thumbSrc = bg.thumbnail_path
-    ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
-    : null;
-
-  return (
-    <div
-      className={`video-card olc-press ${isActiveCable || isActiveNetwork ? "program-rpm" : ""}`}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onClick={onClick}
-      style={{ cursor: "pointer", position: "relative" }}
-    >
-      <div className="thumbnail-wrapper" style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden", borderRadius: "10px" }}>
-        {hovering && !bg.is_image ? (
-          <video
-            ref={videoRef}
-            className="card-thumbnail"
-            src={getApiUrl(`/backgrounds/${bg.id}/stream`)}
-            muted
-            loop
-            playsInline
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : thumbSrc ? (
-          <img
-            src={thumbSrc}
-            alt={bg.title}
-            className="card-thumbnail"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "var(--bg-surface-elevated)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Icon name={bg.is_image ? "image" : "gradient"} size={32} style={{ opacity: 0.3 }} />
-          </div>
-        )}
-
-        <div style={{ position: "absolute", top: 8, left: 8, display: "flex", flexDirection: "column", gap: "6px", zIndex: 3 }}>
-          {isDefault && (
-            <span
-              style={{
-                background: "var(--accent-primary)",
-                color: "var(--accent-primary-fg)",
-                padding: "3px 8px",
-                borderRadius: "6px",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                boxShadow: "0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent)",
-              }}
-            >
-              <Icon name="bookmark" size={13} filled />
-              {t("backgrounds.defaultBadge")}
-            </span>
-          )}
-        </div>
-
-        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end", zIndex: 3 }}>
-          {isActiveCable && (
-            <span
-              style={{
-                background: "var(--accent-success)",
-                color: "var(--ink)",
-                padding: "3px 8px",
-                borderRadius: "6px",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                boxShadow: "0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent)",
-              }}
-            >
-              <Icon name="cable" size={13} />
-              {t("backgrounds.onCable")}
-            </span>
-          )}
-          {isActiveNetwork && (
-            <span
-              style={{
-                background: "var(--accent-primary)",
-                color: "var(--accent-primary-fg)",
-                padding: "3px 8px",
-                borderRadius: "6px",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                boxShadow: "0 2px 8px color-mix(in srgb, var(--ink) 40%, transparent)",
-              }}
-            >
-              <Icon name="wifi" size={13} />
-              {t("backgrounds.onNetwork")}
-            </span>
-          )}
-        </div>
-
-        <span
-          className="card-duration"
-          style={{
-            position: "absolute",
-            bottom: 8,
-            right: 8,
-            background: "color-mix(in srgb, var(--ink) 75%, transparent)",
-            color: "var(--specular)",
-            padding: "2px 6px",
-            borderRadius: "4px",
-            fontSize: "0.72rem",
-            fontWeight: 600,
-          }}
-        >
-          {bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : t("backgrounds.infiniteLoop")}
-        </span>
-      </div>
-
-      <div className="card-content" style={{ padding: "12px 6px 6px" }}>
-        <h4 className="card-title" title={bg.title} style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 6px" }}>
-          {bg.title}
-        </h4>
-        <div className="card-meta-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span className="release-badge" style={{ fontSize: "0.75rem" }}>
-            {bg.is_image ? t("backgrounds.kindImage") : t("backgrounds.kindVideo")}
-          </span>
-          <button
-            type="button"
-            className="btn btn-danger"
-            style={{ height: "30px", padding: "0 8px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            title={t("common.delete")}
-          >
-            <Icon name="delete" size={15} />
-            {t("common.delete")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import BackgroundCard from "@/components/backgrounds/BackgroundCard";
+import BackgroundInspector from "@/components/backgrounds/BackgroundInspector";
+import PendingBackgrounds from "@/components/backgrounds/PendingBackgrounds";
+import type { BackgroundItem } from "@/components/backgrounds/types";
 
 export default function BackgroundsPage() {
   const { t } = useAppSettings();
@@ -451,67 +263,18 @@ export default function BackgroundsPage() {
       )}
 
       {(dragActive || pendingSpecs.length > 0) && (
-      <div
-        className={`upload-zone ${dragActive ? "drag-active" : ""}`}
-        onDragEnter={handleDrag}
-        onDragOver={handleDrag}
-        onDragLeave={handleDrag}
-        onDrop={handleDrop}
-        onClick={() => {
-          if (pendingSpecs.length === 0 && fileInputRef.current) fileInputRef.current.click();
-        }}
-      >
-        {pendingSpecs.length === 0 ? (
-          <>
-            <Icon name="cloud_upload" size={48} className="upload-icon" />
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, margin: "8px 0 4px" }}>
-              {t("backgrounds.dropHint")}
-            </h3>
-            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", margin: 0 }}>
-              {t("backgrounds.formatsHint")}
-            </p>
-          </>
-        ) : (
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "560px", textAlign: "left" }}>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: "12px", color: "var(--accent-text)", borderBottom: "1px solid var(--border-color)", paddingBottom: "8px" }}>
-              {t(pendingSpecs.length > 1 ? "backgrounds.filesSelectedMany" : "backgrounds.filesSelectedOne", { count: pendingSpecs.length })}
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "320px", overflowY: "auto", paddingRight: "4px" }}>
-              {pendingSpecs.map((spec) => (
-                <div key={spec.key} style={{ background: "var(--bg-surface-hover)", borderRadius: "8px", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={spec.file?.name}>
-                      {spec.file?.name} ({((spec.file?.size ?? 0) / (1024 * 1024)).toFixed(1)} Mo)
-                    </span>
-                    <button onClick={() => removePendingSpec(spec.key)} className="olc-press" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, display: "flex" }}>
-                      <Icon name="close" size={16} />
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder={t("backgrounds.nameLabel")}
-                    value={spec.title}
-                    onChange={(e) => updatePendingSpec(spec.key, { title: e.target.value })}
-                    style={{ padding: "6px 10px", fontSize: "0.85rem" }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: "12px", marginTop: "14px" }}>
-              <button type="button" className="btn btn-primary" onClick={submitPendingUploads} style={{ flex: 1, height: "44px" }}>
-                {t("backgrounds.startImport")} ({pendingSpecs.length})
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setPendingSpecs([])} style={{ height: "44px" }}>
-                {t("common.cancel")}
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()} style={{ height: "44px", whiteSpace: "nowrap" }}>
-                + Ajouter
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+        <PendingBackgrounds
+          t={t}
+          dragActive={dragActive}
+          pendingSpecs={pendingSpecs}
+          fileInputRef={fileInputRef}
+          handleDrag={handleDrag}
+          handleDrop={handleDrop}
+          updatePendingSpec={updatePendingSpec}
+          removePendingSpec={removePendingSpec}
+          submitPendingUploads={submitPendingUploads}
+          clearPendingSpecs={() => setPendingSpecs([])}
+        />
       )}
 
       {loading ? (
@@ -540,128 +303,16 @@ export default function BackgroundsPage() {
       )}
 
       {inspectingBg && (
-        <div className="modal-overlay" onClick={() => setInspectingBg(null)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "640px", width: "100%", padding: "24px" }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <Icon name={inspectingBg.is_image ? "image" : "videocam"} size={22} color="var(--accent-text)" />
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0 }}>
-                  {inspectingBg.title}
-                </h3>
-              </div>
-              <button
-                className="coach-icon-btn olc-press"
-                style={{ width: "36px", height: "36px", fontSize: "0.9rem" }}
-                onClick={() => setInspectingBg(null)}
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-
-            <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: "10px", overflow: "hidden", background: "var(--ink)", marginBottom: "16px" }}>
-              {inspectingBg.is_image ? (
-                <img
-                  src={getApiUrl(`/backgrounds/${inspectingBg.id}/stream`)}
-                  alt={inspectingBg.title}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <video
-                  src={getApiUrl(`/backgrounds/${inspectingBg.id}/stream`)}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  controls
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              )}
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-                gap: "10px",
-                padding: "12px",
-                background: "var(--bg-surface-elevated)",
-                borderRadius: "8px",
-                marginBottom: "20px",
-                fontSize: "0.85rem",
-              }}
-            >
-              <div>
-                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("backgrounds.formatLabel")}</span>
-                <strong style={{ color: "var(--text-main)" }}>{inspectingBg.is_image ? t("backgrounds.stillImage") : t("backgrounds.videoLoop")}</strong>
-              </div>
-              <div>
-                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>{t("backgrounds.durationLabel")}</span>
-                <strong style={{ color: "var(--text-main)" }}>
-                  {inspectingBg.duration_seconds ? `${Math.round(inspectingBg.duration_seconds)}s` : t("backgrounds.infiniteLoop")}
-                </strong>
-              </div>
-              <div>
-                <span style={{ color: "var(--text-muted)", display: "block", fontSize: "0.75rem" }}>Mode Coach</span>
-                <strong style={{ color: defaultCoachBgId === inspectingBg.id ? "var(--accent-text)" : "var(--text-muted)" }}>
-                  {defaultCoachBgId === inspectingBg.id ? t("backgrounds.isDefault") : t("backgrounds.isOptional")}
-                </strong>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <button
-                  type="button"
-                  className={`btn ${defaultCoachBgId === inspectingBg.id ? "btn-secondary" : "btn-primary"}`}
-                  style={{ flex: 1, height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-                  onClick={() => handleToggleDefaultCoach(inspectingBg.id)}
-                >
-                  <Icon name={defaultCoachBgId === inspectingBg.id ? "bookmark_remove" : "bookmark_add"} size={18} />
-                  {defaultCoachBgId === inspectingBg.id ? t("backgrounds.unsetDefaultCoach") : t("backgrounds.setAsDefaultCoach")}
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: "200px", height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-                  onClick={() => handleBroadcastCable(inspectingBg)}
-                >
-                  <Icon name="cable" size={18} color="var(--accent-success-text)" />
-                  {t("backgrounds.broadcastCable")}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ flex: 1, minWidth: "200px", height: "44px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
-                  onClick={() => handleBroadcastNetwork(inspectingBg)}
-                >
-                  <Icon name="wifi" size={18} color="var(--accent-text)" />
-                  {t("backgrounds.broadcastNetwork")}
-                </button>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  style={{ height: "38px", display: "inline-flex", alignItems: "center", gap: "6px" }}
-                  onClick={() => {
-                    setToDelete(inspectingBg);
-                  }}
-                >
-                  <Icon name="delete" size={16} />
-                  {t("common.delete")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BackgroundInspector
+          t={t}
+          bg={inspectingBg}
+          isDefault={defaultCoachBgId === inspectingBg.id}
+          onClose={() => setInspectingBg(null)}
+          onToggleDefault={handleToggleDefaultCoach}
+          onBroadcastCable={handleBroadcastCable}
+          onBroadcastNetwork={handleBroadcastNetwork}
+          onDelete={setToDelete}
+        />
       )}
 
       {toDelete && (

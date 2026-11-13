@@ -2,9 +2,11 @@
 import { errorMessage } from "@/lib/apiError";
 import React, { useEffect, useState } from "react";
 import { channelI18nSuffix, channelLogoUrl, isRollingReleaseChannel, RELEASE_CHANNELS, type UpdateChannel } from "@/lib/releaseChannel";
-import { formatBinarySize } from "@/lib/format";
 import Icon from "@/components/Icon";
-import MarkdownView from "@/components/MarkdownView";
+import ChannelConfirmDialog from "./ChannelConfirmDialog";
+import ReleaseBanner from "./ReleaseBanner";
+import StoreUpdatePanel from "./StoreUpdatePanel";
+import TorUpdateSettings from "./TorUpdateSettings";
 import { getApiUrl } from "@/lib/apiUrl";
 import type { ShowToast } from "@/lib/useToast";
 import type { SettingsData, UpdateInfo } from "./types";
@@ -24,7 +26,6 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
   const [storeBusy, setStoreBusy] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [applyingUpdate, setApplyingUpdate] = useState(false);
-  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [changingChannel, setChangingChannel] = useState(false);
 
   const checkForUpdates = async (silent = false) => {
@@ -126,27 +127,6 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
     }
   };
 
-  const [torCheck, setTorCheck] = useState<{ ok: boolean; source?: string; error?: string } | null>(null);
-  const [torChecking, setTorChecking] = useState(false);
-  const handleTorCheck = async () => {
-    if (!data) return;
-    setTorChecking(true);
-    setTorCheck(null);
-    try {
-      const res = await fetch(getApiUrl("/updates/tor-check"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proxy: data.update_tor_proxy }),
-      });
-      const body = await res.json().catch(() => ({}));
-      setTorCheck(res.ok ? body : { ok: false, error: errorMessage(body, t("settingsPage.saveError"))});
-    } catch {
-      setTorCheck({ ok: false, error: t("common.networkError") });
-    } finally {
-      setTorChecking(false);
-    }
-  };
-
   const handleAutoUpdateChange = async (patch: {
     auto_update_enabled?: "true" | "false";
     auto_update_time?: string;
@@ -195,7 +175,6 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
       setChangingChannel(false);
     }
   };
-
 
   return (
     <>
@@ -279,92 +258,13 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
             </div>
             <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
             {data.update_tor_supported && (
-              <>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
-                  <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
-                    {t("settingsPage.updateTorLabel")}
-                  </span>
-                  <label className="ra-switch" title={t("settingsPage.updateTorLabel")}>
-                    <input
-                      type="checkbox"
-                      checked={data.update_tor === "true"}
-                      onChange={(e) => handleAutoUpdateChange({ update_tor: e.target.checked ? "true" : "false" })}
-                    />
-                    <span className="ra-switch-track" />
-                  </label>
-                </div>
-                {data.update_tor === "true" && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                    <label htmlFor="update-tor-proxy" className="form-label" style={{ margin: 0 }}>
-                      {t("settingsPage.updateTorProxyLabel")}
-                    </label>
-                    <input
-                      id="update-tor-proxy"
-                      type="text"
-                      className="form-control"
-                      style={{ maxWidth: "200px" }}
-                      value={data.update_tor_proxy ?? ""}
-                      spellCheck={false}
-                      onChange={(e) => setData({ ...data, update_tor_proxy: e.target.value })}
-                      onBlur={(e) => handleAutoUpdateChange({ update_tor_proxy: e.target.value.trim() })}
-                    />
-                    <button type="button" className="btn btn-secondary btn-sm" disabled={torChecking} onClick={handleTorCheck}>
-                      <Icon name={torChecking ? "sync" : "verified_user"} size={16} className={torChecking ? "olc-spin" : ""} />
-                      {t(torChecking ? "settingsPage.updateTorChecking" : "settingsPage.updateTorCheck")}
-                    </button>
-                    {torCheck && (
-                      <span role="status" style={{ color: torCheck.ok ? "var(--accent-success-text)" : "var(--accent-warning-text)" }}>
-                        {torCheck.ok
-                          ? t(torCheck.source === "on_demand" ? "settingsPage.updateTorOkOnDemand" : "settingsPage.updateTorOk")
-                          : t("settingsPage.updateTorFailed", { error: torCheck.error ?? "" })}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateTorHint")}</p>
-              </>
+              <TorUpdateSettings t={t} data={data} setData={setData} handleAutoUpdateChange={handleAutoUpdateChange} />
             )}
               </>
             )}
   
             {data.store_managed && (
-              <div className="olc-anim-in" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", maxWidth: "620px" }}>
-                <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeManagedHint")}</p>
-                <div className="update-card-banner" style={{ borderLeft: "4px solid var(--accent-text)", boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 }}>
-                    <Icon
-                      name={updateInfo?.store?.state === "available" || updateInfo?.store?.state === "downloaded" ? "system_update" : updateInfo?.store?.state === "failed" ? "error" : "check_circle"}
-                      size={18}
-                    />
-                    <span>
-                      {updateInfo?.store?.state === "none" && t("settingsPage.storeUpToDate")}
-                      {updateInfo?.store?.state === "available" && `${t("settingsPage.storeAvailable")}${updateInfo.store.version_code ? ` (build ${updateInfo.store.version_code})` : ""}`}
-                      {updateInfo?.store?.state === "downloading" && t("settingsPage.storeDownloading")}
-                      {updateInfo?.store?.state === "downloaded" && t("settingsPage.storeDownloaded")}
-                      {updateInfo?.store?.state === "installing" && t("settingsPage.storeInstalling")}
-                      {updateInfo?.store?.state === "failed" && t("settingsPage.storeFailed")}
-                      {(!updateInfo?.store || updateInfo.store.state === "unavailable") && (updateInfo?.store?.message || t("settingsPage.storeUnavailable"))}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    {updateInfo?.store?.state === "available" && (
-                      <button type="button" className="btn btn-primary" disabled={storeBusy} onClick={() => handleStoreAction("start")}>
-                        <Icon name="system_update" size={16} /> {t("settingsPage.storeUpdateButton")}
-                      </button>
-                    )}
-                    {updateInfo?.store?.state === "downloaded" && (
-                      <button type="button" className="btn btn-primary" disabled={storeBusy} onClick={() => handleStoreAction("complete")}>
-                        <Icon name="restart_alt" size={16} /> {t("settingsPage.storeRestartButton")}
-                      </button>
-                    )}
-                    <button type="button" className="btn btn-secondary" disabled={storeBusy} onClick={() => handleStoreAction("open")}>
-                      <Icon name="storefront" size={16} /> {t("settingsPage.storeOpenButton")}
-                    </button>
-                  </div>
-                </div>
-                <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeAutoHint")}</p>
-                <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.storeBetaHint")}</p>
-              </div>
+              <StoreUpdatePanel t={t} updateInfo={updateInfo} storeBusy={storeBusy} handleStoreAction={handleStoreAction} />
             )}
             {!data.store_managed && data.auto_update_supported !== false && (
               <>
@@ -402,163 +302,19 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
             )}
   
             {updateInfo && !updateInfo.store_managed && (
-              <div className="olc-anim-in" style={{ marginTop: "4px" }}>
-                {updateInfo.has_update ? (
-                  <div
-                    className="update-card-banner"
-                    style={{
-                      borderLeft: "4px solid var(--accent-text)",
-                      boxShadow: "var(--shadow-sm)",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span className="update-badge alert">
-                          <Icon name="campaign" size={14} />
-                          {updateInfo.is_downgrade ? t("settingsPage.downgradeAvailable") : t("settingsPage.updateAvailable")}
-                        </span>
-                        <strong style={{ fontSize: "0.95rem" }}>{updateInfo.latest_version}</strong>
-                      </div>
-                      {updateInfo.html_url && (
-                        <a
-                          href={updateInfo.html_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-secondary btn-sm"
-                          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                        >
-                          <Icon name="open_in_new" size={14} /> {t("settingsPage.viewOnGithub")}
-                        </a>
-                      )}
-                    </div>
-  
-                    <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--text-main)" }}>
-                      {updateInfo.is_downgrade
-                        ? t("settingsPage.downgradeDetail")
-                        : updateInfo.release_title || t("settingsPage.updateAvailableDetail")}
-                    </p>
-  
-                    {updateInfo.release_notes && (
-                      <div>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ marginBottom: "8px" }}
-                          onClick={() => setShowReleaseNotes((v) => !v)}
-                        >
-                          <Icon name={showReleaseNotes ? "expand_less" : "expand_more"} size={16} />
-                          {t("settingsPage.releaseNotes")}
-                        </button>
-                        {showReleaseNotes && (
-                          <div className="update-notes-box olc-anim-in">
-                            <MarkdownView content={updateInfo.release_notes} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-  
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px" }}>
-                      {updateInfo.can_auto_apply ? (
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          style={{ height: "42px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "8px" }}
-                          onClick={handleApplyUpdate}
-                          disabled={applyingUpdate}
-                        >
-                          {applyingUpdate ? (
-                            <>
-                              <Icon name="sync" size={16} className="olc-spin" />
-                              {t("settingsPage.applyingUpdate")}
-                            </>
-                          ) : (
-                            <>
-                              <Icon name="download" size={16} />
-                              {updateInfo.is_downgrade ? t("settingsPage.applyDowngrade") : t("settingsPage.applyUpdate")}
-                            </>
-                          )}
-                        </button>
-                      ) : (
-                        <a
-                          href={updateInfo.download_url || updateInfo.html_url || "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-primary"
-                          style={{ height: "42px", padding: "0 20px", display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none" }}
-                        >
-                          <Icon name="download" size={16} />
-                          {updateInfo.asset_name
-                            ? `${t("settingsPage.downloadUpdate")} (${updateInfo.asset_name}${updateInfo.asset_size ? ` - ${formatBinarySize(updateInfo.asset_size)}` : ""})`
-                            : t("settingsPage.downloadUpdate")}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ) : updateInfo.online ? (
-                  <div
-                    className="update-card-banner"
-                    style={{
-                      borderLeft: "4px solid var(--accent-text)",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span className="update-badge success">
-                        <Icon name="check_circle" size={14} />
-                        {t("settingsPage.upToDate")}
-                      </span>
-                      <span style={{ fontSize: "0.9rem", color: "var(--text-main)" }}>
-                        {t("settingsPage.upToDateDetail")}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="update-card-banner"
-                    style={{ borderLeft: "4px solid var(--border-color)" }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-muted)" }}>
-                      <Icon name={updateInfo.error_code === "offline" || !updateInfo.error_code ? "wifi_off" : "info"} size={16} />
-                      <span style={{ fontSize: "0.85rem" }}>
-                        {updateInfo.message || t("settingsPage.updateError")}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ReleaseBanner t={t} updateInfo={updateInfo} applyingUpdate={applyingUpdate} handleApplyUpdate={handleApplyUpdate} />
             )}
           </div>
         </section>
   
         {confirmingChannel && (
-          <div className="modal-overlay">
-            <div className="modal-content">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={channelLogoUrl(confirmingChannel)}
-                alt=""
-                width={72}
-                height={72}
-                style={{ display: "block", margin: "0 auto", borderRadius: "var(--radius-md)" }}
-              />
-              <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-main)", textAlign: "center" }}>
-                {t("settingsPage.updateChannelConfirmTitle", { channel: t(`settingsPage.updateChannel${channelI18nSuffix(confirmingChannel)}`) })}
-              </h3>
-              <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-                {t(`settingsPage.updateChannelConfirmWarning${channelI18nSuffix(confirmingChannel)}`)}
-              </p>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setConfirmingChannel(null)} disabled={changingChannel}>{t("common.cancel")}</button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={changingChannel}
-                  onClick={() => { const channel = confirmingChannel; setConfirmingChannel(null); handleChannelChange(channel); }}
-                >
-                  {t("settingsPage.updateChannelConfirmButton", { channel: t(`settingsPage.updateChannel${channelI18nSuffix(confirmingChannel)}`) })}
-                </button>
-              </div>
-            </div>
-          </div>
+          <ChannelConfirmDialog
+            t={t}
+            confirmingChannel={confirmingChannel}
+            changingChannel={changingChannel}
+            onCancel={() => setConfirmingChannel(null)}
+            onConfirm={() => { const channel = confirmingChannel; setConfirmingChannel(null); handleChannelChange(channel); }}
+          />
         )}
     </>
   );

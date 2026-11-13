@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import AudioPlaylistManager from "@/components/AudioPlaylistManager";
+import AudioPlaylistManager from "@/components/audio/AudioPlaylistManager";
 import BackgroundPicker from "@/components/audio/BackgroundPicker";
 import CourseDrawer from "@/components/audio/CourseDrawer";
 import CourseGrid from "@/components/audio/CourseGrid";
