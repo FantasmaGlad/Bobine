@@ -35,5 +35,5 @@ try {
         Copy-Item $files[0].FullName $Destination
     }
 } finally {
-    Remove-Item -Recurse -Force $workspace
+    Remove-Item -Recurse -Force $workspace -ErrorAction SilentlyContinue
 }
