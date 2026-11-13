@@ -17,13 +17,7 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
-PKG_ARCH="${PKG_ARCH:-$(uname -m)}"
-case "${PKG_ARCH}" in
-    x86_64|aarch64) ;;
-    arm64) PKG_ARCH=aarch64 ;;
-    amd64) PKG_ARCH=x86_64 ;;
-    *) echo "Erreur: architecture non prise en charge : ${PKG_ARCH}" >&2; exit 1 ;;
-esac
+PKG_ARCH="$(bobine_package_arch "${PKG_ARCH:-$(uname -m)}")"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_DIR}/dist-arch}"
 split_bobine_version "${VERSION}"
 PKGREL="1"

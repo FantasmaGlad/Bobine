@@ -114,10 +114,11 @@ def test_icone_d_executable_windows_et_du_bundle_macos_suivent_le_canal_du_build
 
 
 def test_les_paquets_linux_installent_les_icones_via_le_script_commun():
-    for script in ("packaging/linux/build_deb.sh", "packaging/common/stage_root.sh"):
-        text = _read(script)
-        assert "source" in text and "channel.sh" in text, script
-        assert 'install_channel_icons "$(bobine_channel_of_version "${VERSION}")"' in text, script
+    stage = _read("packaging/common/stage_root.sh")
+    assert "source" in stage and "channel.sh" in stage
+    assert 'install_channel_icons "$(bobine_channel_of_version "${VERSION}")"' in stage
+    for script in ("packaging/linux/build_deb.sh", "packaging/rpm/build_rpm.sh", "packaging/arch/build_arch.sh"):
+        assert "stage_root.sh" in _read(script), script
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash absent")
