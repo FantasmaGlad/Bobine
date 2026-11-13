@@ -1094,9 +1094,7 @@ step_config() {
     run chown -R "${TARGET_USER}:${TARGET_USER}" "${REPO_DIR}/data"
 
     write_file "${CONFIG_FILE}" <<EOF
-# Configuration de production Bobine — générée par install.sh le $(date -Idate).
-# Modifiable à la main ; relance 'sudo systemctl restart bobine-backend'
-# après toute modification pour l'appliquer.
+# Généré par install.sh ; après modification : sudo systemctl restart bobine-backend
 
 [database]
 database_url = "sqlite:///${REPO_DIR}/data/database.db"
@@ -1109,8 +1107,6 @@ backgrounds_dir = "${REPO_DIR}/data/backgrounds"
 backgrounds_watch_dir = "${REPO_DIR}/data/backgrounds_watched"
 audio_dir = "${REPO_DIR}/data/audio"
 audio_watch_dir = "${REPO_DIR}/data/audio_watched"
-# Module Radio : sous-système musical
-# indépendant, dossiers séparés des cours audio coach.
 radio_dir = "${REPO_DIR}/data/radio"
 radio_covers_dir = "${REPO_DIR}/data/radio_covers"
 radio_announcements_dir = "${REPO_DIR}/data/radio_announcements"
@@ -1186,17 +1182,12 @@ Type=simple
 User=${TARGET_USER}
 Group=${TARGET_USER}
 WorkingDirectory=${BACKEND_DIR}
-# Même point d'entrée que les applications de bureau (résolution du port partagée). Le port est
-# déterministe sur l'appliance : BOBINE_PORT_STRICT=1 interdit le repli sur un autre port (la
-# redirection 80 -> ${SERVICE_PORT} et le pare-feu supposent ce port) ; si ${SERVICE_PORT} est occupé, le
-# démarrage échoue avec un message clair dans le journal (journalctl -u bobine-backend).
+# BOBINE_PORT_STRICT=1 : pas de repli de port, la redirection 80 et le pare-feu visent ${SERVICE_PORT}
 Environment=BOBINE_PORT=${SERVICE_PORT}
 Environment=BOBINE_PORT_STRICT=1
 ExecStart=${VENV_DIR}/bin/python ${BACKEND_DIR}/run_backend.py
 Restart=always
 RestartSec=2
-# Reprise après coupure électrique : démarrage automatique au boot via
-# [Install] ci-dessous + Restart=always pour toute panne en cours de vie.
 
 [Install]
 WantedBy=multi-user.target
@@ -1221,39 +1212,24 @@ step_kiosk() {
 
         write_file "${CONFIG_DIR}/kiosk-xinitrc" <<EOF
 #!/bin/sh
-# Généré par install.sh — lancé par Xorg au démarrage de la session kiosk.
+# Généré par install.sh
 CHROMIUM_BIN="${CHROMIUM_BIN}"
 KIOSK_URL="${KIOSK_URL}"
 EOF
         append_file "${CONFIG_DIR}/kiosk-xinitrc" <<'EOF'
 
-# Pas de mise en veille ni d'écran noir sur l'écran cinéma.
 xset s off
 xset -dpms
 xset s noblank
 
-# Masque le curseur de souris (pas d'interaction locale attendue).
 if command -v unclutter >/dev/null 2>&1; then
     unclutter -idle 0.1 -root &
 fi
 
-# --- Configuration de l'affichage (correctif "écran réduit au lancement") ---
-# Deux causes observées sur le Wyse : (1) une sortie fantôme configurée par
-# Xorg à côté de la vraie (bureau étendu 3840x1080 dont l'écran ne montre
-# qu'une moitié), (2) aucun window manager ne tourne dans cette session, donc
-# la demande de plein écran de Chromium (--kiosk) n'est honorée par personne
-# et la fenêtre reste à sa taille par défaut. On force donc ici LA sortie
-# réellement connectée à son mode préféré en 0x0, on éteint toutes les
-# autres, puis on passe à Chromium une géométrie explicite.
-# L'EDID d'un projecteur peut mettre quelques secondes à être lisible au
-# démarrage à froid : on réessaie avant de se rabattre sur l'état courant.
+# sans gestionnaire de fenêtres, --kiosk n'est pas honoré : sortie connectée forcée en 0x0, géométrie explicite
 OUTPUT=""
 for _ in $(seq 1 15); do
-    # Sortie retenue : une sortie EXTERNE (HDMI/DP...) de préférence à une
-    # dalle interne (eDP/LVDS/DSI) quand les deux sont connectées (mini-PC
-    # portable branché sur un projecteur), sinon la première connectée. Une
-    # reconfiguration à chaud est déclenchée par bobine-display-hotplug
-    # (règle udev DRM) qui redémarre cette session.
+    # sortie externe préférée à la dalle interne
     OUTPUT=$(xrandr --query | awk '/ connected/{ if ($1 !~ /^(eDP|LVDS|DSI)/) { print $1; found=1; exit } if (!first) first=$1 } END { if (!found && first) print first }')
     [ -n "${OUTPUT}" ] && break
     sleep 1
@@ -1265,7 +1241,6 @@ if [ -n "${OUTPUT}" ]; then
     done
 fi
 
-# Géométrie réelle de l'écran après configuration (repli 1920x1080 si illisible).
 SCREEN_SIZE=$(xrandr --query | awk -F'[ ,]+' '/current/{print $8"x"$10; exit}')
 case "${SCREEN_SIZE}" in
     [0-9]*x[0-9]*) ;;
@@ -1274,65 +1249,24 @@ esac
 SCREEN_W=${SCREEN_SIZE%x*}
 SCREEN_H=${SCREEN_SIZE#*x}
 
-# Attend que le backend réponde avant de lancer Chromium : sinon la page
-# d'erreur "connexion refusée" reste affichée jusqu'à intervention manuelle.
+# attendre le backend : sinon la page d'erreur de Chromium reste affichée
 for _ in $(seq 1 60); do
     curl -fsS -o /dev/null "${KIOSK_URL%/kiosk}/api/health" && break
     sleep 1
 done
 
-# Sécurité audio : WirePlumber/ACP
-# réinitialise certains registres bruts du codec (dont 'Auto-Mute Mode') à
-# leur valeur par défaut ('Disabled') à chaque activation de profil, ce qui
-# annule silencieusement 'alsactl store' au boot suivant — reconstaté ici
-# après plusieurs redémarrages. On le réapplique donc à chaque lancement du
-# kiosk (après l'attente ci-dessus, WirePlumber a largement eu le temps de
-# démarrer) plutôt que de compter sur la persistance ALSA seule.
-# Démute explicite : bobine-audio-guard.service coupe
-# Master/Speaker par défaut hors session kiosk, c'est ici qu'on les rouvre
-# une fois prêt.
-#
-# Dynamique et non figée sur "carte 0" : la sortie câblée peut être une carte
-# différente selon le boîtier (Wyse, mini-PC...), et un même codec expose
-# souvent plusieurs sorties analogiques simultanées (Speaker = interne/arrière,
-# Headphone/Headphone+LO = prise avant, Front/Surround = autres canaux) qui
-# partagent le même flux PCM plutôt que de s'exclure — sauf que le registre
-# 'Auto-Mute Mode' du codec, LUI, coupe automatiquement les autres sorties dès
-# qu'un jack est détecté branché (cause du bug "une seule prise fonctionne").
-# On le désactive donc explicitement, puis on démute/monte à 100% CHAQUE
-# contrôle de lecture découvert sur CHAQUE carte, plutôt qu'une liste figée de
-# noms — pour que toutes les prises câblées restent actives en même temps,
-# quel que soit le matériel.
+# WirePlumber remet Auto-Mute Mode à chaque activation de profil : réappliqué à chaque lancement, sur chaque carte
 for BOBINE_CARD in $(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 2>/dev/null | sed 's/[[:space:]]*$//'); do
     amixer -c "${BOBINE_CARD}" sset 'Auto-Mute Mode' 'Disabled' >/dev/null 2>&1 || true
-    # Volume explicite plutôt qu'un simple "unmute" (le cycle mute/unmute
-    # pouvait laisser le volume matériel à 0% tout en étant démuté — son coupé
-    # de façon non-évidente). 100% (0dB, niveau ligne de référence) sur TOUS
-    # les chemins de sortie : le Wyse alimente une table de mixage, c'est ELLE
-    # qui atténue — un niveau source réduit obligeait à pousser le gain de la
-    # table au maximum, ce qui est pire (bruit de fond amplifié, aucune
-    # marge). Le réglage de volume "utilisateur" reste disponible via les
-    # boutons de l'interface (volume logiciel appliqué au flux par le kiosk),
-    # indépendant de ces niveaux matériels de référence.
+    # volume matériel à 100 % : niveau ligne vers la table de mixage
     amixer -c "${BOBINE_CARD}" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | sort -u | while IFS= read -r BOBINE_CTRL; do
         case "${BOBINE_CTRL}" in
-            # IEC958*/Beep/Loopback ajoutés : un contrôle numérique S/PDIF ou de rebouclage
-            # démuté à 100% par erreur peut activer une sortie parasite sur
-            # certains codecs, jamais souhaitée sur ce déploiement.
+            # IEC958, Beep et Loopback exclus : sortie parasite sur certains codecs
             *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode"|IEC958*|Beep|Loopback) continue ;;
         esac
         amixer -c "${BOBINE_CARD}" sset "${BOBINE_CTRL}" 100% unmute >/dev/null 2>&1 || true
     done
-    # Chemin micro fermé : la prise avant est une prise combo casque/micro (TRRS) — le
-    # codec y détectait un "Headset Mic" fantôme et polarisait le contact
-    # micro avec Capture ET Headset Mic Boost à fond (+60dB cumulés). Un câble
-    # stéréo TRS classique branché là court-circuite ce contact polarisé vers
-    # la masse audio -> bruit électrique continu injecté dans l'ampli. Aucun
-    # micro n'est utilisé sur ce déploiement : gains à zéro, capture coupée,
-    # et source d'entrée déplacée sur le micro ARRIÈRE (rien d'y branché) pour
-    # éloigner la polarisation du jack avant utilisé en sortie. Contrôles
-    # optionnels selon le codec (mini-PC sans prise micro dédiée) : chacun est
-    # tenté isolément, sans erreur si absent.
+    # prise combo TRRS : polarisation micro coupée, sinon bruit injecté par un câble TRS
     amixer -c "${BOBINE_CARD}" sset 'Capture' 0% nocap >/dev/null 2>&1 || true
     amixer -c "${BOBINE_CARD}" sset 'Capture',1 0% nocap >/dev/null 2>&1 || true
     amixer -c "${BOBINE_CARD}" sset 'Headset Mic Boost' 0 >/dev/null 2>&1 || true
@@ -1340,24 +1274,14 @@ for BOBINE_CARD in $(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 
     amixer -c "${BOBINE_CARD}" cset name='Input Source' 'Rear Mic' >/dev/null 2>&1 || true
     amixer -c "${BOBINE_CARD}" cset name='Input Source',index=1 'Rear Mic' >/dev/null 2>&1 || true
 done
-# Volume logiciel PipeWire aussi à 100% sur TOUS les sinks (pas seulement le
-# sink par défaut) : c'est le canal que pilotent les boutons de volume de
-# l'interface — un plafond logiciel bas ici aurait le même défaut que le
-# plafond matériel corrigé ci-dessus, et un boîtier avec plusieurs cartes son
-# expose potentiellement plusieurs sinks WirePlumber.
 pactl list short sinks 2>/dev/null | cut -f1 | while IFS= read -r BOBINE_SINK; do
     pactl set-sink-volume "${BOBINE_SINK}" 100% >/dev/null 2>&1 || true
 done
 
-# Profil Chromium dédié et jetable, purgé à chaque lancement du kiosk :
-# supprime toutes les données temporaires de chargement (cache d'une ancienne
-# version du frontend après mise à jour, état de session "crashed", service
-# workers). Tout est resservi par le backend local, la purge est sans coût.
+# profil Chromium jetable : pas de cache d'une ancienne version du frontend
 KIOSK_PROFILE="/var/tmp/bobine-kiosk-profile"
 rm -rf "${KIOSK_PROFILE}"
 
-# Flags VAAPI validés à l'installation — à re-vérifier après install via
-# chrome://gpu et 'intel_gpu_top' (cf. rappel affiché en fin de script).
 exec ${CHROMIUM_BIN} \
     --kiosk "${KIOSK_URL}" \
     --user-data-dir="${KIOSK_PROFILE}" \
@@ -1410,8 +1334,7 @@ UtmpIdentifier=tty1
 UtmpMode=user
 Restart=always
 RestartSec=2
-# Memorise la topologie des ecrans au demarrage de la session (prefixe + = en
-# root) : bobine-display-hotplug ne redemarre le kiosque que si elle CHANGE.
+# topologie mémorisée : bobine-display-hotplug ne redémarre le kiosque que si elle change
 ExecStartPre=+${REPO_DIR}/scripts/bobine-display-hotplug.sh --record
 ExecStart=/usr/bin/xinit ${CONFIG_DIR}/kiosk-xinitrc -- :0 vt1 -nolisten tcp
 
@@ -1425,7 +1348,6 @@ EOF
 [Unit]
 Description=Bobine - Reconfiguration du kiosque au branchement d'un ecran
 After=bobine-kiosk.service
-# Les evenements HPD arrivent en rafale : le script s'anti-rebondit lui-meme.
 StartLimitIntervalSec=0
 
 [Service]
@@ -1433,7 +1355,6 @@ Type=oneshot
 ExecStart=${REPO_DIR}/scripts/bobine-display-hotplug.sh
 EOF
         write_file /etc/udev/rules.d/90-bobine-display.rules <<'EOF'
-# Bobine : evenement de branchement/debranchement d'un ecran (HPD DRM).
 ACTION=="change", SUBSYSTEM=="drm", ENV{HOTPLUG}=="1", TAG+="systemd", ENV{SYSTEMD_WANTS}+="bobine-display-hotplug.service"
 EOF
         ok "hotplug des écrans (udev DRM + bobine-display-hotplug) écrit"
@@ -1488,16 +1409,12 @@ EOF
         write_file /usr/local/bin/bobine-audio-mute.sh <<'EOF'
 #!/bin/sh
 CARDS=$(awk -F'[][]' '/^ *[0-9]+ \[/{print $2}' /proc/asound/cards 2>/dev/null | sed 's/[[:space:]]*$//')
-# Carte pas encore énumérée par le noyau au tout début du boot (cf.
-# Restart=on-failure du service appelant) : on échoue explicitement pour
-# déclencher une nouvelle tentative plutôt que de "réussir" sans rien couper.
+# carte pas encore énumérée au boot : échec explicite pour que systemd réessaie
 [ -z "${CARDS}" ] && exit 1
 for CARD in ${CARDS}; do
     amixer -c "${CARD}" scontrols 2>/dev/null | sed -n "s/^Simple mixer control '\([^']*\)'.*/\1/p" | sort -u | while IFS= read -r CTRL; do
         case "${CTRL}" in
-            # IEC958*/Beep/Loopback ajoutés : un contrôle numérique S/PDIF ou de rebouclage
-            # démuté à 100% par erreur peut activer une sortie parasite sur
-            # certains codecs, jamais souhaitée sur ce déploiement.
+            # IEC958, Beep et Loopback exclus : sortie parasite sur certains codecs
             *[Mm]ic*|*Boost|Capture|"Input Source"|"Auto-Mute Mode"|IEC958*|Beep|Loopback) continue ;;
         esac
         amixer -c "${CARD}" -q sset "${CTRL}" mute 2>/dev/null || true
@@ -1515,13 +1432,6 @@ StartLimitBurst=20
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# La carte ALSA (module noyau snd_hda_intel, énumération PCI) n'est pas
-# forcément prête au moment où ce service démarre malgré WantedBy=multi-user
-# — constaté : "amixer: Invalid card number '0'" au premier boot après
-# installation. Pas de dépendance systemd fiable à 100% sur la disponibilité
-# d'une carte son précise (systemd-udev-settle est déconseillé/plus lent) :
-# on retente donc simplement toutes les secondes plutôt que de dépendre d'un
-# ordonnancement exact, la carte apparaît toujours en quelques secondes.
 Restart=on-failure
 RestartSec=1
 ExecStart=/usr/local/bin/bobine-audio-mute.sh
@@ -1545,11 +1455,7 @@ step_sudoers() {
     fi
     SUDOERS_UNITS="${SUDOERS_UNITS}, /usr/local/sbin/bobine-uninstall"
     write_file /etc/sudoers.d/bobine <<EOF
-# Autorise UNIQUEMENT ces commandes précises, sans mot de passe :
-#   - le redémarrage des unités (bouton de réinitialisation des paramètres) ;
-#   - l'enveloppe de désinstallation /usr/local/sbin/bobine-uninstall
-#     (bouton « Désinstaller », remise à zéro complète).
-# Ne JAMAIS élargir à d'autres commandes ni remplacer par NOPASSWD: ALL.
+# seules ces commandes sont autorisées sans mot de passe ; ne jamais élargir
 ${TARGET_USER} ALL=(root) NOPASSWD: ${SUDOERS_UNITS}
 EOF
     if ! $DRY_RUN; then
@@ -1617,8 +1523,7 @@ EOF
 
     log "Redirection du port 80 vers ${SERVICE_PORT} (nftables)"
     write_file "${CONFIG_DIR}/redirect.nft" <<EOF
-# Généré par install.sh — accès sans numéro de port (http://bobine.local).
-# Le triplet create/delete/create rend le rechargement idempotent.
+# create, delete, create : rechargement idempotent
 table ip olmc_redirect
 delete table ip olmc_redirect
 table ip olmc_redirect {
@@ -1673,8 +1578,6 @@ EOF
 Description=Bobine - Declenche le chien de garde sante periodiquement
 
 [Timer]
-# Laisse le systeme finir de booter avant la premiere passe (evite de lutter
-# contre le demarrage normal des services), puis une passe toutes les 30 s.
 OnBootSec=90s
 OnUnitActiveSec=30s
 AccuracySec=5s

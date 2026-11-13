@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""Sonde de santé des dépôts de paquets publiés (packages.bobine.fit) : lecture seule, aucun secret.
-
-  probe-package-repositories.py [--base-url URL] [--min-days 7] [--release canary=assets.json ...]
-
-Pour chaque suite APT (stable, beta, canary) :
-  - la clé publique servie porte l'empreinte attendue et InRelease est signé par elle ;
-  - Valid-Until est éloigné d'au moins --min-days jours (absent : avertissement, apt ne l'expire alors jamais) ;
-  - chaque paquet des index Packages répond à un HEAD ;
-  - pour un canal glissant dont --release donne le JSON des assets GitHub (`gh api repos/<dépôt>/releases/tags/<canal>`),
-    le SHA-256 du .deb du dépôt est celui de l'asset de la release (le dépôt suit la release).
-Sort avec 1 au premier écart : l'échec du workflow planifié prévient le mainteneur par courriel GitHub.
-"""
+"""Sonde de santé des dépôts de paquets publiés (packages.bobine.fit) : lecture seule, aucun secret."""
 import argparse
 import email.utils
 import json

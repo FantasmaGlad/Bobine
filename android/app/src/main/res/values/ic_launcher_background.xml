@@ -1,5 +1,3 @@
 <resources>
-    <!-- Fond neutre commun aux autres plateformes, plutot qu'une couleur
-         inventee ici. -->
     <color name="ic_launcher_background">#F8F9FA</color>
 </resources>

@@ -3,10 +3,6 @@
 
   apt-validity.py apply <conf/distributions>       impose la durée de chaque suite
   apt-validity.py check <dossier debian> [jours]   vérifie signature et marge de Valid-Until (14 jours par défaut)
-
-La Stable et la Beta durent un an : la Beta n'est publiée qu'à la main et un fichier Release expiré fait échouer
-`apt update` (« Release file is expired »). La Canary dure 30 jours, car chaque push sur main la republie. Le
-workflow planifié de rafraîchissement ré-exporte et re-signe les trois suites chaque semaine, sans changer les paquets.
 """
 import email.utils
 import pathlib

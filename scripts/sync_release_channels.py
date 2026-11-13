@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Propage le registre des canaux (backend/app/release_channel.py) vers les langages qui ne
-peuvent pas l'importer. Aucun de ces fichiers ne se modifie à la main.
-
-    python3 scripts/sync_release_channels.py            # écrit les fichiers générés
-    python3 scripts/sync_release_channels.py --check    # échoue si l'un d'eux est périmé
-
-  - android/release-channels.json : lu par android/app/build.gradle.kts (canal du build, champs
-    BuildConfig) ;
-  - frontend/src/lib/releaseChannels.generated.ts : lu par frontend/src/lib/releaseChannel.ts.
-
-Les consommateurs écrits à la main (ressources Android, écran de démarrage Kotlin) sont vérifiés
-contre le registre par backend/tests/test_release_channels_wiring.py.
-"""
+"""Propage le registre des canaux (backend/app/release_channel.py) vers Android et le frontend."""
 
 from __future__ import annotations
 

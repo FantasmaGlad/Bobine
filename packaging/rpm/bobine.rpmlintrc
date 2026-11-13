@@ -1,25 +1,11 @@
-# Filtres rpmlint de Bobine — chacun est justifié ; le reste doit rester à zéro erreur.
-
-# La sentinelle de mise à jour interne (/run/bobine-self-update-in-progress) est posée par
-# la commande root de la mise à jour interne (même protocole que le prerm du .deb) : lecture seule dans les scriptlets.
+# sentinelle de la mise à jour interne lue dans les scriptlets
 addFilter("use-tmp-in-")
 addFilter("dangerous-command-in-")
-
-# Noms propres et termes du domaine (« playout », « crossfade »).
 addFilter("spelling-error")
-
-# Le fichier attaché aux releases canary/beta porte un nom FIXE (bobine-canary.x86_64.rpm) ;
-# la version reste correcte dans les métadonnées.
+# nom de fichier fixe par canal (bobine-canary.x86_64.rpm)
 addFilter("non-coherent-filename")
-
-# Application graphique sans page de manuel.
 addFilter("no-manual-page-for-binary")
-
-# Bundle PyInstaller : exécutables identiques (stub du chargeur) et icônes sous deux noms
-# (bobine / com.bobine.app) pour compatibilité, comme dans le .deb.
+# stub du chargeur PyInstaller et icônes sous deux noms
 addFilter("files-duplicate")
-
-# Archive privée du runtime PyInstaller : base_library.zip est produite sans
-# compression par PyInstaller et lue directement au démarrage de Python.
-# Conserver cette ressource identique dans les trois formats de paquet.
+# base_library.zip : produite sans compression par PyInstaller
 addFilter(r"uncompressed-zip /usr/lib/bobine/base_library\.zip$")

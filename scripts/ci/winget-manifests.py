@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Manifestes winget d'une release Stable, écrits à partir de son SHA256SUMS. Rien n'est soumis : les fichiers sont
-joints à la release, et la demande de fusion vers microsoft/winget-pkgs reste une action du mainteneur.
+"""Manifestes winget d'une release Stable, écrits à partir de son SHA256SUMS ; rien n'est soumis.
 
 Usage : winget-manifests.py <SHA256SUMS> <tag Vx.y.z> <dossier de sortie>
 """
