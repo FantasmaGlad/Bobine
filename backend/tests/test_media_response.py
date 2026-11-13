@@ -158,8 +158,10 @@ def test_unknown_api_path_is_json_404_never_the_frontend_html():
 
 
 def test_head_on_a_missing_media_resource_is_404_not_html():
+    from app.database import init_db
     from app.main import app
 
+    init_db()
     c = TestClient(app)
     for url in ("/api/videos/999999/stream", "/api/radio/tracks/999999/stream", "/api/audio/tracks/999999/stream"):
         r = c.head(url)
