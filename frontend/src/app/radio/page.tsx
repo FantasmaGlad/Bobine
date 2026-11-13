@@ -5,7 +5,6 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, RadioTrackInfo, selectRadioTarget, useRadioSocket } from "@/lib/useRadioSocket";
 import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
-import { useKioskRemote } from "@/lib/useKioskRemote";
 import { radioChannelId } from "@/lib/displayChannel";
 import { createSoundChain, type SoundChain } from "@/lib/radioSoundGraph";
 import { createMixStage, type MixStage } from "@/lib/radioMixGraph";
@@ -15,13 +14,15 @@ import { useAudioRoute } from "@/lib/useAudioRoute";
 import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
 import Icon from "@/components/Icon";
-import AppLogo from "@/components/AppLogo";
 import { getApiUrl } from "@/lib/apiUrl";
-import { formatTime, formatWallClock } from "@/lib/format";
 import { unloadMedia } from "@/lib/mediaElement";
-
-const DUCK_LEVEL_DEFAULT = 15;
-const DUCK_FADE_MS_DEFAULT = 1500;
+import NowPlaying from "@/components/radio/NowPlaying";
+import UnlockOverlay from "@/components/radio/UnlockOverlay";
+import { useAudioContextKeepAlive } from "@/components/radio/useAudioContextKeepAlive";
+import { useDuckSettings } from "@/components/radio/useDuckSettings";
+import { useServerClock } from "@/components/radio/useServerClock";
+import { useLevelMeter } from "@/components/radio/useLevelMeter";
+import { useRadioRemote } from "@/components/radio/useRadioRemote";
 
 type Slot = 0 | 1;
 const OTHER_SLOT = (slot: Slot): Slot => (slot === 0 ? 1 : 0);
@@ -67,19 +68,7 @@ export default function RadioScreenPage() {
   const activeAnnouncementRef = useRef<{ id: number; mode: string } | null>(null);
   const announcementFadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const duckSettingsRef = useRef({ level: DUCK_LEVEL_DEFAULT, fadeMs: DUCK_FADE_MS_DEFAULT });
-  useEffect(() => {
-    fetch(getApiUrl("/settings"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        duckSettingsRef.current = {
-          level: typeof data.radio_announcement_duck_level === "number" ? data.radio_announcement_duck_level : DUCK_LEVEL_DEFAULT,
-          fadeMs: typeof data.radio_announcement_fade_ms === "number" ? data.radio_announcement_fade_ms : DUCK_FADE_MS_DEFAULT,
-        };
-      })
-      .catch(() => {});
-  }, []);
+  const duckSettingsRef = useDuckSettings();
 
   const ensureAudioGraph = (initialVolume: number) => {
     if (graphReadyRef.current) return;
@@ -299,19 +288,7 @@ export default function RadioScreenPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `mixKey` résume le contenu de state.mix
   }, [mixKey]);
   useAudioRoute({ ctxRef: audioCtxRef, stageRef: mixStageRef, route: state.route ?? null, ready: graphReady, connected, sendCommand });
-  useEffect(() => {
-    const stage = mixStageRef.current;
-    if (!graphReady || !stage || !state.meter || !isPrimary) return;
-    stage.setMetering(true);
-    const id = setInterval(() => {
-      const levels = stage.readLevels();
-      if (Object.keys(levels).length) sendCommand("radio_report_levels", { levels });
-    }, 250);
-    return () => {
-      clearInterval(id);
-      stage.setMetering(false);
-    };
-  }, [graphReady, state.meter, isPrimary, sendCommand]);
+  useLevelMeter(mixStageRef, graphReady, Boolean(state.meter), isPrimary, sendCommand);
   useDisplayOutputRedirect("radio", displayOutputCable, null);
   const activeMediaRef = useMemo(
     () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
@@ -339,26 +316,7 @@ export default function RadioScreenPage() {
 
   const livePosition = useInterpolatedPosition(state.position_seconds, state.playing, lastCause);
 
-  const [now, setNow] = useState<Date | null>(null);
-  const clockOffsetRef = useRef(0);
-  useEffect(() => {
-    const syncClock = () => {
-      fetch(getApiUrl("/time"), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data && typeof data.server_ts === "number") clockOffsetRef.current = data.server_ts - Date.now();
-        })
-        .catch(() => {});
-    };
-    syncClock();
-    setNow(new Date(Date.now() + clockOffsetRef.current));
-    const syncId = setInterval(syncClock, 60 * 1000);
-    const tickId = setInterval(() => setNow(new Date(Date.now() + clockOffsetRef.current)), 1000);
-    return () => {
-      clearInterval(syncId);
-      clearInterval(tickId);
-    };
-  }, []);
+  const now = useServerClock();
 
   useEffect(() => {
     const slotA = audioARef;
@@ -471,18 +429,7 @@ export default function RadioScreenPage() {
     return () => clearInterval(id);
   }, [attemptRecovery]);
 
-  useEffect(() => {
-    const resumeIfSuspended = () => {
-      const ctx = audioCtxRef.current;
-      if (ctx && unlockedRef.current && ctx.state !== "running") ctx.resume().catch(() => {});
-    };
-    document.addEventListener("visibilitychange", resumeIfSuspended);
-    const id = setInterval(resumeIfSuspended, 5000);
-    return () => {
-      document.removeEventListener("visibilitychange", resumeIfSuspended);
-      clearInterval(id);
-    };
-  }, []);
+  useAudioContextKeepAlive(audioCtxRef, unlockedRef);
 
   const handleUnlock = () => {
     setUnlocked(true);
@@ -517,33 +464,10 @@ export default function RadioScreenPage() {
   }, []);
 
   const currentTrack = state.current_track;
-  const coverSrc = currentTrack?.cover_url ? getApiUrl(currentTrack.cover_url) : null;
-  const duration = state.duration_seconds ?? currentTrack?.duration_seconds ?? 0;
 
   const handlePlayPause = () => sendCommand(state.playing ? "pause" : "play");
 
-  const changeRadioVolume = (delta: number) => {
-    sendCommand("volume", { volume: Math.max(0, Math.min(100, state.volume + delta)) });
-  };
-  useKioskRemote(() => {
-    if (!unlocked) {
-      return { onEnter: handleUnlock, onPlayPause: handleUnlock };
-    }
-    if (!currentTrack) return {};
-    return {
-      onPlayPause: handlePlayPause,
-      onEnter: handlePlayPause,
-      onRight: () => sendCommand("radio_next_track"),
-      onNext: () => sendCommand("radio_next_track"),
-      onLeft: () => sendCommand("radio_previous_track"),
-      onPrev: () => sendCommand("radio_previous_track"),
-      onUp: () => changeRadioVolume(5),
-      onVolumeUp: () => changeRadioVolume(5),
-      onDown: () => changeRadioVolume(-5),
-      onVolumeDown: () => changeRadioVolume(-5),
-      onMute: () => sendCommand("volume", { volume: 0 }),
-    };
-  });
+  useRadioRemote({ unlocked, hasTrack: Boolean(currentTrack), volume: state.volume, handleUnlock, handlePlayPause, sendCommand });
 
   return (
     <div className="radio-screen">
@@ -558,85 +482,12 @@ export default function RadioScreenPage() {
         </div>
       )}
 
-      {autoplayProbed && !unlocked && (
-        <div className="radio-unlock-overlay">
-          <AppLogo className="radio-unlock-logo" />
-          <div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "8px" }}>{t("radioScreen.unlockTitle")}</div>
-            <div style={{ color: "var(--text-muted)" }}>{t("radioScreen.unlockHint")}</div>
-          </div>
-          <button className="radio-unlock-btn" onClick={handleUnlock}>
-            <Icon name="play_circle" size={22} filled />
-            {t("radioScreen.unlockButton")}
-          </button>
-        </div>
-      )}
+      {autoplayProbed && !unlocked && <UnlockOverlay t={t} onUnlock={handleUnlock} />}
 
-      {!currentTrack ? (
-        <>
-          <AppLogo className="radio-brand-logo" />
-          <span className="radio-screen-clock">{formatWallClock(now)}</span>
-          <span className="radio-screen-idle-label">
-            {connected ? t("radioScreen.idleHint") : t("radioRemote.disconnected")}
-          </span>
-        </>
-      ) : (
-        <>
-          <div className="radio-cover">
-            {coverSrc ? <img src={coverSrc} alt="" /> : <Icon name="music_note" size={64} />}
-          </div>
-
-          <div>
-            <div className="radio-meta-title">{currentTrack.title}</div>
-            <div className="radio-meta-artist">
-              {currentTrack.artist || t("radioLibrary.unknownArtist")}
-              {currentTrack.album ? ` — ${currentTrack.album}` : ""}
-            </div>
-          </div>
-
-          <div className="radio-screen-progress">
-            <span>{formatTime(livePosition)}</span>
-            <input
-              type="range"
-              min={0}
-              max={duration || 0}
-              step={1}
-              value={livePosition}
-              onChange={(e) => sendCommand("radio_seek", { position_seconds: Number(e.target.value) })}
-              className="seek-slider"
-              style={{ flex: 1 }}
-            />
-            <span>{formatTime(duration)}</span>
-          </div>
-
-          <div className="radio-screen-controls">
-            <button className="radio-transport-btn" onClick={() => sendCommand("radio_previous_track")} title={t("radioRemote.previousTrack")}>
-              <Icon name="skip_previous" size={22} filled />
-            </button>
-            <button className="radio-transport-btn main" onClick={handlePlayPause}>
-              <Icon name={state.playing ? "pause" : "play_arrow"} size={30} filled />
-            </button>
-            <button className="radio-transport-btn" onClick={() => sendCommand("radio_next_track")} title={t("radioRemote.nextTrack")}>
-              <Icon name="skip_next" size={22} filled />
-            </button>
-          </div>
-
-          <div className="radio-screen-volume">
-            <Icon name="volume_up" size={18} />
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={state.volume}
-              onChange={(e) => sendCommand("volume", { volume: Number(e.target.value) })}
-              className="volume-slider"
-              style={{ flex: 1 }}
-            />
-            <span>{state.volume}%</span>
-          </div>
-        </>
-      )}
+      <NowPlaying
+        t={t} state={state} connected={connected} now={now} livePosition={livePosition}
+        sendCommand={sendCommand} handlePlayPause={handlePlayPause}
+      />
     </div>
   );
 }

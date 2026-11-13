@@ -1480,8 +1480,6 @@ export const dictionary: Dict = {
     restartTrack: "Relancer la piste",
     viewTracks: "Voir les {{count}} pistes",
     courseTracksTitle: "Pistes du cours",
-    backgroundsTitle: "Fond affiché sur l'écran",
-    noBackground: "Aucun fond",
     backgroundImageTag: "Image",
     backgroundVideoTag: "Animé",
     close: "Fermer",

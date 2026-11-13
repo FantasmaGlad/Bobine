@@ -12,12 +12,14 @@ import CinemaRow from "@/components/cinema/CinemaRow";
 import CinemaAllList from "@/components/cinema/CinemaAllList";
 import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import AppLogo from "@/components/AppLogo";
-import MarqueeText from "@/components/MarqueeText";
 import CourseRatingWidget from "@/components/CourseRatingWidget";
-import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { getResolutionBadge, getAudioQualityBadge } from "@/lib/videoBadges";
 import { getApiUrl } from "@/lib/apiUrl";
-import { formatMinutes, formatTime, formatWallClock } from "@/lib/format";
+import { formatMinutes, formatWallClock } from "@/lib/format";
+import GridRadioActive from "@/components/grid/GridRadioActive";
+import GridStandby from "@/components/grid/GridStandby";
+import NowPlayingCard from "@/components/grid/NowPlayingCard";
+import { useRatingPrompt } from "@/components/grid/useRatingPrompt";
 
 export default function GridPage() {
   const { t, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
@@ -194,7 +196,12 @@ export default function GridPage() {
         position_seconds: computedPosition,
       }
     : null;
-  const [nowPlayingSeekDrag, setNowPlayingSeekDrag] = useState<number | null>(null);
+  const commitSeek = useCallback((value: number) => {
+    setOptimisticSeek({ position: value, timestamp: Date.now() });
+    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
+    optimisticTimerRef.current = setTimeout(() => setOptimisticSeek(null), 2000);
+    sendCommand("cinema_command", { action: "seek", position_seconds: value });
+  }, [sendCommand]);
 
   const handleNowPlayingPlayPause = useCallback(() => {
     if (!nowPlaying) return;
@@ -220,54 +227,7 @@ export default function GridPage() {
     sendCommand("cinema_command", { action: "stop" });
   }, [sendCommand]);
 
-  const [ratingCourse, setRatingCourse] = useState<{
-    videoId: number;
-    title: string;
-  } | null>(null);
-  const ratingShownForVideoRef = useRef<number | null>(null);
-  const lastPlayingRef = useRef<{
-    videoId: number;
-    title: string;
-    position: number;
-    duration: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (nowPlaying && nowPlaying.video_id) {
-      lastPlayingRef.current = {
-        videoId: nowPlaying.video_id,
-        title: nowPlaying.title || "",
-        position: nowPlaying.position_seconds,
-        duration: nowPlaying.duration_seconds,
-      };
-
-      if (
-        nowPlaying.duration_seconds > 0 &&
-        nowPlaying.position_seconds / nowPlaying.duration_seconds >= 0.95 &&
-        ratingShownForVideoRef.current !== nowPlaying.video_id
-      ) {
-        ratingShownForVideoRef.current = nowPlaying.video_id;
-        setRatingCourse({
-          videoId: nowPlaying.video_id,
-          title: nowPlaying.title || "",
-        });
-      }
-    } else if (!nowPlaying && lastPlayingRef.current) {
-      const last = lastPlayingRef.current;
-      if (
-        last.duration > 0 &&
-        last.position / last.duration >= 0.90 &&
-        ratingShownForVideoRef.current !== last.videoId
-      ) {
-        ratingShownForVideoRef.current = last.videoId;
-        setRatingCourse({
-          videoId: last.videoId,
-          title: last.title,
-        });
-      }
-      lastPlayingRef.current = null;
-    }
-  }, [nowPlaying]);
+  const [ratingCourse, setRatingCourse] = useRatingPrompt(nowPlaying);
 
   const [scrambleTick, setScrambleTick] = useState(0);
   useEffect(() => {
@@ -329,86 +289,11 @@ export default function GridPage() {
   });
 
   if (wiredDisplayMode === "headless") {
-    return (
-      <div className="grid-standby-root">
-        <div className="grid-standby-card">
-          <div className="grid-standby-header">
-            <AppLogo size={48} className="grid-standby-logo" />
-            <span className="grid-standby-clock">{formatWallClock(now)}</span>
-          </div>
-
-          <div className="grid-standby-content">
-            <h1 className="grid-standby-title">{t("settingsPage.gridStandbyTitle")}</h1>
-            <p className="grid-standby-subtitle">{t("settingsPage.gridStandbySubtitle")}</p>
-
-            <div className="grid-standby-status-box">
-              <div className="grid-standby-status-badge">
-                <span className="grid-standby-pulse-dot" />
-                <Icon name="tv" size={20} />
-                <span>{t("settingsPage.gridStandbyHdmiActive")}</span>
-              </div>
-              <p className="grid-standby-status-desc">{t("settingsPage.gridStandbyHdmiHelp")}</p>
-              {nowPlaying && (
-                <div className="grid-standby-now-playing">
-                  <span className="grid-standby-now-playing-label">{t("cinema.nowPlaying")} :</span>
-                  <strong className="grid-standby-now-playing-title">{nowPlaying.title}</strong>
-                  {nowPlaying.duration_seconds ? (
-                    <span className="grid-standby-now-playing-time">
-                      ({formatTime(nowPlaying.position_seconds)} / {formatTime(nowPlaying.duration_seconds)})
-                    </span>
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            <div className="grid-standby-actions">
-              <button
-                type="button"
-                className="btn btn-primary grid-standby-btn-main"
-                style={{ color: themeFg }}
-                onClick={() => setWiredDisplayMode("dual_screen")}
-              >
-                <Icon name="devices" size={22} color={themeFg} />
-                <span>{t("settingsPage.gridStandbySwitchToDual")}</span>
-              </button>
-              <p className="grid-standby-action-hint">{t("settingsPage.gridStandbySwitchToDualHelp")}</p>
-
-              <a
-                href="/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-secondary grid-standby-btn-admin"
-              >
-                <Icon name="settings" size={18} />
-                <span>{t("settingsPage.gridStandbyOpenAdmin")}</span>
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <GridStandby t={t} now={now} nowPlaying={nowPlaying} themeFg={themeFg} onSwitchToDual={() => setWiredDisplayMode("dual_screen")} />;
   }
 
   if (displayOutputCable === "radio") {
-    return (
-      <div className="grid-standby-root" style={{ overflowY: "auto", alignItems: "flex-start" }}>
-        <div className="dashboard-container" style={{ width: "100%", maxWidth: "920px", margin: "0 auto", padding: "20px" }}>
-          <div className="live-block" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-            <AppLogo size={40} className="grid-standby-logo" />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h3 style={{ margin: 0 }}>
-                <Icon name="radio" size={18} /> {t("radioRemote.gridRadioActiveTitle")}
-              </h3>
-              <p style={{ margin: "4px 0 0", color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                {t("radioRemote.gridRadioActiveHint")}
-              </p>
-            </div>
-            <span className="grid-standby-clock">{formatWallClock(now)}</span>
-          </div>
-          <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
-        </div>
-      </div>
-    );
+    return <GridRadioActive t={t} now={now} />;
   }
 
   return (
@@ -478,74 +363,14 @@ export default function GridPage() {
                 onClose={() => setRatingCourse(null)}
               />
             ) : nowPlaying ? (
-              <section className="grid-now-playing">
-                <button
-                  className="grid-now-playing-close"
-                  onClick={handleNowPlayingStop}
-                  title={t("cinema.removeCourse")}
-                  aria-label={t("cinema.removeCourse")}
-                >
-                  <Icon name="close" size={18} />
-                </button>
-                <span className="grid-now-playing-label">{t("cinema.nowPlaying")}</span>
-                <MarqueeText text={nowPlaying.title} className="grid-now-playing-title" />
-                <input
-                  type="range"
-                  className="grid-now-playing-seek"
-                  min={0}
-                  max={nowPlaying.duration_seconds || 0}
-                  step={1}
-                  value={nowPlayingSeekDrag ?? nowPlaying.position_seconds}
-                  onChange={(e) => setNowPlayingSeekDrag(Number(e.target.value))}
-                  onMouseUp={(e) => {
-                    const value = Number((e.target as HTMLInputElement).value);
-                    const now = Date.now();
-                    setOptimisticSeek({ position: value, timestamp: now });
-                    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
-                    optimisticTimerRef.current = setTimeout(() => setOptimisticSeek(null), 2000);
-                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
-                    setNowPlayingSeekDrag(null);
-                  }}
-                  onTouchEnd={(e) => {
-                    const value = Number((e.target as HTMLInputElement).value);
-                    const now = Date.now();
-                    setOptimisticSeek({ position: value, timestamp: now });
-                    if (optimisticTimerRef.current) clearTimeout(optimisticTimerRef.current);
-                    optimisticTimerRef.current = setTimeout(() => setOptimisticSeek(null), 2000);
-                    sendCommand("cinema_command", { action: "seek", position_seconds: value });
-                    setNowPlayingSeekDrag(null);
-                  }}
-                />
-                <div className="grid-now-playing-times">
-                  <span>{formatTime(nowPlayingSeekDrag ?? nowPlaying.position_seconds)}</span>
-                  <span>{formatTime(nowPlaying.duration_seconds)}</span>
-                </div>
-                <div className="grid-now-playing-controls">
-                  <button
-                    className="grid-now-playing-btn"
-                    onClick={() => handleNowPlayingSeekDelta(-10)}
-                    title={t("cinema.seekBack")}
-                    aria-label={t("cinema.seekBack")}
-                  >
-                    <Icon name="replay_10" size={26} />
-                  </button>
-                  <button
-                    className="grid-now-playing-btn grid-now-playing-btn-main"
-                    onClick={handleNowPlayingPlayPause}
-                    title={nowPlaying.playing ? t("cinema.pause") : t("cinema.play")}
-                  >
-                    <Icon name={nowPlaying.playing ? "pause" : "play_arrow"} size={30} filled />
-                  </button>
-                  <button
-                    className="grid-now-playing-btn"
-                    onClick={() => handleNowPlayingSeekDelta(10)}
-                    title={t("cinema.seekForward")}
-                    aria-label={t("cinema.seekForward")}
-                  >
-                    <Icon name="forward_10" size={26} />
-                  </button>
-                </div>
-              </section>
+              <NowPlayingCard
+                t={t}
+                nowPlaying={nowPlaying}
+                handleNowPlayingStop={handleNowPlayingStop}
+                handleNowPlayingPlayPause={handleNowPlayingPlayPause}
+                handleNowPlayingSeekDelta={handleNowPlayingSeekDelta}
+                commitSeek={commitSeek}
+              />
             ) : null}
           </section>
         )}

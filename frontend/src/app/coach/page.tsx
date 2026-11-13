@@ -1,42 +1,20 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePlaybackSocket, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { anchorPosition } from "@/lib/playbackClock";
 import { useThemeAccentForeground } from "@/lib/useThemeAccentForeground";
-import { navLinks, footerNavLinks } from "@/lib/navLinks";
 import Icon from "@/components/Icon";
-import SearchBox from "@/components/SearchBox";
-import { matchesQuery } from "@/lib/searchText";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatTime } from "@/lib/format";
-
-interface AudioCourseSummary {
-  id: number;
-  title: string;
-  program: string | null;
-  release: string | null;
-  track_count: number;
-  total_duration_seconds: number;
-}
-
-interface AudioPlaylistSummary {
-  id: number;
-  name: string;
-  item_count: number;
-  total_duration_seconds: number;
-}
-
-interface BackgroundSummary {
-  id: number;
-  title: string;
-  is_image: boolean;
-  thumbnail_path: string | null;
-  duration_seconds: number | null;
-}
+import AmbiancePalette from "@/components/coach/AmbiancePalette";
+import CoachNavSheet from "@/components/coach/CoachNavSheet";
+import CoachPicker from "@/components/coach/CoachPicker";
+import CoachStageMonitor from "@/components/coach/CoachStageMonitor";
+import TrackListSheet from "@/components/coach/TrackListSheet";
+import type { AudioCourseSummary, AudioPlaylistSummary, BackgroundSummary } from "@/components/coach/types";
 
 export default function CoachModePage() {
   const { t } = useAppSettings();
@@ -49,11 +27,8 @@ export default function CoachModePage() {
   const [courses, setCourses] = useState<AudioCourseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [audioPlaylists, setAudioPlaylists] = useState<AudioPlaylistSummary[]>([]);
-  const [pickerTab, setPickerTab] = useState<"courses" | "playlists">("courses");
   const [showTrackList, setShowTrackList] = useState(false);
-  const [showBackgrounds, setShowBackgrounds] = useState(false);
   const [backgrounds, setBackgrounds] = useState<BackgroundSummary[]>([]);
-  const [search, setSearch] = useState("");
   const [showNav, setShowNav] = useState(false);
   const [snapshotState, setSnapshotState] = useState<PlaybackState | null>(null);
   const state = hasSynced ? wsState : (snapshotState ?? wsState);
@@ -115,10 +90,6 @@ export default function CoachModePage() {
   const remaining = currentTrack?.duration_seconds
     ? Math.max(0, currentTrack.duration_seconds - localPos)
     : null;
-  const searchSuggestions = [...courses.map((c) => c.title), ...audioPlaylists.map((p) => p.name)];
-  const filteredCourses = courses.filter((c) => matchesQuery(c.title, search));
-
-  const filteredAudioPlaylists = audioPlaylists.filter((p) => matchesQuery(p.name, search));
 
   const launchCourse = (courseId: number) => {
     sendCommand("load_audio_course", { audio_course_id: courseId });
@@ -160,117 +131,17 @@ export default function CoachModePage() {
     wasCoachModeRef.current = isCoachMode;
   }, [isCoachMode, router]);
 
-  const navSheet = showNav && (
-    <div className="coach-sheet-overlay" onClick={() => setShowNav(false)}>
-      <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="coach-sheet-handle" />
-        <h3 style={{ margin: "0 0 12px" }}>{t("coach.otherFunctions")}</h3>
-        <div className="coach-sheet-list">
-          {[...navLinks, ...footerNavLinks].map((link) => (
-            <Link key={link.href} href={link.href} className="nav-link" onClick={() => setShowNav(false)}>
-              <Icon name={link.iconName} size={20} />
-              <span>{t(link.labelKey)}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  const navSheet = showNav && <CoachNavSheet t={t} onClose={() => setShowNav(false)} />;
 
   if (!isCoachMode) {
     return (
-      <div className="coach-screen coach-picker-screen">
-        <div className="coach-picker-topbar">
-          <button
-            type="button"
-            className="coach-icon-btn olc-press"
-            onClick={handleBackFromPicker}
-            title={t("coach.backToDashboard")}
-          >
-            <Icon name="arrow_back" size={20} />
-          </button>
-          <button className="coach-icon-btn olc-press" onClick={() => setShowNav(true)} title={t("coach.otherFunctions")}>
-            <Icon name="menu" size={20} />
-          </button>
-        </div>
-        <div className="coach-picker-header">
-          <h1 className="coach-picker-title">{t("coach.title")}</h1>
-          <p className="coach-picker-subtitle">
-            {connected ? t("coach.chooseCourseHint") : t("coach.connectingHint")}
-          </p>
-          <SearchBox
-            className="search-input coach-picker-search"
-            placeholder={t("coach.searchPlaceholder")}
-            value={search}
-            onChange={setSearch}
-            suggestions={searchSuggestions}
-          />
-          <div className="coach-picker-tabs">
-            <button
-              type="button"
-              className={`speed-btn ${pickerTab === "courses" ? "active" : ""}`}
-              onClick={() => setPickerTab("courses")}
-            >
-              {t("coach.coursesTab")}
-            </button>
-            <button
-              type="button"
-              className={`speed-btn ${pickerTab === "playlists" ? "active" : ""}`}
-              onClick={() => setPickerTab("playlists")}
-            >
-              {t("coach.playlistsTab")}
-            </button>
-          </div>
-        </div>
-        <div className="coach-picker-list">
-          {pickerTab === "courses" ? (
-            loading ? (
-              <p className="live-empty">{t("coach.loadingCourses")}</p>
-            ) : filteredCourses.length === 0 ? (
-              <p className="live-empty">{t("coach.noCoursesAvailable")}</p>
-            ) : (
-              filteredCourses.map((c, i) => (
-                <button
-                  key={c.id}
-                  className="coach-course-item olc-press olc-card-hover olc-anim-in"
-                  style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
-                  onClick={() => launchCourse(c.id)}
-                >
-                  <span className="coach-course-item-accent" style={{ background: "var(--accent-primary)" }} />
-                  <span className="coach-course-item-body">
-                    <span className="coach-course-item-title">{c.title}</span>
-                    <span className="coach-course-item-meta">
-                      {c.program || t("coach.otherProgram")} · {t("coach.tracksCount", { count: c.track_count })}
-                    </span>
-                  </span>
-                  <Icon name="play_circle" size={22} />
-                </button>
-              ))
-            )
-          ) : filteredAudioPlaylists.length === 0 ? (
-            <p className="live-empty">{t("coach.noPlaylistsAvailable")}</p>
-          ) : (
-            filteredAudioPlaylists.map((p, i) => (
-              <button
-                key={p.id}
-                className="coach-course-item olc-press olc-card-hover olc-anim-in"
-                style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
-                onClick={() => launchAudioPlaylist(p.id)}
-              >
-                <span className="coach-course-item-accent" style={{ background: "var(--accent-primary)" }} />
-                <span className="coach-course-item-body">
-                  <span className="coach-course-item-title">{p.name}</span>
-                  <span className="coach-course-item-meta">
-                    {t("coach.tracksInPlaylist", { count: p.item_count })}
-                  </span>
-                </span>
-                <Icon name="play_circle" size={22} />
-              </button>
-            ))
-          )}
-        </div>
+      <CoachPicker
+        t={t} connected={connected} loading={loading} courses={courses} audioPlaylists={audioPlaylists}
+        handleBackFromPicker={handleBackFromPicker} openNav={() => setShowNav(true)}
+        launchCourse={launchCourse} launchAudioPlaylist={launchAudioPlaylist}
+      >
         {navSheet}
-      </div>
+      </CoachPicker>
     );
   }
 
@@ -381,260 +252,24 @@ export default function CoachModePage() {
         </div>
 
         <div className="coach-stage-col">
-          <div className="coach-stage-monitor">
-            {activeBgId ? (
-              activeBgIsImage ? (
-                <img
-                  className="coach-monitor-media"
-                  src={getApiUrl(`/backgrounds/${activeBgId}/stream`)}
-                  alt=""
-                />
-              ) : (
-                <video
-                  className="coach-monitor-media"
-                  src={getApiUrl(`/backgrounds/${activeBgId}/stream`)}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                />
-              )
-            ) : (
-              <div className="coach-monitor-placeholder">
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", opacity: 0.35 }}>
-                  <Icon name="hide_image" size={36} color="var(--accent-text)" />
-                  <span style={{ fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                    {t("coach.soberScreenActive")}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="coach-monitor-gradient" />
-
-            <div className="coach-monitor-top">
-              <span className="coach-monitor-badge">
-                <span className="coach-monitor-live-dot" />
-                {t("coach.stageMonitorTitle")}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  padding: "3px 8px",
-                  borderRadius: "12px",
-                  background: "color-mix(in srgb, var(--ink) 60%, transparent)",
-                  color: "color-mix(in srgb, var(--specular) 90%, transparent)",
-                  backdropFilter: "blur(var(--blur-sm))",
-                  border: "1px solid color-mix(in srgb, var(--specular) 15%, transparent)",
-                }}
-              >
-                {activeBgTitle || t("coach.soberScreenActive")}
-              </span>
-            </div>
-
-            <div className="coach-monitor-bottom">
-              <h2 className="coach-monitor-track-title">
-                {currentTrack?.title || course?.title}
-              </h2>
-              <div className="coach-monitor-meta">
-                <span>{currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : ""}</span>
-                <span>
-                  {formatTime(localPos)} / {formatTime(currentTrack?.duration_seconds)}
-                </span>
-              </div>
-              <div style={{ width: "100%", height: "4px", background: "color-mix(in srgb, var(--specular) 20%, transparent)", borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{ width: `${audioProgress}%`, height: "100%", background: accent, transition: "width 0.25s linear" }} />
-              </div>
-            </div>
-          </div>
-
-          <div className="coach-ambiance-panel">
-            <div className="coach-ambiance-header">
-              <div>
-                <h3 style={{ fontSize: "1rem", fontWeight: 800, margin: 0 }}>
-                  {t("coach.ambiancePaletteTitle")}
-                </h3>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  {t("coach.stageMonitorHint")}
-                </span>
-              </div>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600 }}>
-                {t("coach.ambianceCount", { count: backgrounds.length })}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              className={`olc-press ${!activeBgId ? "active" : ""}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                width: "100%",
-                minHeight: "40px",
-                borderRadius: "var(--radius-md)",
-                background: !activeBgId ? "color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated))" : "var(--bg-surface-elevated)",
-                border: `1.5px solid ${!activeBgId ? "var(--accent-text)" : "var(--border-color)"}`,
-                color: !activeBgId ? "var(--accent-text)" : "var(--text-main)",
-                fontWeight: 700,
-                fontSize: "0.82rem",
-                cursor: "pointer",
-              }}
-              onClick={() => sendCommand("audio_set_background", { background_id: null })}
-            >
-              <Icon name="hide_image" size={18} />
-              {t("coach.soberScreenBtn")}
-              {!activeBgId && <Icon name="check_circle" size={16} filled />}
-            </button>
-
-            <div className="coach-ambiance-grid">
-              {backgrounds.map((bg) => {
-                const isActive = activeBgId === bg.id;
-                const thumb = bg.thumbnail_path
-                  ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
-                  : null;
-                return (
-                  <div
-                    key={bg.id}
-                    className={`coach-ambiance-thumb-card olc-press ${isActive ? "active" : ""}`}
-                    onClick={() => sendCommand("audio_set_background", { background_id: bg.id })}
-                    title={bg.title}
-                  >
-                    <div className="coach-ambiance-thumb-media">
-                      {thumb ? (
-                        <img src={thumb} alt={bg.title} />
-                      ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Icon name={bg.is_image ? "image" : "videocam"} size={22} style={{ opacity: 0.4 }} />
-                        </div>
-                      )}
-                      {isActive && (
-                        <span
-                          style={{
-                            position: "absolute",
-                            top: 4,
-                            right: 4,
-                            background: "var(--accent-primary)",
-                            color: "var(--accent-primary-fg)",
-                            borderRadius: "4px",
-                            padding: "1px 5px",
-                            fontSize: "0.68rem",
-                            fontWeight: 800,
-                            boxShadow: "0 2px 6px color-mix(in srgb, var(--ink) 50%, transparent)",
-                          }}
-                        >
-                          {t("common.active")}
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          position: "absolute",
-                          bottom: 3,
-                          right: 3,
-                          background: "color-mix(in srgb, var(--ink) 70%, transparent)",
-                          color: "var(--specular)",
-                          borderRadius: "3px",
-                          padding: "1px 4px",
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {bg.is_image ? "Image" : bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : "Boucle"}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        padding: "6px 8px",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color: isActive ? "var(--accent-text)" : "var(--text-main)",
-                      }}
-                    >
-                      {bg.title}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <CoachStageMonitor
+            t={t} activeBgId={activeBgId} activeBgIsImage={activeBgIsImage} activeBgTitle={activeBgTitle}
+            title={currentTrack?.title || course?.title}
+            trackLabel={currentTrack ? t("coach.trackLabel", { index: trackIndex + 1, total: tracks.length }) : ""}
+            localPos={localPos} duration={currentTrack?.duration_seconds} audioProgress={audioProgress} accent={accent}
+          />
+          <AmbiancePalette
+            t={t} backgrounds={backgrounds} activeBgId={activeBgId}
+            chooseBackground={(id) => sendCommand("audio_set_background", { background_id: id })}
+          />
         </div>
       </div>
 
-      {showBackgrounds && (
-        <div className="coach-sheet-overlay" onClick={() => setShowBackgrounds(false)}>
-          <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="coach-sheet-handle" />
-            <h3 style={{ margin: "0 0 12px" }}>{t("coach.backgroundsTitle")}</h3>
-            <div className="coach-sheet-list">
-              <button
-                className={`coach-sheet-track olc-press ${!activeBgId ? "active" : ""}`}
-                onClick={() => {
-                  sendCommand("audio_set_background", { background_id: null });
-                  setShowBackgrounds(false);
-                }}
-              >
-                <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Icon name="hide_image" size={18} />
-                  {t("coach.noBackground")}
-                </span>
-                {!activeBgId && <Icon name="check_circle" size={18} color="var(--accent-text)" filled />}
-              </button>
-              {backgrounds.map((bg) => (
-                <button
-                  key={bg.id}
-                  className={`coach-sheet-track olc-press ${activeBgId === bg.id ? "active" : ""}`}
-                  onClick={() => {
-                    sendCommand("audio_set_background", { background_id: bg.id });
-                    setShowBackgrounds(false);
-                  }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Icon name={bg.is_image ? "image" : "gradient"} size={18} />
-                    {bg.title}
-                  </span>
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {bg.is_image ? t("coach.backgroundImageTag") : t("coach.backgroundVideoTag")}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <button className="btn btn-secondary" style={{ height: "48px", marginTop: "12px" }} onClick={() => setShowBackgrounds(false)}>
-              {t("coach.close")}
-            </button>
-          </div>
-        </div>
-      )}
-
       {showTrackList && (
-        <div className="coach-sheet-overlay" onClick={() => setShowTrackList(false)}>
-          <div className="coach-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="coach-sheet-handle" />
-            <h3 style={{ margin: "0 0 12px" }}>{t("coach.courseTracksTitle")}</h3>
-            <div className="coach-sheet-list">
-              {tracks.map((track, idx) => (
-                <button
-                  key={track.id}
-                  className={`coach-sheet-track olc-press ${idx === trackIndex ? "active" : ""}`}
-                  onClick={() => {
-                    sendCommand("audio_jump_to_track", { index: idx });
-                    setShowTrackList(false);
-                  }}
-                >
-                  <span>{idx + 1}. {track.title}</span>
-                  <span style={{ color: "var(--text-muted)" }}>{formatTime(track.duration_seconds)}</span>
-                </button>
-              ))}
-            </div>
-            <button className="btn btn-secondary" style={{ height: "48px", marginTop: "12px" }} onClick={() => setShowTrackList(false)}>
-              {t("coach.close")}
-            </button>
-          </div>
-        </div>
+        <TrackListSheet
+          t={t} tracks={tracks} trackIndex={trackIndex} onClose={() => setShowTrackList(false)}
+          onJump={(index) => { sendCommand("audio_jump_to_track", { index }); setShowTrackList(false); }}
+        />
       )}
 
       {navSheet}

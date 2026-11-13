@@ -1480,8 +1480,6 @@ export const dictionary: Dict = {
     restartTrack: "Restart track",
     viewTracks: "View the {{count}} tracks",
     courseTracksTitle: "Course tracks",
-    backgroundsTitle: "Background shown on screen",
-    noBackground: "No background",
     backgroundImageTag: "Image",
     backgroundVideoTag: "Animated",
     close: "Close",
