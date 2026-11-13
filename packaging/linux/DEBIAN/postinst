@@ -4,6 +4,7 @@ set -e
 if [ "$1" = "configure" ]; then
     /usr/lib/bobine/configure-storage-access auto
     /usr/lib/bobine/configure-firewall open || true
+    /usr/lib/bobine/refresh-release-keyring || true
 
     if command -v update-desktop-database >/dev/null 2>&1; then
         update-desktop-database -q /usr/share/applications || true

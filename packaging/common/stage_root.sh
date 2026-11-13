@@ -33,6 +33,9 @@ chmod 0755 "${DEST}/usr/lib/bobine/configure-storage-access"
 install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.ufw" "${DEST}/etc/ufw/applications.d/bobine"
 install -D -m 0644 "${REPO_DIR}/packaging/linux/firewall/bobine.firewalld.xml" "${DEST}/usr/lib/firewalld/services/bobine.xml"
 install -m 0755 "${REPO_DIR}/packaging/linux/firewall/configure-firewall" "${DEST}/usr/lib/bobine/configure-firewall"
+install -D -m 0644 "${LINUX_DIR}/keyring/bobine.asc" "${DEST}/usr/share/bobine/keyring/bobine.asc"
+python3 "${SCRIPT_DIR}/dearmor.py" "${LINUX_DIR}/keyring/bobine.asc" "${DEST}/usr/share/bobine/keyring/bobine.gpg"
+install -m 0755 "${LINUX_DIR}/keyring/refresh-release-keyring" "${DEST}/usr/lib/bobine/refresh-release-keyring"
 
 cat > "${DEST}/usr/bin/bobine" <<'WRAP'
 #!/bin/sh

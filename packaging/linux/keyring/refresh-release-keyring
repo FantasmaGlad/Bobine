@@ -1,0 +1,23 @@
+#!/bin/sh
+set -u
+
+PRIMARY=B77D96D72F84F36ACAA3F8729CBF497D829EE15A
+ARMORED=/usr/share/bobine/keyring/bobine.asc
+BINARY=/usr/share/bobine/keyring/bobine.gpg
+APT_KEYRING=/etc/apt/keyrings/bobine.gpg
+
+[ -r "$ARMORED" ] || exit 0
+
+if [ -f "$APT_KEYRING" ] && [ -r "$BINARY" ] && ! cmp -s "$BINARY" "$APT_KEYRING"; then
+    install -m 0644 "$BINARY" "$APT_KEYRING.new" && mv -f "$APT_KEYRING.new" "$APT_KEYRING"
+fi
+
+if command -v rpm >/dev/null 2>&1 && rpm -qa 'gpg-pubkey*' --qf '%{VERSION}\n' 2>/dev/null | tr 'a-f' 'A-F' | grep -Eq "^(${PRIMARY}|$(printf '%s' "$PRIMARY" | cut -c33-40))\$"; then
+    rpmkeys --import "$ARMORED" >/dev/null 2>&1 || true
+fi
+
+if command -v pacman-key >/dev/null 2>&1 && pacman-key --list-keys "$PRIMARY" >/dev/null 2>&1; then
+    pacman-key --add "$ARMORED" >/dev/null 2>&1 || true
+fi
+
+exit 0
