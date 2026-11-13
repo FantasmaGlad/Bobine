@@ -103,6 +103,7 @@ def client():
         yield c
 
 
+@pytest.mark.recent_stack
 def test_commande_websocket_radio_move_in_queue_cible_la_bonne_sortie(client):
     cable, network = get_radio_manager("radio_cable"), get_radio_manager("radio_network")
 

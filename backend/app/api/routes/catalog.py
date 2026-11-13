@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.contract import MEDIA_KINDS, regex
 from app.catalog.search import catalog
 from app.database import get_db
+from app.utils._pydantic_compat import pattern_arg
 
 router = APIRouter(prefix="/api/media", tags=["media"])
 
@@ -30,7 +31,7 @@ class MediaPage(BaseModel):
 
 @router.get("", response_model=MediaPage)
 async def list_media(
-    kind: str | None = Query(None, pattern=regex(MEDIA_KINDS)),
+    kind: str | None = Query(None, **pattern_arg(regex(MEDIA_KINDS))),
     q: str | None = Query(None, max_length=200),
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),

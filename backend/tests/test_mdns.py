@@ -115,3 +115,44 @@ def test_old_zeroconf_without_address_resolver_publishes_the_default_name(monkey
     monkeypatch.undo()
     monkeypatch.setattr(builtins, "__import__", old_zeroconf)
     assert mdns._held_by_other(MagicMock(), "bobine", "10.0.0.5") is False
+
+
+def test_update_keeps_the_instance_name_chosen_at_registration(monkeypatch):
+    zc = MagicMock()
+    zc.register_service.side_effect = lambda info, **kwargs: setattr(info, "name", "Bobine-2._http._tcp.local.")
+    ips = iter(["10.0.0.5", "10.0.0.9"])
+    monkeypatch.setattr(mdns, "_local_ip", lambda: next(ips))
+    mdns._register_or_update(zc, 1903)
+    mdns._register_or_update(zc, 1903)
+    assert zc.update_service.call_args.args[0].name == "Bobine-2._http._tcp.local."
+
+
+def test_socket_failure_is_reported_then_retried(monkeypatch):
+    import zeroconf
+
+    states = []
+    attempts = iter([OSError("pas d'interface multicast"), MagicMock()])
+
+    def build():
+        outcome = next(attempts)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    def wait(delay):
+        states.append(mdns.get_status()["state"])
+        return len(states) > 1
+
+    monkeypatch.setattr(zeroconf, "Zeroconf", build)
+    monkeypatch.setattr(mdns, "_local_ip", lambda: "10.0.0.5")
+    monkeypatch.setattr(mdns._stop_event, "wait", wait)
+    mdns._run_loop(1903)
+    assert states == ["failed", "ok"]
+
+
+def test_stop_closes_the_socket_even_when_unregistering_fails():
+    zc = MagicMock()
+    zc.unregister_service.side_effect = RuntimeError("boucle fermee")
+    mdns._zeroconf, mdns._service_info = zc, MagicMock()
+    mdns.stop_mdns_responder()
+    zc.close.assert_called_once()

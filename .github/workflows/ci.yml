@@ -284,18 +284,29 @@ jobs:
           from pathlib import Path
           import os, re
           requirements = Path("backend/requirements.txt").read_text().splitlines()
-          requirements = [line for line in requirements if line.strip() != "pydantic-settings" and not line.startswith("-c ")]
+          requirements = [line for line in requirements if line.strip() != "pydantic-settings" and not line.startswith(("-c ", "zeroconf"))]
           gradle = Path("android/app/build.gradle.kts").read_text()
-          for package in ("pydantic", "fastapi"):
+          for package in ("pydantic", "fastapi", "zeroconf"):
               requirements.append(re.search(r'install\("(' + package + r'==[^"\n]+)"\)', gradle).group(1))
           requirements += ["httpx==0.24.1", "pytest==9.1.1"]
           Path(os.environ["RUNNER_TEMP"], "android-backend.txt").write_text("\n".join(requirements))
           PYTHON
           python -m pip install -r "$RUNNER_TEMP/android-backend.txt"
-      - name: Importer l'application et vérifier les requêtes de stockage
+      - name: Image du runner
+        id: image
+        run: echo "version=${ImageOS:-}-${ImageVersion:-}" >> "$GITHUB_OUTPUT"
+      - name: Paquets ffmpeg en cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.version }}
+          restore-keys: ffmpeg-debs-${{ runner.os }}-${{ runner.arch }}-
+      - name: Installer ffmpeg
+        run: scripts/ci/apt-install-cached.sh ~/ffmpeg-debs ffmpeg
+      - name: Suite de tests sous le profil Android
         run: |
-          python -c 'import pydantic, fastapi; assert pydantic.VERSION == "1.10.26"; assert fastapi.__version__ == "0.99.1"; import app.main'
-          python -m pytest backend/tests/test_pydantic_v1_compat.py backend/tests/test_storage_http_compat.py -q
+          python -c 'import pydantic, fastapi, zeroconf; assert pydantic.VERSION == "1.10.26"; assert fastapi.__version__ == "0.99.1"; assert zeroconf.__version__ == "0.39.4"; import app.main'
+          python -m pytest backend/tests -q -W error::RuntimeWarning -W error::pytest.PytestUnraisableExceptionWarning
         env:
           PYTHONPATH: backend
           BOBINE_USE_XDG: "1"
