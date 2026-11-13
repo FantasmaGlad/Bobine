@@ -69,6 +69,7 @@ exit 0
 %post
 /usr/lib/bobine/configure-storage-access auto
 /usr/lib/bobine/configure-firewall open || true
+/usr/lib/bobine/refresh-release-keyring || true
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
     USER_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
     if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then

@@ -27,7 +27,9 @@ $arch = switch ($cpu) {
   default { throw "Système non pris en charge : $cpu (Bobine existe pour Windows x64 et ARM64)." }
 }
 
-$SigningKeyModulus = 'tZWGj1cpMao6UGU83DwXax0YFD3JeJCnBC+8ckd+4caTWOeBScqiownN/mreLLbS4voEVsEVuh5wz9jnuOD4+b5iY2KjcSZxM6DNppKHygmk+hkPC2XhoAMt8XmwTynPStNSiMQFsjrzRi3NkWky8chduBnkJebpyqmWOum8n7+M7SYwNnCIjto48Swu+Sf3kHGueGVWEfdzjjAc4jBHZIRV/pIm9EM94XKVSrmGqJ4pUrEy2cGlPZU9G+DCWS+/+vXXkrGxH8+t1Y/lsBufmClrOhS04DfItnvhQIOEZalwfwtCc+TB3hGxQV9siYC3mPdA6Oe9O2tyNaYqZWzQBr+VoLNh0ytYH/VISLntg//0rxE/cY63VyIufZ8Z6L4TxF8Eoivm52rqsEbVhykhlYbd/euXj9Q/EkhulHtjm6qQqsafpZwvda5fOQcvlJvbVlsmrKUVsLtzcHWGd5dzvSzgk9RUMoN9axuKScjZrksUB/3eKBD10hrRyprzHwLV5Z597MIkreFXq7HtHfcZy3Cow98rmbxEJ6JL83ViCxw3T9VOn+3rUUqnDIP8x37BgDBFtWycEusAMp/GlNFcI8Jo2iUOMlm91K6Lq2+dUwYd1Ll+dDNaCFUUkt8gF/0KvchxqegSckTsTHzSErHJVRAdnbPHdyGsoehAbXvYn6U='
+$SigningKeyModuli = @(
+  'tZWGj1cpMao6UGU83DwXax0YFD3JeJCnBC+8ckd+4caTWOeBScqiownN/mreLLbS4voEVsEVuh5wz9jnuOD4+b5iY2KjcSZxM6DNppKHygmk+hkPC2XhoAMt8XmwTynPStNSiMQFsjrzRi3NkWky8chduBnkJebpyqmWOum8n7+M7SYwNnCIjto48Swu+Sf3kHGueGVWEfdzjjAc4jBHZIRV/pIm9EM94XKVSrmGqJ4pUrEy2cGlPZU9G+DCWS+/+vXXkrGxH8+t1Y/lsBufmClrOhS04DfItnvhQIOEZalwfwtCc+TB3hGxQV9siYC3mPdA6Oe9O2tyNaYqZWzQBr+VoLNh0ytYH/VISLntg//0rxE/cY63VyIufZ8Z6L4TxF8Eoivm52rqsEbVhykhlYbd/euXj9Q/EkhulHtjm6qQqsafpZwvda5fOQcvlJvbVlsmrKUVsLtzcHWGd5dzvSzgk9RUMoN9axuKScjZrksUB/3eKBD10hrRyprzHwLV5Z597MIkreFXq7HtHfcZy3Cow98rmbxEJ6JL83ViCxw3T9VOn+3rUUqnDIP8x37BgDBFtWycEusAMp/GlNFcI8Jo2iUOMlm91K6Lq2+dUwYd1Ll+dDNaCFUUkt8gF/0KvchxqegSckTsTHzSErHJVRAdnbPHdyGsoehAbXvYn6U='
+)
 
 function Test-ReleaseSignature([byte[]]$Data, [string]$Armored) {
   $b64 = ($Armored -split "`r?`n" | Where-Object { $_ -and $_ -notmatch '^(-----|=|[A-Za-z]+: )' }) -join ''
@@ -57,15 +59,19 @@ function Test-ReleaseSignature([byte[]]$Data, [string]$Armored) {
   $hasher = if ($hashName -eq 'SHA256') { [Security.Cryptography.SHA256]::Create() } else { [Security.Cryptography.SHA512]::Create() }
   $digest = $hasher.ComputeHash([byte[]]($Data + $hashed + $trailer))
 
-  $modulus = [Convert]::FromBase64String($SigningKeyModulus)
-  $padded = [byte[]]::new($modulus.Length)
-  [Array]::Copy($sig, 0, $padded, $modulus.Length - $sig.Length, $sig.Length)
-  $rsa = [Security.Cryptography.RSA]::Create()
-  $key = [Security.Cryptography.RSAParameters]::new()
-  $key.Modulus = $modulus
-  $key.Exponent = [byte[]](1, 0, 1)
-  $rsa.ImportParameters($key)
-  return $rsa.VerifyHash($digest, $padded, [Security.Cryptography.HashAlgorithmName]::$hashName, [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+  foreach ($encoded in $SigningKeyModuli) {
+    $modulus = [Convert]::FromBase64String($encoded)
+    if ($sig.Length -gt $modulus.Length) { continue }
+    $padded = [byte[]]::new($modulus.Length)
+    [Array]::Copy($sig, 0, $padded, $modulus.Length - $sig.Length, $sig.Length)
+    $rsa = [Security.Cryptography.RSA]::Create()
+    $key = [Security.Cryptography.RSAParameters]::new()
+    $key.Modulus = $modulus
+    $key.Exponent = [byte[]](1, 0, 1)
+    $rsa.ImportParameters($key)
+    if ($rsa.VerifyHash($digest, $padded, [Security.Cryptography.HashAlgorithmName]::$hashName, [Security.Cryptography.RSASignaturePadding]::Pkcs1)) { return $true }
+  }
+  return $false
 }
 
 $api = 'https://api.github.com/repos/FantasmaGlad/Bobine/releases'

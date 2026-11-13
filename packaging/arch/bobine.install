@@ -64,6 +64,7 @@ _bobine_relaunch() {
 post_install() {
     /usr/lib/bobine/configure-storage-access auto
     /usr/lib/bobine/configure-firewall open || true
+    /usr/lib/bobine/refresh-release-keyring || true
     _bobine_shortcuts
     echo ">> Bobine : interface web sur http://localhost:1903. Avec ufw, le profil « Bobine » est ouvert aux réseaux locaux ; avec un autre pare-feu, ouvrir 1903/tcp (repli 1904 à 1913) pour le réseau local."
 }
@@ -75,6 +76,7 @@ pre_upgrade() {
 post_upgrade() {
     /usr/lib/bobine/configure-storage-access auto
     /usr/lib/bobine/configure-firewall open || true
+    /usr/lib/bobine/refresh-release-keyring || true
     _bobine_shortcuts
     _bobine_relaunch
 }
