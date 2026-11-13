@@ -53,6 +53,7 @@ def _receive_until(ws, event):
     raise AssertionError(f"évènement {event} jamais reçu")
 
 
+@pytest.mark.recent_stack
 def test_rest_and_websocket_reach_the_same_state(client):
     answer = client.post("/api/playback/network/volume", json={"volume": 37})
     assert answer.status_code == 200

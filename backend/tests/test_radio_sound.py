@@ -153,6 +153,7 @@ def test_rest_borne_persiste_et_cible_la_bonne_sortie(client):
     assert state["loudness"] is True and state["bass_boost"] == 3
 
 
+@pytest.mark.recent_stack
 def test_commande_websocket_radio_set_sound_isolee_par_sortie(client):
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "radio_set_sound", "params": {

@@ -14,6 +14,7 @@ from app.models import CourseRating, Video
 from app.metrics.dashboard import build_dashboard
 from app.metrics.history import hardware_history
 from app.utils.activity_log import log_activity
+from app.utils._pydantic_compat import pattern_arg
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
@@ -135,8 +136,8 @@ def end_session(payload: SessionEndRequest, db: Session = Depends(get_db)):
 
 @router.get("/dashboard")
 def get_metrics_dashboard(
-    period: str = Query("30d", pattern=regex(DASHBOARD_PERIODS)),
-    channel: str = Query("all", pattern=regex(DASHBOARD_CHANNELS)),
+    period: str = Query("30d", **pattern_arg(regex(DASHBOARD_PERIODS))),
+    channel: str = Query("all", **pattern_arg(regex(DASHBOARD_CHANNELS))),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Tableau de bord unifié des métriques club et télémétrie matérielle."""
@@ -145,8 +146,8 @@ def get_metrics_dashboard(
 
 @router.get("/hardware/history")
 def get_hardware_history(
-    metric: str = Query("cpu", pattern="^[a-zA-Z0-9_]+$"),
-    period: str = Query("1h", pattern=regex(HISTORY_PERIODS)),
+    metric: str = Query("cpu", **pattern_arg("^[a-zA-Z0-9_]+$")),
+    period: str = Query("1h", **pattern_arg(regex(HISTORY_PERIODS))),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j, 30j, mois en cours, tout l'historique conservé) avec statistiques et points échantillonnés."""
