@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.contract import MEDIA_KINDS, regex
+from app.api.paging import MAX_OFFSET
 from app.catalog.search import catalog
 from app.database import get_db
 from app.utils._pydantic_compat import pattern_arg
@@ -34,7 +35,7 @@ async def list_media(
     kind: str | None = Query(None, **pattern_arg(regex(MEDIA_KINDS))),
     q: str | None = Query(None, max_length=200),
     limit: int = Query(100, ge=1, le=1000),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_OFFSET),
     db: Session = Depends(get_db),
 ) -> MediaPage:
     """Médias de toutes les bibliothèques avec leur identifiant de lecture, filtrés et paginés."""

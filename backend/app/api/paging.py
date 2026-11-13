@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from fastapi import Query, Response
 
 TOTAL_HEADER = "X-Total-Count"
+MAX_OFFSET = 2**31 - 1
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class Window:
 def window(
     response: Response,
     limit: int | None = Query(None, ge=1, le=1000, description="Taille de page ; total dans l'en-tête X-Total-Count"),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=MAX_OFFSET),
 ) -> Window:
     return Window(response, limit, offset)
 

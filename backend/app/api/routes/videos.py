@@ -412,7 +412,7 @@ def _write_manual_thumbnail(source) -> Path:
         Image.open(source).verify()
         source.seek(0)
         img = Image.open(source).convert("RGB")
-    except (UnidentifiedImageError, OSError) as exc:
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
         raise ValueError(str(exc)) from exc
 
     thumbnails_dir = Path(settings.thumbnails_dir)
@@ -449,8 +449,26 @@ async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db
     return video
 
 
+def _apply_normalized_metadata(video: Video, new_path: Path) -> None:
+    meta = extract_metadata(str(new_path))
+    video.file_path = str(new_path)
+    video.duration_seconds = meta.get("duration_seconds")
+    video.width = meta.get("width")
+    video.height = meta.get("height")
+    video.codec = meta.get("codec")
+    for field in ("audio_channels", "audio_codec", "fps", "bitrate_kbps"):
+        if meta.get(field) is not None:
+            setattr(video, field, meta[field])
+    if not video.description and meta.get("description"):
+        video.description = meta["description"]
+    try:
+        video.thumbnail_path = generate_thumbnail(str(new_path), settings.thumbnails_dir, meta["duration_seconds"])
+    except Exception as te:
+        logger.error(f"Miniature post-normalisation échouée: {te}")
+
+
 def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = None):
-    """Tâche en arrière-plan pour normaliser une vidéo existante de manière asynchrone."""
+    """Tâche en arrière-plan pour normaliser une vidéo existante ; l'original est remis en place si elle échoue."""
     db = SessionLocal()
     try:
         video = db.query(Video).filter(Video.id == video_id).first()
@@ -458,56 +476,25 @@ def bg_normalize(video_id: int, actions: list, source_metadata: dict | None = No
             return
 
         old_path = Path(video.file_path)
+        old_thumbnail = video.thumbnail_path
         file_id = uuid.uuid4().hex
-        clean_name = old_path.name
-        temp_dest_path = old_path.parent / f"temp_{file_id}_{clean_name}"
+        temp_dest_path = old_path.parent / f"temp_{file_id}_{old_path.name}"
+        new_path = old_path.parent / f"video_{file_id}_{old_path.stem}.mp4"
 
         shutil.move(old_path, temp_dest_path)
-
-        new_name = f"video_{file_id}_{old_path.stem}.mp4"
-        new_path = old_path.parent / new_name
-
         try:
             normalize_video(str(temp_dest_path), str(new_path), actions, source_metadata=source_metadata)
-
-            meta = extract_metadata(str(new_path))
-
-            video.file_path = str(new_path)
-            video.duration_seconds = meta.get("duration_seconds")
-            video.width = meta.get("width")
-            video.height = meta.get("height")
-            video.codec = meta.get("codec")
-            if meta.get("audio_channels") is not None:
-                video.audio_channels = meta["audio_channels"]
-            if meta.get("audio_codec") is not None:
-                video.audio_codec = meta["audio_codec"]
-            if meta.get("fps") is not None:
-                video.fps = meta["fps"]
-            if meta.get("bitrate_kbps") is not None:
-                video.bitrate_kbps = meta["bitrate_kbps"]
-            if not video.description and meta.get("description"):
-                video.description = meta["description"]
-
-            if video.thumbnail_path:
-                try:
-                    os.remove(video.thumbnail_path)
-                except Exception as exc:
-                    logger.debug("bg_normalize : %s", exc)
-
-            try:
-                thumb_path = generate_thumbnail(
-                    str(new_path), settings.thumbnails_dir, meta["duration_seconds"]
-                )
-                video.thumbnail_path = thumb_path
-            except Exception as te:
-                logger.error(f"Miniature post-normalisation échouée: {te}")
-
+            _apply_normalized_metadata(video, new_path)
             db.commit()
-            logger.info(f"Vidéo ID {video_id} normalisée avec succès en tâche de fond.")
-        finally:
-            if temp_dest_path.exists():
-                os.remove(temp_dest_path)
-
+        except Exception:
+            db.rollback()
+            new_path.unlink(missing_ok=True)
+            shutil.move(temp_dest_path, old_path)
+            raise
+        temp_dest_path.unlink(missing_ok=True)
+        if old_thumbnail and old_thumbnail != video.thumbnail_path:
+            Path(old_thumbnail).unlink(missing_ok=True)
+        logger.info(f"Vidéo ID {video_id} normalisée avec succès en tâche de fond.")
     except Exception as e:
         logger.error(f"Erreur lors de la normalisation en tâche de fond de la vidéo {video_id}: {e}")
     finally:

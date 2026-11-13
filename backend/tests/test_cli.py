@@ -152,6 +152,14 @@ def test_server_answers_map_to_exit_codes(monkeypatch, capsys, raised, code, mes
     assert captured.out == "" and message in captured.err
 
 
+def test_validation_errors_are_printed_once_as_text(monkeypatch, capsys):
+    detail = {"code": "invalid", "message": "volume : valeur trop grande", "errors": [{"loc": ["body", "volume"], "msg": "valeur trop grande"}]}
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(_http_error(422, detail)))
+    monkeypatch.setenv("BOBINE_PORT", "1903")
+    assert cli.main(["playback", "cable", "play"]) == cli.EXIT_USAGE
+    assert capsys.readouterr().err.strip() == "bobine : Refusé (422) : volume : valeur trop grande"
+
+
 def test_health_503_reports_a_problem_not_a_refusal(monkeypatch, capsys):
     monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"status": "degraded"} if path == "/api/health" else {"state": "waiting"})
     assert cli.main(["status", "--port", "1903"]) == cli.EXIT_ERROR

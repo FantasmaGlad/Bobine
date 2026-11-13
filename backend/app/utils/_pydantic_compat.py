@@ -65,3 +65,8 @@ else:
 
     class OpenModel(BaseModel):
         model_config = ConfigDict(extra="allow")
+
+
+def fields_set(model: BaseModel) -> set[str]:
+    """Noms des champs fournis par l'appelant, en Pydantic v1 comme en v2."""
+    return set(model.__fields_set__ if _PYDANTIC_VERSION.startswith("1.") else model.model_fields_set)

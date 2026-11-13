@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.api.responses import AnnouncementPlayed, Message
 from app.api.paging import Window, window
+from app.utils._pydantic_compat import fields_set
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
 from app.radio_manager import LEGACY_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
@@ -177,13 +178,13 @@ def update_announcement(announcement_id: int, payload: RadioAnnouncementUpdate, 
     if not announcement:
         raise HTTPException(status_code=404, detail="Rappel non trouvé")
 
-    fields_set = getattr(payload, "model_fields_set", None) or payload.__fields_set__
-    if "description" in fields_set:
+    provided = fields_set(payload)
+    if "description" in provided:
         description = (payload.description or "").strip()
         if not description:
             raise HTTPException(status_code=422, detail="La description ne peut pas être vide")
         announcement.description = description
-    if "enabled" in fields_set:
+    if "enabled" in provided:
         announcement.enabled = bool(payload.enabled)
 
     db.commit()

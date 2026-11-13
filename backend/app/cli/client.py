@@ -63,7 +63,7 @@ class Client:
                 message = str(detail) if detail else f"réponse {status}"
             if isinstance(detail, dict) and detail.get("allowed"):
                 message += " Admis : " + ", ".join(map(str, detail["allowed"]))
-            errors = detail.get("errors") if isinstance(detail, dict) else None
+            errors = [e for e in detail.get("errors") or [] if isinstance(e, str)] if isinstance(detail, dict) else []
             if errors:
                 message = message + "\n" + "\n".join(f"  - {e}" for e in errors)
             code = (EXIT_NOT_FOUND if status == 404 else EXIT_REFUSED if status in _REFUSAL_STATUSES
