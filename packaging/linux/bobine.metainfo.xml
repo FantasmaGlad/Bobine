@@ -59,6 +59,12 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.2.2" date="2026-11-13">
+      <description>
+        <p>Version 5.2.2: bobine.local is published again on Android, request parameters are validated on Android as elsewhere, a failed normalization keeps the original file, and icon buttons are named for screen readers.</p>
+        <p xml:lang="fr">Version 5.2.2 : bobine.local est de nouveau publié sous Android, les paramètres de requête y sont validés comme ailleurs, une normalisation en échec conserve le fichier d'origine, et les boutons à icône sont nommés pour les lecteurs d'écran.</p>
+      </description>
+    </release>
     <release version="5.2.0" date="2026-11-13">
       <description>
         <p>Version 5.2.0 "Ruby": nothing leaves the machine except the update check, every API route has its bobine command, lists are paged, and a second Bobine on the network publishes itself as bobine-2.local.</p>
