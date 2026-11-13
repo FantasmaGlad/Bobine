@@ -116,6 +116,59 @@ def part_path_for(source_id: str, rel: str, size: int, mtime_ns: int) -> Path:
     return staging_root() / "parts" / f"{key}.part"
 
 
+def _source_stat(src: str, verb: str = "impossible") -> os.stat_result:
+    try:
+        return os.stat(src)
+    except OSError as exc:
+        raise TransferError("source_io", f"Lecture de la source {verb} : {exc.strerror or exc}", 502) from exc
+
+
+def _discard(*paths: Path) -> None:
+    for path in paths:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+
+
+def _resume_point(src: str, part: Path, meta: Path, size: int, mtime_ns: int, verify_source: bool):
+    try:
+        saved = json.loads(meta.read_text())
+        have = part.stat().st_size
+        if saved.get("size") == size and saved.get("mtime_ns") == mtime_ns and 0 < have <= size and verify_source:
+            hasher = _hasher_of_prefix(str(part), have)
+            if _sha_of_prefix(src, have) == hasher.hexdigest():
+                return hasher, have
+    except (OSError, ValueError):
+        pass
+    return hashlib.sha256(), 0
+
+
+def _copy_blocks(src: str, part: Path, offset: int, digest, chunk: int, is_cancelled, on_bytes) -> int:
+    copied = offset
+    with open(src, "rb") as reader, open(part, "ab" if offset else "wb") as writer:
+        reader.seek(offset)
+        while True:
+            if is_cancelled():
+                raise Cancelled()
+            try:
+                block = reader.read(chunk)
+            except OSError as exc:
+                raise TransferError("source_io", f"Lecture de la source interrompue : {exc.strerror or exc}", 502) from exc
+            if not block:
+                break
+            try:
+                writer.write(block)
+            except OSError as exc:
+                raise TransferError("dest_io", f"Écriture locale impossible : {exc.strerror or exc}", 507) from exc
+            digest.update(block)
+            copied += len(block)
+            on_bytes(len(block))
+        writer.flush()
+        os.fsync(writer.fileno())
+    return copied
+
+
 def copy_verified(
     src: str,
     dest: str,
@@ -128,94 +181,32 @@ def copy_verified(
     chunk: int = COPY_CHUNK,
 ) -> dict[str, Any]:
     """Copie `src` vers `dest` (via `part`) avec reprise et vérification d'intégrité."""
-    try:
-        before = os.stat(src)
-    except OSError as exc:
-        raise TransferError("source_io", f"Lecture de la source impossible : {exc.strerror or exc}", 502) from exc
+    before = _source_stat(src)
     size, mtime_ns = before.st_size, before.st_mtime_ns
     meta = Path(str(part) + ".json")
-    digest = hashlib.sha256()
-    offset = 0
-
+    digest, offset = hashlib.sha256(), 0
     if resume and part.exists() and meta.exists():
-        try:
-            saved = json.loads(meta.read_text())
-            have = part.stat().st_size
-            if saved.get("size") == size and saved.get("mtime_ns") == mtime_ns and 0 < have <= size and verify_source:
-                part_hasher = _hasher_of_prefix(str(part), have)
-                if _sha_of_prefix(src, have) == part_hasher.hexdigest():
-                    digest = part_hasher
-                    offset = have
-        except (OSError, ValueError):
-            offset = 0
+        digest, offset = _resume_point(src, part, meta, size, mtime_ns, verify_source)
     if offset == 0:
-        digest = hashlib.sha256()
-        for leftover in (part, meta):
-            try:
-                leftover.unlink()
-            except OSError:
-                pass
+        _discard(part, meta)
     meta.write_text(json.dumps({"size": size, "mtime_ns": mtime_ns}))
-
-    copied = offset
     if offset:
         on_bytes(offset)
     try:
-        with open(src, "rb") as reader, open(part, "ab" if offset else "wb") as writer:
-            if offset:
-                reader.seek(offset)
-            while True:
-                if is_cancelled():
-                    raise Cancelled()
-                try:
-                    block = reader.read(chunk)
-                except OSError as exc:
-                    raise TransferError("source_io", f"Lecture de la source interrompue : {exc.strerror or exc}", 502) from exc
-                if not block:
-                    break
-                try:
-                    writer.write(block)
-                except OSError as exc:
-                    raise TransferError("dest_io", f"Écriture locale impossible : {exc.strerror or exc}", 507) from exc
-                digest.update(block)
-                copied += len(block)
-                on_bytes(len(block))
-            writer.flush()
-            os.fsync(writer.fileno())
+        copied = _copy_blocks(src, part, offset, digest, chunk, is_cancelled, on_bytes)
     except Cancelled:
-        for leftover in (part, meta):
-            try:
-                leftover.unlink()
-            except OSError:
-                pass
+        _discard(part, meta)
         raise
-
-    try:
-        after = os.stat(src)
-    except OSError as exc:
-        raise TransferError("source_io", f"Lecture de la source impossible : {exc.strerror or exc}", 502) from exc
+    after = _source_stat(src)
     if copied != size or after.st_size != size or after.st_mtime_ns != mtime_ns:
-        for leftover in (part, meta):
-            try:
-                leftover.unlink()
-            except OSError:
-                pass
+        _discard(part, meta)
         raise TransferError("source_changed", "Le fichier a changé pendant la copie : relancez l'import.", 409)
-
     expected = digest.hexdigest()
     if _sha_of_file(str(part)) != expected or part.stat().st_size != size:
-        for leftover in (part, meta):
-            try:
-                leftover.unlink()
-            except OSError:
-                pass
+        _discard(part, meta)
         raise TransferError("verify_failed", "La copie ne correspond pas à l'original (vérification SHA-256 échouée).", 502)
-
     os.replace(part, dest)
-    try:
-        meta.unlink()
-    except OSError:
-        pass
+    _discard(meta)
     return {"size": size, "sha256": expected, "resumed_from": offset}
 
 
@@ -318,6 +309,58 @@ def _safe_staged_name(name: str) -> str:
     return cleaned or "fichier"
 
 
+def _run_importer(unit, staged: list[str], job_id: str) -> int | None:
+    from app.models import ImportSource
+    from app.utils.audio_importer import import_audio_course_from_files
+    from app.utils.executors import ffmpeg_executor
+    from app.utils.importer.video import import_video
+    from app.utils.radio_importer import import_radio_tracks_from_files
+
+    if unit.kind == "video":
+        video = ffmpeg_executor.submit(import_video, staged[0], os.path.basename(unit.files[0].absolute), ImportSource.upload, job_id).result()
+        return video.id
+    if unit.kind == "audio_course":
+        return import_audio_course_from_files(staged, unit.title, job_id=job_id).id
+    tracks = import_radio_tracks_from_files(staged, job_id=job_id)
+    return tracks[0].id if tracks else None
+
+
+def _stage_unit(unit, unit_dir: Path, source_id: str, staged: list[str], verify_source: bool, resume: bool,
+                is_cancelled: Callable[[], bool], on_bytes: Callable[[int], None]) -> None:
+    unit_dir.mkdir(parents=True, exist_ok=True)
+    for f in unit.files:
+        check_space(f.size)
+        dest = unit_dir / _safe_staged_name(os.path.basename(f.absolute))
+        copy_verified(f.absolute, str(dest), part=part_path_for(source_id, f.rel, f.size, f.mtime_ns),
+                      verify_source=verify_source, resume=resume and verify_source,
+                      is_cancelled=is_cancelled, on_bytes=on_bytes)
+        staged.append(str(dest))
+
+
+def _record_unit(source_id: str, unit, local_id: int | None) -> None:
+    from app.database import SessionLocal
+    from app.utils.ws_manager import manager as ws_manager
+
+    with SessionLocal() as db:
+        library.record_import(db, source_id, unit.key, unit.total, max(f.mtime_ns for f in unit.files), unit.kind, local_id)
+    ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "storage_imported"})
+
+
+def _finish_job(job_id: str, summary: dict[str, Any], first_result: int | None, units: int) -> None:
+    from app.utils.import_jobs import update_job
+
+    if summary["imported"] == 0 and summary["failed"]:
+        first = summary["failed"][0]
+        update_job(job_id, stage="error", error=first["message"], error_code=first["code"], details=summary)
+    elif summary["imported"] == 0:
+        update_job(job_id, stage="done", details=summary, files_done=units)
+    else:
+        update_job(job_id, stage="done", result_id=first_result, details=summary, files_done=units, progress_percent=100.0)
+
+
+_FATAL_TRANSFER_CODES = ("source_io", "insufficient_space", "dest_io")
+
+
 def run_import_job(
     job_id: str,
     source_id: str,
@@ -328,14 +371,7 @@ def run_import_job(
     on_finished: Callable[[], None] = lambda: None,
 ) -> dict[str, Any]:
     """Exécute le plan : copie vérifiée de chaque unité puis importeur existant."""
-    from app.database import SessionLocal
-    from app.models import ImportSource
-    from app.utils.executors import ffmpeg_executor
     from app.utils.import_jobs import JobCancelledError, is_job_cancelled, update_job
-    from app.utils.importer.video import import_video
-    from app.utils.audio_importer import import_audio_course_from_files
-    from app.utils.radio_importer import import_radio_tracks_from_files
-    from app.utils.ws_manager import manager as ws_manager
 
     total_bytes = plan.total_bytes
     state = {"bytes": 0}
@@ -350,59 +386,39 @@ def run_import_job(
         percent = round(100.0 * state["bytes"] / total_bytes, 1) if total_bytes else None
         update_job(job_id, bytes_done=state["bytes"], progress_percent=percent)
 
+    def cancelled() -> bool:
+        return is_job_cancelled(job_id)
+
     try:
         for index, unit in enumerate(plan.units):
-            if is_job_cancelled(job_id):
+            if cancelled():
                 raise JobCancelledError(job_id)
             update_job(job_id, stage="copying", current_file=unit.title, files_done=index)
             staged: list[str] = []
             try:
-                unit_dir = work_dir / f"{index:04d}"
-                unit_dir.mkdir(parents=True, exist_ok=True)
-                for f in unit.files:
-                    check_space(f.size)
-                    dest = unit_dir / _safe_staged_name(os.path.basename(f.absolute))
-                    copy_verified(
-                        f.absolute, str(dest),
-                        part=part_path_for(source_id, f.rel, f.size, f.mtime_ns),
-                        verify_source=verify_source, resume=resume and verify_source,
-                        is_cancelled=lambda: is_job_cancelled(job_id), on_bytes=bump,
-                    )
-                    staged.append(str(dest))
-                if is_job_cancelled(job_id):
+                _stage_unit(unit, work_dir / f"{index:04d}", source_id, staged, verify_source, resume, cancelled, bump)
+                if cancelled():
                     raise JobCancelledError(job_id)
                 update_job(job_id, stage="probing", progress_percent=None)
-                local_id = _run_importer(unit, staged, job_id, ffmpeg_executor, import_video, import_audio_course_from_files, import_radio_tracks_from_files, ImportSource)
-                if first_result is None:
-                    first_result = local_id
-                with SessionLocal() as db:
-                    library.record_import(db, source_id, unit.key, unit.total, max(f.mtime_ns for f in unit.files), unit.kind, local_id)
+                local_id = _run_importer(unit, staged, job_id)
+                first_result = local_id if first_result is None else first_result
+                _record_unit(source_id, unit, local_id)
                 summary["imported"] += 1
-                ws_manager.broadcast_threadsafe({"event": "library_change", "reason": "storage_imported"})
             except (Cancelled, JobCancelledError):
                 raise JobCancelledError(job_id)
             except TransferError as exc:
                 logger.warning("Import depuis un support : %s (%s)", unit.title, exc.code)
                 summary["failed"].append({"path": unit.key, "code": exc.code, "message": exc.message})
-                if exc.code in ("source_io", "insufficient_space", "dest_io"):
+                if exc.code in _FATAL_TRANSFER_CODES:
                     break
             except Exception as exc:
                 logger.warning("Import depuis un support : %s : %s", unit.title, exc)
                 summary["failed"].append({"path": unit.key, "code": "import_failed", "message": str(exc)})
             finally:
                 for path in staged:
-                    try:
-                        os.remove(path)
-                    except OSError:
-                        pass
+                    _discard(Path(path))
         summary["bytes"] = state["bytes"]
-        if summary["imported"] == 0 and summary["failed"]:
-            first = summary["failed"][0]
-            update_job(job_id, stage="error", error=first["message"], error_code=first["code"], details=summary)
-        elif summary["imported"] == 0:
-            update_job(job_id, stage="done", details=summary, files_done=len(plan.units))
-        else:
-            update_job(job_id, stage="done", result_id=first_result, details=summary, files_done=len(plan.units), progress_percent=100.0)
+        _finish_job(job_id, summary, first_result, len(plan.units))
         return summary
     except JobCancelledError:
         update_job(job_id, stage="cancelled", details=summary)
@@ -410,17 +426,6 @@ def run_import_job(
     finally:
         shutil.rmtree(work_dir, ignore_errors=True)
         on_finished()
-
-
-def _run_importer(unit, staged, job_id, ffmpeg_executor, import_video, import_audio_course_from_files, import_radio_tracks_from_files, ImportSource) -> int | None:
-    if unit.kind == "video":
-        video = ffmpeg_executor.submit(import_video, staged[0], os.path.basename(unit.files[0].absolute), ImportSource.upload, job_id).result()
-        return video.id
-    if unit.kind == "audio_course":
-        course = import_audio_course_from_files(staged, unit.title, job_id=job_id)
-        return course.id
-    tracks = import_radio_tracks_from_files(staged, job_id=job_id)
-    return tracks[0].id if tracks else None
 
 
 def _fsync_dir(directory: str) -> None:

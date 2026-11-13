@@ -13,6 +13,8 @@ from app.utils.network import primary_lan_ip
 logger = logging.getLogger(__name__)
 
 MDNS_HOSTNAME = "bobine"
+_MAX_HOST_SUFFIX = 9
+_PROBE_TIMEOUT_MS = 1500
 
 _REANNOUNCE_INTERVAL_SECONDS = 5 * 60
 _RETRY_DELAYS_SECONDS = (2.0, 5.0, 10.0, 30.0, 60.0)
@@ -21,6 +23,7 @@ _AVAHI_SOCKET_PATH = Path("/var/run/avahi-daemon/socket")
 _zeroconf = None
 _service_info = None
 _last_announced_ip: str | None = None
+_hostname = MDNS_HOSTNAME
 _state_lock = threading.Lock()
 _stop_event = threading.Event()
 _thread: threading.Thread | None = None
@@ -36,7 +39,24 @@ def _set_status(state: str, detail: str | None = None) -> None:
 def get_status() -> dict[str, Any]:
     """État courant du répondeur mDNS — consommé par `GET /api/settings`."""
     with _state_lock:
-        return dict(_status)
+        return {**_status, "host": f"{_hostname}.local"}
+
+
+def _held_by_other(zc: Any, host: str, own_ip: str) -> bool:
+    from zeroconf import AddressResolverIPv4
+
+    resolver = AddressResolverIPv4(f"{host}.local.")
+    try:
+        if not resolver.request(zc, _PROBE_TIMEOUT_MS):
+            return False
+    except Exception:
+        return False
+    return any(address != own_ip for address in resolver.parsed_addresses())
+
+
+def _free_hostname(zc: Any, own_ip: str) -> str:
+    candidates = [MDNS_HOSTNAME] + [f"{MDNS_HOSTNAME}-{n}" for n in range(2, _MAX_HOST_SUFFIX + 1)]
+    return next((host for host in candidates if not _held_by_other(zc, host, own_ip)), candidates[0])
 
 
 def _avahi_daemon_active() -> bool:
@@ -62,7 +82,7 @@ def _local_ip() -> str | None:
 
 
 def _register_or_update(zc: Any, port: int) -> str:
-    global _service_info, _last_announced_ip
+    global _service_info, _last_announced_ip, _hostname
     from zeroconf import ServiceInfo
 
     local_ip = _local_ip()
@@ -76,18 +96,20 @@ def _register_or_update(zc: Any, port: int) -> str:
     if unchanged:
         return local_ip
 
+    host = _hostname if already_registered else _free_hostname(zc, local_ip)
     info = ServiceInfo(
         "_http._tcp.local.",
         "Bobine._http._tcp.local.",
         addresses=[socket.inet_aton(local_ip)],
         port=port,
-        server=f"{MDNS_HOSTNAME}.local.",
+        server=f"{host}.local.",
     )
     if already_registered:
         zc.update_service(info)
     else:
-        zc.register_service(info)
+        zc.register_service(info, allow_name_change=True)
     with _state_lock:
+        _hostname = host
         _service_info = info
         _last_announced_ip = local_ip
     return local_ip
@@ -113,7 +135,7 @@ def _run_loop(port: int) -> None:
             announced_ip = _register_or_update(zc, port)
             platform_label = "Android" if is_android() else platform.system()
             if _status.get("state") != "ok":
-                logger.info(f"mDNS : '{MDNS_HOSTNAME}.local' publié ({announced_ip}:{port}, profil {platform_label}).")
+                logger.info(f"mDNS : '{_hostname}.local' publié ({announced_ip}:{port}, profil {platform_label}).")
             _set_status("ok")
             attempt = 0
             if _stop_event.wait(_REANNOUNCE_INTERVAL_SECONDS):
@@ -144,11 +166,11 @@ def start_mdns_responder(port: int) -> None:
 
 
 def stop_mdns_responder() -> None:
-    global _zeroconf, _service_info, _last_announced_ip, _thread
+    global _zeroconf, _service_info, _last_announced_ip, _thread, _hostname
     _stop_event.set()
     with _state_lock:
         zc, info = _zeroconf, _service_info
-        _zeroconf, _service_info, _last_announced_ip = None, None, None
+        _zeroconf, _service_info, _last_announced_ip, _hostname = None, None, None, MDNS_HOSTNAME
     if zc is not None:
         try:
             if info is not None:

@@ -64,6 +64,40 @@ def get_encoder_args(is_android: bool, width: int | None, height: int | None) ->
     return (["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-threads", "0", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"], "libx264")
 
 
+_GOP = ["-g", "60"]
+_ANDROID_DECODERS = {"av1": "av1_mediacodec", "hevc": "hevc_mediacodec", "h265": "hevc_mediacodec",
+                     "vp9": "vp9_mediacodec", "h264": "h264_mediacodec"}
+_SOFTWARE_TIER = {
+    "name": "software_libx264",
+    "encoder_name": "libx264",
+    "hw_in": [],
+    "enc_args": ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-threads", "0", "-pix_fmt", "yuv420p", *_GOP, "-keyint_min", "60"],
+}
+
+
+def _tier(name: str, encoder: str, hw_in: list[str], enc_args: list[str]) -> dict:
+    return {"name": name, "encoder_name": encoder, "hw_in": hw_in, "enc_args": [*enc_args, *_GOP]}
+
+
+def _pair(prefix: str, encoder: str, hw_in: list[str], enc_args: list[str], hybrid_args: list[str] | None = None) -> list[dict]:
+    return [_tier(f"{prefix}_full", encoder, hw_in, enc_args),
+            _tier(f"{prefix}_hybrid", encoder, [], hybrid_args or enc_args),
+            dict(_SOFTWARE_TIER)]
+
+
+def _android_tiers(in_codec: str, bitrate: str) -> list[dict]:
+    args = ["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate]
+    decoder = _ANDROID_DECODERS.get(in_codec)
+    tiers = _pair("android_mediacodec", "h264_mediacodec", ["-operating_rate", "1000", "-c:v", decoder or ""], args)
+    return tiers if decoder else tiers[1:]
+
+
+def _vaapi_tiers(device: str, bitrate: str) -> list[dict]:
+    return _pair("vaapi", "h264_vaapi", ["-hwaccel", "vaapi", "-hwaccel_device", device, "-hwaccel_output_format", "vaapi"],
+                 ["-vf", "scale_vaapi=format=nv12", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate],
+                 ["-vaapi_device", device, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate])
+
+
 def get_transcode_pipeline(
     is_android: bool,
     in_codec: str,
@@ -73,94 +107,19 @@ def get_transcode_pipeline(
     """Construit le pipeline d'accélération matérielle multi-paliers (Full HW -> Hybride -> Logiciel)."""
     bitrate = get_target_bitrate(width, height)
     system = platform.system().lower()
-    gop_args = ["-g", "60"]
-    sw_tier = {
-        "name": "software_libx264",
-        "encoder_name": "libx264",
-        "hw_in": [],
-        "enc_args": ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-threads", "0", "-pix_fmt", "yuv420p", *gop_args, "-keyint_min", "60"],
-    }
-
     if is_android:
-        android_decoders = {
-            "av1": "av1_mediacodec",
-            "hevc": "hevc_mediacodec",
-            "h265": "hevc_mediacodec",
-            "vp9": "vp9_mediacodec",
-            "h264": "h264_mediacodec",
-        }
-        dec = android_decoders.get(in_codec)
-        tiers = []
-        if dec:
-            tiers.append({
-                "name": "android_mediacodec_full",
-                "encoder_name": "h264_mediacodec",
-                "hw_in": ["-operating_rate", "1000", "-c:v", dec],
-                "enc_args": ["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate, *gop_args],
-            })
-        tiers.append({
-            "name": "android_mediacodec_hybrid",
-            "encoder_name": "h264_mediacodec",
-            "hw_in": [],
-            "enc_args": ["-c:v", "h264_mediacodec", "-operating_rate", "1000", "-pix_fmt", "nv12", "-b:v", bitrate, *gop_args],
-        })
-        tiers.append(sw_tier)
-        return tiers
-
+        return _android_tiers(in_codec, bitrate)
     if system == "darwin":
-        return [
-            {
-                "name": "videotoolbox_full",
-                "encoder_name": "h264_videotoolbox",
-                "hw_in": ["-hwaccel", "videotoolbox"],
-                "enc_args": ["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args],
-            },
-            {
-                "name": "videotoolbox_hybrid",
-                "encoder_name": "h264_videotoolbox",
-                "hw_in": [],
-                "enc_args": ["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p", *gop_args],
-            },
-            sw_tier,
-        ]
-
+        return _pair("videotoolbox", "h264_videotoolbox", ["-hwaccel", "videotoolbox"],
+                     ["-c:v", "h264_videotoolbox", "-q:v", "65", "-pix_fmt", "yuv420p"])
     if system == "linux":
-        vaapi_dev = find_vaapi_device()
-        if vaapi_dev:
-            return [
-                {
-                    "name": "vaapi_full",
-                    "encoder_name": "h264_vaapi",
-                    "hw_in": ["-hwaccel", "vaapi", "-hwaccel_device", vaapi_dev, "-hwaccel_output_format", "vaapi"],
-                    "enc_args": ["-vf", "scale_vaapi=format=nv12", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate, *gop_args],
-                },
-                {
-                    "name": "vaapi_hybrid",
-                    "encoder_name": "h264_vaapi",
-                    "hw_in": [],
-                    "enc_args": ["-vaapi_device", vaapi_dev, "-vf", "format=nv12,hwupload", "-c:v", "h264_vaapi", "-async_depth", "4", "-b:v", bitrate, *gop_args],
-                },
-                sw_tier,
-            ]
-
+        device = find_vaapi_device()
+        if device:
+            return _vaapi_tiers(device, bitrate)
     if system == "windows":
-        return [
-            {
-                "name": "qsv_full",
-                "encoder_name": "h264_qsv",
-                "hw_in": ["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"],
-                "enc_args": ["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args],
-            },
-            {
-                "name": "qsv_hybrid",
-                "encoder_name": "h264_qsv",
-                "hw_in": [],
-                "enc_args": ["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate, *gop_args],
-            },
-            sw_tier,
-        ]
-
-    return [sw_tier]
+        return _pair("qsv", "h264_qsv", ["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"],
+                     ["-c:v", "h264_qsv", "-preset", "fast", "-b:v", bitrate])
+    return [dict(_SOFTWARE_TIER)]
 
 
 def shares_machine_with_browser() -> bool:

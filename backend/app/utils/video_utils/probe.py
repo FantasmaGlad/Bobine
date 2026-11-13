@@ -48,121 +48,66 @@ def get_video_info(file_path: str) -> dict:
         raise ValueError(f"Erreur lors de la lecture des métadonnées : {str(e)}")
 
 
+def _number(raw, cast=float):
+    try:
+        return cast(raw) if raw is not None else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _rate(raw: str | None) -> float | None:
+    if not raw or raw == "0/0":
+        return None
+    try:
+        if "/" in raw:
+            num, den = raw.split("/", 1)
+            value = float(num) / float(den) if float(den) > 0 else None
+        else:
+            value = float(raw)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return round(value, 2) if value is not None and 1 <= value <= 240 else None
+
+
+def _description(*tag_sets) -> str | None:
+    for tags in tag_sets:
+        if not isinstance(tags, dict):
+            continue
+        lower = {str(k).lower(): str(v) for k, v in tags.items()}
+        candidate = lower.get("description") or lower.get("comment") or lower.get("synopsis")
+        if candidate and candidate.strip():
+            return candidate.strip()
+    return None
+
+
+def _is_drm(streams: list[dict]) -> bool:
+    for stream in streams:
+        if {str(stream.get("codec_name", "")).lower(), str(stream.get("codec_tag_string", "")).lower()} & {"encv", "enca"}:
+            return True
+    return any("encryption" in k.lower() or "drm" in k.lower() for stream in streams for k in stream.get("tags", {}))
+
+
 def extract_metadata(file_path: str) -> dict:
     """Extrait les métadonnées pertinentes (durée, résolution, codecs, DRM) du fichier vidéo."""
     info = get_video_info(file_path)
     streams = info.get("streams", [])
     fmt = info.get("format", {})
-
-    duration = None
-    if "duration" in fmt:
-        try:
-            duration = float(fmt["duration"])
-        except ValueError:
-            pass
-
-    v_stream = next((s for s in streams if s.get("codec_type") == "video"), None)
-    a_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
-
-    width = None
-    height = None
-    v_codec = None
-    pix_fmt = None
-    if v_stream:
-        width = v_stream.get("width")
-        height = v_stream.get("height")
-        v_codec = v_stream.get("codec_name")
-        pix_fmt = v_stream.get("pix_fmt")
-        if duration is None and "duration" in v_stream:
-            try:
-                duration = float(v_stream["duration"])
-            except ValueError:
-                pass
-
-    a_codec = None
-    audio_channels = None
-    if a_stream:
-        a_codec = a_stream.get("codec_name")
-        channels_val = a_stream.get("channels")
-        if channels_val is not None:
-            try:
-                audio_channels = int(channels_val)
-            except (ValueError, TypeError):
-                pass
-
-    fps = None
-    if v_stream:
-        for rate_key in ("r_frame_rate", "avg_frame_rate"):
-            raw_rate = v_stream.get(rate_key)
-            if raw_rate and raw_rate != "0/0":
-                try:
-                    if "/" in raw_rate:
-                        num, den = raw_rate.split("/", 1)
-                        d = float(den)
-                        if d > 0:
-                            val = float(num) / d
-                            if 1 <= val <= 240:
-                                fps = round(val, 2)
-                                break
-                    else:
-                        val = float(raw_rate)
-                        if 1 <= val <= 240:
-                            fps = round(val, 2)
-                            break
-                except (ValueError, ZeroDivisionError):
-                    pass
-
-    bitrate_kbps = None
-    raw_br = fmt.get("bit_rate") or (v_stream.get("bit_rate") if v_stream else None)
-    if raw_br:
-        try:
-            bitrate_kbps = int(raw_br) // 1000
-        except (ValueError, TypeError):
-            pass
-
-    description = None
-    fmt_tags = fmt.get("tags") or {}
-    if isinstance(fmt_tags, dict):
-        lower_tags = {str(k).lower(): str(v) for k, v in fmt_tags.items()}
-        desc_candidate = lower_tags.get("description") or lower_tags.get("comment") or lower_tags.get("synopsis")
-        if desc_candidate and desc_candidate.strip():
-            description = desc_candidate.strip()
-
-    if not description and v_stream:
-        v_tags = v_stream.get("tags") or {}
-        if isinstance(v_tags, dict):
-            lower_vtags = {str(k).lower(): str(v) for k, v in v_tags.items()}
-            desc_candidate = lower_vtags.get("description") or lower_vtags.get("comment") or lower_vtags.get("synopsis")
-            if desc_candidate and desc_candidate.strip():
-                description = desc_candidate.strip()
-
-    is_drm = False
-    for s in streams:
-        c_name = str(s.get("codec_name", "")).lower()
-        c_tag = str(s.get("codec_tag_string", "")).lower()
-        if c_name in ("encv", "enca") or c_tag in ("encv", "enca"):
-            is_drm = True
-            break
-
-    if not is_drm:
-        for s in streams:
-            for k, v in s.get("tags", {}).items():
-                if "encryption" in k.lower() or "drm" in k.lower():
-                    is_drm = True
-                    break
-            if is_drm:
-                break
-
+    video = next((s for s in streams if s.get("codec_type") == "video"), None) or {}
+    audio = next((s for s in streams if s.get("codec_type") == "audio"), None) or {}
+    duration = _number(fmt.get("duration"))
+    if duration is None:
+        duration = _number(video.get("duration"))
+    bitrate = _number(fmt.get("bit_rate") or video.get("bit_rate") or None, int)
     return {
         "duration_seconds": duration,
-        "width": width,
-        "height": height,
-        "codec": v_codec,
-        "audio_codec": a_codec,
-        "audio_channels": audio_channels,
-        "fps": fps,
-        "bitrate_kbps": bitrate_kbps,
-        "pix_fmt": pix_fmt,
-        "description": description,
-        "is_drm": is_drm
+        "width": video.get("width"),
+        "height": video.get("height"),
+        "codec": video.get("codec_name"),
+        "audio_codec": audio.get("codec_name"),
+        "audio_channels": _number(audio.get("channels"), int),
+        "fps": next((r for r in (_rate(video.get(k)) for k in ("r_frame_rate", "avg_frame_rate")) if r is not None), None),
+        "bitrate_kbps": bitrate // 1000 if bitrate is not None else None,
+        "pix_fmt": video.get("pix_fmt"),
+        "description": _description(fmt.get("tags") or {}, video.get("tags") or {}),
+        "is_drm": _is_drm(streams),
     }

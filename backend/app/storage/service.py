@@ -48,6 +48,19 @@ class Source:
     source_id: str
 
 
+def _export_items(kind: str, ids: list[int]) -> list[tuple[str, str]]:
+    from app.database import SessionLocal
+    from app.models import AudioTrack, RadioTrack, Video
+
+    model = {"video": Video, "audio": AudioTrack, "radio": RadioTrack}.get(kind)
+    if model is None:
+        raise transfer.TransferError("bad_kind", "Nature d'export inconnue.", 400)
+    with SessionLocal() as db:
+        rows = db.query(model).filter(model.id.in_(ids)).all()
+        return [(row.file_path, paths.safe_dest_name(f"{row.title}{os.path.splitext(row.file_path)[1].lower()}"))
+                for row in rows if row.storage_id is None and os.path.isfile(row.file_path)]
+
+
 class StorageService:
     def __init__(self, driver_factory: Callable[[], StorageDriver] = build_storage_driver) -> None:
         self._driver_factory = driver_factory
@@ -655,11 +668,7 @@ class StorageService:
         self.notify("jobs")
         return {"job_id": job_id, "files": plan.total_files, "units": len(plan.units), "skipped": plan.skipped, "truncated": plan.truncated}
 
-    async def start_export(self, key: str, kind: str, ids: list[int], dest: str | None) -> dict[str, Any]:
-        """Copie des médias LOCAUX vers le support : écriture temporaire, explicite ; remonte ensuite en lecture seule."""
-        from app.database import SessionLocal
-        from app.utils.import_jobs import create_job, register_job_future
-
+    def _check_export_target(self, key: str, ids: list[int], dest: str | None):
         if key.startswith("p-"):
             raise DeviceError("read_only_device", "Un appareil portable est en lecture seule : aucune écriture.", 409)
         source = self._source(key)
@@ -671,33 +680,9 @@ class StorageService:
         if not ids:
             raise transfer.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
         paths.clean_rel_path(dest or "Bobine")
+        return source, vol
 
-        def _items() -> list[tuple[str, str]]:
-            from app.models import AudioTrack, RadioTrack, Video
-
-            with SessionLocal() as db:
-                model = {"video": Video, "audio": AudioTrack, "radio": RadioTrack}.get(kind)
-                if model is None:
-                    raise transfer.TransferError("bad_kind", "Nature d'export inconnue.", 400)
-                rows = db.query(model).filter(model.id.in_(ids)).all()
-                out = []
-                for row in rows:
-                    if row.storage_id is not None or not os.path.isfile(row.file_path):
-                        continue
-                    out.append((row.file_path, paths.safe_dest_name(f"{row.title}{os.path.splitext(row.file_path)[1].lower()}")))
-                return out
-
-        items = await asyncio.to_thread(_items)
-        if not items:
-            raise transfer.TransferError("nothing_to_export", "Aucun média local à exporter dans cette sélection.", 400)
-        total = sum(os.path.getsize(p) for p, _ in items)
-        free = (await asyncio.to_thread(shutil.disk_usage, source.root)).free
-        if free < int(total * 1.02) + 16 * 1024 * 1024:
-            raise transfer.TransferError("insufficient_space", "Espace libre insuffisant sur le support.", 409, needed_bytes=total, free_bytes=free)
-
-        settings = await self._effective_settings(vol)
-        was_ro = vol.mounted_read_only is not False
-        job_id = create_job(kind, f"{len(items)} fichier(s) vers le support", "Export", source="storage")
+    async def _open_for_export(self, key: str, vol: Volume, job_id: str, settings: dict) -> None:
         async with self._lock:
             try:
                 await self._remount(vol, writable=True, settings=settings)
@@ -708,43 +693,53 @@ class StorageService:
                 raise
             self._rw_lease.add(key)
             self._mark_busy(key, job_id)
+
+    async def _close_after_export(self, key: str, job_id: str, back_to_read_only: bool, settings: dict) -> None:
+        async with self._lock:
+            self._rw_lease.discard(key)
+            self._busy.get(key, set()).discard(job_id)
+            current = self._by_key.get(key)
+            if current is not None and current.mounted:
+                try:
+                    await self._sync_now()
+                    if back_to_read_only:
+                        await self._remount(current, writable=False, settings=settings)
+                except DeviceError as exc:
+                    logger.info("Retour en lecture seule impossible : %s", exc.message)
+            if not self._busy.get(key):
+                self._busy.pop(key, None)
+        self.notify("jobs")
+        await self.refresh()
+
+    async def start_export(self, key: str, kind: str, ids: list[int], dest: str | None) -> dict[str, Any]:
+        """Copie des médias LOCAUX vers le support : écriture temporaire, explicite ; remonte ensuite en lecture seule."""
+        from app.utils.import_jobs import create_job, register_job_future
+
+        source, vol = self._check_export_target(key, ids, dest)
+        items = await asyncio.to_thread(_export_items, kind, ids)
+        if not items:
+            raise transfer.TransferError("nothing_to_export", "Aucun média local à exporter dans cette sélection.", 400)
+        total = sum(os.path.getsize(p) for p, _ in items)
+        free = (await asyncio.to_thread(shutil.disk_usage, source.root)).free
+        if free < int(total * 1.02) + 16 * 1024 * 1024:
+            raise transfer.TransferError("insufficient_space", "Espace libre insuffisant sur le support.", 409, needed_bytes=total, free_bytes=free)
+        settings = await self._effective_settings(vol)
+        back_to_read_only = vol.mounted_read_only is not False or bool(settings.get("read_only"))
+        job_id = create_job(kind, f"{len(items)} fichier(s) vers le support", "Export", source="storage")
+        await self._open_for_export(key, vol, job_id, settings)
         await self.refresh()
         refreshed = self._by_key.get(key)
         root = (refreshed.mountpoint if refreshed else None) or source.root
         loop = self._loop
         assert loop is not None
 
-        def _after() -> None:
-            async def finish() -> None:
-                async with self._lock:
-                    self._rw_lease.discard(key)
-                    self._busy.get(key, set()).discard(job_id)
-                    current = self._by_key.get(key)
-                    if current is not None and current.mounted:
-                        try:
-                            await self._sync_now()
-                            if was_ro or settings.get("read_only"):
-                                await self._remount(current, writable=False, settings=settings)
-                        except DeviceError as exc:
-                            logger.info("Retour en lecture seule impossible : %s", exc.message)
-                    if not self._busy.get(key):
-                        self._busy.pop(key, None)
-                self.notify("jobs")
-                await self.refresh()
-
-            asyncio.run_coroutine_threadsafe(finish(), loop)
-
         def run() -> None:
-            self._run_export(job_id, key, vol, root, dest, items, total)
-
-        def wrapper() -> None:
             try:
-                run()
+                self._run_export(job_id, key, vol, root, dest, items, total)
             finally:
-                _after()
+                asyncio.run_coroutine_threadsafe(self._close_after_export(key, job_id, back_to_read_only, settings), loop)
 
-        future = transfer.storage_executor.submit(wrapper)
-        register_job_future(job_id, future)
+        register_job_future(job_id, transfer.storage_executor.submit(run))
         self.notify("jobs")
         return {"job_id": job_id, "files": len(items), "bytes": total}
 

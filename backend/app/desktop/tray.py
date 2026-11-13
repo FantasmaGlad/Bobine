@@ -494,90 +494,49 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
             _notify_best_effort(icon, "Bobine — Échec de la mise à jour", status.get("error") or status.get("message") or "La mise à jour a échoué.")
 
 
-def run() -> None:
-    """Point d'entrée — `python -m app.desktop.tray` en développement, et l'exécutable `BobineTray.exe` une fois empaqueté."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+def _keep_awake_while_projecting(process) -> None:
+    if platform.system() == "Darwin" and shutil.which("caffeinate"):
+        subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(process.pid)])
+    elif platform.system() in ("Windows", "Linux"):
+        _set_display_always_on(True)
 
-    if is_backend_running():
-        logger.info("Bobine est déjà actif en arrière-plan. Ouverture de l'interface web.")
-        webbrowser.open(_admin_url())
-        return
 
-    if not _acquire_single_instance_lock():
-        logger.info(
-            "Une autre instance de BobineTray supervise déjà le démarrage du backend "
-            "— ouverture de l'interface web sans lancer de doublon."
-        )
-        webbrowser.open(_admin_url())
-        return
-
-    _ensure_launch_agent_macos()
-    _ensure_desktop_shortcut()
-
-    supervisor = BackendSupervisor(_backend_command())
-    supervisor.start()
-
-    if "--startup" not in sys.argv and "--minimized" not in sys.argv:
-        threading.Thread(
-            target=_open_initial_displays,
-            daemon=True,
-            name="bobine-open-displays",
-        ).start()
-
-    threading.Thread(target=_update_poll_loop, daemon=True, name="bobine-tray-update-check").start()
-
-    def _keep_awake_while_projecting(process) -> None:
-        if platform.system() == "Darwin" and shutil.which("caffeinate"):
-            subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(process.pid)])
-        elif platform.system() in ("Windows", "Linux"):
-            _set_display_always_on(True)
-
-    display_orchestrator = DisplayOrchestrator(
+def _start_displays() -> tuple[DisplayOrchestrator, DisplayWatcher]:
+    orchestrator = DisplayOrchestrator(
         _display_state_url,
         ProjectorWindow(_projector_url, after_launch=_keep_awake_while_projecting),
         ready_check=is_backend_running,
     )
-    display_watcher = DisplayWatcher(display_orchestrator.handle_change)
-    display_watcher.start()
+    watcher = DisplayWatcher(orchestrator.handle_change)
+    watcher.start()
 
-    def _refresh_display_report_loop() -> None:
+    def refresh_loop() -> None:
         while True:
             time.sleep(REPORT_REFRESH_SECONDS)
-            display_orchestrator.refresh_report()
+            orchestrator.refresh_report()
 
-    threading.Thread(target=_refresh_display_report_loop, daemon=True, name="bobine-display-refresh").start()
+    threading.Thread(target=refresh_loop, daemon=True, name="bobine-display-refresh").start()
+    return orchestrator, watcher
 
-    def on_open_admin(icon, item):
-        webbrowser.open(_admin_url())
 
-    def on_open_grid(icon, item):
-        webbrowser.open(_grid_url())
+def _on_check_update(icon, item) -> None:
+    with _update_lock:
+        has_update, download_url = _update_state["has_update"], _update_state["download_url"]
+    if has_update and download_url:
+        webbrowser.open(download_url)
+    else:
+        threading.Thread(target=_check_for_update_once, daemon=True, name="bobine-tray-update-check-now").start()
 
-    def on_open_cinema(icon, item):
-        webbrowser.open(_cinema_url())
 
-    def on_open_kiosk(icon, item):
-        launch_kiosk_browser()
+def _update_text(item) -> str:
+    with _update_lock:
+        if _update_state["has_update"]:
+            return f"Mise à jour disponible ({_update_state['latest_version']}) — Télécharger"
+        return "Aucune mise à jour disponible (cliquer pour vérifier)"
 
-    def on_check_update(icon, item):
-        with _update_lock:
-            has_update = _update_state["has_update"]
-            download_url = _update_state["download_url"]
-        if has_update and download_url:
-            webbrowser.open(download_url)
-        else:
-            threading.Thread(target=_check_for_update_once, daemon=True, name="bobine-tray-update-check-now").start()
 
-    def on_restart(icon, item):
-        supervisor.restart_now()
-
-    def on_reopen_projector(icon, item):
-        if not display_orchestrator.reopen_projector():
-            _notify_best_effort(icon, "Bobine", "Aucun écran externe détecté.")
-
-    controls = tray_actions.Controls(_admin_url)
-
-    def output_item(kind: str, target: str, name: str) -> "pystray.MenuItem":
+def _output_items(controls: "tray_actions.Controls") -> list:
+    def item_for(kind: str, target: str, name: str) -> "pystray.MenuItem":
         def on_click(icon, item):
             if not controls.toggle(kind, target):
                 _notify_best_effort(icon, "Bobine", f"{name} : rien à mettre en pause ni à reprendre.")
@@ -592,43 +551,68 @@ def run() -> None:
         if accepted < len(tray_actions.OUTPUTS):
             _notify_best_effort(icon, "Bobine", f"Diffusion arrêtée sur {accepted} sortie(s) sur {len(tray_actions.OUTPUTS)}.")
 
+    return [*[item_for(kind, target, name) for kind, target, name in tray_actions.OUTPUTS],
+            pystray.MenuItem("Couper la diffusion", on_stop_all)]
+
+
+def _build_menu(supervisor: BackendSupervisor, orchestrator: DisplayOrchestrator, watcher: DisplayWatcher) -> "pystray.Menu":
+    def on_reopen_projector(icon, item):
+        if not orchestrator.reopen_projector():
+            _notify_best_effort(icon, "Bobine", "Aucun écran externe détecté.")
+
     def on_quit(icon, item):
-        display_watcher.stop()
-        display_orchestrator.shutdown()
+        watcher.stop()
+        orchestrator.shutdown()
         supervisor.stop()
         icon.stop()
 
-    def status_text(item):
-        return "État : en ligne" if supervisor.is_running() else "État : hors ligne"
+    def opener(url):
+        return lambda icon, item: webbrowser.open(url())
 
-    def update_text(item):
-        with _update_lock:
-            if _update_state["has_update"]:
-                return f"Mise à jour disponible ({_update_state['latest_version']}) — Télécharger"
-            return "Aucune mise à jour disponible (cliquer pour vérifier)"
-
-    menu = pystray.Menu(
-        pystray.MenuItem(status_text, None, enabled=False),
+    return pystray.Menu(
+        pystray.MenuItem(lambda item: "État : en ligne" if supervisor.is_running() else "État : hors ligne", None, enabled=False),
         pystray.Menu.SEPARATOR,
-        *[output_item(kind, target, name) for kind, target, name in tray_actions.OUTPUTS],
-        pystray.MenuItem("Couper la diffusion", on_stop_all),
+        *_output_items(tray_actions.Controls(_admin_url)),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Ouvrir l'administration", on_open_admin, default=True),
-        pystray.MenuItem("Ouvrir le pupitre tactile (/grid)", on_open_grid),
-        pystray.MenuItem("Ouvrir l'écran cinéma (/cinema)", on_open_cinema),
-        pystray.MenuItem("Ouvrir en mode kiosque", on_open_kiosk),
+        pystray.MenuItem("Ouvrir l'administration", opener(_admin_url), default=True),
+        pystray.MenuItem("Ouvrir le pupitre tactile (/grid)", opener(_grid_url)),
+        pystray.MenuItem("Ouvrir l'écran cinéma (/cinema)", opener(_cinema_url)),
+        pystray.MenuItem("Ouvrir en mode kiosque", lambda icon, item: launch_kiosk_browser()),
         pystray.MenuItem("Rouvrir l'écran projecteur", on_reopen_projector),
-        pystray.MenuItem(update_text, on_check_update),
-        pystray.MenuItem("Redémarrer", on_restart),
+        pystray.MenuItem(_update_text, _on_check_update),
+        pystray.MenuItem("Redémarrer", lambda icon, item: supervisor.restart_now()),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quitter", on_quit),
     )
 
-    icon = pystray.Icon("bobine", _load_icon_image(), "Bobine", menu=menu)
-    threading.Thread(target=_port_fallback_notice, args=(icon,), daemon=True, name="bobine-tray-port-notice").start()
-    threading.Thread(
-        target=_update_status_poll_loop, args=(icon,), daemon=True, name="bobine-tray-update-status",
-    ).start()
+
+def _background(target, name: str, *args) -> None:
+    threading.Thread(target=target, args=args, daemon=True, name=name).start()
+
+
+def run() -> None:
+    """Point d'entrée — `python -m app.desktop.tray` en développement, et l'exécutable `BobineTray.exe` une fois empaqueté."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    if is_backend_running():
+        logger.info("Bobine est déjà actif en arrière-plan. Ouverture de l'interface web.")
+        webbrowser.open(_admin_url())
+        return
+    if not _acquire_single_instance_lock():
+        logger.info("Une autre instance de BobineTray supervise déjà le démarrage du backend "
+                    "— ouverture de l'interface web sans lancer de doublon.")
+        webbrowser.open(_admin_url())
+        return
+    _ensure_launch_agent_macos()
+    _ensure_desktop_shortcut()
+    supervisor = BackendSupervisor(_backend_command())
+    supervisor.start()
+    if "--startup" not in sys.argv and "--minimized" not in sys.argv:
+        _background(_open_initial_displays, "bobine-open-displays")
+    _background(_update_poll_loop, "bobine-tray-update-check")
+    orchestrator, watcher = _start_displays()
+    icon = pystray.Icon("bobine", _load_icon_image(), "Bobine", menu=_build_menu(supervisor, orchestrator, watcher))
+    _background(_port_fallback_notice, "bobine-tray-port-notice", icon)
+    _background(_update_status_poll_loop, "bobine-tray-update-status", icon)
     icon.run()
 
 

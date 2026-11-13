@@ -64,90 +64,79 @@ _SOC_NAME_MAP: dict[str, str] = {
 }
 
 
+def _soc_file(name: str) -> str:
+    path = f"/sys/devices/soc0/{name}"
+    if not os.path.exists(path):
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            return handle.read().strip()
+    except Exception as exc:
+        logger.debug("get_cpu_model_name : %s", exc)
+        return ""
+
+
+def _android_cpu_name() -> str:
+    soc_model = _get_android_prop("ro.soc.model").strip()
+    platform_code = _get_android_prop("ro.board.platform").strip()
+    family, machine = _soc_file("family"), _soc_file("machine")
+    for candidate in (soc_model.upper(), platform_code.upper(), machine.upper()):
+        if candidate in _SOC_NAME_MAP:
+            return _SOC_NAME_MAP[candidate]
+    if soc_model:
+        if soc_model.upper().startswith("SM") or "SNAPDRAGON" in family.upper():
+            return f"Qualcomm Snapdragon ({soc_model})"
+        if soc_model.upper().startswith("MT"):
+            return f"MediaTek Dimensity ({soc_model})"
+        return f"SoC {soc_model}"
+    return f"Qualcomm Snapdragon ({platform_code})" if platform_code else ""
+
+
+def _cpuinfo_name() -> str:
+    if not os.path.exists("/proc/cpuinfo"):
+        return ""
+    name = ""
+    with open("/proc/cpuinfo", "r", encoding="utf-8") as handle:
+        for line in handle:
+            value = line.split(":", 1)[1].strip() if ":" in line else ""
+            if "model name" in line and value:
+                return value
+            if ("Hardware" in line or "Processor" in line) and not name and value.lower() not in ("", "aarch64", "armv8", "armv7"):
+                name = value
+    return name
+
+
+def _macos_cpu_name() -> str:
+    return subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
+
+
+def _windows_cpu_name() -> str:
+    import winreg
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as key:
+        value, _ = winreg.QueryValueEx(key, "ProcessorNameString")
+    return str(value or "").strip() or platform.processor() or ""
+
+
+def _guarded(read) -> str:
+    try:
+        return read()
+    except Exception as exc:
+        logger.debug("get_cpu_model_name : %s", exc)
+        return ""
+
+
 def get_cpu_model_name() -> str:
     """Retourne le nom commercial du processeur (ex: AMD Ryzen 7 8840U, Intel Celeron J4105, Apple M1 Pro, Qualcomm Snapdragon 8 Elite)."""
     if _HARDWARE_CACHE["cpu_name"]:
         return _HARDWARE_CACHE["cpu_name"]
-
-    name = ""
-    is_android = is_android_system()
-
-    if is_android:
-        soc_model = _get_android_prop("ro.soc.model").strip()
-        platform_code = _get_android_prop("ro.board.platform").strip()
-
-        soc_family = ""
-        soc_machine = ""
-        if os.path.exists("/sys/devices/soc0/family"):
-            try:
-                with open("/sys/devices/soc0/family", "r", encoding="utf-8") as f:
-                    soc_family = f.read().strip()
-            except Exception as exc:
-                logger.debug("get_cpu_model_name : %s", exc)
-        if os.path.exists("/sys/devices/soc0/machine"):
-            try:
-                with open("/sys/devices/soc0/machine", "r", encoding="utf-8") as f:
-                    soc_machine = f.read().strip()
-            except Exception as exc:
-                logger.debug("get_cpu_model_name : %s", exc)
-
-        for candidate in (soc_model.upper(), platform_code.upper(), soc_machine.upper()):
-            if candidate in _SOC_NAME_MAP:
-                name = _SOC_NAME_MAP[candidate]
-                break
-
-        if not name and soc_model:
-            if soc_model.upper().startswith("SM") or "SNAPDRAGON" in soc_family.upper():
-                name = f"Qualcomm Snapdragon ({soc_model})"
-            elif soc_model.upper().startswith("MT"):
-                name = f"MediaTek Dimensity ({soc_model})"
-            else:
-                name = f"SoC {soc_model}"
-
-        if not name and platform_code:
-            name = f"Qualcomm Snapdragon ({platform_code})"
-
+    name = _android_cpu_name() if is_android_system() else ""
     if not name and sys.platform.startswith("linux"):
-        if os.path.exists("/proc/cpuinfo"):
-            try:
-                with open("/proc/cpuinfo", "r", encoding="utf-8") as f:
-                    for line in f:
-                        if "model name" in line:
-                            val = line.split(":", 1)[1].strip()
-                            if val:
-                                name = val
-                                break
-                        if ("Hardware" in line or "Processor" in line) and not name:
-                            val = line.split(":", 1)[1].strip()
-                            if val and val.lower() not in ("aarch64", "armv8", "armv7"):
-                                name = val
-            except Exception as exc:
-                logger.debug("get_cpu_model_name : %s", exc)
-
+        name = _guarded(_cpuinfo_name)
     if not name and sys.platform == "darwin":
-        try:
-            out = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], text=True).strip()
-            if out:
-                name = out
-        except Exception as exc:
-            logger.debug("get_cpu_model_name : %s", exc)
-
+        name = _guarded(_macos_cpu_name)
     if not name and sys.platform == "win32":
-        try:
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"HARDWARE\DESCRIPTION\System\CentralProcessor\0") as k:
-                val, _ = winreg.QueryValueEx(k, "ProcessorNameString")
-                if val:
-                    name = str(val).strip()
-        except Exception as exc:
-            logger.debug("get_cpu_model_name : %s", exc)
-
-        if not name:
-            name = platform.processor() or ""
-
-    if not name:
-        name = platform.machine() or "CPU Inconnu"
-
+        name = _guarded(_windows_cpu_name) or platform.processor() or ""
+    name = name or platform.machine() or "CPU Inconnu"
     _HARDWARE_CACHE["cpu_name"] = name
     return name
 

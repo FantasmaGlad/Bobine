@@ -7,9 +7,11 @@ from app.utils import mdns
 
 
 @pytest.fixture(autouse=True)
-def _reset_mdns_state():
+def _reset_mdns_state(monkeypatch):
     saved_status = dict(mdns._status)
+    monkeypatch.setattr(mdns, "_held_by_other", lambda zc, host, ip: False)
     yield
+    mdns._hostname = mdns.MDNS_HOSTNAME
     mdns._status.clear()
     mdns._status.update(saved_status)
     mdns._service_info = None
@@ -68,7 +70,23 @@ def test_register_or_update_raises_without_local_ip(monkeypatch):
 
 def test_get_status_reflects_set_status():
     mdns._set_status("failed", "boom")
-    assert mdns.get_status() == {"state": "failed", "detail": "boom"}
+    assert mdns.get_status() == {"state": "failed", "detail": "boom", "host": "bobine.local"}
 
     mdns._set_status("ok")
-    assert mdns.get_status() == {"state": "ok", "detail": None}
+    assert mdns.get_status() == {"state": "ok", "detail": None, "host": "bobine.local"}
+
+
+def test_free_hostname_skips_names_held_by_another_machine(monkeypatch):
+    held = {"bobine", "bobine-2"}
+    monkeypatch.setattr(mdns, "_held_by_other", lambda zc, host, ip: host in held)
+    assert mdns._free_hostname(MagicMock(), "10.0.0.5") == "bobine-3"
+
+
+def test_register_publishes_the_free_hostname(monkeypatch):
+    zc = MagicMock()
+    monkeypatch.setattr(mdns, "_local_ip", lambda: "10.0.0.5")
+    monkeypatch.setattr(mdns, "_held_by_other", lambda zc, host, ip: host == "bobine")
+    mdns._register_or_update(zc, 1903)
+    info = zc.register_service.call_args.args[0]
+    assert info.server == "bobine-2.local."
+    assert mdns.get_status()["host"] == "bobine-2.local"

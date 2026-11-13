@@ -45,9 +45,78 @@ def _signature(schedule: Schedule) -> tuple:
     return (schedule.target_type, schedule.target_id, schedule.schedule_type, config_files._iso(schedule.run_at), rule)
 
 
-def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> None:
+def _set_timing(ctx: _Context, file: str, entry: dict, wanted: Schedule, radio: bool) -> bool:
     from app.scheduling.occurrences import ensure_utc
 
+    if entry.get("type") == "once":
+        try:
+            wanted.schedule_type, wanted.run_at = ScheduleType.once, ensure_utc(datetime.fromisoformat(entry["run_at"]))
+        except (KeyError, TypeError, ValueError):
+            ctx.fail(file, f"run_at (date ISO 8601) requis pour une programmation ponctuelle : {entry!r}")
+            return False
+        return True
+    if entry.get("type") != "recurring":
+        ctx.fail(file, f"type de programmation invalide : {entry.get('type')!r}")
+        return False
+    rule = entry.get("recurrence") or {}
+    days, time = rule.get("days_of_week"), rule.get("time")
+    if not days or any(not isinstance(d, int) or not 0 <= d <= 6 for d in days) or not isinstance(time, str) or not _TIME_RE.match(time):
+        ctx.fail(file, f"recurrence invalide (days_of_week 0 à 6, time HH:MM) : {rule!r}")
+        return False
+    end = rule.get("end_time")
+    if end is not None and (not radio or not _TIME_RE.match(str(end)) or end <= time):
+        ctx.fail(file, f"end_time invalide (radio seulement, après time) : {rule!r}")
+        return False
+    wanted.schedule_type, wanted.recurrence_rule = ScheduleType.recurring, json.dumps(
+        {**{k: v for k, v in rule.items() if k in ("end_time", "mode")}, "days_of_week": sorted(set(days)), "time": time})
+    return True
+
+
+def _wanted_schedule(ctx: _Context, file: str, entry: dict, channel: str, radio: bool) -> Schedule | None:
+    target = _schedule_target(ctx, file, entry.get("target"))
+    if target is None:
+        return None
+    if (target[0] == ScheduleTargetType.radio_playlist) != radio:
+        ctx.fail(file, f"cible {target[0].value} impossible sur le canal {channel}")
+        return None
+    wanted = Schedule(target_type=target[0], target_id=target[1], channel=channel,
+                      active=_flag(ctx, file, "« active » de la programmation", entry.get("active", True)))
+    return wanted if _set_timing(ctx, file, entry, wanted, radio) else None
+
+
+def _entry_overrides(ctx: _Context, file: str, entry: dict) -> list:
+    overrides = []
+    for override in entry.get("overrides") or []:
+        try:
+            action = OverrideAction(override["action"])
+            date = datetime.fromisoformat(override["date"])
+        except (KeyError, TypeError, ValueError):
+            ctx.fail(file, f"exception de planning invalide : {override!r}")
+            continue
+        replacement = _schedule_target(ctx, file, override.get("replacement")) if action == OverrideAction.replaced else None
+        overrides.append((override.get("uid"), date, action, replacement))
+    return overrides
+
+
+def _place_schedule(ctx: _Context, entry: dict, wanted: Schedule, by_uid: dict, unused: list, kept: list) -> Schedule:
+    uid = entry.get("uid")
+    schedule = by_uid.get(uid) if is_uid(uid, "sch") else None
+    if schedule is None:
+        schedule = next((s for s in unused if _signature(s) == _signature(wanted)), None)
+    if schedule is None:
+        ctx.db.add(wanted)
+        if is_uid(uid, "sch") and not ctx.db.query(Schedule).filter(Schedule.uid == uid).first() \
+                and all(uid != other.uid for other in kept):
+            wanted.uid = uid
+        return wanted
+    unused[:] = [s for s in unused if s is not schedule]
+    schedule.target_type, schedule.target_id = wanted.target_type, wanted.target_id
+    schedule.schedule_type, schedule.run_at, schedule.recurrence_rule = wanted.schedule_type, wanted.run_at, wanted.recurrence_rule
+    schedule.active = wanted.active
+    return schedule
+
+
+def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> None:
     if document.get("channel", channel) != channel:
         ctx.fail(file, f"« channel » doit valoir {channel}")
         return
@@ -61,61 +130,11 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
         ctx.fail(file, f"uid {uid} présent deux fois")
     for entry in entries:
         entry = entry or {}
-        target = _schedule_target(ctx, file, entry.get("target"))
-        if target is None:
+        wanted = _wanted_schedule(ctx, file, entry, channel, radio)
+        if wanted is None:
             continue
-        if (target[0] == ScheduleTargetType.radio_playlist) != radio:
-            ctx.fail(file, f"cible {target[0].value} impossible sur le canal {channel}")
-            continue
-        wanted = Schedule(
-            target_type=target[0], target_id=target[1], channel=channel,
-            active=_flag(ctx, file, "« active » de la programmation", entry.get("active", True)),
-        )
-        if entry.get("type") == "once":
-            try:
-                wanted.schedule_type, wanted.run_at = ScheduleType.once, ensure_utc(datetime.fromisoformat(entry["run_at"]))
-            except (KeyError, TypeError, ValueError):
-                ctx.fail(file, f"run_at (date ISO 8601) requis pour une programmation ponctuelle : {entry!r}")
-                continue
-        elif entry.get("type") == "recurring":
-            rule = entry.get("recurrence") or {}
-            days, time = rule.get("days_of_week"), rule.get("time")
-            if not days or any(not isinstance(d, int) or not 0 <= d <= 6 for d in days) or not isinstance(time, str) or not _TIME_RE.match(time):
-                ctx.fail(file, f"recurrence invalide (days_of_week 0 à 6, time HH:MM) : {rule!r}")
-                continue
-            end = rule.get("end_time")
-            if end is not None and (not radio or not _TIME_RE.match(str(end)) or end <= time):
-                ctx.fail(file, f"end_time invalide (radio seulement, après time) : {rule!r}")
-                continue
-            wanted.schedule_type, wanted.recurrence_rule = ScheduleType.recurring, json.dumps(
-                {**{k: v for k, v in rule.items() if k in ("end_time", "mode")}, "days_of_week": sorted(set(days)), "time": time})
-        else:
-            ctx.fail(file, f"type de programmation invalide : {entry.get('type')!r}")
-            continue
-        overrides = []
-        for override in entry.get("overrides") or []:
-            try:
-                action = OverrideAction(override["action"])
-                date = datetime.fromisoformat(override["date"])
-            except (KeyError, TypeError, ValueError):
-                ctx.fail(file, f"exception de planning invalide : {override!r}")
-                continue
-            replacement = _schedule_target(ctx, file, override.get("replacement")) if action == OverrideAction.replaced else None
-            overrides.append((override.get("uid"), date, action, replacement))
-        schedule = by_uid.get(entry.get("uid")) if is_uid(entry.get("uid"), "sch") else None
-        if schedule is None:
-            schedule = next((s for s in unused if _signature(s) == _signature(wanted)), None)
-        if schedule is None:
-            schedule = wanted
-            ctx.db.add(schedule)
-            if is_uid(entry.get("uid"), "sch") and not ctx.db.query(Schedule).filter(Schedule.uid == entry["uid"]).first() \
-                    and all(entry["uid"] != other.uid for other in kept):
-                schedule.uid = entry["uid"]
-        else:
-            unused = [s for s in unused if s is not schedule]
-            schedule.target_type, schedule.target_id = wanted.target_type, wanted.target_id
-            schedule.schedule_type, schedule.run_at, schedule.recurrence_rule = wanted.schedule_type, wanted.run_at, wanted.recurrence_rule
-            schedule.active = wanted.active
+        overrides = _entry_overrides(ctx, file, entry)
+        schedule = _place_schedule(ctx, entry, wanted, by_uid, unused, kept)
         _sync_overrides(ctx, schedule, overrides)
         kept.append(schedule)
     removed_ids = [s.id for s in unused]

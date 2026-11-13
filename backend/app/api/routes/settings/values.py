@@ -163,100 +163,98 @@ def settings_updates(payload: SettingsUpdate) -> dict[str, Any]:
     return updates
 
 
-def stage_settings(updates: dict[str, Any], db: Session) -> None:
-    """Valide puis écrit les réglages dans la session SANS valider la transaction (l'appelant le fait), pour que la route et l'application des fichiers de configuration partagent les mêmes règles."""
-    stored_mode = _get_db_value(db, "theme_mode")
-    mode = updates["theme_mode"] if "theme_mode" in updates else stored_mode
+_BOOLEAN_TEXT = ("true", "false")
+
+
+def _string_choices() -> dict[str, tuple[Any, str]]:
+    channels = ", ".join(f"'{channel_id}'" for channel_id in release_channel.CHANNEL_IDS)
+    return {
+        "language": (("fr", "en"), "Langue invalide (attendu 'fr' ou 'en')"),
+        "simplified_ui": (_BOOLEAN_TEXT, "Interface simplifiée invalide (attendu 'true' ou 'false')"),
+        "theme_mode": (_VALID_THEME_MODES, f"Mode de thème invalide (attendu l'un de : {', '.join(themes.MODES)})"),
+        "theme": (_VALID_THEMES, f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})"),
+        "active_logo": (_VALID_ACTIVE_LOGOS, "Logo actif invalide (attendu 'default' ou 'custom')"),
+        "update_channel": (release_channel.CHANNEL_IDS, f"Canal de mise à jour invalide (attendu l'un de : {channels})"),
+        "display_mode_setting": (VALID_DISPLAY_MODE_SETTINGS, "Mode d'affichage invalide (attendu 'auto', 'dual_screen' ou 'headless')"),
+        "wired_display_mode": (_VALID_WIRED_DISPLAY_MODES, "Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')"),
+        **{key: (_BOOLEAN_TEXT, f"{key} invalide (attendu 'true' ou 'false')")
+           for key in ("auto_update_enabled", "auto_web_rendition", "media_native", "update_tor")},
+    }
+
+
+def _refuse(status: int, detail: str) -> None:
+    raise HTTPException(status_code=status, detail=detail)
+
+
+def _check_string(key: str, value: str) -> None:
+    if key == "update_channel" and get_profile_handler().is_store_managed() and value != release_channel.DEFAULT_CHANNEL:
+        _refuse(409, "Cette installation est gérée par une boutique : seul le canal Stable est disponible.")
+    allowed, message = _string_choices().get(key, (None, ""))
+    if allowed is not None and value not in allowed:
+        _refuse(422, message)
+    if key == "active_logo" and value == "custom" and not _logo_path().exists():
+        _refuse(409, "Aucun logo personnalisé n'a été importé")
+    if key == "update_tor" and value == "true" and not get_profile_handler().supports_update_over_tor():
+        _refuse(409, "Mises à jour par Tor indisponibles sur ce profil : une partie du téléchargement ne passerait pas par Tor.")
+    if key == "update_tor_proxy":
+        try:
+            tor_proxy.parse_proxy(value)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
+        _refuse(422, "Heure de mise à jour automatique invalide (attendu 'HH:MM')")
+
+
+def _check_number(key: str, value: float, db: Session, stored: str) -> str:
+    if key == "logs_retention_days" and value < 1:
+        _refuse(422, "Le délai de rétention doit être d'au moins 1 jour")
+    elif key == "default_coach_background_id":
+        if value > 0:
+            from app.models import Background
+            if not db.query(Background).filter(Background.id == value).first():
+                _refuse(404, f"Fond d'ambiance {value} introuvable")
+        elif value == 0:
+            return ""
+    elif value < 0:
+        _refuse(422, f"{key} doit être positif")
+    elif key in SETTING_BOUNDS and not SETTING_BOUNDS[key][0] <= value <= SETTING_BOUNDS[key][1]:
+        low, high = SETTING_BOUNDS[key]
+        _refuse(422, f"{key} doit être compris entre {low} et {high}")
+    return stored
+
+
+def _resolve_theme(updates: dict[str, Any], db: Session) -> None:
+    mode = updates["theme_mode"] if "theme_mode" in updates else _get_db_value(db, "theme_mode")
     legacy = themes.legacy_target(updates.get("theme"), mode)
-    if legacy:
-        if (
-            updates.get("theme") in themes.THEMES
-            and "theme_mode" not in updates
-            and _get_db_value(db, "theme_mode") in themes.MODES
-        ):
-            legacy = None
-        else:
-            updates["theme"], updates["theme_mode"] = legacy
+    keeps_mode = updates.get("theme") in themes.THEMES and "theme_mode" not in updates and _get_db_value(db, "theme_mode") in themes.MODES
+    if legacy and not keeps_mode:
+        updates["theme"], updates["theme_mode"] = legacy
     if "theme_mode" in updates and "theme" not in updates:
         updates["theme"], _ = themes.resolve(_get_db_value(db, "theme"), _get_db_value(db, "theme_mode"))
-    for key, value in updates.items():
-        if value is None:
-            if key == "default_coach_background_id":
-                stored_value = ""
-            else:
-                raise HTTPException(status_code=422, detail=f"{key} ne peut pas être nul")
-        else:
-            stored_value = str(value)
-        if key in _WRITABLE_NUMERIC_FIELDS and value is not None:
-            if key == "logs_retention_days" and value < 1:
-                raise HTTPException(status_code=422, detail="Le délai de rétention doit être d'au moins 1 jour")
-            elif key == "default_coach_background_id":
-                if value > 0:
-                    from app.models import Background
-                    if not db.query(Background).filter(Background.id == value).first():
-                        raise HTTPException(status_code=404, detail=f"Fond d'ambiance {value} introuvable")
-                elif value == 0:
-                    stored_value = ""
-            elif value < 0:
-                raise HTTPException(status_code=422, detail=f"{key} doit être positif")
-            elif key in SETTING_BOUNDS and not SETTING_BOUNDS[key][0] <= value <= SETTING_BOUNDS[key][1]:
-                low, high = SETTING_BOUNDS[key]
-                raise HTTPException(status_code=422, detail=f"{key} doit être compris entre {low} et {high}")
-        elif key in _WRITABLE_STRING_FIELDS and value is not None:
-            if key == "language" and value not in ("fr", "en"):
-                raise HTTPException(status_code=422, detail="Langue invalide (attendu 'fr' ou 'en')")
-            if key == "simplified_ui" and value not in ("true", "false"):
-                raise HTTPException(status_code=422, detail="Interface simplifiée invalide (attendu 'true' ou 'false')")
-            if key == "theme_mode" and value not in _VALID_THEME_MODES:
-                raise HTTPException(status_code=422, detail=f"Mode de thème invalide (attendu l'un de : {', '.join(themes.MODES)})")
-            if key == "theme" and value not in _VALID_THEMES:
-                raise HTTPException(status_code=422, detail=f"Thème invalide (attendu l'un de : {', '.join(sorted(_VALID_THEMES))})")
-            if key == "active_logo":
-                if value not in _VALID_ACTIVE_LOGOS:
-                    raise HTTPException(status_code=422, detail="Logo actif invalide (attendu 'default' ou 'custom')")
-                if value == "custom" and not _logo_path().exists():
-                    raise HTTPException(status_code=409, detail="Aucun logo personnalisé n'a été importé")
-            if key == "update_channel" and get_profile_handler().is_store_managed() and value != release_channel.DEFAULT_CHANNEL:
-                raise HTTPException(status_code=409, detail="Cette installation est gérée par une boutique : seul le canal Stable est disponible.")
-            if key == "update_channel" and value not in release_channel.CHANNEL_IDS:
-                expected = ", ".join(f"'{channel_id}'" for channel_id in release_channel.CHANNEL_IDS)
-                raise HTTPException(status_code=422, detail=f"Canal de mise à jour invalide (attendu l'un de : {expected})")
-            if key == "display_mode_setting" and value not in VALID_DISPLAY_MODE_SETTINGS:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Mode d'affichage invalide (attendu 'auto', 'dual_screen' ou 'headless')",
-                )
-            if key == "wired_display_mode" and value not in _VALID_WIRED_DISPLAY_MODES:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')",
-                )
-            if key == "auto_update_enabled" and value not in ("true", "false"):
-                raise HTTPException(status_code=422, detail="auto_update_enabled invalide (attendu 'true' ou 'false')")
-            if key == "auto_web_rendition" and value not in ("true", "false"):
-                raise HTTPException(status_code=422, detail="auto_web_rendition invalide (attendu 'true' ou 'false')")
-            if key == "media_native" and value not in ("true", "false"):
-                raise HTTPException(status_code=422, detail="media_native invalide (attendu 'true' ou 'false')")
-            if key == "update_tor" and value not in ("true", "false"):
-                raise HTTPException(status_code=422, detail="update_tor invalide (attendu 'true' ou 'false')")
-            if key == "update_tor" and value == "true" and not get_profile_handler().supports_update_over_tor():
-                raise HTTPException(
-                    status_code=409,
-                    detail="Mises à jour par Tor indisponibles sur ce profil : une partie du téléchargement ne passerait pas par Tor.",
-                )
-            if key == "update_tor_proxy":
-                try:
-                    tor_proxy.parse_proxy(value)
-                except ValueError as exc:
-                    raise HTTPException(status_code=422, detail=str(exc)) from exc
-            if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
-                raise HTTPException(status_code=422, detail="Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
+
+def _stored_value(key: str, value: Any, db: Session) -> str:
+    if value is None:
+        if key != "default_coach_background_id":
+            _refuse(422, f"{key} ne peut pas être nul")
+        return ""
+    if key in _WRITABLE_NUMERIC_FIELDS:
+        return _check_number(key, value, db, str(value))
+    if key in _WRITABLE_STRING_FIELDS:
+        _check_string(key, value)
+    return str(value)
+
+
+def stage_settings(updates: dict[str, Any], db: Session) -> None:
+    """Valide puis écrit les réglages dans la session SANS valider la transaction (l'appelant le fait), pour que la route et l'application des fichiers de configuration partagent les mêmes règles."""
+    _resolve_theme(updates, db)
+    for key, value in updates.items():
+        stored = _stored_value(key, value, db)
         row = db.query(Setting).filter(Setting.key == key).first()
         if row:
-            row.value = stored_value
+            row.value = stored
         else:
-            db.add(Setting(key=key, value=stored_value))
+            db.add(Setting(key=key, value=stored))
 
 
 async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[str, Any]:

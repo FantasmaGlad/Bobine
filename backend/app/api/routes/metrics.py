@@ -1,6 +1,6 @@
 from typing import List
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,9 +10,10 @@ from sqlalchemy.orm import Session
 from app.api.responses import CourseRatingEntry, Message, SessionStarted
 from app.api.contract import CHANNELS, DASHBOARD_CHANNELS, DEFAULT_CHANNEL, DASHBOARD_PERIODS, HISTORY_PERIODS, regex
 from app.database import get_db
-from app.models import CourseRating, PlaybackSession, SystemMetricsHistory, Video
+from app.models import CourseRating, Video
+from app.metrics.dashboard import build_dashboard
+from app.metrics.history import hardware_history
 from app.utils.activity_log import log_activity
-from app.hardware.telemetry import get_system_telemetry_payload
 from app.utils.playback_session_tracker import (
     close_playback_session,
     start_playback_session,
@@ -41,23 +42,6 @@ class SessionEndRequest(BaseModel):
     session_id: int
     position_seconds: float | None = None
     completed: bool | None = None
-
-
-def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
-    if not thumbnail_path:
-        return None
-    return thumbnail_path.split("/")[-1]
-
-
-def _resolve_period_start(period: str) -> datetime | None:
-    now = datetime.now(timezone.utc)
-    if period == "7d":
-        return now - timedelta(days=7)
-    if period == "30d":
-        return now - timedelta(days=30)
-    if period == "this_month":
-        return datetime(now.year, now.month, 1, tzinfo=timezone.utc)
-    return None
 
 
 @router.post("/ratings", status_code=201, response_model=CourseRatingEntry)
@@ -156,160 +140,7 @@ def get_metrics_dashboard(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Tableau de bord unifié des métriques club et télémétrie matérielle."""
-    start_date = _resolve_period_start(period)
-
-    sess_query = db.query(PlaybackSession)
-    if start_date:
-        sess_query = sess_query.filter(PlaybackSession.started_at >= start_date)
-    if channel != "all":
-        sess_query = sess_query.filter(PlaybackSession.channel == channel)
-
-    sessions = sess_query.all()
-
-    rating_query = db.query(CourseRating)
-    if start_date:
-        rating_query = rating_query.filter(CourseRating.created_at >= start_date)
-    if channel != "all":
-        rating_query = rating_query.filter(CourseRating.channel == channel)
-
-    ratings = rating_query.all()
-
-    total_sessions = len(sessions)
-    completed_sessions = sum(1 for s in sessions if s.completed)
-    completion_rate = round((completed_sessions / total_sessions) * 100, 1) if total_sessions > 0 else 0.0
-
-    total_played_seconds = sum(s.duration_played_seconds for s in sessions)
-    total_broadcast_hours = round(total_played_seconds / 3600.0, 1)
-    b_hours = int(total_played_seconds // 3600)
-    b_mins = int((total_played_seconds % 3600) // 60)
-    formatted_broadcast_time = f"{b_hours}h {b_mins:02d}m" if b_hours > 0 else f"{b_mins}m"
-
-    ratings_count = len(ratings)
-    ratings_avg = round(sum(r.rating for r in ratings) / ratings_count, 1) if ratings_count > 0 else 0.0
-
-    distribution = {"5": 0, "4": 0, "3": 0, "2": 0, "1": 0}
-    for r in ratings:
-        k = str(r.rating)
-        if k in distribution:
-            distribution[k] += 1
-
-    launch_breakdown = {"grid": 0, "cinema": 0, "schedule": 0, "kiosk": 0}
-    for s in sessions:
-        lt = s.launch_type or "kiosk"
-        if lt in launch_breakdown:
-            launch_breakdown[lt] += 1
-        else:
-            launch_breakdown["kiosk"] += 1
-
-    hourly_distribution = [{"hour": h, "count": 0} for h in range(24)]
-    for s in sessions:
-        try:
-            local_dt = s.started_at.astimezone() if s.started_at.tzinfo else s.started_at
-            h = local_dt.hour
-            if 0 <= h < 24:
-                hourly_distribution[h]["count"] += 1
-        except Exception as exc:
-            logger.debug("get_metrics_dashboard : %s", exc)
-
-    video_sessions_map: dict[int, list[PlaybackSession]] = {}
-    for s in sessions:
-        video_sessions_map.setdefault(s.video_id, []).append(s)
-
-    video_ratings_map: dict[int, list[CourseRating]] = {}
-    for r in ratings:
-        video_ratings_map.setdefault(r.video_id, []).append(r)
-
-    all_videos = db.query(Video).all()
-    course_stats = []
-
-    for v in all_videos:
-        v_sess = video_sessions_map.get(v.id, [])
-        v_ratings = video_ratings_map.get(v.id, [])
-
-        v_sess_count = len(v_sess)
-        v_ratings_count = len(v_ratings)
-
-        v_completed_count = sum(1 for s in v_sess if s.completed)
-        v_completion_rate = round((v_completed_count / v_sess_count) * 100, 1) if v_sess_count > 0 else 0.0
-        v_avg_rating = round(sum(r.rating for r in v_ratings) / v_ratings_count, 1) if v_ratings_count > 0 else 0.0
-
-        v_total_hours = round(((v.duration_seconds or 0) * v_sess_count) / 3600.0, 1)
-        thumb_name = _thumbnail_filename(v.thumbnail_path)
-
-        course_stats.append({
-            "video_id": v.id,
-            "title": v.title,
-            "program": v.program or "Autre",
-            "release": v.release,
-            "duration_seconds": v.duration_seconds or 0,
-            "total_duration_hours": v_total_hours,
-            "thumbnail_path": thumb_name,
-            "thumbnail_url": thumb_name,
-            "sessions_count": v_sess_count,
-            "total_sessions": v_sess_count,
-            "completed_count": v_completed_count,
-            "completed_sessions": v_completed_count,
-            "completion_rate": v_completion_rate,
-            "average_rating": v_avg_rating,
-            "ratings_count": v_ratings_count,
-        })
-
-    course_stats.sort(key=lambda x: (x["sessions_count"], x["average_rating"]), reverse=True)
-
-    hardware = get_system_telemetry_payload()
-
-    rating_breakdown = [
-        {
-            "score": int(star),
-            "count": count,
-            "percentage": round((count / ratings_count) * 100, 1) if ratings_count > 0 else 0.0,
-        }
-        for star, count in sorted(distribution.items(), key=lambda x: int(x[0]), reverse=True)
-    ]
-
-    hourly_attendance = [{"hour": h["hour"], "sessions": h["count"]} for h in hourly_distribution]
-    max_h_count = max([h["count"] for h in hourly_distribution] or [0])
-    peak_hours = [h["hour"] for h in hourly_distribution if h["count"] == max_h_count and max_h_count > 0]
-
-    return {
-        "period": period,
-        "channel": channel,
-        "kpis": {
-            "satisfaction": {
-                "average": ratings_avg,
-                "total_count": ratings_count,
-                "distribution": distribution,
-            },
-            "completion": {
-                "rate": completion_rate,
-                "total_sessions": total_sessions,
-                "completed_sessions": completed_sessions,
-            },
-            "broadcast": {
-                "total_hours": total_broadcast_hours,
-                "total_seconds": total_played_seconds,
-                "formatted": formatted_broadcast_time,
-            },
-            "sessions": {
-                "total": total_sessions,
-                "breakdown": launch_breakdown,
-            },
-            "average_satisfaction": ratings_avg,
-            "ratings_count": ratings_count,
-            "completion_rate": completion_rate,
-            "total_broadcast_hours": total_broadcast_hours,
-            "total_sessions": total_sessions,
-            "completed_sessions": completed_sessions,
-        },
-        "rating_breakdown": rating_breakdown,
-        "hourly_distribution": hourly_distribution,
-        "hourly_attendance": hourly_attendance,
-        "peak_hours": peak_hours,
-        "course_stats": course_stats,
-        "top_courses": course_stats,
-        "hardware": hardware,
-        "hardware_telemetry": hardware,
-    }
+    return build_dashboard(db, period, channel)
 
 
 @router.get("/hardware/history")
@@ -319,95 +150,5 @@ def get_hardware_history(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     """Historique temporel d'une métrique matérielle (1h, 6h, 24h, 7j, 30j, mois en cours, tout l'historique conservé) avec statistiques et points échantillonnés."""
-    now = datetime.now(timezone.utc)
-    if period == "1h":
-        start_time = now - timedelta(hours=1)
-    elif period == "6h":
-        start_time = now - timedelta(hours=6)
-    elif period == "24h":
-        start_time = now - timedelta(hours=24)
-    elif period == "30d":
-        start_time = now - timedelta(days=30)
-    elif period == "this_month":
-        start_time = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    elif period == "all":
-        start_time = None
-    else:
-        start_time = now - timedelta(days=7)
-
-    query = db.query(SystemMetricsHistory)
-    if start_time is not None:
-        query = query.filter(SystemMetricsHistory.timestamp >= start_time)
-    records = query.order_by(SystemMetricsHistory.timestamp.asc()).all()
-
-    metric_meta = {
-        "cpu": {"unit": "%", "label": "Charge CPU"},
-        "cpu_temp": {"unit": "°C", "label": "Température CPU"},
-        "gpu": {"unit": "%", "label": "Charge GPU"},
-        "gpu_temp": {"unit": "°C", "label": "Température GPU"},
-        "memory": {"unit": "%", "label": "Utilisation RAM"},
-        "storage": {"unit": "%", "label": "Occupation Stockage"},
-        "power": {"unit": "W", "label": "Puissance consommée"},
-    }
-
-    if metric in metric_meta:
-        meta = metric_meta[metric]
-    else:
-        m_lower = metric.lower()
-        unit = "%" if ("pct" in m_lower or "percent" in m_lower) else ("°C" if "temp" in m_lower else ("W" if "watt" in m_lower else ""))
-        meta = {"unit": unit, "label": metric.replace("_", " ").title()}
-
-    raw_points: list[dict[str, Any]] = []
-    for r in records:
-        val = r.get_metric(metric)
-        if val is not None:
-            ts = r.timestamp.isoformat() if r.timestamp else None
-            if ts:
-                raw_points.append({"timestamp": ts, "value": round(float(val), 1)})
-
-    latest_telemetry = get_system_telemetry_payload()
-    current_val_map = {
-        "cpu": latest_telemetry.get("cpu_percent"),
-        "cpu_temp": latest_telemetry.get("cpu_temp_c"),
-        "gpu": latest_telemetry.get("gpu_percent"),
-        "gpu_temp": latest_telemetry.get("gpu_temp_c"),
-        "memory": latest_telemetry.get("memory_percent"),
-        "storage": latest_telemetry.get("storage_used_percent"),
-        "power": latest_telemetry.get("power_watts"),
-    }
-    live_val = current_val_map.get(metric) or latest_telemetry.get(metric)
-
-    if not raw_points:
-        if live_val is not None:
-            raw_points.append({"timestamp": now.isoformat(), "value": round(float(live_val), 1)})
-        else:
-            raw_points.append({"timestamp": now.isoformat(), "value": 0.0})
-
-    if len(raw_points) > 80:
-        step = max(1, len(raw_points) // 60)
-        sampled = raw_points[::step]
-        if raw_points[-1] not in sampled:
-            sampled.append(raw_points[-1])
-        points = sampled
-    else:
-        points = raw_points
-
-    values = [p["value"] for p in raw_points]
-    min_val = min(values) if values else 0.0
-    max_val = max(values) if values else 0.0
-    avg_val = round(sum(values) / len(values), 1) if values else 0.0
-    current_val = round(float(live_val), 1) if live_val is not None else (raw_points[-1]["value"] if raw_points else 0.0)
-
-    return {
-        "metric": metric,
-        "label": meta["label"],
-        "unit": meta["unit"],
-        "period": period,
-        "points": points,
-        "current": current_val,
-        "min": min_val,
-        "max": max_val,
-        "avg": avg_val,
-        "count": len(raw_points),
-    }
+    return hardware_history(db, metric, period)
 

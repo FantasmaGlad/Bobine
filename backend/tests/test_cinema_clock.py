@@ -29,7 +29,7 @@ def fake(monkeypatch):
     f = FakeTime()
     monkeypatch.setattr(pb.cinema, "_cinema_clocks", {})
     monkeypatch.setattr(pb.cinema, "_cinema_launched_video", {})
-    monkeypatch.setattr(pb.commands, "_cinema_launched_video", {})
+    monkeypatch.setattr(pb.cinema_commands, "_cinema_launched_video", {})
     monkeypatch.setattr(pb.cinema, "PlaybackClock", f.clock)
     return f
 

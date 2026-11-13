@@ -41,90 +41,35 @@ class AndroidUpdateCallback(BaseModel):
     percent: int | None = None
 
 
-@router.get("/check")
-async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Vérifie la disponibilité d'une nouvelle release officielle sur GitHub, en respectant le canal choisi dans Réglages → Mises à jour (Stable, Bêta ou Canary)."""
-    local_info = await run_in_threadpool(get_local_version_info)
-    now_iso = datetime.now(timezone.utc).isoformat()
-    channel = get_update_channel(db)
-
-    profile = get_deployment_profile()
-    handler = get_profile_handler()
-
-    if handler.is_store_managed():
-        try:
-            store = await asyncio.wait_for(asyncio.to_thread(handler.store_update_status), timeout=25)
-        except Exception:
-            store = {"state": "unavailable"}
-        return {
-            "store": {"provider": "google_play", **store},
-            "channel": channel,
-            "current_version": local_info["current_version"],
-            "current_tag": local_info["current_tag"],
-            "current_commit": local_info["current_commit"],
-            "local_build": local_info["local_rolling_channel"] or release_channel.DEFAULT_CHANNEL,
-            "deployment_profile": profile,
-            "checked_at": now_iso,
-            "store_managed": True,
-            "online": True,
-            "error_code": None,
-            "latest_version": None,
-            "has_update": False,
-            "is_downgrade": False,
-            "release_title": None,
-            "release_notes": None,
-            "published_at": None,
-            "html_url": None,
-            "can_auto_apply": False,
-            "download_url": None,
-            "asset_name": None,
-            "asset_size": None,
-        }
-
-    release_data, error_code = await fetch_release_for_channel(channel, force=refresh)
-
-    base = {
-        "channel": channel,
-        "current_version": local_info["current_version"],
-        "current_tag": local_info["current_tag"],
-        "current_commit": local_info["current_commit"],
-        "local_build": local_info["local_rolling_channel"] or release_channel.DEFAULT_CHANNEL,
-        "deployment_profile": profile,
-        "checked_at": now_iso,
+def _no_release(can_auto_apply: bool) -> dict[str, Any]:
+    return {
+        "latest_version": None, "has_update": False, "is_downgrade": False, "release_title": None,
+        "release_notes": None, "published_at": None, "html_url": None, "can_auto_apply": can_auto_apply,
+        "download_url": None, "asset_name": None, "asset_size": None,
     }
 
-    if not release_data:
-        return {
-            **base,
-            "online": False,
-            "error_code": error_code or "offline",
-            "latest_version": None,
-            "has_update": False,
-            "is_downgrade": False,
-            "release_title": None,
-            "release_notes": None,
-            "published_at": None,
-            "html_url": None,
-            "can_auto_apply": handler.can_auto_apply(),
-            "download_url": None,
-            "asset_name": None,
-            "asset_size": None,
-            "message": LOOKUP_ERROR_MESSAGES.get(error_code or "offline", LOOKUP_ERROR_MESSAGES["offline"]),
-        }
 
+async def _store_report(handler, base: dict[str, Any]) -> dict[str, Any]:
+    try:
+        store = await asyncio.wait_for(asyncio.to_thread(handler.store_update_status), timeout=25)
+    except Exception:
+        store = {"state": "unavailable"}
+    return {"store": {"provider": "google_play", **store}, **base, "store_managed": True, "online": True,
+            "error_code": None, **_no_release(False)}
+
+
+def _auto_apply_possible(handler, asset: dict[str, Any]) -> bool:
+    if not handler.can_auto_apply():
+        return False
+    return handler.supports_git_versioning() or bool(asset["download_url"] and asset["asset_digest"])
+
+
+async def _release_report(handler, profile: str, channel: str, local_info: dict, release_data: dict,
+                          error_code: str | None, base: dict[str, Any]) -> dict[str, Any]:
     latest_tag = release_data.get("tag_name") or ""
     html_url = release_data.get("html_url") or f"https://github.com/{GITHUB_REPO}/releases"
-    evaluation = await refuse_android_downgrade(
-        profile, local_info, release_data, evaluate_update(channel, local_info, release_data)
-    )
-
+    evaluation = await refuse_android_downgrade(profile, local_info, release_data, evaluate_update(channel, local_info, release_data))
     asset = resolve_asset(profile, release_data, handler.asset_variant())
-    can_auto_apply = handler.can_auto_apply()
-    if can_auto_apply and not handler.supports_git_versioning() and not (
-        asset["download_url"] and asset["asset_digest"]
-    ):
-        can_auto_apply = False
-
     return {
         **base,
         "online": True,
@@ -136,12 +81,38 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
         "release_notes": release_data.get("body") or "",
         "published_at": release_data.get("published_at") or "",
         "html_url": html_url,
-        "can_auto_apply": can_auto_apply,
+        "can_auto_apply": _auto_apply_possible(handler, asset),
         "download_url": asset["download_url"] or html_url,
         "asset_name": asset["asset_name"],
         "asset_size": asset["asset_size"],
         **({"message": ANDROID_DOWNGRADE_MESSAGE} if evaluation.get("downgrade_blocked") else {}),
     }
+
+
+@router.get("/check")
+async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """Vérifie la disponibilité d'une nouvelle release officielle sur GitHub, en respectant le canal choisi dans Réglages → Mises à jour (Stable, Bêta ou Canary)."""
+    local_info = await run_in_threadpool(get_local_version_info)
+    channel = get_update_channel(db)
+    profile = get_deployment_profile()
+    handler = get_profile_handler()
+    base = {
+        "channel": channel,
+        "current_version": local_info["current_version"],
+        "current_tag": local_info["current_tag"],
+        "current_commit": local_info["current_commit"],
+        "local_build": local_info["local_rolling_channel"] or release_channel.DEFAULT_CHANNEL,
+        "deployment_profile": profile,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if handler.is_store_managed():
+        return await _store_report(handler, base)
+    release_data, error_code = await fetch_release_for_channel(channel, force=refresh)
+    if release_data:
+        return await _release_report(handler, profile, channel, local_info, release_data, error_code, base)
+    code = error_code or "offline"
+    return {**base, "online": False, "error_code": code, **_no_release(handler.can_auto_apply()),
+            "message": LOOKUP_ERROR_MESSAGES.get(code, LOOKUP_ERROR_MESSAGES["offline"])}
 
 
 class TorCheckRequest(BaseModel):
