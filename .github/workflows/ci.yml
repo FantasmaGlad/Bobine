@@ -1357,11 +1357,13 @@ jobs:
         env:
           APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
           GNUPGHOME: ${{ runner.temp }}/bobine-signing
+          BOBINE_RPMDB: ${{ runner.temp }}/bobine-rpmdb
           CHANNEL: ${{ needs.version.outputs.channel }}
         run: |
           install -d -m 0700 "$GNUPGHOME"
           printf '%s' "$APT_GPG_PRIVATE_KEY" | gpg --batch --import
-          rpm --import package-assets/bobine.gpg
+          mkdir -p "$BOBINE_RPMDB"
+          rpmkeys --dbpath "$BOBINE_RPMDB" --import package-assets/bobine.gpg
           bash scripts/ci/prepare-package-repository.sh deb "$CHANNEL" package-assets package-repo deploy-assets
           bash scripts/ci/prepare-package-repository.sh rpm "$CHANNEL" package-assets package-repo deploy-assets
           bash scripts/ci/prepare-package-repository.sh arch "$CHANNEL" package-assets package-repo
