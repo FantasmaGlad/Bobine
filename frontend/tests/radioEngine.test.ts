@@ -1,121 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { rampParam, setParamNow } from "../src/components/radio/engine/params.ts";
+import { crossfadeDurationMs, crossfadeTarget } from "../src/components/radio/engine/crossfade.ts";
+import { decideTrack, targetGain, transportAction, type Decks } from "../src/components/radio/engine/trackSync.ts";
+import { planAnnouncement } from "../src/components/radio/engine/announcements.ts";
+import { recoveryOutcome, stalled } from "../src/components/radio/engine/recovery.ts";
 
-type Slot = 0 | 1;
-type Track = { id: number };
 type Repeat = "off" | "playlist" | "track";
-type Announcement = { id: number; mode: "wait_end" | "duck" };
-type Decks = { active: Slot; trackIds: [number | null, number | null]; crossfading: boolean };
-type Duck = { level: number; fadeMs: number };
-
-const other = (slot: Slot): Slot => (slot === 0 ? 1 : 0);
-
-function setParamNow(param: FakeParam, value: number, now: number) {
-  param.cancelScheduledValues(now);
-  param.setValueAtTime(value, now);
-}
-
-function rampParam(param: FakeParam, to: number, durationMs: number, now: number) {
-  param.cancelScheduledValues(now);
-  param.setValueAtTime(param.value, now);
-  param.linearRampToValueAtTime(to, now + Math.max(0.001, durationMs / 1000));
-}
-
-function crossfadeDurationMs(crossfadeSeconds: number) {
-  return Math.max(200, crossfadeSeconds * 1000);
-}
-
-function crossfadeTarget(
-  state: { order: Track[]; index: number | null; repeat: Repeat; crossfade_seconds: number },
-  el: { duration: number; currentTime: number },
-  flags: { crossfading: boolean; graphReady: boolean; announcing: boolean },
-): Track | null {
-  if (flags.crossfading || !flags.graphReady || flags.announcing) return null;
-  if (state.repeat === "track") return null;
-  const { duration, currentTime } = el;
-  if (!isFinite(duration) || duration <= 0) return null;
-  const crossfadeSeconds = Math.max(0, state.crossfade_seconds || 0);
-  if (crossfadeSeconds <= 0 || duration - currentTime > crossfadeSeconds) return null;
-  const { order, index } = state;
-  if (index === null) return null;
-  if (index + 1 < order.length) return order[index + 1];
-  if (state.repeat === "playlist" && order.length > 0) return order[0];
-  return null;
-}
-
-type TrackDecision = "unload" | "same" | "promote" | "load";
-
-function decideTrack(trackId: number | null, decks: Decks): TrackDecision {
-  if (trackId === null) return "unload";
-  if (trackId === decks.trackIds[decks.active]) return "same";
-  if (decks.crossfading && decks.trackIds[other(decks.active)] === trackId) return "promote";
-  return "load";
-}
-
-function targetGain(decision: TrackDecision, ducking: boolean, volume: number, duck: Duck): number | null {
-  if (decision === "same") return ducking ? null : volume / 100;
-  if (decision === "promote" || decision === "load") return (ducking ? duck.level : volume) / 100;
-  return null;
-}
-
-function transportAction(
-  cause: string,
-  announcement: Announcement | null,
-  playing: boolean,
-  paused: boolean,
-): { seek: boolean; action: "play" | "pause" | "none" } {
-  const seek = cause === "radio_seek" || cause === "radio_restart_track";
-  if (announcement?.mode === "wait_end") return { seek, action: "none" };
-  if (playing && paused) return { seek, action: "play" };
-  if (!playing && !paused) return { seek, action: "pause" };
-  return { seek, action: "none" };
-}
-
-type AnnouncementPlan =
-  | { kind: "none" }
-  | { kind: "start"; abortCrossfade: true; announcementGain: [number, number]; musicRamp: number | null; fadeMs: number }
-  | { kind: "end"; announcementGain: [null, number]; musicRamp: number | null; unloadAfterMs: number };
-
-function planAnnouncement(prev: Announcement | null, next: Announcement | null, volume: number, duck: Duck): AnnouncementPlan {
-  if (next && next.id !== prev?.id) {
-    return {
-      kind: "start",
-      abortCrossfade: true,
-      announcementGain: [0, 1],
-      musicRamp: next.mode === "duck" ? duck.level / 100 : null,
-      fadeMs: duck.fadeMs,
-    };
-  }
-  if (!next && prev) {
-    return {
-      kind: "end",
-      announcementGain: [null, 0],
-      musicRamp: prev.mode === "duck" ? volume / 100 : null,
-      unloadAfterMs: duck.fadeMs,
-    };
-  }
-  return { kind: "none" };
-}
-
-const STALL_TIMEOUT_MS = 15000;
-const RECOVERY_GRACE_MS = 10000;
-
-function stalled(playing: boolean, announcing: boolean, recovering: boolean, sinceProgressMs: number) {
-  if (!playing || announcing || recovering) return false;
-  return sinceProgressMs > STALL_TIMEOUT_MS;
-}
-
-function recoveryOutcome(
-  progressedSinceAttempt: boolean,
-  elapsedMs: number,
-  stillActive: boolean,
-  playing: boolean,
-  announcing: boolean,
-): "recovered" | "wait" | "skip" | "give_up" {
-  if (progressedSinceAttempt) return "recovered";
-  if (elapsedMs < RECOVERY_GRACE_MS) return "wait";
-  return stillActive && playing && !announcing ? "skip" : "give_up";
-}
 
 class FakeParam {
   value: number;

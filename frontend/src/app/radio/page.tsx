@@ -23,9 +23,11 @@ import { useDuckSettings } from "@/components/radio/useDuckSettings";
 import { useServerClock } from "@/components/radio/useServerClock";
 import { useLevelMeter } from "@/components/radio/useLevelMeter";
 import { useRadioRemote } from "@/components/radio/useRadioRemote";
-
-type Slot = 0 | 1;
-const OTHER_SLOT = (slot: Slot): Slot => (slot === 0 ? 1 : 0);
+import { rampParam, rampParamFrom, setParamNow } from "@/components/radio/engine/params";
+import { crossfadeDurationMs, crossfadeSeconds, crossfadeTarget } from "@/components/radio/engine/crossfade";
+import { decideTrack, otherSlot, targetGain, transportAction, type Slot } from "@/components/radio/engine/trackSync";
+import { planAnnouncement, type ActiveAnnouncement } from "@/components/radio/engine/announcements";
+import { RECOVERY_POLL_MS, STALL_CHECK_MS, recoveryOutcome, stalled } from "@/components/radio/engine/recovery";
 
 export default function RadioScreenPage() {
   const { t } = useAppSettings();
@@ -65,7 +67,7 @@ export default function RadioScreenPage() {
   const unlockedRef = useRef(false);
   const playingRef = useRef(false);
 
-  const activeAnnouncementRef = useRef<{ id: number; mode: string } | null>(null);
+  const activeAnnouncementRef = useRef<ActiveAnnouncement | null>(null);
   const announcementFadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const duckSettingsRef = useDuckSettings();
@@ -108,21 +110,17 @@ export default function RadioScreenPage() {
     const gain = getGain(slot);
     const ctx = audioCtxRef.current;
     if (!gain || !ctx) return;
-    gain.gain.cancelScheduledValues(ctx.currentTime);
-    gain.gain.setValueAtTime(value, ctx.currentTime);
+    setParamNow(gain.gain, value, ctx.currentTime);
   };
 
   const rampGain = (slot: Slot, to: number, durationMs: number) => {
     const gain = getGain(slot);
     const ctx = audioCtxRef.current;
     if (!gain || !ctx) return;
-    const now = ctx.currentTime;
-    gain.gain.cancelScheduledValues(now);
-    gain.gain.setValueAtTime(gain.gain.value, now);
-    gain.gain.linearRampToValueAtTime(to, now + Math.max(0.001, durationMs / 1000));
+    rampParam(gain.gain, to, durationMs, ctx.currentTime);
   };
 
-  const loadDirect = (track: RadioTrackInfo, positionSeconds: number, playing: boolean, volumePercent: number) => {
+  const loadDirect = (track: RadioTrackInfo, positionSeconds: number, playing: boolean, gainValue: number) => {
     const slot = activeSlotRef.current;
     const el = getAudioEl(slot);
     if (!el) return;
@@ -130,7 +128,7 @@ export default function RadioScreenPage() {
     lastProgressRef.current[slot] = Date.now();
     el.src = getApiUrl(`/radio/tracks/${track.id}/stream`);
     el.load();
-    setGainNow(slot, volumePercent / 100);
+    setGainNow(slot, gainValue);
     const onReady = () => {
       el.removeEventListener("canplay", onReady);
       try {
@@ -142,10 +140,10 @@ export default function RadioScreenPage() {
     el.addEventListener("canplay", onReady);
   };
 
-  const startCrossfade = (nextTrack: RadioTrackInfo, volumePercent: number, crossfadeSeconds: number) => {
+  const startCrossfade = (nextTrack: RadioTrackInfo, volumePercent: number, seconds: number) => {
     if (crossfadingRef.current) return;
     const fromSlot = activeSlotRef.current;
-    const toSlot = OTHER_SLOT(fromSlot);
+    const toSlot = otherSlot(fromSlot);
     const toEl = getAudioEl(toSlot);
     if (!toEl || !audioCtxRef.current) return;
     crossfadingRef.current = true;
@@ -155,29 +153,31 @@ export default function RadioScreenPage() {
     toEl.currentTime = 0;
     setGainNow(toSlot, 0);
     toEl.play().catch(() => {});
-    const durationMs = Math.max(200, crossfadeSeconds * 1000);
+    const durationMs = crossfadeDurationMs(seconds);
     rampGain(fromSlot, 0, durationMs);
     rampGain(toSlot, volumePercent / 100, durationMs);
   };
 
   const abortCrossfadeIfAny = (restoreVolumePercent: number) => {
     if (!crossfadingRef.current) return;
-    const otherSlot = OTHER_SLOT(activeSlotRef.current);
-    getAudioEl(otherSlot)?.pause();
-    setGainNow(otherSlot, 0);
+    const idle = otherSlot(activeSlotRef.current);
+    getAudioEl(idle)?.pause();
+    setGainNow(idle, 0);
     setGainNow(activeSlotRef.current, restoreVolumePercent / 100);
-    slotTrackIdRef.current[otherSlot] = null;
+    slotTrackIdRef.current[idle] = null;
     crossfadingRef.current = false;
   };
 
-  const handleEvent = (evt: RadioEvent) => {
-    setLastCause(evt.cause);
+  const applyAnnouncement = (evt: RadioEvent) => {
     const data = evt.data;
     const announcementAudio = announcementAudioRef.current;
-
     const ann = data.current_announcement;
     const wasAnnouncing = activeAnnouncementRef.current;
-    if (announcementAudio && ann && ann.id !== wasAnnouncing?.id) {
+    if (!announcementAudio) return;
+    const plan = planAnnouncement(wasAnnouncing, ann, data.volume, duckSettingsRef.current);
+    const annGain = announcementGainRef.current;
+    const ctx = audioCtxRef.current;
+    if (plan.kind === "start" && ann) {
       activeAnnouncementRef.current = { id: ann.id, mode: ann.mode };
       abortCrossfadeIfAny(data.volume);
       if (announcementFadeOutTimeoutRef.current) {
@@ -187,85 +187,71 @@ export default function RadioScreenPage() {
       announcementAudio.src = getApiUrl(`/radio/announcements/${ann.id}/stream`);
       announcementAudio.load();
       if (unlocked) announcementAudio.play().catch(() => {});
-      const fadeMs = duckSettingsRef.current.fadeMs;
-      const annGain = announcementGainRef.current;
-      const ctx = audioCtxRef.current;
-      if (annGain && ctx) {
-        annGain.gain.cancelScheduledValues(ctx.currentTime);
-        annGain.gain.setValueAtTime(0, ctx.currentTime);
-        annGain.gain.linearRampToValueAtTime(1, ctx.currentTime + Math.max(0.001, fadeMs / 1000));
-      }
-      if (ann.mode === "duck") {
-        rampGain(activeSlotRef.current, duckSettingsRef.current.level / 100, fadeMs);
-      }
-    } else if (announcementAudio && !ann && wasAnnouncing) {
+      const [from, to] = plan.announcementGain;
+      if (annGain && ctx) rampParamFrom(annGain.gain, from, to, plan.fadeMs, ctx.currentTime);
+      if (plan.musicRamp !== null) rampGain(activeSlotRef.current, plan.musicRamp, plan.fadeMs);
+    } else if (plan.kind === "end") {
       activeAnnouncementRef.current = null;
-      const fadeMs = duckSettingsRef.current.fadeMs;
-      const annGain = announcementGainRef.current;
-      const ctx = audioCtxRef.current;
-      if (annGain && ctx) {
-        annGain.gain.cancelScheduledValues(ctx.currentTime);
-        annGain.gain.setValueAtTime(annGain.gain.value, ctx.currentTime);
-        annGain.gain.linearRampToValueAtTime(0, ctx.currentTime + Math.max(0.001, fadeMs / 1000));
-      }
+      if (annGain && ctx) rampParam(annGain.gain, plan.announcementGain[1], plan.unloadAfterMs, ctx.currentTime);
       announcementFadeOutTimeoutRef.current = setTimeout(() => {
         unloadMedia(announcementAudio);
         announcementFadeOutTimeoutRef.current = null;
-      }, fadeMs);
-      if (wasAnnouncing.mode === "duck") {
-        rampGain(activeSlotRef.current, data.volume / 100, fadeMs);
+      }, plan.unloadAfterMs);
+      if (plan.musicRamp !== null) rampGain(activeSlotRef.current, plan.musicRamp, plan.unloadAfterMs);
+    }
+  };
+
+  const syncSameTrack = (evt: RadioEvent, ducking: boolean) => {
+    const data = evt.data;
+    const slot = activeSlotRef.current;
+    const el = getAudioEl(slot);
+    if (!el) return;
+    const gain = targetGain("same", ducking, data.volume, duckSettingsRef.current);
+    if (gain !== null) setGainNow(slot, gain);
+    const { seek, action } = transportAction(evt.cause, data.current_announcement, data.playing, el.paused);
+    if (seek) {
+      try {
+        el.currentTime = data.position_seconds;
+      } catch {
       }
     }
-    const isDucking = activeAnnouncementRef.current?.mode === "duck";
+    if (action === "play" && unlocked) el.play().catch(() => {});
+    else if (action === "pause") el.pause();
+  };
 
+  const promoteCrossfadeSlot = (playing: boolean, gain: number) => {
+    const fromSlot = activeSlotRef.current;
+    const toSlot = otherSlot(fromSlot);
+    setGainNow(fromSlot, 0);
+    setGainNow(toSlot, gain);
+    getAudioEl(fromSlot)?.pause();
+    activeSlotRef.current = toSlot;
+    crossfadingRef.current = false;
+    const newEl = getAudioEl(toSlot);
+    if (newEl && !playing && !newEl.paused) newEl.pause();
+  };
+
+  const handleEvent = (evt: RadioEvent) => {
+    setLastCause(evt.cause);
+    applyAnnouncement(evt);
+    const data = evt.data;
+    const ducking = activeAnnouncementRef.current?.mode === "duck";
     const track = data.current_track;
-    if (!track) {
+    const decks = { active: activeSlotRef.current, trackIds: slotTrackIdRef.current, crossfading: crossfadingRef.current };
+    const decision = decideTrack(track?.id ?? null, decks);
+    if (decision === "unload" || !track) {
       for (const slot of [0, 1] as Slot[]) {
-        const el = getAudioEl(slot);
-        unloadMedia(el);
+        unloadMedia(getAudioEl(slot));
         slotTrackIdRef.current[slot] = null;
       }
       crossfadingRef.current = false;
       return;
     }
-
-    const activeSlot = activeSlotRef.current;
-    const otherSlot = OTHER_SLOT(activeSlot);
-
-    if (track.id === slotTrackIdRef.current[activeSlot]) {
-      const el = getAudioEl(activeSlot);
-      if (!el) return;
-      if (!isDucking) setGainNow(activeSlot, data.volume / 100);
-
-      if (evt.cause === "radio_seek" || evt.cause === "radio_restart_track") {
-        try {
-          el.currentTime = data.position_seconds;
-        } catch {
-        }
-      }
-
-      if (ann?.mode === "wait_end") {
-      } else if (data.playing && el.paused) {
-        if (unlocked) el.play().catch(() => {});
-      } else if (!data.playing && !el.paused) {
-        el.pause();
-      }
-      return;
-    }
-
-    if (crossfadingRef.current && slotTrackIdRef.current[otherSlot] === track.id) {
-      setGainNow(activeSlot, 0);
-      setGainNow(otherSlot, isDucking ? duckSettingsRef.current.level / 100 : data.volume / 100);
-      getAudioEl(activeSlot)?.pause();
-      activeSlotRef.current = otherSlot;
-      crossfadingRef.current = false;
-      const newEl = getAudioEl(otherSlot);
-      if (newEl && !data.playing && !newEl.paused) newEl.pause();
-      return;
-    }
-
+    if (decision === "same") return syncSameTrack(evt, ducking);
+    const gain = targetGain(decision, ducking, data.volume, duckSettingsRef.current) ?? 0;
+    if (decision === "promote") return promoteCrossfadeSlot(data.playing, gain);
     abortCrossfadeIfAny(data.volume);
-    loadDirect(track, data.position_seconds || 0, data.playing, isDucking ? duckSettingsRef.current.level : data.volume);
+    loadDirect(track, data.position_seconds || 0, data.playing, gain);
   };
 
   const [displayChannel] = useState(() => getDisplayChannel("radio"));
@@ -333,21 +319,13 @@ export default function RadioScreenPage() {
   }, []);
 
   const maybeStartCrossfade = (el: HTMLAudioElement) => {
-    if (crossfadingRef.current || !graphReadyRef.current || activeAnnouncementRef.current) return;
-    if (state.repeat === "track") return;
-    const { duration, currentTime } = el;
-    if (!isFinite(duration) || duration <= 0) return;
-    const crossfadeSeconds = Math.max(0, state.crossfade_seconds || 0);
-    if (crossfadeSeconds <= 0 || duration - currentTime > crossfadeSeconds) return;
-
-    const { order, index } = state;
-    if (index === null) return;
-    let nextTrack: RadioTrackInfo | null = null;
-    if (index + 1 < order.length) nextTrack = order[index + 1];
-    else if (state.repeat === "playlist" && order.length > 0) nextTrack = order[0];
-    if (!nextTrack) return;
-
-    startCrossfade(nextTrack, state.volume, crossfadeSeconds);
+    const flags = {
+      crossfading: crossfadingRef.current,
+      graphReady: graphReadyRef.current,
+      announcing: Boolean(activeAnnouncementRef.current),
+    };
+    const nextTrack = crossfadeTarget(state, el, flags);
+    if (nextTrack) startCrossfade(nextTrack, state.volume, crossfadeSeconds(state));
   };
 
   const handleTimeUpdateForSlot = (slot: Slot) => {
@@ -372,9 +350,6 @@ export default function RadioScreenPage() {
   const handleEndedA = () => handleEndedForSlot(0);
   const handleEndedB = () => handleEndedForSlot(1);
 
-  const RECOVERY_GRACE_MS = 10000;
-  const RECOVERY_POLL_MS = 1000;
-
   const attemptRecovery = useCallback((slot: Slot) => {
     if (recoveringRef.current || slot !== activeSlotRef.current) return;
     recoveringRef.current = true;
@@ -392,17 +367,17 @@ export default function RadioScreenPage() {
     lastProgressRef.current[slot] = attemptStartedAt;
     if (recoveryPollRef.current) clearInterval(recoveryPollRef.current);
     const pollId = setInterval(() => {
-      if (lastProgressRef.current[slot] > attemptStartedAt) {
-        clearInterval(pollId);
-        recoveringRef.current = false;
-        return;
-      }
-      if (Date.now() - attemptStartedAt < RECOVERY_GRACE_MS) return;
+      const outcome = recoveryOutcome(
+        lastProgressRef.current[slot] > attemptStartedAt,
+        Date.now() - attemptStartedAt,
+        slot === activeSlotRef.current,
+        playingRef.current,
+        Boolean(activeAnnouncementRef.current),
+      );
+      if (outcome === "wait") return;
       clearInterval(pollId);
       recoveringRef.current = false;
-      if (slot === activeSlotRef.current && playingRef.current && !activeAnnouncementRef.current) {
-        sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
-      }
+      if (outcome === "skip") sendCommand("radio_track_ended", { track_id: slotTrackIdRef.current[slot] });
     }, RECOVERY_POLL_MS);
     recoveryPollRef.current = pollId;
   }, [sendCommand]);
@@ -417,15 +392,14 @@ export default function RadioScreenPage() {
   const handleErrorA = () => handleErrorForSlot(0);
   const handleErrorB = () => handleErrorForSlot(1);
 
-  const STALL_TIMEOUT_MS = 15000;
   useEffect(() => {
     const id = setInterval(() => {
-      if (!playingRef.current || activeAnnouncementRef.current || recoveringRef.current) return;
       const slot = activeSlotRef.current;
-      if (Date.now() - lastProgressRef.current[slot] > STALL_TIMEOUT_MS) {
+      const sinceProgress = Date.now() - lastProgressRef.current[slot];
+      if (stalled(playingRef.current, Boolean(activeAnnouncementRef.current), recoveringRef.current, sinceProgress)) {
         attemptRecovery(slot);
       }
-    }, 5000);
+    }, STALL_CHECK_MS);
     return () => clearInterval(id);
   }, [attemptRecovery]);
 
