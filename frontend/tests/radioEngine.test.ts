@@ -125,22 +125,29 @@ test("gain cible : volume, ou niveau d'atténuation pendant un rappel", () => {
 });
 
 test("transport : saut sur seek et redémarrage de piste seulement", () => {
-  assert.equal(transportAction("radio_seek", null, true, false).seek, true);
-  assert.equal(transportAction("radio_restart_track", null, true, false).seek, true);
-  assert.equal(transportAction("sync", null, true, false).seek, false);
+  assert.equal(transportAction("radio_seek", null, true, false, false).seek, true);
+  assert.equal(transportAction("radio_restart_track", null, true, false, false).seek, true);
+  assert.equal(transportAction("sync", null, true, false, false).seek, false);
 });
 
 test("transport : lecture, pause ou rien selon l'état", () => {
-  assert.equal(transportAction("sync", null, true, true).action, "play");
-  assert.equal(transportAction("sync", null, false, false).action, "pause");
-  assert.equal(transportAction("sync", null, true, false).action, "none");
-  assert.equal(transportAction("sync", null, false, true).action, "none");
+  assert.equal(transportAction("sync", null, true, true, false).action, "play");
+  assert.equal(transportAction("sync", null, false, false, false).action, "pause");
+  assert.equal(transportAction("sync", null, true, false, false).action, "none");
+  assert.equal(transportAction("sync", null, false, true, false).action, "none");
+});
+
+test("transport : un saut pendant un fondu interrompt le fondu, pas une simple synchronisation", () => {
+  assert.equal(transportAction("radio_seek", null, true, false, true).abortCrossfade, true);
+  assert.equal(transportAction("radio_restart_track", null, true, false, true).abortCrossfade, true);
+  assert.equal(transportAction("sync", null, true, false, true).abortCrossfade, false);
+  assert.equal(transportAction("radio_seek", null, true, false, false).abortCrossfade, false);
 });
 
 test("transport : rappel en attente de fin, la musique n'est ni lancée ni arrêtée", () => {
   const ann = { id: 1, mode: "wait_end" as const };
-  assert.equal(transportAction("sync", ann, true, true).action, "none");
-  assert.equal(transportAction("sync", ann, false, false).action, "none");
+  assert.equal(transportAction("sync", ann, true, true, false).action, "none");
+  assert.equal(transportAction("sync", ann, false, false, false).action, "none");
 });
 
 test("rappel qui commence en atténuation : fondu entrant et musique au niveau réduit", () => {

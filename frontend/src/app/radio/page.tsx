@@ -206,9 +206,12 @@ export default function RadioScreenPage() {
     const slot = activeSlotRef.current;
     const el = getAudioEl(slot);
     if (!el) return;
-    const gain = targetGain("same", ducking, data.volume, duckSettingsRef.current);
+    const duck = duckSettingsRef.current;
+    const transport = transportAction(evt.cause, data.current_announcement, data.playing, el.paused, crossfadingRef.current);
+    if (transport.abortCrossfade) abortCrossfadeIfAny(ducking ? duck.level : data.volume);
+    const gain = targetGain("same", ducking, data.volume, duck);
     if (gain !== null) setGainNow(slot, gain);
-    const { seek, action } = transportAction(evt.cause, data.current_announcement, data.playing, el.paused);
+    const { seek, action } = transport;
     if (seek) {
       try {
         el.currentTime = data.position_seconds;

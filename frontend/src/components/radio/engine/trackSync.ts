@@ -31,10 +31,12 @@ export function transportAction(
   announcement: Pick<RadioAnnouncementInfo, "mode"> | null,
   playing: boolean,
   paused: boolean,
-): { seek: boolean; action: TransportAction } {
+  crossfading: boolean,
+): { seek: boolean; abortCrossfade: boolean; action: TransportAction } {
   const seek = cause === "radio_seek" || cause === "radio_restart_track";
-  if (announcement?.mode === "wait_end") return { seek, action: "none" };
-  if (playing && paused) return { seek, action: "play" };
-  if (!playing && !paused) return { seek, action: "pause" };
-  return { seek, action: "none" };
+  const abortCrossfade = seek && crossfading;
+  if (announcement?.mode === "wait_end") return { seek, abortCrossfade, action: "none" };
+  if (playing && paused) return { seek, abortCrossfade, action: "play" };
+  if (!playing && !paused) return { seek, abortCrossfade, action: "pause" };
+  return { seek, abortCrossfade, action: "none" };
 }
