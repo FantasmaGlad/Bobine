@@ -1,0 +1,26 @@
+import type { Dict } from "../core.ts";
+
+export const telemetryDrawer: Dict = {
+  range1h: "Dernière heure",
+  range6h: "Dernières 6 heures",
+  range24h: "Dernières 24 heures",
+  range7d: "7 derniers jours",
+  range30d: "30 derniers jours",
+  rangeMonth: "Ce mois-ci",
+  rangeAll: "Tout l'historique conservé",
+  short1h: "1 h",
+  short6h: "6 h",
+  short24h: "24 h",
+  short7d: "7 j",
+  short30d: "30 j",
+  shortMonth: "Mois",
+  shortAll: "Tout",
+  close: "Fermer le tiroir",
+  ariaHistory: "Historique : {{title}}",
+  current: "Actuel",
+  average: "Moyenne",
+  min: "Min",
+  max: "Max",
+  evolution: "Évolution temporelle",
+  footer: "Échantillonnage continu automatique toutes les 60 secondes. Conservation paramétrable dans Réglages.",
+};
