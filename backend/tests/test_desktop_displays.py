@@ -1,18 +1,10 @@
 import json
 import threading
 
-from app.desktop.displays import (
-    DisplayOrchestrator,
-    DisplayWatcher,
-    Monitor,
-    ProjectorWindow,
-    build_projector_command,
-    external_monitors,
-    find_kiosk_browser,
-    parse_macos_displays,
-    parse_xrandr_listmonitors,
-    report_display_state,
-)
+from app.desktop.display_report import report_display_state
+from app.desktop.displays import DisplayOrchestrator, DisplayWatcher
+from app.desktop.monitors import Monitor, external_monitors, parse_macos_displays, parse_xrandr_listmonitors
+from app.desktop.projector import ProjectorWindow, build_projector_command, find_kiosk_browser
 
 LAPTOP = Monitor("eDP-1", 0, 0, 1920, 1080, primary=True)
 PROJECTOR = Monitor("HDMI-1", 1920, 0, 1920, 1080)
@@ -263,7 +255,7 @@ def test_rapport_au_backend_rejoue_jusqu_au_succes_puis_cede_la_place_au_plus_re
     assert len(calls) <= 3
 
 
-from app.desktop.displays import build_native_projector_command, find_native_projector  # noqa: E402
+from app.desktop.projector import build_native_projector_command, find_native_projector  # noqa: E402
 
 
 def test_fenetre_native_trouvee_a_cote_de_l_executable_du_tray_sur_macos():

@@ -1,0 +1,61 @@
+"""Adresses du backend local suivies par le plateau, d'après le port réellement publié, et cadences de surveillance."""
+
+from __future__ import annotations
+
+from app.utils.port import DEFAULT_PORT
+
+
+def _admin_port() -> int:
+    try:
+        from app.utils.port import current_port
+        return int(current_port())
+    except Exception:
+        return DEFAULT_PORT
+
+
+def _admin_url() -> str:
+    return f"http://127.0.0.1:{_admin_port()}"
+
+
+def _kiosk_url() -> str:
+    return f"{_admin_url()}/kiosk"
+
+
+def _grid_url() -> str:
+    return f"{_admin_url()}/grid"
+
+
+def _cinema_url() -> str:
+    return f"{_admin_url()}/cinema"
+
+
+def _health_url() -> str:
+    return f"{_admin_url()}/api/health"
+
+
+def _display_state_url() -> str:
+    return f"{_admin_url()}/api/display/state"
+
+
+def _projector_url() -> str:
+    return f"{_admin_url()}/cinema/?channel=cable"
+
+
+def _updates_check_url() -> str:
+    return f"{_admin_url()}/api/updates/check"
+
+
+def _updates_status_url() -> str:
+    return f"{_admin_url()}/api/updates/status"
+
+
+HEALTH_POLL_INTERVAL_SECONDS = 30
+
+
+HEALTH_FAILURES_BEFORE_RESTART = 3
+
+
+UPDATE_POLL_INTERVAL_SECONDS = 6 * 60 * 60
+
+
+UPDATE_STATUS_POLL_INTERVAL_SECONDS = 15

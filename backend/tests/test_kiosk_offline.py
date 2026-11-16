@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from app.desktop.chromium import OFFLINE_FLAGS
-from app.desktop.displays import Monitor, build_projector_command
+from app.desktop.monitors import Monitor
+from app.desktop.projector import build_projector_command
 
 INSTALL_SH = Path(__file__).resolve().parents[2] / "install.sh"
 
