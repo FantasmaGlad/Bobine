@@ -23,7 +23,8 @@ from app.utils.video_utils.compatibility import check_compatibility
 from app.utils.video_utils.thumbnails import generate_thumbnail
 from app.utils.video_utils.container import read_mp4_duration_seconds
 from app.utils.importer.video import import_video
-from app.api.routes.videos import VideoUpdate, update_video, upload_video_thumbnail
+from app.api.routes.videos.library import update_video, upload_video_thumbnail
+from app.api.routes.videos.schemas import VideoUpdate
 
 
 class TestVideoFlow(unittest.TestCase):
