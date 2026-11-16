@@ -13,80 +13,60 @@ from .probe import _HARDWARE_CACHE, _get_android_prop, is_android_system, shutil
 logger = logging.getLogger(__name__)
 
 
+def _android_storage_model() -> str:
+    bootdevice = (_get_android_prop("ro.boot.bootdevice") or _get_android_prop("ro.boot.boot_devices")).lower()
+    soc_model = _get_android_prop("ro.soc.model").upper()
+    if "ufshc" in bootdevice:
+        if any(s in soc_model for s in ("SM8750", "SM8735", "SUN", "SM8650", "PINEAPPLE")):
+            return "Flash UFS 4.0 (256 Go)"
+        if any(s in soc_model for s in ("SM8550", "KALAMA", "SM8475")):
+            return "Flash UFS 3.1"
+        return "Flash UFS"
+    return "Flash eMMC 5.1" if "mmc" in bootdevice else ""
+
+
+def _first_line(command: list[str], timeout: float, select=lambda line: line) -> str:
+    """Première ligne utile de la sortie d'une commande ; vide si elle échoue."""
+    try:
+        out = subprocess.check_output(command, text=True, timeout=timeout)
+    except Exception as exc:
+        logger.debug("get_storage_model : %s", exc)
+        return ""
+    return next((value for value in (select(line) for line in out.splitlines()) if value), "")
+
+
+def _linux_storage_model() -> str:
+    for path in glob.glob("/sys/block/*/device/model"):
+        if any(x in path for x in ("loop", "ram", "zram")):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                value = f.read().strip()
+            if value:
+                return value
+        except Exception as exc:
+            logger.debug("get_storage_model : %s", exc)
+    if shutil_which("lsblk"):
+        return _first_line(["lsblk", "-d", "-n", "-o", "MODEL"], 1, str.strip)
+    return ""
+
+
+def _macos_media_name(line: str) -> str:
+    return line.split(":", 1)[1].strip() if "Device / Media Name:" in line else ""
+
+
 def get_storage_model() -> str:
     """Retourne le modèle matériel du disque de stockage principal (SSD, NVMe, UFS, eMMC)."""
     if _HARDWARE_CACHE["storage_model"]:
         return _HARDWARE_CACHE["storage_model"]
-
-    model = ""
-    is_android = is_android_system()
-
-    if is_android:
-        bootdevice = _get_android_prop("ro.boot.bootdevice") or _get_android_prop("ro.boot.boot_devices")
-        soc_model = _get_android_prop("ro.soc.model").upper()
-
-        if "ufshc" in bootdevice.lower():
-            if any(s in soc_model for s in ("SM8750", "SM8735", "SUN", "SM8650", "PINEAPPLE")):
-                model = "Flash UFS 4.0 (256 Go)"
-            elif any(s in soc_model for s in ("SM8550", "KALAMA", "SM8475")):
-                model = "Flash UFS 3.1"
-            else:
-                model = "Flash UFS"
-        elif "mmc" in bootdevice.lower():
-            model = "Flash eMMC 5.1"
-
+    model = _android_storage_model() if is_android_system() else ""
     if not model and sys.platform.startswith("linux"):
-        for p in glob.glob("/sys/block/*/device/model"):
-            if any(x in p for x in ("loop", "ram", "zram")):
-                continue
-            try:
-                with open(p, "r", encoding="utf-8") as f:
-                    val = f.read().strip()
-                    if val:
-                        model = val
-                        break
-            except Exception as exc:
-                logger.debug("get_storage_model : %s", exc)
-
-        if not model and shutil_which("lsblk"):
-            try:
-                out = subprocess.check_output(["lsblk", "-d", "-n", "-o", "MODEL"], text=True, timeout=1)
-                for line in out.splitlines():
-                    line = line.strip()
-                    if line:
-                        model = line
-                        break
-            except Exception as exc:
-                logger.debug("get_storage_model : %s", exc)
-
+        model = _linux_storage_model()
     if not model and sys.platform == "darwin":
-        try:
-            out = subprocess.check_output(["diskutil", "info", "/"], text=True, timeout=2)
-            for line in out.splitlines():
-                if "Device / Media Name:" in line:
-                    model = line.split(":", 1)[1].strip()
-                    break
-        except Exception as exc:
-            logger.debug("get_storage_model : %s", exc)
-
+        model = _first_line(["diskutil", "info", "/"], 2, _macos_media_name)
     if not model and sys.platform == "win32":
-        try:
-            out = subprocess.check_output(
-                ["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_DiskDrive).Model"],
-                text=True,
-                timeout=2,
-            )
-            for line in out.splitlines():
-                sline = line.strip()
-                if sline:
-                    model = sline
-                    break
-        except Exception as exc:
-            logger.debug("get_storage_model : %s", exc)
-
-    if not model:
-        model = "Stockage Système"
-
+        model = _first_line(["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_DiskDrive).Model"], 2, str.strip)
+    model = model or "Stockage Système"
     _HARDWARE_CACHE["storage_model"] = model
     return model
 

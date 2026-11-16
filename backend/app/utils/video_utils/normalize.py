@@ -29,6 +29,34 @@ def estimate_normalize_seconds(source_metadata: dict) -> float | None:
     return duration / speed
 
 
+_STREAM_COPY = {"name": "stream_copy", "encoder_name": None, "hw_in": [], "enc_args": ["-c:v", "copy"]}
+
+
+def _audio_args(meta: dict, actions: list[str]) -> list[str]:
+    audio_codec = meta.get("audio_codec")
+    if audio_codec is None:
+        return ["-an"]
+    if "recode_audio" in actions and audio_codec.lower() != "aac":
+        return ["-c:a", "aac"]
+    return ["-c:a", "copy"]
+
+
+def _normalize_command(input_path: str, output_path: str, actions: list[str], meta: dict, tier: dict) -> list[str]:
+    video = tier["enc_args"] if "recode_video" in actions else ["-c:v", "copy"]
+    return [
+        FFMPEG_BIN, *tier["hw_in"], "-threads", "0", "-i", input_path, *video, *_audio_args(meta, actions),
+        "-threads", "0", "-movflags", "+faststart", "-y", output_path,
+    ]
+
+
+def _discard(path: str) -> None:
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
 def normalize_video(
     input_path: str,
     output_path: str,
@@ -42,61 +70,23 @@ def normalize_video(
 
     if is_job_cancelled(job_id):
         raise JobCancelledError(f"Job {job_id} annulé")
-
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
     meta = source_metadata if source_metadata is not None else extract_metadata(input_path)
-    in_codec = (meta.get("codec") or "").lower()
-    is_android = get_deployment_profile() == "android"
-
-    def _build_cmd(hw_in: list[str], enc_args: list[str]) -> list[str]:
-        c = [FFMPEG_BIN]
-        if hw_in:
-            c.extend(hw_in)
-        c.extend(["-threads", "0", "-i", input_path])
-        if "recode_video" in actions:
-            c.extend(enc_args)
-        else:
-            c.extend(["-c:v", "copy"])
-
-        has_audio = meta.get("audio_codec") is not None
-        if not has_audio:
-            c.append("-an")
-        elif "recode_audio" in actions and (meta.get("audio_codec") or "").lower() != "aac":
-            c.extend(["-c:a", "aac"])
-        else:
-            c.extend(["-c:a", "copy"])
-
-        c.extend(["-threads", "0", "-movflags", "+faststart", "-y", output_path])
-        return c
-
     if "recode_video" in actions:
-        tiers = get_transcode_pipeline(is_android, in_codec, meta.get("width"), meta.get("height"))
+        is_android = get_deployment_profile() == "android"
+        tiers = get_transcode_pipeline(is_android, (meta.get("codec") or "").lower(), meta.get("width"), meta.get("height"))
     else:
-        tiers = [{"name": "stream_copy", "encoder_name": None, "hw_in": [], "enc_args": ["-c:v", "copy"]}]
-
+        tiers = [_STREAM_COPY]
     last_error_stderr = ""
     for idx, tier in enumerate(tiers):
-        cmd = _build_cmd(tier["hw_in"], tier["enc_args"])
         logger.info(f"Tentative de normalisation vidéo (palier {idx + 1}/{len(tiers)}: {tier['name']})...")
         ret, stderr = run_ffmpeg_with_progress(
-            cmd,
-            job_id,
-            meta.get("duration_seconds"),
-            encoder_name=tier["encoder_name"],
-            width=meta.get("width"),
-            height=meta.get("height"),
+            _normalize_command(input_path, output_path, actions, meta, tier), job_id, meta.get("duration_seconds"),
+            encoder_name=tier["encoder_name"], width=meta.get("width"), height=meta.get("height"),
         )
         if ret == 0:
             return output_path
-
         last_error_stderr = stderr
         logger.warning(f"Échec de l'encodage avec {tier['name']} ({tier['encoder_name']}) (code {ret}): {stderr}")
-
-        try:
-            if os.path.exists(output_path):
-                os.remove(output_path)
-        except OSError:
-            pass
-
+        _discard(output_path)
     raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {last_error_stderr}")

@@ -67,6 +67,32 @@ def _if_range_matches(if_range: str | None, etag: str, last_modified: str) -> bo
         return False
 
 
+async def _file_chunks(file_path: Path, start: int, length: int):
+    handle = await aiofiles.open(file_path, "rb")
+    try:
+        await handle.seek(start)
+        remaining = length
+        while remaining > 0:
+            chunk = await handle.read(min(_READ_BLOCK_SIZE, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+    except OSError:
+        return
+    finally:
+        closing = asyncio.ensure_future(handle.close())
+        try:
+            await asyncio.shield(closing)
+        except (asyncio.CancelledError, OSError):
+            pass
+
+
+def _not_modified(request_headers: Mapping[str, str], etag: str) -> bool:
+    if_none_match = request_headers.get("if-none-match")
+    return bool(if_none_match) and etag in (tag.strip() for tag in if_none_match.split(","))
+
+
 async def build_media_response(
     file_path: Path,
     request_headers: Mapping[str, str],
@@ -74,71 +100,27 @@ async def build_media_response(
     content_type: str,
 ) -> Response:
     """Sert `file_path` (GET ou HEAD) avec support complet de `Range`."""
-    stat = None
     try:
         stat = await run_in_threadpool(file_path.stat)
     except OSError:
         raise HTTPException(status_code=404, detail="Fichier manquant sur le disque")
-
     size = stat.st_size
     etag, last_modified = _validators(stat)
-    base_headers = {
-        "Accept-Ranges": "bytes",
-        "Content-Type": content_type,
-        "ETag": etag,
-        "Last-Modified": last_modified,
-        "X-Content-Type-Options": "nosniff",
-    }
-
+    base_headers = {"Accept-Ranges": "bytes", "Content-Type": content_type, "ETag": etag, "Last-Modified": last_modified, "X-Content-Type-Options": "nosniff"}
     range_header = request_headers.get("range")
-    if not range_header:
-        if_none_match = request_headers.get("if-none-match")
-        if if_none_match and etag in (tag.strip() for tag in if_none_match.split(",")):
-            return Response(status_code=304, headers={"ETag": etag, "Last-Modified": last_modified})
-
+    if not range_header and _not_modified(request_headers, etag):
+        return Response(status_code=304, headers={"ETag": etag, "Last-Modified": last_modified})
     byte_range = None
     if range_header and _if_range_matches(request_headers.get("if-range"), etag, last_modified):
         try:
             byte_range = parse_byte_range(range_header, size)
         except RangeNotSatisfiable:
-            return Response(
-                status_code=416,
-                headers={**base_headers, "Content-Range": f"bytes */{size}", "Content-Length": "0"},
-            )
-
-    if byte_range is None:
-        start, end, status = 0, size - 1, 200
-    else:
-        (start, end), status = byte_range, 206
+            return Response(status_code=416, headers={**base_headers, "Content-Range": f"bytes */{size}", "Content-Length": "0"})
+    (start, end), status = (byte_range, 206) if byte_range is not None else ((0, size - 1), 200)
     length = max(0, end - start + 1)
-
     headers = {**base_headers, "Content-Length": str(length)}
     if status == 206:
         headers["Content-Range"] = f"bytes {start}-{end}/{size}"
-
     if method.upper() == "HEAD" or length == 0:
         return Response(status_code=status, headers=headers)
-
-    async def body():
-        handle = await aiofiles.open(file_path, "rb")
-        try:
-            await handle.seek(start)
-            remaining = length
-            while remaining > 0:
-                chunk = await handle.read(min(_READ_BLOCK_SIZE, remaining))
-                if not chunk:
-                    break
-                remaining -= len(chunk)
-                yield chunk
-        except OSError:
-            return
-        finally:
-            closing = asyncio.ensure_future(handle.close())
-            try:
-                await asyncio.shield(closing)
-            except asyncio.CancelledError:
-                pass
-            except OSError:
-                pass
-
-    return StreamingResponse(body(), status_code=status, headers=headers)
+    return StreamingResponse(_file_chunks(file_path, start, length), status_code=status, headers=headers)

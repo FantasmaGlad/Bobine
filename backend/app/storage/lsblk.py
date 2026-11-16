@@ -138,6 +138,67 @@ def classify_kind(*, transport: str | None, rotational: bool | None, sd_card: bo
     return "usb"
 
 
+def _reject(inventory: Inventory, nodes: list[dict[str, Any]], reason: str) -> None:
+    for node in nodes:
+        if node.get("fstype"):
+            inventory.excluded.append(Excluded(str(node.get("path") or node.get("name")), reason))
+
+
+def _is_system_disk(nodes: list[dict[str, Any]]) -> bool:
+    return any(m for node in nodes for m in _mountpoints(node) if is_system_mount(m)) or any(
+        str(node.get("fstype") or "") == "swap" for node in nodes
+    )
+
+
+def _disk_facts(top: dict[str, Any], name: str, sd_probe: Callable[[str], bool]) -> tuple:
+    """Faits du disque dans l'ordre attendu par `_build` (après le nom)."""
+    return (
+        _opt_flag(top.get("rota")), as_text(top.get("tran")), as_flag(top.get("rm")), as_flag(top.get("hotplug")),
+        as_text(top.get("vendor")), as_text(top.get("model")), as_text(top.get("serial")), sd_probe(name),
+    )
+
+
+def _classify_partition(inventory: Inventory, node: dict[str, Any], build, is_loop: bool, protected: list[str], include_images: bool) -> None:
+    fstype = as_text(node.get("fstype"))
+    node_path = str(node.get("path") or f"/dev/{node.get('name')}")
+    if not fstype:
+        return
+    if fstype in _ENCRYPTED:
+        inventory.excluded.append(Excluded(node_path, "encrypted"))
+        inventory.encrypted.append(build(node))
+        return
+    allowed = LOOP_ALLOWED_FILESYSTEMS if is_loop else DATA_FILESYSTEMS
+    if fstype in _NEVER_LISTED or fstype not in allowed or (is_loop and not include_images):
+        inventory.excluded.append(Excluded(node_path, "unusable_fs"))
+    elif any(overlaps_protected(m, protected) for m in _mountpoints(node)):
+        inventory.excluded.append(Excluded(node_path, "bobine_data"))
+    else:
+        inventory.volumes.append(build(node))
+
+
+def _classify_disk(inventory: Inventory, top: dict[str, Any], mountinfo: list[MountInfo], protected: list[str], sd_probe, include_images: bool) -> None:
+    top_type = str(top.get("type") or "disk")
+    if top_type in ("rom", "ram"):
+        return
+    nodes = _flatten(top)
+    if _is_system_disk(nodes):
+        _reject(inventory, nodes, "system")
+        return
+    name = str(top.get("name") or "")
+    facts = _disk_facts(top, name, sd_probe)
+    rotational, transport, removable, hotplug, vendor, model, serial, sd_card = facts
+    is_loop = top_type == "loop"
+    if not (removable or hotplug or transport == "usb" or sd_card or is_loop):
+        _reject(inventory, nodes, "internal")
+        return
+
+    def build(node: dict[str, Any]) -> Volume:
+        return _build(node, top, name, rotational, transport, removable, hotplug, vendor, model, serial, sd_card, mountinfo, is_loop)
+
+    for node in nodes:
+        _classify_partition(inventory, node, build, is_loop, protected, include_images)
+
+
 def parse_lsblk(
     data: str | dict[str, Any],
     *,
@@ -152,57 +213,8 @@ def parse_lsblk(
     protected = [p for p in protected_paths if p]
     sd_probe = is_sd_card or (lambda _name: False)
     inventory = Inventory()
-
     for top in payload.get("blockdevices", []):
-        top_type = str(top.get("type") or "disk")
-        if top_type in ("rom", "ram"):
-            continue
-        nodes = _flatten(top)
-        name = str(top.get("name") or "")
-
-        def reject(reason: str, only_filesystems: bool = True) -> None:
-            for node in nodes:
-                if not only_filesystems or node.get("fstype"):
-                    inventory.excluded.append(Excluded(str(node.get("path") or node.get("name")), reason))
-
-        if any(m for node in nodes for m in _mountpoints(node) if is_system_mount(m)) or any(
-            str(node.get("fstype") or "") == "swap" for node in nodes
-        ):
-            reject("system")
-            continue
-
-        removable = as_flag(top.get("rm"))
-        hotplug = as_flag(top.get("hotplug"))
-        transport = as_text(top.get("tran"))
-        sd_card = sd_probe(name)
-        is_loop = top_type == "loop"
-        external = removable or hotplug or transport == "usb" or sd_card or is_loop
-        if not external:
-            reject("internal")
-            continue
-
-        rotational = _opt_flag(top.get("rota"))
-        vendor, model, serial = as_text(top.get("vendor")), as_text(top.get("model")), as_text(top.get("serial"))
-        for node in nodes:
-            fstype = as_text(node.get("fstype"))
-            node_path = str(node.get("path") or f"/dev/{node.get('name')}")
-            if not fstype:
-                continue
-            if fstype in _ENCRYPTED:
-                inventory.excluded.append(Excluded(node_path, "encrypted"))
-                inventory.encrypted.append(_build(node, top, name, rotational, transport, removable, hotplug, vendor, model, serial, sd_card, mountinfo, is_loop))
-                continue
-            allowed = LOOP_ALLOWED_FILESYSTEMS if is_loop else DATA_FILESYSTEMS
-            if fstype in _NEVER_LISTED or fstype not in allowed or (is_loop and not include_images):
-                inventory.excluded.append(Excluded(node_path, "unusable_fs"))
-                continue
-            mounts = _mountpoints(node)
-            if any(overlaps_protected(m, protected) for m in mounts):
-                inventory.excluded.append(Excluded(node_path, "bobine_data"))
-                continue
-            inventory.volumes.append(
-                _build(node, top, name, rotational, transport, removable, hotplug, vendor, model, serial, sd_card, mountinfo, is_loop)
-            )
+        _classify_disk(inventory, top, mountinfo, protected, sd_probe, include_images)
     inventory.volumes = dedupe_keys(sorted(inventory.volumes, key=lambda v: (v.disk or "", v.name)))
     return inventory
 
