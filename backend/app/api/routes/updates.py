@@ -189,10 +189,7 @@ async def store_open() -> dict[str, Any]:
     return await _store_action("store_open_listing")
 
 
-@router.post("/apply")
-async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Déclenche la mise à jour du système en tâche de fond."""
-    handler = get_profile_handler()
+def _ensure_auto_apply(handler) -> None:
     if handler.is_store_managed():
         raise HTTPException(
             status_code=409,
@@ -209,6 +206,8 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
     if is_running():
         raise HTTPException(status_code=409, detail="Une mise à jour est déjà en cours d'application.")
 
+
+async def _pending_release(db: Session, profile: str) -> dict:
     channel = get_update_channel(db)
     release_data, error_code = await fetch_release_for_channel(channel, force=True)
     if not release_data:
@@ -217,7 +216,6 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
             detail=LOOKUP_ERROR_MESSAGES.get(error_code or "offline", LOOKUP_ERROR_MESSAGES["offline"]),
         )
     local_info = await run_in_threadpool(get_local_version_info)
-    profile = get_deployment_profile()
     evaluation = await refuse_android_downgrade(
         profile, local_info, release_data, evaluate_update(channel, local_info, release_data)
     )
@@ -225,21 +223,33 @@ async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(
         raise HTTPException(status_code=409, detail=ANDROID_DOWNGRADE_MESSAGE)
     if not evaluation["has_update"]:
         raise HTTPException(status_code=409, detail="Aucune mise à jour à appliquer : la version installée est déjà la bonne.")
+    return release_data
 
+
+def _ensure_package(asset: dict, target_tag: str | None, profile: str) -> None:
+    if not asset["download_url"]:
+        raise HTTPException(
+            status_code=409,
+            detail=f"La release {target_tag or ''} ne contient aucun paquet pour ce profil ({profile}) — téléchargement manuel requis.",
+        )
+    if not asset["asset_digest"]:
+        raise HTTPException(
+            status_code=409,
+            detail="Empreinte SHA-256 indisponible pour le paquet de cette release — installation automatique refusée par précaution.",
+        )
+
+
+@router.post("/apply")
+async def apply_update(background_tasks: BackgroundTasks, db: Session = Depends(get_db)) -> dict[str, str]:
+    """Déclenche la mise à jour du système en tâche de fond."""
+    handler = get_profile_handler()
+    _ensure_auto_apply(handler)
+    profile = get_deployment_profile()
+    release_data = await _pending_release(db, profile)
     target_tag = release_data.get("tag_name") or None
     asset = resolve_asset(profile, release_data, handler.asset_variant())
     if not handler.supports_git_versioning():
-        if not asset["download_url"]:
-            raise HTTPException(
-                status_code=409,
-                detail=f"La release {target_tag or ''} ne contient aucun paquet pour ce profil ({profile}) — téléchargement manuel requis.",
-            )
-        if not asset["asset_digest"]:
-            raise HTTPException(
-                status_code=409,
-                detail="Empreinte SHA-256 indisponible pour le paquet de cette release — installation automatique refusée par précaution.",
-            )
-
+        _ensure_package(asset, target_tag, profile)
     log_activity(db, "update_apply", f"Mise à jour manuelle déclenchée (cible : {target_tag or 'branche courante'})")
     background_tasks.add_task(
         run_update_pipeline, target_tag, asset["download_url"], asset["asset_digest"], "manual"

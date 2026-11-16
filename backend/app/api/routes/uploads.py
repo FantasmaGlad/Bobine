@@ -43,15 +43,65 @@ def get_upload(upload_id: str) -> dict:
     return _state(staged.get_session(upload_id))
 
 
-@router.patch("/{upload_id}", response_model=UploadState)
-async def append_chunk(upload_id: str, request: Request) -> JSONResponse:
-    session = staged.get_session(upload_id)
+def _declared_offset(upload_id: str, request: Request) -> int:
     try:
-        declared = int(request.headers.get("upload-offset", ""))
+        return int(request.headers.get("upload-offset", ""))
     except ValueError:
         logger.warning("Upload %s : en-tête Upload-Offset manquant ou invalide", staged.short_id(upload_id))
         raise HTTPException(status_code=400, detail="En-tête Upload-Offset manquant ou invalide")
 
+
+class _Received:
+    def __init__(self) -> None:
+        self.bytes = 0
+
+
+async def _stream_into(path, request: Request, remaining: int, received: _Received) -> None:
+    async with aiofiles.open(path, "ab") as f:
+        async for chunk in request.stream():
+            overflow = received.bytes + len(chunk) > remaining
+            if overflow:
+                chunk = chunk[: remaining - received.bytes]
+            await f.write(chunk)
+            received.bytes += len(chunk)
+            if overflow:
+                raise HTTPException(status_code=413, detail="Le morceau dépasse la taille annoncée du fichier")
+
+
+async def _write_chunk(upload_id: str, request: Request, current: int, remaining: int) -> tuple[int, float]:
+    received = _Received()
+    started = time.monotonic()
+    try:
+        await _stream_into(staged._part_path(upload_id), request, remaining, received)
+    except HTTPException:
+        logger.warning("Upload %s : morceau refusé à l'offset %d (dépasse la taille annoncée)", staged.short_id(upload_id), current)
+        raise
+    except BaseException as exc:
+        logger.warning(
+            "Upload %s : morceau interrompu à l'offset %d après %d octets reçus en %.1f s (%s)",
+            staged.short_id(upload_id), current, received.bytes, time.monotonic() - started, type(exc).__name__,
+        )
+        raise
+    return received.bytes, time.monotonic() - started
+
+
+def _log_received(upload_id: str, session: staged.Session, state: dict, written: int, elapsed: float) -> None:
+    logger.info(
+        "Upload %s : morceau reçu, %d octets en %.2f s (%.1f Mo/s), offset %d/%d",
+        staged.short_id(upload_id), written, elapsed,
+        (written / 1_048_576 / elapsed) if elapsed > 0 else 0.0, state["offset"], state["size"],
+    )
+    if state["complete"]:
+        logger.info(
+            "Upload %s : transfert complet, %d octets reçus en %.1f s depuis la création",
+            staged.short_id(upload_id), state["size"], max(0.0, time.time() - session.created_at),
+        )
+
+
+@router.patch("/{upload_id}", response_model=UploadState)
+async def append_chunk(upload_id: str, request: Request) -> JSONResponse:
+    session = staged.get_session(upload_id)
+    declared = _declared_offset(upload_id, request)
     staged.acquire(upload_id)
     try:
         current = session.offset
@@ -65,42 +115,9 @@ async def append_chunk(upload_id: str, request: Request) -> JSONResponse:
                 headers={"Upload-Offset": str(current)},
                 content={"detail": "Décalage de reprise", "offset": current, "size": session.size},
             )
-        remaining = session.size - current
-        written = 0
-        started = time.monotonic()
-        try:
-            async with aiofiles.open(staged._part_path(upload_id), "ab") as f:
-                async for chunk in request.stream():
-                    if written + len(chunk) > remaining:
-                        chunk = chunk[: remaining - written]
-                        overflow = True
-                    else:
-                        overflow = False
-                    await f.write(chunk)
-                    written += len(chunk)
-                    if overflow:
-                        raise HTTPException(status_code=413, detail="Le morceau dépasse la taille annoncée du fichier")
-        except HTTPException:
-            logger.warning("Upload %s : morceau refusé à l'offset %d (dépasse la taille annoncée)", staged.short_id(upload_id), current)
-            raise
-        except BaseException as exc:
-            logger.warning(
-                "Upload %s : morceau interrompu à l'offset %d après %d octets reçus en %.1f s (%s)",
-                staged.short_id(upload_id), current, written, time.monotonic() - started, type(exc).__name__,
-            )
-            raise
-        elapsed = time.monotonic() - started
+        written, elapsed = await _write_chunk(upload_id, request, current, session.size - current)
         state = _state(staged.get_session(upload_id))
-        logger.info(
-            "Upload %s : morceau reçu, %d octets en %.2f s (%.1f Mo/s), offset %d/%d",
-            staged.short_id(upload_id), written, elapsed,
-            (written / 1_048_576 / elapsed) if elapsed > 0 else 0.0, state["offset"], state["size"],
-        )
-        if state["complete"]:
-            logger.info(
-                "Upload %s : transfert complet, %d octets reçus en %.1f s depuis la création",
-                staged.short_id(upload_id), state["size"], max(0.0, time.time() - session.created_at),
-            )
+        _log_received(upload_id, session, state, written, elapsed)
         return JSONResponse(status_code=200, headers={"Upload-Offset": str(state["offset"])}, content=state)
     finally:
         staged.release(upload_id)

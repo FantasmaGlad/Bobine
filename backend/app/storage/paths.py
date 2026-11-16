@@ -125,6 +125,48 @@ class Listing:
     skipped_links: int = 0
 
 
+def _entry_is_dir(entry: os.DirEntry, real_root: str, root_dev: int) -> bool | None:
+    """Nature d'une entrée ; None pour un lien qui sort du support ou une entrée illisible."""
+    try:
+        if entry.is_symlink():
+            target = os.path.realpath(entry.path)
+            if os.path.commonpath([real_root, target]) != real_root or os.stat(target).st_dev != root_dev:
+                return None
+            return os.path.isdir(target)
+        return entry.is_dir(follow_symlinks=False)
+    except (OSError, ValueError):
+        return None
+
+
+def _scan(directory: str, real_root: str, root_dev: int, show_hidden: bool, media_only: bool) -> tuple[list[tuple[str, bool, bool]], int, bool]:
+    names: list[tuple[str, bool, bool]] = []
+    skipped_links = 0
+    with os.scandir(directory) as it:
+        for index, entry in enumerate(it):
+            if index >= MAX_SCAN_ENTRIES:
+                return names, skipped_links, True
+            hidden = is_hidden(entry.name)
+            if hidden and not show_hidden:
+                continue
+            is_dir = _entry_is_dir(entry, real_root, root_dev)
+            if is_dir is None:
+                skipped_links += 1
+            elif not (media_only and not is_dir and media_kind(entry.name) in (None, "subtitle")):
+                names.append((entry.name, is_dir, hidden))
+    return names, skipped_links, False
+
+
+def _entry(directory: str, name: str, is_dir: bool, hidden: bool) -> Entry:
+    size = mtime = None
+    try:
+        st = os.stat(os.path.join(directory, name))
+        size = None if is_dir else st.st_size
+        mtime = st.st_mtime
+    except OSError:
+        pass
+    return Entry(name, "dir" if is_dir else "file", size, mtime, None if is_dir else media_kind(name), hidden)
+
+
 def list_directory(
     root: str,
     rel: str | None = "",
@@ -143,52 +185,14 @@ def list_directory(
     offset = max(0, int(offset))
     real_root = _real_root(root)
     root_dev = os.stat(real_root).st_dev
-
-    names: list[tuple[str, bool, bool]] = []
-    skipped_links = 0
-    truncated = False
     try:
-        with os.scandir(directory) as it:
-            for index, entry in enumerate(it):
-                if index >= MAX_SCAN_ENTRIES:
-                    truncated = True
-                    break
-                hidden = is_hidden(entry.name)
-                if hidden and not show_hidden:
-                    continue
-                try:
-                    if entry.is_symlink():
-                        target = os.path.realpath(entry.path)
-                        if os.path.commonpath([real_root, target]) != real_root or os.stat(target).st_dev != root_dev:
-                            skipped_links += 1
-                            continue
-                        is_dir = os.path.isdir(target)
-                    else:
-                        is_dir = entry.is_dir(follow_symlinks=False)
-                except (OSError, ValueError):
-                    skipped_links += 1
-                    continue
-                if media_only and not is_dir and media_kind(entry.name) in (None, "subtitle"):
-                    continue
-                names.append((entry.name, is_dir, hidden))
+        names, skipped_links, truncated = _scan(directory, real_root, root_dev, show_hidden, media_only)
     except PermissionError:
         raise PathError("permission_denied", "Accès refusé à ce dossier.", 403)
     except OSError as exc:
         raise PathError("io_error", f"Lecture impossible : {exc.strerror or exc}", 502)
-
     names.sort(key=lambda n: (not n[1], n[0].casefold()))
-    page = names[offset:offset + limit]
-    entries: list[Entry] = []
-    for name, is_dir, hidden in page:
-        full = os.path.join(directory, name)
-        size = mtime = None
-        try:
-            st = os.stat(full)
-            size = None if is_dir else st.st_size
-            mtime = st.st_mtime
-        except OSError:
-            pass
-        entries.append(Entry(name, "dir" if is_dir else "file", size, mtime, None if is_dir else media_kind(name), hidden))
+    entries = [_entry(directory, name, is_dir, hidden) for name, is_dir, hidden in names[offset:offset + limit]]
     parent = None if not cleaned else "/".join(cleaned.split("/")[:-1])
     return Listing(cleaned, parent, entries, len(names), offset, limit, truncated, skipped_links)
 

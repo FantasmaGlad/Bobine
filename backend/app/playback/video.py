@@ -4,7 +4,7 @@ import logging
 import time
 from app.config import settings
 from app.playback.constants import LOAD_LEAD_MS, PLAY_LEAD_MS, PlaybackStateEnum, SEEK_LEAD_MS
-from app.playback.sessions import _db_close_scheduled_launch, _db_close_session, _db_start_session, _db_update_session
+from app.playback.sessions import _db_close_scheduled_launch, _db_start_session, _db_update_session
 
 logger = logging.getLogger(__name__)
 
@@ -34,21 +34,13 @@ class VideoMixin:
         """Lance un cours directement en lecture, à `start_position` (reprise d'une programmation interrompue)."""
         if not scheduled:
             await self._close_scheduled_launch()
-        if self._current_session_id is not None:
-            old_sess_id = self._current_session_id
-            self._current_session_id = None
-            pos = self.state.get("position_seconds", 0.0)
-            asyncio.create_task(asyncio.to_thread(_db_close_session, old_sess_id, pos))
+        self._end_session(self.state.get("position_seconds", 0.0))
 
         self.state["current_background"] = None
         self._clear_audio_coach()
         if not keep_playlist:
             self._cancel_waiting()
-            self.state["playlist_id"] = None
-            self.state["playlist_name"] = None
-            self.state["playlist_items"] = None
-            self.state["playlist_index"] = None
-            self.state["playlist_waiting_remaining"] = None
+            self._forget_playlist()
 
         self.state["subtitle"] = None
         self.state["current_video"] = {
@@ -66,6 +58,14 @@ class VideoMixin:
             "width": width,
             "height": height,
         }
+        self._start_playing(start_position, scheduled)
+        self._current_session_id = await asyncio.to_thread(
+            _db_start_session, video_id, self.channel, launch_type, duration_seconds or 0.0
+        )
+        self._last_session_update = time.monotonic()
+        await self._emit("load", client_ts)
+
+    def _start_playing(self, start_position: float, scheduled: bool) -> None:
         self.state["position_seconds"] = start_position
         self.state["volume"] = self.state.get("volume", settings.volume_default)
         self.state["state"] = PlaybackStateEnum.playing.value
@@ -74,13 +74,6 @@ class VideoMixin:
         self._clock.set_rate(self.state["speed"])
         self._clock.start(start_position, lead_ms=self._lead_ms(LOAD_LEAD_MS))
         self._last_heartbeat = time.monotonic()
-
-        self._current_session_id = await asyncio.to_thread(
-            _db_start_session, video_id, self.channel, launch_type, duration_seconds or 0.0
-        )
-        self._last_session_update = time.monotonic()
-
-        await self._emit("load", client_ts)
 
     def note_scheduled_launch_recorded(self) -> None:
         """Le planificateur vient d'enregistrer ce lancement en base : il faudra le clore quand il quittera l'écran."""
@@ -105,11 +98,7 @@ class VideoMixin:
         if duration:
             self._clock.seek(duration)
 
-        if self._current_session_id is not None:
-            sess_id = self._current_session_id
-            self._current_session_id = None
-            total_dur = (self.state.get("current_video") or {}).get("duration_seconds") or self.state.get("position_seconds", 0.0)
-            asyncio.create_task(asyncio.to_thread(_db_close_session, sess_id, total_dur, True))
+        self._end_session(duration or self.state.get("position_seconds", 0.0), True)
 
         idx = self.state["playlist_index"]
         items = self.state["playlist_items"]
@@ -163,21 +152,13 @@ class VideoMixin:
         self._clear_audio_coach()
         await self._close_scheduled_launch()
 
-        if self._current_session_id is not None:
-            sess_id = self._current_session_id
-            self._current_session_id = None
-            pos = self.state.get("position_seconds", 0.0)
-            asyncio.create_task(asyncio.to_thread(_db_close_session, sess_id, pos))
+        self._end_session(self.state.get("position_seconds", 0.0))
 
         self.state["state"] = PlaybackStateEnum.waiting.value
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
         self._clock.reset()
-        self.state["playlist_id"] = None
-        self.state["playlist_name"] = None
-        self.state["playlist_items"] = None
-        self.state["playlist_index"] = None
-        self.state["playlist_waiting_remaining"] = None
+        self._forget_playlist()
         self.state["current_background"] = None
         await self._emit("stop", client_ts)
 
@@ -215,10 +196,6 @@ class VideoMixin:
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
         self._clock.reset()
-        self.state["playlist_id"] = None
-        self.state["playlist_name"] = None
-        self.state["playlist_items"] = None
-        self.state["playlist_index"] = None
-        self.state["playlist_waiting_remaining"] = None
+        self._forget_playlist()
         self.state["current_background"] = {"id": background_id, "title": title, "is_image": is_image}
         await self._emit("load_background", client_ts)

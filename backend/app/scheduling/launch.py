@@ -22,6 +22,7 @@ from app.playback.manager import get_playback_manager
 from app.radio_manager import normalize_radio_channel
 from app.scheduling import launch_store as scheduled_launch_store
 from app.scheduling.offsets import playback_offset, playlist_resume_point
+from app.videos.describe import video_details, video_item
 
 from .occurrences import LOCAL_TZ
 from .radio import _launch_radio_target, _radio_output_is_audible, _revert_radio_to_default
@@ -75,19 +76,6 @@ def _manual_video_active(current: dict) -> bool:
             and not current.get("scheduled_launch", False))
 
 
-def _thumbnail(path: str | None) -> str | None:
-    return path.split("/")[-1] if path else None
-
-
-def _playlist_item(video: Video) -> dict:
-    return {
-        "id": video.id, "title": video.title, "duration_seconds": video.duration_seconds, "program": video.program,
-        "release": video.release, "thumbnail_url": _thumbnail(video.thumbnail_path), "description": video.description,
-        "audio_channels": video.audio_channels, "audio_codec": video.audio_codec, "fps": video.fps,
-        "bitrate_kbps": video.bitrate_kbps, "width": video.width, "height": video.height, "storage_id": video.storage_id,
-    }
-
-
 async def _launch_video(db: Session, manager, target_id: int, channel: str, resumed_from: datetime | None) -> bool:
     video = db.query(Video).filter(Video.id == target_id).first()
     if not video:
@@ -102,10 +90,8 @@ async def _launch_video(db: Session, manager, target_id: int, channel: str, resu
             return False
         start_position = offset
     await manager.load(
-        video.id, video.title, video.duration_seconds, video.program, thumbnail_url=_thumbnail(video.thumbnail_path),
-        release=video.release, description=video.description, audio_channels=video.audio_channels,
-        audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps, width=video.width,
-        height=video.height, launch_type="schedule", scheduled=True, start_position=start_position,
+        video.id, video.title, video.duration_seconds, video.program, **video_details(video),
+        launch_type="schedule", scheduled=True, start_position=start_position,
     )
     return True
 
@@ -115,7 +101,7 @@ async def _launch_playlist(db: Session, manager, target_id: int, channel: str, r
     if not playlist:
         logger.warning(f"Cible programmée introuvable : playlist {target_id}")
         return False
-    items = [_playlist_item(item.video) for item in sorted(playlist.items, key=lambda item: item.position)
+    items = [video_item(item.video) for item in sorted(playlist.items, key=lambda item: item.position)
              if item.video.available]
     start_index, start_position = 0, 0.0
     if resumed_from is not None:

@@ -1,71 +1,51 @@
-"""Description des médias envoyée aux moteurs : cours audio, pistes, vidéos d'une playlist."""
+"""Description des médias audio envoyée aux moteurs : cours audio et pistes."""
 
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-from app.models import (
-    AudioCourse,
-    Background,
-)
+from app.models import AudioCourse, Background, Setting
 from app.utils.importer.formats import is_image_background
 
 
-def _thumbnail_filename(thumbnail_path: str | None) -> str | None:
-    return thumbnail_path.split("/")[-1] if thumbnail_path else None
+def _background(db: Session, background_id: int | None) -> tuple[int | None, str | None, bool]:
+    if not background_id:
+        return background_id, None, False
+    background = db.query(Background).filter(Background.id == background_id).first()
+    if not background:
+        return None, None, False
+    return background_id, background.title, is_image_background(background.file_path)
+
+
+def _default_background_id(db: Session) -> int | None:
+    default_setting = db.query(Setting).filter(Setting.key == "default_coach_background_id").first()
+    if default_setting and default_setting.value and default_setting.value.isdigit():
+        return int(default_setting.value)
+    return None
+
+
+def _track_item(db: Session, track, course_background: tuple[int | None, str | None, bool]) -> dict:
+    own = _background(db, getattr(track, "background_id", None))
+    background_id, background_title, background_is_image = own if own[0] is not None else course_background
+    return {
+        "id": track.id,
+        "number": track.number,
+        "title": track.title,
+        "duration_seconds": track.duration_seconds,
+        "background_id": background_id,
+        "background_title": background_title,
+        "background_is_image": background_is_image,
+    }
 
 
 def _build_audio_course_item(course: AudioCourse, db: Session) -> dict:
-    background_title = None
-    background_is_image = False
-    effective_bg_id = course.background_id
-    if not effective_bg_id:
-        from app.models import Setting
-        default_setting = db.query(Setting).filter(Setting.key == "default_coach_background_id").first()
-        if default_setting and default_setting.value and default_setting.value.isdigit():
-            effective_bg_id = int(default_setting.value)
-
-    if effective_bg_id:
-        bg = db.query(Background).filter(Background.id == effective_bg_id).first()
-        if bg:
-            background_title = bg.title
-            background_is_image = is_image_background(bg.file_path)
-        else:
-            effective_bg_id = None
-
-    tracks = []
-    for t in sorted(course.tracks, key=lambda t: t.position):
-        if not t.available:
-            continue
-        track_bg_id = getattr(t, "background_id", None)
-        track_bg_title = None
-        track_bg_is_image = False
-        if track_bg_id:
-            track_bg = db.query(Background).filter(Background.id == track_bg_id).first()
-            if track_bg:
-                track_bg_title = track_bg.title
-                track_bg_is_image = is_image_background(track_bg.file_path)
-            else:
-                track_bg_id = None
-
-        final_bg_id = track_bg_id if track_bg_id is not None else effective_bg_id
-        final_bg_title = track_bg_title if track_bg_id is not None else background_title
-        final_bg_is_image = track_bg_is_image if track_bg_id is not None else background_is_image
-
-        tracks.append({
-            "id": t.id,
-            "number": t.number,
-            "title": t.title,
-            "duration_seconds": t.duration_seconds,
-            "background_id": final_bg_id,
-            "background_title": final_bg_title,
-            "background_is_image": final_bg_is_image,
-        })
-
+    course_background = _background(db, course.background_id or _default_background_id(db))
+    background_id, background_title, background_is_image = course_background
+    tracks = [_track_item(db, t, course_background) for t in sorted(course.tracks, key=lambda t: t.position) if t.available]
     return {
         "id": course.id,
         "title": course.title,
         "program": course.program,
-        "background_id": effective_bg_id,
+        "background_id": background_id,
         "background_title": background_title,
         "background_is_image": background_is_image,
         "tracks": tracks,
@@ -86,30 +66,6 @@ def _build_audio_playlist_tracks(audio_playlist) -> list[dict]:
         }
         for item in sorted_items
         if item.track.available
-    ]
-
-
-def _build_playlist_video_items(playlist) -> list[dict]:
-    sorted_items = sorted(playlist.items, key=lambda x: x.position)
-    return [
-        {
-            "id": item.video.id,
-            "title": item.video.title,
-            "duration_seconds": item.video.duration_seconds,
-            "program": item.video.program,
-            "release": item.video.release,
-            "thumbnail_url": _thumbnail_filename(item.video.thumbnail_path),
-            "description": item.video.description,
-            "audio_channels": item.video.audio_channels,
-            "audio_codec": item.video.audio_codec,
-            "fps": item.video.fps,
-            "bitrate_kbps": item.video.bitrate_kbps,
-            "storage_id": item.video.storage_id,
-            "width": item.video.width,
-            "height": item.video.height,
-        }
-        for item in sorted_items
-        if item.video.available
     ]
 
 

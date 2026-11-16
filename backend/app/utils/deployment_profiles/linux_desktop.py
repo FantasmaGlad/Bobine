@@ -152,36 +152,17 @@ class LinuxDesktopHandler(ProfileHandler):
         report: Callable[..., None] | None = None,
     ) -> None:
         report = report or _NOOP_REPORT
-        repo_dir = self._backend_dir().parent if self._is_git_clone() else None
-
         if self._is_git_clone():
             report("checking", message="Récupération de la nouvelle version…")
-            if target_tag:
-                run_checked(["git", "fetch", "--tags", "--force"], cwd=repo_dir, timeout=45)
-                run_checked(["git", "checkout", target_tag], cwd=repo_dir, timeout=45)
-                logger.info(f"git checkout {target_tag} (dev linux) effectué avec succès.")
-            else:
-                run_checked(["git", "pull", "--ff-only"], cwd=repo_dir, timeout=45)
-                logger.info("git pull --ff-only (dev linux) effectué avec succès.")
+            _git_update(self._backend_dir().parent, target_tag)
             report("restarting", message="Redémarrage…")
             self.restart_services()
             return
-
         if not download_url:
             raise UpdateUnsupported(
                 "Aucun lien de téléchargement disponible pour mettre à jour le paquet Linux."
             )
-
-        url_lower = download_url.lower().split("?", 1)[0]
-        if url_lower.endswith(".pkg.tar.zst"):
-            pkg_ext = ".pkg.tar.zst"
-        elif url_lower.endswith(".rpm"):
-            pkg_ext = ".rpm"
-        elif url_lower.endswith(".deb"):
-            pkg_ext = ".deb"
-        else:
-            pkg_ext = detect_linux_package_format()
-
+        pkg_ext = _package_extension(download_url)
         pkg_file = Path(tempfile.mkdtemp(prefix="bobine-update-")) / f"bobine_update{pkg_ext}"
         report("downloading", percent=0, message=f"Téléchargement du paquet {pkg_ext}…")
         download_with_progress(
@@ -189,30 +170,51 @@ class LinuxDesktopHandler(ProfileHandler):
             on_progress=lambda pct: report("downloading", percent=pct, message=f"Téléchargement : {pct}%"),
             on_verifying=lambda: report("verifying", message="Vérification de l'intégrité du paquet…"),
         )
-
         report("installing", message="Installation du paquet (autorisation système requise)…")
-        try:
-            if pkg_ext == ".pkg.tar.zst":
-                run_checked(_as_root(["pacman", "-U", "--noconfirm", str(pkg_file)]), timeout=180)
-            elif pkg_ext == ".rpm":
-                if shutil.which("dnf"):
-                    run_checked(_as_root(["dnf", "install", "-y", str(pkg_file)]), timeout=180)
-                else:
-                    run_checked(_as_root(["rpm", "-Uvh", "--replacepkgs", str(pkg_file)]), timeout=180)
-            elif shutil.which("apt-get"):
-                run_checked(_as_root(["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y",
-                                      "--allow-downgrades", str(pkg_file)]), timeout=900)
-            else:
-                run_checked(_as_root(["dpkg", "-i", str(pkg_file)]), timeout=180)
-        except Exception as e:
-            raise RuntimeError(f"Échec de l'installation du paquet {pkg_ext} : {e}") from e
-        finally:
-            try:
-                pkg_file.unlink(missing_ok=True)
-                pkg_file.parent.rmdir()
-            except OSError:
-                pass
-
+        _install_package(pkg_ext, pkg_file)
         report("restarting", message="Redémarrage de Bobine…")
         self.restart_services()
 
+
+def _git_update(repo_dir: Path, target_tag: str | None) -> None:
+    if target_tag:
+        run_checked(["git", "fetch", "--tags", "--force"], cwd=repo_dir, timeout=45)
+        run_checked(["git", "checkout", target_tag], cwd=repo_dir, timeout=45)
+        logger.info(f"git checkout {target_tag} (dev linux) effectué avec succès.")
+    else:
+        run_checked(["git", "pull", "--ff-only"], cwd=repo_dir, timeout=45)
+        logger.info("git pull --ff-only (dev linux) effectué avec succès.")
+
+
+def _package_extension(download_url: str) -> str:
+    path = download_url.lower().split("?", 1)[0]
+    for ext in (".pkg.tar.zst", ".rpm", ".deb"):
+        if path.endswith(ext):
+            return ext
+    return detect_linux_package_format()
+
+
+def _install_command(pkg_ext: str, pkg_file: Path) -> tuple[list[str], int]:
+    if pkg_ext == ".pkg.tar.zst":
+        return ["pacman", "-U", "--noconfirm", str(pkg_file)], 180
+    if pkg_ext == ".rpm":
+        if shutil.which("dnf"):
+            return ["dnf", "install", "-y", str(pkg_file)], 180
+        return ["rpm", "-Uvh", "--replacepkgs", str(pkg_file)], 180
+    if shutil.which("apt-get"):
+        return ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "--allow-downgrades", str(pkg_file)], 900
+    return ["dpkg", "-i", str(pkg_file)], 180
+
+
+def _install_package(pkg_ext: str, pkg_file: Path) -> None:
+    command, timeout = _install_command(pkg_ext, pkg_file)
+    try:
+        run_checked(_as_root(command), timeout=timeout)
+    except Exception as e:
+        raise RuntimeError(f"Échec de l'installation du paquet {pkg_ext} : {e}") from e
+    finally:
+        try:
+            pkg_file.unlink(missing_ok=True)
+            pkg_file.parent.rmdir()
+        except OSError as e:
+            logger.debug(f"Nettoyage du paquet téléchargé impossible : {e}")

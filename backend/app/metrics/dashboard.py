@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.hardware.telemetry import get_system_telemetry_payload
 from app.models import CourseRating, PlaybackSession, Video
+from app.videos.describe import thumbnail_filename
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,6 @@ def _percent(part: int, whole: int) -> float:
 
 def _average(values: list[int]) -> float:
     return round(sum(values) / len(values), 1) if values else 0.0
-
-
-def thumbnail_filename(thumbnail_path: str | None) -> str | None:
-    return thumbnail_path.split("/")[-1] if thumbnail_path else None
 
 
 def period_start(period: str) -> datetime | None:
