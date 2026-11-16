@@ -58,18 +58,18 @@ impl Windows {
         }
     }
 
-    fn interface(&self) -> Result<parse::NetshInterface, RpcError> {
+    fn interface(&self) -> Result<parse::windows::NetshInterface, RpcError> {
         let out = ok(
             run("netsh", &["wlan", "show", "interfaces"], SHORT, None)?,
             "netsh",
         )?;
-        parse::windows_interface(&out.stdout)
+        parse::windows::interface(&out.stdout)
             .ok_or_else(|| RpcError::unsupported("Aucun adaptateur Wi-Fi détecté."))
     }
 
     fn profiles(&self) -> Vec<String> {
         run("netsh", &["wlan", "show", "profiles"], SHORT, None)
-            .map(|o| parse::windows_profiles(&o.stdout))
+            .map(|o| parse::windows::profiles(&o.stdout))
             .unwrap_or_default()
     }
 
@@ -80,7 +80,7 @@ impl Windows {
                 None, SHORT)?, "PowerShell")?;
             let mut devices = Vec::new();
             let mut default_id = None;
-            for item in parse::powershell_json_array(&out.stdout) {
+            for item in parse::windows::powershell_json_array(&out.stdout) {
                 let id = item["ID"].as_str().unwrap_or("").to_string();
                 let name = item["Name"].as_str().unwrap_or("").to_string();
                 if id.is_empty() {
@@ -122,7 +122,7 @@ impl Windows {
             return Ok(json!({ "supported": true, "devices": devices, "default_id": default_id }));
         }
         let out = ok(powershell("Get-CimInstance Win32_SoundDevice | Select-Object Name,Manufacturer,Status | ConvertTo-Json -Compress", None, SHORT)?, "PowerShell")?;
-        let devices: Vec<Value> = parse::powershell_json_array(&out.stdout)
+        let devices: Vec<Value> = parse::windows::powershell_json_array(&out.stdout)
             .into_iter()
             .map(|i| {
                 let name = i["Name"].as_str().unwrap_or("").to_string();
@@ -221,7 +221,8 @@ impl Platform for Windows {
             }
             "bluetooth.status" => {
                 let out = ok(powershell("Get-PnpDevice -Class Bluetooth | Select-Object FriendlyName,Status,InstanceId | ConvertTo-Json -Compress", None, SHORT)?, "PowerShell")?;
-                let devices = parse::windows_bluetooth(&parse::powershell_json_array(&out.stdout));
+                let devices =
+                    parse::windows::bluetooth(&parse::windows::powershell_json_array(&out.stdout));
                 Ok(
                     json!({ "supported": true, "powered": true, "discovering": false, "adapter_name": "", "devices": devices,
                     "pending_pairing": null, "pairing": null }),
@@ -236,7 +237,7 @@ impl Platform for Windows {
                     LONG,
                     None,
                 )?;
-                let networks = parse::windows_networks(
+                let networks = parse::windows::networks(
                     &out.stdout,
                     iface.ssid.as_deref().filter(|_| iface.connected),
                     &known,
@@ -271,7 +272,7 @@ impl Platform for Windows {
                     let path = std::env::temp_dir()
                         .join(format!("bobine-wifi-{}.xml", std::process::id()));
                     let path_text = path.to_string_lossy().to_string();
-                    std::fs::write(&path, parse::windows_profile_xml(ssid, password)).map_err(
+                    std::fs::write(&path, parse::windows::profile_xml(ssid, password)).map_err(
                         |e| RpcError::app("tool_failed", format!("Profil Wi-Fi non écrit : {e}")),
                     )?;
                     let added = run(
@@ -329,7 +330,9 @@ impl Platform for Windows {
                 let out = powershell(
                     "Get-NetIPAddress -InterfaceAlias $env:BOBINE_ARG -AddressFamily IPv4 | Select-Object -First 1 IPAddress,PrefixLength | ConvertTo-Json -Compress",
                     Some(&iface.name), SHORT)?;
-                let item = parse::powershell_json_array(&out.stdout).into_iter().next();
+                let item = parse::windows::powershell_json_array(&out.stdout)
+                    .into_iter()
+                    .next();
                 Ok(json!(item.and_then(|i| {
                     let prefix = i["PrefixLength"].as_u64()? as u32;
                     parse::subnet_cidr(i["IPAddress"].as_str()?, &prefix_to_mask(prefix))

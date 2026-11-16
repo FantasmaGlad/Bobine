@@ -39,7 +39,7 @@ impl MacOs {
             run("networksetup", &["-listallhardwareports"], SHORT, None)?,
             "networksetup",
         )?;
-        parse::macos_wifi_device(&out.stdout)
+        parse::macos::wifi_device(&out.stdout)
             .ok_or_else(|| RpcError::unsupported("Aucun adaptateur Wi-Fi détecté."))
     }
 
@@ -50,7 +50,7 @@ impl MacOs {
             SHORT,
             None,
         )
-        .map(|o| parse::macos_preferred_networks(&o.stdout))
+        .map(|o| parse::macos::preferred_networks(&o.stdout))
         .unwrap_or_default()
     }
 
@@ -59,7 +59,7 @@ impl MacOs {
             run("system_profiler", &["SPAudioDataType", "-json"], LONG, None)?,
             "system_profiler",
         )?;
-        let (mut devices, default_id) = parse::macos_audio(&out.stdout)
+        let (mut devices, default_id) = parse::macos::audio(&out.stdout)
             .ok_or_else(|| RpcError::app("parse_failed", "Réponse system_profiler illisible."))?;
         if let Ok(v) = run(
             "osascript",
@@ -86,7 +86,7 @@ impl MacOs {
             )?,
             "system_profiler",
         )?;
-        let (powered, mut devices) = parse::macos_bluetooth(&out.stdout)
+        let (powered, mut devices) = parse::macos::bluetooth(&out.stdout)
             .ok_or_else(|| RpcError::app("parse_failed", "Réponse system_profiler illisible."))?;
         if let Ok(found) = self.discovered.lock() {
             for d in found.iter() {
@@ -231,7 +231,7 @@ impl Platform for MacOs {
                 let device = self.wifi_device()?;
                 let power_text =
                     run("networksetup", &["-getairportpower", &device], SHORT, None)?.stdout;
-                let enabled = parse::macos_wifi_power(&power_text).unwrap_or(true);
+                let enabled = parse::macos::wifi_power(&power_text).unwrap_or(true);
                 let known = self.preferred(&device);
                 let mut networks = Vec::new();
                 if enabled {
@@ -242,7 +242,7 @@ impl Platform for MacOs {
                         None,
                     )?;
                     networks =
-                        parse::macos_airport(&out.stdout, &device, &known).unwrap_or_default();
+                        parse::macos::airport(&out.stdout, &device, &known).unwrap_or_default();
                 }
                 let current = networks.iter().find(|n| n["in_use"] == true).cloned();
                 Ok(json!({
@@ -281,7 +281,7 @@ impl Platform for MacOs {
                     SHORT,
                     None,
                 )?;
-                Ok(json!(parse::macos_current_network(&out.stdout)))
+                Ok(json!(parse::macos::current_network(&out.stdout)))
             }
             "wifi.connect" => {
                 let device = self.wifi_device()?;
