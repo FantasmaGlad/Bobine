@@ -164,7 +164,7 @@ def build_settings(db: Session) -> dict[str, Any]:
 
 def build_machine(db: Session) -> dict[str, Any]:
     from app.devices.routing import load_routes
-    from app.api.routes.devices import _load_audio_meta
+    from app.devices.audio_meta import load_audio_meta
     from app.storage.library import global_defaults
 
     values = _settings_values(db)
@@ -174,7 +174,7 @@ def build_machine(db: Session) -> dict[str, Any]:
         "update_tor": _typed("update_tor", values.get("update_tor")),
         "update_tor_proxy": values.get("update_tor_proxy"),
         "audio_routes": load_routes(db),
-        "audio_outputs": _load_audio_meta(db),
+        "audio_outputs": load_audio_meta(db),
         "storage": global_defaults(db),
     }})
 

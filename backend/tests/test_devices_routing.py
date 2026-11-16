@@ -12,8 +12,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.devices.base import CAPABILITY_KEYS, DeviceDriver, DeviceError, NullDriver  # noqa: E402
-from app.devices.linux import LinuxDriver  # noqa: E402
-from app.devices.linux_parse import choose_browser_stream, parse_output_streams  # noqa: E402
+from app.devices.linux.driver import LinuxDriver  # noqa: E402
+from app.devices.linux.parse.audio import choose_browser_stream, parse_output_streams  # noqa: E402
 from app.devices.routing import (  # noqa: E402
     ROUTES_SETTING,
     describe_sink,
@@ -186,7 +186,7 @@ class FakePipeWire:
 
 @pytest.fixture()
 def pw_tools(monkeypatch):
-    monkeypatch.setattr("app.devices.linux.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr("app.devices.linux.driver.shutil.which", lambda name: f"/usr/bin/{name}")
 
 
 def _driver(streams, follow=True):
@@ -196,7 +196,7 @@ def _driver(streams, follow=True):
 
 
 def test_deplacement_verifie_du_flux_unique(pw_tools, monkeypatch):
-    monkeypatch.setattr("app.devices.linux.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("app.devices.linux.audio_routing.asyncio.sleep", _no_sleep)
     driver, pw = _driver({70: {"binary": "chromium", "app": "Chromium", "state": "running", "sink": None}})
     result = asyncio.run(driver.audio_route_stream("bluez_output.88_92_CC_9C_41_0E.1"))
     assert result["status"] == "moved" and result["app"] == "Chromium"
@@ -213,7 +213,7 @@ async def _no_sleep(_):
 
 
 def test_retour_arriere_si_le_flux_ne_rejoint_pas_la_sortie(pw_tools, monkeypatch):
-    monkeypatch.setattr("app.devices.linux.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("app.devices.linux.audio_routing.asyncio.sleep", _no_sleep)
     driver, pw = _driver({70: {"binary": "chromium", "app": "Chromium", "state": "running", "sink": None}}, follow=False)
     result = asyncio.run(driver.audio_route_stream("alsa_output.hdmi"))
     assert result["status"] == "failed"
@@ -221,7 +221,7 @@ def test_retour_arriere_si_le_flux_ne_rejoint_pas_la_sortie(pw_tools, monkeypatc
 
 
 def test_aucun_deplacement_si_flux_ambigu_ou_absent(pw_tools, monkeypatch):
-    monkeypatch.setattr("app.devices.linux.asyncio.sleep", _no_sleep)
+    monkeypatch.setattr("app.devices.linux.audio_routing.asyncio.sleep", _no_sleep)
     two = {70: {"binary": "chromium", "app": "Chromium", "state": "running", "sink": None},
            71: {"binary": "firefox", "app": "Firefox", "state": "running", "sink": None}}
     driver, pw = _driver(two)
@@ -236,7 +236,7 @@ def test_sortie_disparue_ou_outil_absent_sont_des_erreurs_structurees(pw_tools, 
     with pytest.raises(DeviceError) as gone:
         asyncio.run(driver.audio_route_stream("alsa_output.inconnue"))
     assert gone.value.code == "not_found" and gone.value.status == 404
-    monkeypatch.setattr("app.devices.linux.shutil.which", lambda name: None if name == "pw-metadata" else f"/usr/bin/{name}")
+    monkeypatch.setattr("app.devices.linux.driver.shutil.which", lambda name: None if name == "pw-metadata" else f"/usr/bin/{name}")
     with pytest.raises(DeviceError) as missing:
         asyncio.run(driver.audio_route_stream("alsa_output.hdmi"))
     assert missing.value.code == "tool_missing"
@@ -244,7 +244,7 @@ def test_sortie_disparue_ou_outil_absent_sont_des_erreurs_structurees(pw_tools, 
 
 def test_capacite_declaree_selon_les_outils(monkeypatch):
     async def run(which):
-        monkeypatch.setattr("app.devices.linux.shutil.which", which)
+        monkeypatch.setattr("app.devices.linux.driver.shutil.which", which)
         driver = LinuxDriver(runner=FakePipeWire({}))
         driver._probe_bluetooth = _async_value("pas de Bluetooth")  # noqa: SLF001
         driver._probe_wifi = _async_value("pas de Wi-Fi")  # noqa: SLF001
@@ -455,15 +455,17 @@ def test_une_panne_du_pilote_ne_leve_jamais_et_ne_touche_pas_a_la_lecture(routin
 def api(routing_env, monkeypatch):
     fresh, driver = routing_env
     from app.devices import service as service_module
-    import app.api.routes.devices as devices_router
+    import app.api.routes.devices as devices_routes
+    import app.api.routes.devices.radio as radio_routes
 
-    monkeypatch.setattr(devices_router, "service", fresh)
+    monkeypatch.setattr(devices_routes, "service", fresh)
+    monkeypatch.setattr(radio_routes, "service", fresh)
     monkeypatch.setattr(service_module, "service", fresh)
     return fresh, driver
 
 
 def _local(monkeypatch):
-    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.access.is_local_request", lambda request: True)
 
 
 def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):

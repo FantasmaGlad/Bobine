@@ -136,7 +136,7 @@ def test_uvicorn_does_not_rewrite_peer():
 def test_local_screen_rights_need_a_direct_clean_request(headers, expected):
     from starlette.requests import Request
 
-    from app.api.routes.devices import is_local_request
+    from app.api.routes.devices.access import is_local_request
 
     request = Request({"type": "http", "client": ("127.0.0.1", 5000), "headers": headers})
     assert is_local_request(request) is expected

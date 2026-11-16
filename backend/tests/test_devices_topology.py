@@ -166,7 +166,7 @@ class FakeDriver(DeviceDriver):
 def api(monkeypatch):
     init_db()
     service.set_driver(FakeDriver())
-    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.access.is_local_request", lambda request: True)
     yield TestClient(app)
     service.set_driver(None)
 
