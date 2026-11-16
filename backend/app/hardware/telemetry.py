@@ -78,6 +78,32 @@ def format_duration_short(seconds: int) -> str:
     return f"{minutes}m"
 
 
+def _meminfo_usage() -> tuple[int, int, float]:
+    with open("/proc/meminfo", "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    m = {}
+    for line in lines:
+        if ":" in line:
+            k, v = line.split(":", 1)
+            m[k.strip()] = int(v.strip().split()[0]) * 1024
+    total = m.get("MemTotal", 0)
+    used = max(0, total - m.get("MemAvailable", m.get("MemFree", 0)))
+    return total, used, round((used / total) * 100, 1) if total else 0.0
+
+
+def _memory_usage() -> tuple[int, int, float]:
+    try:
+        vm = psutil.virtual_memory()
+        return vm.total, vm.total - vm.available, vm.percent
+    except Exception as exc:
+        logger.debug("psutil.virtual_memory indisponible : %s", exc)
+    try:
+        return _meminfo_usage()
+    except Exception as exc:
+        logger.debug("get_system_telemetry_payload : %s", exc)
+        return 0, 0, 0.0
+
+
 def get_system_telemetry_payload() -> dict[str, Any]:
     """Génère la télémétrie matérielle complète unifiée consommée par /api/settings/system et /api/metrics/dashboard."""
     gpu_name, gpu_percent, gpu_temp_c = get_gpu_info()
@@ -89,27 +115,7 @@ def get_system_telemetry_payload() -> dict[str, Any]:
     cpu_temp = get_cpu_temp()
     runtime = get_runtime_info()
 
-    mem_total, mem_used, mem_percent = 0, 0, 0.0
-    try:
-        vm = psutil.virtual_memory()
-        mem_total = vm.total
-        mem_used = vm.total - vm.available
-        mem_percent = vm.percent
-    except Exception:
-        try:
-            with open("/proc/meminfo", "r", encoding="utf-8") as f:
-                lines = f.readlines()
-            m = {}
-            for l in lines:
-                if ":" in l:
-                    k, v = l.split(":", 1)
-                    m[k.strip()] = int(v.strip().split()[0]) * 1024
-            mem_total = m.get("MemTotal", 0)
-            avail = m.get("MemAvailable", m.get("MemFree", 0))
-            mem_used = max(0, mem_total - avail)
-            mem_percent = round((mem_used / mem_total) * 100, 1) if mem_total else 0.0
-        except Exception as exc:
-            logger.debug("get_system_telemetry_payload : %s", exc)
+    mem_total, mem_used, mem_percent = _memory_usage()
 
     return {
         "cpu_name": get_cpu_model_name(),

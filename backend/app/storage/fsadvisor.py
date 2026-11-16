@@ -55,6 +55,45 @@ class Assessment:
         }
 
 
+def _base_notes(info: dict, media: str) -> list[str]:
+    notes = [
+        "journal_unplug_ok" if info["journal"] else "no_journal_unplug_risk",
+        "unix_permissions" if info["permissions"] else "no_unix_permissions",
+        "file_limit_4gib" if info["max_file_gib"] else "no_file_limit",
+    ]
+    if media == "flash":
+        notes.append("flash_write_wear")
+    return notes
+
+
+def _native_verdict(info: dict, host_os: str, others: tuple[str, ...], notes: list[str]) -> tuple[str, str, bool]:
+    if host_os in info["native"]:
+        if others and not (set(others) & (info["native"] | info["readable_elsewhere"])):
+            notes.append("not_readable_elsewhere")
+            return ACCEPTABLE, "not_readable_elsewhere", True
+        return RECOMMENDED, "native_host", True
+    if host_os in info["readable_elsewhere"]:
+        return ACCEPTABLE, "readable_with_driver", True
+    return DISCOURAGED, "not_supported_on_host", False
+
+
+def _verdict(fs: str, info: dict, host_os: str, others: tuple[str, ...], dirty: bool, use: str, notes: list[str]) -> tuple[str, str, bool]:
+    if dirty:
+        notes.append("dirty_repair_first")
+        return DISCOURAGED, "dirty", False
+    if fs == "vfat":
+        return (DISCOURAGED if use == "library" else ACCEPTABLE), "fat_limits", True
+    if fs == "exfat":
+        notes.append("prefer_read_only")
+        return (RECOMMENDED, "exfat_travel", True) if (others or host_os != "linux") else (ACCEPTABLE, "exfat_no_journal", True)
+    if fs == "ntfs":
+        if host_os == "windows":
+            return RECOMMENDED, "native_host", True
+        notes.append("ntfs_unclean_risk")
+        return ACCEPTABLE, "ntfs_driver", True
+    return _native_verdict(info, host_os, others, notes)
+
+
 def assess_filesystem(
     fstype: str | None,
     *,
@@ -71,50 +110,8 @@ def assess_filesystem(
     if info is None:
         return Assessment(fs or "unknown", "unknown", "unknown_fs", ("unknown_fs_behavior",), None, None, None, False)
 
-    notes: list[str] = []
-    if not info["journal"]:
-        notes.append("no_journal_unplug_risk")
-    else:
-        notes.append("journal_unplug_ok")
-    if info["permissions"]:
-        notes.append("unix_permissions")
-    else:
-        notes.append("no_unix_permissions")
-    if info["max_file_gib"]:
-        notes.append("file_limit_4gib")
-    else:
-        notes.append("no_file_limit")
-    if media == "flash":
-        notes.append("flash_write_wear")
-
-    write_allowed = True
-    verdict, reason = ACCEPTABLE, "works"
-
-    if dirty:
-        verdict, reason = DISCOURAGED, "dirty"
-        write_allowed = False
-        notes.append("dirty_repair_first")
-    elif fs == "vfat":
-        verdict, reason = (DISCOURAGED, "fat_limits") if use == "library" else (ACCEPTABLE, "fat_limits")
-    elif fs == "exfat":
-        verdict, reason = (RECOMMENDED, "exfat_travel") if (others or host_os != "linux") else (ACCEPTABLE, "exfat_no_journal")
-        notes.append("prefer_read_only")
-    elif fs == "ntfs":
-        if host_os == "windows":
-            verdict, reason = RECOMMENDED, "native_host"
-        else:
-            verdict, reason = ACCEPTABLE, "ntfs_driver"
-            notes.append("ntfs_unclean_risk")
-    elif host_os in info["native"]:
-        verdict, reason = RECOMMENDED, "native_host"
-        if others and not (set(others) & (info["native"] | info["readable_elsewhere"])):
-            verdict, reason = ACCEPTABLE, "not_readable_elsewhere"
-            notes.append("not_readable_elsewhere")
-    elif host_os in info["readable_elsewhere"]:
-        verdict, reason = ACCEPTABLE, "readable_with_driver"
-    else:
-        verdict, reason = DISCOURAGED, "not_supported_on_host"
-        write_allowed = False
+    notes = _base_notes(info, media)
+    verdict, reason, write_allowed = _verdict(fs, info, host_os, others, dirty, use, notes)
     return Assessment(fs, verdict, reason, tuple(notes), info["journal"], info["permissions"], info["max_file_gib"], write_allowed)
 
 
@@ -134,6 +131,22 @@ _PROCEDURES: dict[tuple[str, str], list[str]] = {
 }
 
 
+def _format_choice(host: str, others: tuple[str, ...], media: str, legacy_readers: bool) -> tuple[str, str, list[str]]:
+    if legacy_readers:
+        return "vfat", "legacy_fat32", ["file_limit_4gib", "no_journal_unplug_risk"]
+    if host == "android":
+        return "exfat", "android_host", ["android_ext4_unmounted", "no_journal_unplug_risk"]
+    if others:
+        return "exfat", "travels_between_os", ["no_file_limit", "no_journal_unplug_risk", "prefer_read_only", "clean_unmount_required"]
+    if host == "linux":
+        return "ext4", "linux_only", ["journal_unplug_ok", "unix_permissions", "no_file_limit"]
+    if host == "windows":
+        return "ntfs", "windows_only", ["journal_unplug_ok", "no_file_limit"]
+    if media == "hdd":
+        return "hfsplus", "macos_only_hdd", ["journal_unplug_ok", "no_file_limit"]
+    return "apfs", "macos_only_ssd", ["journal_unplug_ok", "no_file_limit"]
+
+
 def recommend_format(
     host_os: str,
     other_oses: tuple[str, ...] = (),
@@ -145,29 +158,7 @@ def recommend_format(
     """Système de fichiers conseillé selon l'OS hôte de Bobine et les autres OS qui brancheront le support."""
     host = host_os if host_os in OSES else "linux"
     others = tuple(sorted({o for o in other_oses if o in OSES and o != host}))
-    notes: list[str] = []
-
-    if legacy_readers:
-        fs, reason = "vfat", "legacy_fat32"
-        notes += ["file_limit_4gib", "no_journal_unplug_risk"]
-    elif host == "android":
-        fs, reason = "exfat", "android_host"
-        notes += ["android_ext4_unmounted", "no_journal_unplug_risk"]
-    elif others:
-        fs, reason = "exfat", "travels_between_os"
-        notes += ["no_file_limit", "no_journal_unplug_risk", "prefer_read_only", "clean_unmount_required"]
-    elif host == "linux":
-        fs, reason = "ext4", "linux_only"
-        notes += ["journal_unplug_ok", "unix_permissions", "no_file_limit"]
-    elif host == "windows":
-        fs, reason = "ntfs", "windows_only"
-        notes += ["journal_unplug_ok", "no_file_limit"]
-    else:
-        if media == "hdd":
-            fs, reason = "hfsplus", "macos_only_hdd"
-        else:
-            fs, reason = "apfs", "macos_only_ssd"
-        notes += ["journal_unplug_ok", "no_file_limit"]
+    fs, reason, notes = _format_choice(host, others, media, legacy_readers)
     if media == "flash":
         notes.append("flash_write_wear")
 

@@ -125,14 +125,18 @@ class Listing:
     skipped_links: int = 0
 
 
+def _escapes(path: str, real_root: str, root_dev: int) -> bool:
+    target = os.path.realpath(path)
+    return os.path.commonpath([real_root, target]) != real_root or os.stat(target).st_dev != root_dev
+
+
 def _entry_is_dir(entry: os.DirEntry, real_root: str, root_dev: int) -> bool | None:
     """Nature d'une entrée ; None pour un lien qui sort du support ou une entrée illisible."""
     try:
         if entry.is_symlink():
-            target = os.path.realpath(entry.path)
-            if os.path.commonpath([real_root, target]) != real_root or os.stat(target).st_dev != root_dev:
+            if _escapes(entry.path, real_root, root_dev):
                 return None
-            return os.path.isdir(target)
+            return os.path.isdir(os.path.realpath(entry.path))
         return entry.is_dir(follow_symlinks=False)
     except (OSError, ValueError):
         return None
@@ -204,62 +208,67 @@ class WalkResult:
     skipped: int = 0
 
 
-def walk_media(root: str, rels: list[str], kinds: set[str]) -> WalkResult:
-    """Fichiers média sélectionnés (fichiers ou dossiers, récursif borné) ; ordre stable, sans doublon."""
-    real_root = _real_root(root)
-    root_dev = os.stat(real_root).st_dev
-    result = WalkResult()
-    seen: set[str] = set()
+class _MediaWalk:
+    def __init__(self, root: str, kinds: set[str]) -> None:
+        self.root = root
+        self.real_root = _real_root(root)
+        self.root_dev = os.stat(self.real_root).st_dev
+        self.kinds = kinds
+        self.result = WalkResult()
+        self.seen: set[str] = set()
 
-    def add(absolute: str) -> None:
+    def add(self, absolute: str) -> None:
         kind = media_kind(absolute)
-        if kind is None or kind not in kinds:
+        if kind is None or kind not in self.kinds:
             return
         try:
             size = os.stat(absolute).st_size
         except OSError:
-            result.skipped += 1
+            self.result.skipped += 1
             return
-        rel = to_rel(root, absolute)
-        if rel in seen:
+        rel = to_rel(self.root, absolute)
+        if rel in self.seen:
             return
-        seen.add(rel)
-        if len(result.files) >= MAX_WALK_FILES:
-            result.truncated = True
+        self.seen.add(rel)
+        if len(self.result.files) >= MAX_WALK_FILES:
+            self.result.truncated = True
             return
-        result.files.append((rel, absolute, size, kind))
+        self.result.files.append((rel, absolute, size, kind))
 
-    def walk(directory: str, depth: int) -> None:
-        if depth > MAX_WALK_DEPTH or result.truncated:
+    def walk(self, directory: str, depth: int) -> None:
+        if depth > MAX_WALK_DEPTH or self.result.truncated:
             return
         try:
             entries = sorted(os.scandir(directory), key=lambda e: e.name.casefold())
         except OSError:
-            result.skipped += 1
+            self.result.skipped += 1
             return
         for entry in entries:
-            if is_hidden(entry.name):
-                continue
-            try:
-                if entry.is_symlink():
-                    target = os.path.realpath(entry.path)
-                    if os.path.commonpath([real_root, target]) != real_root or os.stat(target).st_dev != root_dev:
-                        result.skipped += 1
-                        continue
-                if entry.is_dir():
-                    walk(entry.path, depth + 1)
-                elif entry.is_file():
-                    add(entry.path)
-            except (OSError, ValueError):
-                result.skipped += 1
+            if not is_hidden(entry.name):
+                self._visit(entry, depth)
 
+    def _visit(self, entry: os.DirEntry, depth: int) -> None:
+        try:
+            if entry.is_symlink() and _escapes(entry.path, self.real_root, self.root_dev):
+                self.result.skipped += 1
+            elif entry.is_dir():
+                self.walk(entry.path, depth + 1)
+            elif entry.is_file():
+                self.add(entry.path)
+        except (OSError, ValueError):
+            self.result.skipped += 1
+
+
+def walk_media(root: str, rels: list[str], kinds: set[str]) -> WalkResult:
+    """Fichiers média sélectionnés (fichiers ou dossiers, récursif borné) ; ordre stable, sans doublon."""
+    walker = _MediaWalk(root, kinds)
     for rel in rels:
         absolute = resolve_within(root, rel)
         if os.path.isdir(absolute):
-            walk(absolute, 0)
+            walker.walk(absolute, 0)
         elif os.path.isfile(absolute):
-            add(absolute)
-    return result
+            walker.add(absolute)
+    return walker.result
 
 
 def safe_dest_name(name: str) -> str:
