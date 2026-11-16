@@ -22,7 +22,7 @@ def build_storage_driver(profile: str | None = None) -> StorageDriver:
     profile = profile or get_deployment_profile()
     try:
         if profile in ("linux-desktop", "linux-headless"):
-            from .linux import LinuxStorageDriver
+            from .linux.driver import LinuxStorageDriver
 
             return LinuxStorageDriver()
     except Exception as exc:
