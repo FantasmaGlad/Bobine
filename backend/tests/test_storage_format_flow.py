@@ -63,8 +63,8 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr("app.main.storage_service", service)
     monkeypatch.setattr("app.api.routes.media_streams.storage_service", service)
     monkeypatch.setattr("app.api.routes.storage.service", service)
-    monkeypatch.setattr("app.storage.formatting.manager.UNMOUNT_PAUSE", 0.01)
-    monkeypatch.setattr("app.storage.formatting.manager.SETTLE_SECONDS", 3.0)
+    monkeypatch.setattr("app.storage.formatting.steps.UNMOUNT_PAUSE", 0.01)
+    monkeypatch.setattr("app.storage.formatting.steps.SETTLE_SECONDS", 3.0)
     with TestClient(app) as client:
         ns = SimpleNamespace(client=client, driver=driver, service=service, tmp=tmp_path)
         ns.refresh = lambda: client.portal.call(service.refresh)
