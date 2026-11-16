@@ -8,8 +8,9 @@ import pytest
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
 from app.devices.base import DeviceError  # noqa: E402
-from app.storage.drivers import linux as linux_driver  # noqa: E402
-from app.storage.drivers.linux import LinuxStorageDriver, classify_udisks_error  # noqa: E402
+
+from app.storage.drivers.linux.driver import LinuxStorageDriver  # noqa: E402
+from app.storage.drivers.linux.errors import classify_udisks_error  # noqa: E402
 from app.storage.types import Volume  # noqa: E402
 
 VOLUME = Volume(key="u-1", device="/dev/sdb1", name="sdb1", fs_uuid="1", label="L", fstype="exfat", size_bytes=1, mountpoint=None,
