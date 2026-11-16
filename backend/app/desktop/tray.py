@@ -48,3 +48,7 @@ def run() -> None:
     _background(_port_fallback_notice, "bobine-tray-port-notice", icon)
     _background(_update_status_poll_loop, "bobine-tray-update-status", icon)
     icon.run()
+
+
+if __name__ == "__main__":
+    run()
