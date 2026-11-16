@@ -14,7 +14,7 @@ from app.devices.routing_view import apply_route, routing_view
 from app.devices.service import service
 from app.devices.topology_view import topology_view
 
-from .access import Access, guard, log, require_access
+from .access import Access, guard, log, require_access, translate
 
 router = APIRouter()
 
@@ -39,17 +39,17 @@ async def topology(_: Access = Depends(require_access), db: Session = Depends(ge
 
 @router.get("/routing")
 async def get_routing(_: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
-    return await guard(routing_view(service, db))
+    return await routing_view(service, db, await guard(service.driver.capabilities()))
 
 
 @router.put("/routing")
 async def set_routing(payload: RoutingRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Choisit (ou efface) la sortie audio d'une sortie radio, ou change son repli quand la sortie est absente."""
-    detail = await guard(apply_route(service, db, payload.channel, payload.sink_id, payload.fallback, payload.clear))
+    detail = await translate(apply_route(service, db, payload.channel, payload.sink_id, payload.fallback, payload.clear))
     log(db, "devices_audio_route", detail[:120])
     await service.reconcile_routes()
     service.notify("routing")
-    return await guard(routing_view(service, db))
+    return await routing_view(service, db, await guard(service.driver.capabilities()))
 
 
 @router.get("/mixer")
@@ -60,5 +60,5 @@ async def get_mixer(_: Access = Depends(require_access)) -> dict[str, Any]:
 @router.put("/mixer/{channel}")
 async def set_mixer(channel: str, payload: MixerRequest, _: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
     """Modifie le mixage et/ou l'égaliseur de la musique d'une sortie radio."""
-    await guard(apply_mixer(db, channel, payload.mix, payload.sound))
+    await translate(apply_mixer(db, channel, payload.mix, payload.sound))
     return mixer_view()

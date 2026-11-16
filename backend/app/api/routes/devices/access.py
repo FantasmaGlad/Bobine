@@ -60,5 +60,13 @@ async def guard(coro: Awaitable[T]) -> T:
         raise fail(502, "driver_error", "Le système n'a pas pu exécuter cette opération.") from exc
 
 
+async def translate(coro: Awaitable[T]) -> T:
+    """Erreurs de validation d'un moteur traduites en réponse ; toute autre erreur suit le gestionnaire global."""
+    try:
+        return await coro
+    except DeviceError as exc:
+        raise fail(exc.status, exc.code, exc.message) from exc
+
+
 def log(db: Session, event: str, detail: str | None = None) -> None:
     log_activity(db, event, detail)
