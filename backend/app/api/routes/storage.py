@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.devices.base import DeviceError
-from app.api.routes.devices import Access, _fail, require_access
+from app.api.routes.devices.access import Access, fail, require_access
 from app.storage import fsadvisor
 from app.storage.paths import PathError
 from app.utils._pydantic_compat import list_max_items
@@ -26,7 +26,7 @@ _KEY = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 
 def _key(key: str) -> str:
     if not _KEY.fullmatch(key):
-        raise _fail(404, "volume_not_found", "Support introuvable.")
+        raise fail(404, "volume_not_found", "Support introuvable.")
     return key
 
 
@@ -34,16 +34,16 @@ async def _guard(coro: Awaitable[T]) -> T:
     try:
         return await coro
     except DeviceError as exc:
-        raise _fail(exc.status, exc.code, exc.message, **getattr(exc, "extra", {})) from exc
+        raise fail(exc.status, exc.code, exc.message, **getattr(exc, "extra", {})) from exc
     except PathError as exc:
-        raise _fail(exc.status, exc.code, exc.message) from exc
+        raise fail(exc.status, exc.code, exc.message) from exc
     except TransferError as exc:
-        raise _fail(exc.status, exc.code, exc.message, **exc.extra) from exc
+        raise fail(exc.status, exc.code, exc.message, **exc.extra) from exc
     except HTTPException:
         raise
     except Exception as exc:
         logger.warning("Erreur inattendue du stockage externe : %s", exc, exc_info=True)
-        raise _fail(502, "driver_error", "Le système n'a pas pu exécuter cette opération.") from exc
+        raise fail(502, "driver_error", "Le système n'a pas pu exécuter cette opération.") from exc
 
 
 class MountRequest(BaseModel):
@@ -237,7 +237,7 @@ async def format_active(_: Access = Depends(require_access)) -> dict[str, Any]:
 @router.get("/format/jobs/{job_id}")
 async def format_job(job_id: str, _: Access = Depends(require_access)) -> dict[str, Any]:
     if not _KEY.fullmatch(job_id):
-        raise _fail(404, "format_job_not_found", "Opération introuvable.")
+        raise fail(404, "format_job_not_found", "Opération introuvable.")
     return await _guard(_sync(lambda: service.formatter.job(job_id).public()))
 
 
@@ -245,7 +245,7 @@ async def format_job(job_id: str, _: Access = Depends(require_access)) -> dict[s
 async def format_cancel(job_id: str, _: Access = Depends(require_access)) -> dict[str, Any]:
     """Annule AVANT le point de non-retour (aucun effacement n'a eu lieu) ; refusé ensuite."""
     if not _KEY.fullmatch(job_id):
-        raise _fail(404, "format_job_not_found", "Opération introuvable.")
+        raise fail(404, "format_job_not_found", "Opération introuvable.")
     return await _guard(_sync(lambda: service.formatter.cancel(job_id)))
 
 

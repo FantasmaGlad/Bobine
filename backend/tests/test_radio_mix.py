@@ -111,7 +111,7 @@ def test_persistance_aller_retour_et_json_corrompu():
 @pytest.fixture()
 def api(monkeypatch):
     _clean()
-    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.access.is_local_request", lambda request: True)
     yield TestClient(app)
     _clean()
 

@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from app.devices.base import DeviceError, NullDriver
-from app.devices.linux import run_command
+from app.devices.linux.command import run_command
 from app.devices.service import DevicesService
 
 

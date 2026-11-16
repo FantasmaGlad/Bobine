@@ -16,7 +16,7 @@ def build_driver(profile: str | None = None) -> DeviceDriver:
     profile = profile or get_deployment_profile()
     try:
         if profile in ("linux-desktop", "linux-headless"):
-            from .linux import LinuxDriver
+            from .linux.driver import LinuxDriver
 
             return LinuxDriver()
         if profile in ("windows", "macos"):
