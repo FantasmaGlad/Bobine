@@ -226,3 +226,7 @@ def test_portable_mount_reports_phone_states(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
     d, _ = driver((("gio", "mount", "-li"), (0, gio_list, "")), (("gio", "mount", "mtp://Google_Pixel_7_ABC/"), (0, "", "")))
     assert run(d.portable_mount(device_id))["root"] == str(gvfs)
+
+
+def test_driver_reports_its_name():
+    assert LinuxStorageDriver().name == "linux"

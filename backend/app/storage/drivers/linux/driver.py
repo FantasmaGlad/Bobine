@@ -28,6 +28,8 @@ _PROBE_TTL = 30.0
 
 
 class LinuxStorageDriver(InventoryMixin, MaintenanceMixin, UdisksMixin, PortableMixin, StorageDriver):
+    name = "linux"
+
     def __init__(self, runner: Runner = run_command, *, sys_block: str = "/sys/block", mountinfo_path: str = "/proc/self/mountinfo") -> None:
         super().__init__()
         self._run = runner
