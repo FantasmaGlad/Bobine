@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   turbopack: {
     resolveAlias: {
-      "@bobine/dictionary": `./src/lib/i18n/${language}.ts`,
+      "@bobine/dictionary": `./src/lib/i18n/${language}/index.ts`,
     },
   },
 };

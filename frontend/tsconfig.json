@@ -21,7 +21,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@bobine/dictionary": ["./src/lib/i18n/fr.ts"]
+      "@bobine/dictionary": ["./src/lib/i18n/fr/index.ts"]
     }
   },
   "include": [

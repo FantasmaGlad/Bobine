@@ -1,0 +1,26 @@
+import type { Dict } from "../core.ts";
+
+export const telemetryDrawer: Dict = {
+  range1h: "Last hour",
+  range6h: "Last 6 hours",
+  range24h: "Last 24 hours",
+  range7d: "Last 7 days",
+  range30d: "Last 30 days",
+  rangeMonth: "This month",
+  rangeAll: "All retained history",
+  short1h: "1 h",
+  short6h: "6 h",
+  short24h: "24 h",
+  short7d: "7 d",
+  short30d: "30 d",
+  shortMonth: "Month",
+  shortAll: "All",
+  close: "Close the drawer",
+  ariaHistory: "History: {{title}}",
+  current: "Current",
+  average: "Average",
+  min: "Min",
+  max: "Max",
+  evolution: "Evolution over time",
+  footer: "Automatic continuous sampling every 60 seconds. Retention can be set in Settings.",
+};

@@ -1,0 +1,27 @@
+import type { Dict } from "../core.ts";
+
+export const mobileRemote: Dict = {
+  connectingHint: "Connecting to the cinema screen...",
+  noCourseHint: "No course playing.",
+  launchCourse: "Launch a course",
+  holdToStop: "Hold to stop...",
+  stopHoldLabel: "Stop (hold)",
+  launchQuickBtn: "Launch",
+  coachQuickBtn: "Coach mode",
+  close: "Close",
+  launchTitle: "Launch",
+  searchPlaceholder: "Search...",
+  coursesCount: "{{count}} courses",
+  backgroundLabel: "Background",
+  otherProgram: "Other",
+  noResults: "No results.",
+  nowPlaying: "Now playing",
+  nowPlayingCinema: "Now playing — cinema mode",
+  tabCourses: "Courses",
+  tabPlaylists: "Playlists",
+  tabBackgrounds: "Backgrounds",
+  launchNow: "Launch",
+  preview: "Preview",
+  back: "Back",
+  releaseShort: "Rel. {{release}}",
+};

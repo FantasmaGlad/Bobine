@@ -1,5 +1,5 @@
-import { dictionary as en } from "./en.ts";
-import { dictionary as fr } from "./fr.ts";
+import { dictionary as en } from "./en/index.ts";
+import { dictionary as fr } from "./fr/index.ts";
 import { translateIn, translateListIn, type Dict, type Language } from "./core.ts";
 
 export type { Dict, Language } from "./core.ts";

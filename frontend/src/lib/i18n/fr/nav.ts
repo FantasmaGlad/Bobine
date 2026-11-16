@@ -1,0 +1,25 @@
+import type { Dict } from "../core.ts";
+
+export const nav: Dict = {
+  dashboard: "Tableau de bord",
+  dashboardCable: "Sortie Câblé",
+  dashboardNetwork: "Sortie Réseau",
+  library: "Bibliothèque",
+  audio: "Cours audio",
+  backgrounds: "Fonds animés",
+  radioGroup: "Radio",
+  coachGroup: "Coach",
+  radioRemote: "Télécommande",
+  radioLibrary: "Piste Audio Radio",
+  radioAnnouncements: "Rappels",
+  schedule: "Planning",
+  metrics: "Métriques",
+  metricsGroup: "Métriques",
+  metricsCourses: "Cours",
+  metricsSystem: "Système",
+  devices: "Périphériques",
+  storage: "Stockage externe",
+  settings: "Paramètres",
+  logs: "Logs",
+  openMenu: "Ouvrir le menu",
+};
