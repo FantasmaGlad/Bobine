@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from app.devices.android import AndroidDriver
+from app.devices.android import BRIDGES, AndroidDriver
 from app.devices.base import DeviceError
 
 
@@ -60,7 +60,7 @@ def bridge():
 
 
 def make(bridge):
-    return AndroidDriver(bridge_factory=lambda: (bridge, object()))
+    return AndroidDriver(bridge_factory=lambda: (dict.fromkeys(BRIDGES, bridge), object()))
 
 
 def run(coro):
