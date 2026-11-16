@@ -1,0 +1,67 @@
+.status-pill {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 5px 13px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
+  color: var(--accent-text);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+a.status-pill,
+.status-pill[href] {
+  cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+a.status-pill:hover,
+.status-pill[href]:hover {
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  border-color: var(--accent-text);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  transform: translateY(-1px);
+}
+
+.status-pill.ok,
+.status-pill.waiting,
+.status-pill.state-waiting,
+.status-pill.state-playing {
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-surface-elevated));
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.status-pill.ok::before,
+.status-pill.waiting::before,
+.status-pill.state-waiting::before,
+.status-pill.state-playing::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 3px;
+  animation: olcPulseDot 1.8s ease-in-out infinite;
+}
+
+.status-pill.neutral {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent-primary) 28%, transparent);
+}
+
+.status-pill.down,
+.status-pill.state-offline {
+  background: color-mix(in srgb, var(--accent-error) 14%, var(--bg-surface-elevated));
+  color: var(--accent-error-text);
+  border-color: color-mix(in srgb, var(--accent-error) 30%, transparent);
+}

@@ -1,0 +1,74 @@
+.rl-nav-card {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rl-block-title {
+  margin: 18px 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rl-nav-count {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  background: var(--bg-surface-elevated);
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.rl-link-btn {
+  background: none;
+  border: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  font-weight: 700;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .rl-nav-card .channel-card-right {
+    width: 100%;
+  }
+
+  .rl-nav-card .channel-card-left {
+    width: 100%;
+  }
+
+  .rl-nav-card .channel-card-right .seg {
+    width: 100%;
+  }
+}
+
+.rl-nav-card .channel-card-right {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rl-nav-card .seg {
+  flex: 0 1 auto;
+}
+
+.rl-nav-card .channel-card-left {
+  min-width: 0;
+}
+
+.rl-nav-card--centered {
+  justify-content: center;
+}
+
+.rl-nav-card--centered .channel-card-right {
+  margin-left: 0;
+  justify-content: center;
+}

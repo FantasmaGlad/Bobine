@@ -1,0 +1,73 @@
+.metrics-histogram-container {
+  width: 100%;
+  padding: 12px 0 4px;
+}
+
+.metrics-histogram-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 160px;
+  gap: 6px;
+  padding-bottom: 24px;
+  position: relative;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.metrics-histogram-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.metrics-histogram-bar {
+  width: 100%;
+  max-width: 24px;
+  background: color-mix(in srgb, var(--accent-primary) 50%, var(--bg-surface-hover));
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease, background var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.metrics-histogram-bar:hover {
+  background: var(--accent-primary);
+}
+
+.metrics-histogram-bar.peak {
+  background: var(--accent-primary);
+}
+
+.metrics-histogram-tooltip {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-main);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.metrics-histogram-bar:hover .metrics-histogram-tooltip {
+  opacity: 1;
+}
+
+.metrics-histogram-label {
+  position: absolute;
+  bottom: -22px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

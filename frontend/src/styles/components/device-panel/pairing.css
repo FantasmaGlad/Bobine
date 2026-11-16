@@ -1,0 +1,32 @@
+.dv-passkey {
+  display: inline-block;
+  margin-left: 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+}
+
+.dv-password {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-top: 6px;
+}
+
+.dv-password .form-control {
+  flex: 1 1 220px;
+  max-width: 360px;
+}
+
+@media (max-width: 720px) {
+  .dv-passkey {
+    display: block;
+    margin: 6px 0 0;
+  }
+
+  .dv-password .form-control {
+    max-width: none;
+  }
+}

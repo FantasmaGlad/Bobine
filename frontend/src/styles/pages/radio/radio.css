@@ -1,0 +1,135 @@
+.radio-transport-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-elevated);
+  border: 1px solid color-mix(in srgb, var(--text-main) 18%, var(--border-color));
+  color: var(--text-main);
+  cursor: pointer;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 6%, transparent);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1.2), box-shadow 0.2s ease, border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast), filter 0.12s ease;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.radio-transport-btn:hover {
+  transform: translateY(-2px) scale(1.08);
+  border-color: var(--accent-text);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--accent-text);
+}
+
+.radio-transport-btn:active {
+  transform: scale(0.92) translateY(0);
+  filter: brightness(0.92);
+  transition-duration: 0.08s;
+}
+
+.radio-transport-btn.main {
+  width: 68px;
+  height: 68px;
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  border: none;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
+.radio-transport-btn.main:hover {
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  filter: brightness(1.06);
+  color: var(--accent-primary-fg);
+}
+
+.radio-transport-btn.main:active {
+  transform: scale(0.92) translateY(0);
+  filter: brightness(0.92);
+  transition-duration: 0.08s;
+}
+
+.radio-transport-btn.active {
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  border-color: var(--accent-text);
+}
+
+.radio-unlock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  padding: 5vh 5vw;
+  text-align: center;
+}
+
+.radio-unlock-logo {
+  height: min(26vh, 34vw);
+  width: auto;
+}
+
+.radio-announcement-banner {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 30%, transparent);
+}
+
+.radio-unlock-btn {
+  padding: 18px 40px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  cursor: pointer;
+}
+
+.radio-transport-btn {
+  width: clamp(40px, 6.6vmin, 110px);
+  height: clamp(40px, 6.6vmin, 110px);
+}
+
+.radio-transport-btn.main {
+  width: clamp(52px, 9vmin, 150px);
+  height: clamp(52px, 9vmin, 150px);
+}
+
+.radio-unlock-logo {
+  height: min(26vmin, 34vw);
+}
+
+.radio-unlock-overlay {
+  padding: 4vmin;
+  gap: clamp(12px, 3vmin, 40px);
+}
+
+.radio-unlock-btn {
+  padding: clamp(12px, 2.4vmin, 28px) clamp(24px, 5vmin, 64px);
+  font-size: clamp(1rem, 2.6vmin, 2rem);
+}
+
+.radio-announcement-banner {
+  top: clamp(12px, 3vmin, 40px);
+  max-width: 92vw;
+  font-size: clamp(0.9rem, 2.2vmin, 1.8rem);
+}

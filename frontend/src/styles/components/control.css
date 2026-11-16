@@ -1,0 +1,22 @@
+.control-btn {
+  height: 46px;
+  min-width: 80px;
+}
+
+.control-btn-main {
+  min-width: 130px;
+}
+
+.control-btn-icon {
+  min-width: 46px;
+  width: 46px;
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+.control-btn-pill {
+  min-width: 46px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+}

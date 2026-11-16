@@ -1,0 +1,116 @@
+.kiosk-waiting-sub {
+  margin-top: 16px;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.kiosk-waiting-logo {
+  margin-bottom: 32px;
+  opacity: 0.95;
+}
+
+.kiosk-waiting {
+  padding: clamp(16px, 4vmin, 48px);
+  box-sizing: border-box;
+}
+
+.kiosk-waiting-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vmin, 42px);
+  width: 100%;
+  max-width: min(90vw, 1100px);
+  text-align: center;
+  animation: cinema-fade-up 0.4s ease both;
+}
+
+.kiosk-waiting-clock {
+  font-family: var(--font-title);
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(3.5rem, 8.5vmin, 7.5rem);
+  line-height: 1;
+}
+
+.kiosk-waiting-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(65vw, 680px);
+  max-height: clamp(80px, 20vmin, 180px);
+  width: 100%;
+  height: auto;
+}
+
+.kiosk-waiting-stage-logo {
+  max-height: clamp(80px, 20vmin, 180px);
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.kiosk-waiting-next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+  margin-top: 4px;
+}
+
+.kiosk-waiting-next-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  font-size: clamp(0.85rem, 1.8vmin, 1.25rem);
+}
+
+.kiosk-waiting-next-title {
+  font-family: var(--font-title);
+  font-weight: 800;
+  color: var(--accent-text);
+  text-transform: uppercase;
+  font-size: clamp(1.4rem, 3.2vmin, 2.8rem);
+  line-height: 1.2;
+}
+
+.kiosk-waiting-next-empty {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: clamp(0.95rem, 2vmin, 1.35rem);
+}
+
+.kiosk-waiting-next-countdown {
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  font-size: clamp(2rem, 4.8vmin, 4.2rem);
+  margin-top: 4px;
+}
+
+.kiosk-clock {
+  font-family: var(--font-title);
+  font-size: 8vh;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kiosk-clock {
+  font-size: clamp(2.5rem, 8vmin, 9rem);
+}
+
+.kiosk-waiting-sub {
+  font-size: clamp(0.9rem, 2.2vmin, 1.8rem);
+}

@@ -1,0 +1,14 @@
+.program-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.program-badge.autre {
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  color: var(--accent-text);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}

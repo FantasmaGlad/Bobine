@@ -1,0 +1,176 @@
+.schedule-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  padding: 0 14px;
+  height: 52px;
+  min-height: 52px;
+  max-height: 52px;
+  box-sizing: border-box;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--glass-surface-bg);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--saturate-rich));
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--saturate-rich));
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--ink) 4%, transparent);
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.week-nav .btn {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-nav-label {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  text-transform: capitalize;
+  padding: 0 6px;
+}
+
+.schedule-btn-text-short {
+  display: none;
+}
+
+@media (max-width: 1440px) {
+  .week-nav-btn-text {
+    display: none;
+  }
+
+  .schedule-btn-text-full {
+    display: none;
+  }
+
+  .schedule-btn-text-short {
+    display: inline;
+  }
+}
+
+@media (max-width: 860px) {
+  .schedule-toolbar {
+    flex-wrap: wrap;
+    min-height: auto;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .week-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .week-nav-label {
+    min-width: 0;
+    width: 100%;
+    order: -1;
+  }
+}
+
+.schedule-toolbar {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 52px;
+  max-height: none;
+  padding: 8px 14px;
+  row-gap: 8px;
+}
+
+.schedule-toolbar > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.schedule-toolbar > .view-toggle {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.schedule-toolbar > .view-toggle::-webkit-scrollbar {
+  display: none;
+}
+
+.schedule-toolbar > div[style] {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.week-nav {
+  flex-shrink: 1;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .schedule-toolbar > .scroll-nav {
+    width: 100%;
+  }
+}
+
+@media (max-width: 860px) {
+  .schedule-toolbar {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .schedule-toolbar > .view-toggle {
+    width: 100%;
+  }
+
+  .schedule-toolbar > .view-toggle .view-btn {
+    flex: 1;
+    justify-content: center;
+    min-height: 40px;
+  }
+
+  .schedule-toolbar .week-nav {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+
+  .schedule-toolbar .week-nav .btn {
+    min-height: 40px;
+  }
+
+  .schedule-toolbar .week-nav-label {
+    order: 0;
+    width: auto;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .schedule-toolbar > div[style] {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .schedule-toolbar > div[style] > .btn-primary {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+}

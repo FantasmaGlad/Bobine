@@ -1,0 +1,150 @@
+.mobile-filter-toggle-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-filter-toggle-btn {
+    display: inline-flex;
+  }
+}
+
+.mobile-app-container {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-main);
+}
+
+.mobile-topbar {
+  height: 56px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--glass-surface-border);
+  background: var(--glass-surface-bg);
+  -webkit-backdrop-filter: blur(var(--glass-surface-blur));
+  backdrop-filter: blur(var(--glass-surface-blur));
+  z-index: 40;
+}
+
+.mobile-topbar-center {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.mobile-topbar-title {
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-topbar-address {
+  justify-self: end;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 3px 8px;
+  letter-spacing: 0.01em;
+}
+
+.mobile-burger-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.mobile-page-content {
+  --text-dim: var(--content-text-dim);
+  background-color: var(--bg-mobile-content);
+  background-attachment: local;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 16px;
+}
+
+.mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-main) 62%, transparent);
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  backdrop-filter: blur(var(--blur-sm));
+  z-index: 300;
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 82vw;
+  background: var(--glass-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-floating-blur));
+  backdrop-filter: blur(var(--glass-floating-blur));
+  border-right: 1px solid var(--glass-floating-border);
+  box-shadow: 12px 0 36px color-mix(in srgb, var(--ink) 35%, transparent);
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
+  animation: fadeIn var(--transition-fast);
+  overflow-y: auto;
+}
+
+.mobile-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 20px;
+}
+
+.mobile-drawer-nav .nav-link {
+  min-height: 48px;
+  justify-content: flex-start;
+  padding: 11px 14px;
+}
+
+.mobile-drawer-nav .nav-link .material-symbols-outlined {
+  flex-shrink: 0;
+}
+
+.mobile-drawer-nav .nav-link span {
+  display: inline;
+}

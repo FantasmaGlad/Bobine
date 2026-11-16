@@ -1,0 +1,37 @@
+.cinema-scroll-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(2vh, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-main) 55%, transparent);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  animation: cinema-hint-bob 2.4s ease-in-out infinite;
+}
+
+.cinema-scroll-hint[hidden] {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .cinema-scroll-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinema-scroll-hint {
+    animation: none;
+  }
+}

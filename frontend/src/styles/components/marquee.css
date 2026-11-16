@@ -1,0 +1,24 @@
+.marquee-track {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  display: block;
+}
+
+.marquee-track.marquee-overflowing {
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 14px), transparent 100%);
+}
+
+.marquee-content {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.marquee-track.marquee-overflowing .marquee-content {
+  animation: marquee-scroll var(--marquee-duration, 8s) cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+}

@@ -1,0 +1,237 @@
+.rt-graph-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rt-graph-frame {
+  overflow-x: auto;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--glass-surface-bg);
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
+  border: 1px solid var(--glass-surface-border);
+  box-shadow: var(--glass-card-highlight), var(--glass-card-shadow);
+}
+
+.rt-graph {
+  display: block;
+  width: 100%;
+  min-width: 560px;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.rt-graph-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0 4px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.rt-edge {
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke var(--dur-base) var(--ease-out);
+}
+
+.rt-edge--route {
+  stroke: var(--accent-text);
+  stroke-width: 3;
+}
+
+.rt-edge--default {
+  stroke-dasharray: 2 7;
+}
+
+.rt-edge--mix {
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+}
+
+.rt-edge--ghost {
+  stroke: var(--accent-text);
+  stroke-width: 3;
+  stroke-dasharray: 4 6;
+  pointer-events: none;
+}
+
+.rt-edge.is-absent {
+  stroke: var(--accent-warning-text);
+  stroke-dasharray: 3 6;
+}
+
+.rt-edge.is-playing {
+  stroke: var(--accent-text);
+  stroke-dasharray: 10 8;
+}
+
+:root:not([data-input-mode="remote"]) .rt-edge.is-playing {
+  animation: rt-flow 1.6s linear infinite;
+}
+
+.rt-node,
+.rt-node:focus-visible {
+  cursor: default;
+  outline: none;
+}
+
+.rt-node.is-draggable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.rt-node.is-dragging {
+  cursor: grabbing;
+}
+
+.rt-node-card {
+  fill: var(--bg-surface-elevated);
+  stroke: color-mix(in srgb, var(--text-main) 22%, transparent);
+  stroke-width: 1.5;
+  transition: stroke var(--dur-base) var(--ease-out);
+}
+
+.rt-node.is-playing .rt-node-card,
+.rt-node.is-picked .rt-node-card,
+.rt-node.is-over .rt-node-card {
+  stroke: var(--accent-text);
+}
+
+.rt-node.is-target .rt-node-card {
+  stroke: var(--accent-text);
+  stroke-dasharray: 5 4;
+}
+
+.rt-node.is-absent .rt-node-card {
+  stroke: var(--accent-warning-text);
+  stroke-dasharray: 3 5;
+}
+
+.rt-node-ring {
+  fill: none;
+  stroke: var(--accent-text);
+  stroke-width: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.rt-node:focus-visible .rt-node-ring,
+.rt-node.is-picked .rt-node-ring,
+.rt-node.is-over .rt-node-ring {
+  opacity: 1;
+}
+
+.rt-node-icon {
+  fill: var(--text-main);
+  font-size: 22px;
+  pointer-events: none;
+  font-variation-settings: "FILL" 0, "wght" 400;
+}
+
+.rt-node-label {
+  fill: var(--text-main);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.rt-node-sub {
+  fill: var(--text-muted);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.rt-cards,
+.mx-channels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 12px;
+}
+
+.rt-card,
+.mx-channel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  min-width: 0;
+  border-radius: var(--radius-md);
+  background: var(--glass-surface-bg);
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
+  backdrop-filter: blur(var(--blur-md)) saturate(var(--saturate-soft));
+  border: 1px solid var(--glass-surface-border);
+  box-shadow: var(--glass-card-highlight), var(--glass-card-shadow);
+}
+
+.rt-card-head,
+.mx-channel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rt-field-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  font-weight: 800;
+}
+
+.rt-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rt-status .material-symbols-outlined {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.rt-status--ok .material-symbols-outlined {
+  color: var(--accent-success-text);
+}
+
+.rt-status--warn .material-symbols-outlined {
+  color: var(--accent-warning-text);
+}
+
+.rt-status--bad {
+  color: var(--accent-error-text);
+  font-weight: 700;
+}
+
+.rt-status-extra {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-dim);
+}
+
+.rt-mechanism {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}

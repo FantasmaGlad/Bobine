@@ -1,0 +1,33 @@
+.speed-group {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 4px;
+}
+
+.speed-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.speed-btn.active {
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+}
+
+@media (pointer: coarse) {
+  .speed-btn,
+  .volume-preset-btn,
+  .display-output-btn {
+    min-height: var(--tap-min);
+  }
+}

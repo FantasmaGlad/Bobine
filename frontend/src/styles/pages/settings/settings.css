@@ -1,0 +1,275 @@
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-elevated);
+  color: var(--text-main);
+}
+
+.update-badge.success {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  color: var(--accent-text);
+}
+
+.update-badge.alert {
+  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  color: var(--accent-text);
+}
+
+.update-card-banner {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.update-notes-box {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 6%, transparent) inset;
+}
+
+.update-notes-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.update-notes-box::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.settings-timing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 4px 24px;
+}
+
+.settings-timing-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-timing-field .form-control {
+  max-width: 160px;
+}
+
+.settings-timing-unit {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.settings-search-row {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 18px;
+}
+
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 520px);
+  box-sizing: border-box;
+  padding: 0 16px;
+  min-height: 48px;
+  border-radius: var(--radius-full);
+  background: var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
+  color: var(--text-muted);
+  -webkit-backdrop-filter: blur(var(--glass-card-blur));
+  backdrop-filter: blur(var(--glass-card-blur));
+}
+
+.settings-search:focus-within {
+  border-color: var(--focus-ring);
+  color: var(--text-main);
+}
+
+.settings-search input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.settings-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.settings-page .live-block {
+  scroll-margin-top: 80px;
+}
+
+.settings-hint {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.settings-doc-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.settings-doc-group:first-of-type {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.settings-doc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.settings-host-row,
+.settings-page-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settings-host-row {
+  padding: 4px 4px 8px;
+}
+
+.settings-host-row .settings-path-link {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.settings-page-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  text-decoration: none;
+  color: inherit;
+}
+
+.settings-page-link:hover {
+  border-color: var(--accent-text);
+}
+
+.settings-page-path {
+  flex-shrink: 0;
+  max-width: 55%;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--accent-text);
+  text-align: right;
+}
+
+.settings-copy-btn {
+  flex-shrink: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.settings-copy-btn:hover {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+details.settings-doc-group > summary.settings-doc-header {
+  cursor: pointer;
+  list-style: none;
+  min-height: var(--tap-min);
+}
+
+details.settings-doc-group > summary.settings-doc-header::-webkit-details-marker {
+  display: none;
+}
+
+details.settings-doc-group > summary.settings-doc-header::after {
+  content: "";
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  transition: transform var(--transition-fast);
+}
+
+details.settings-doc-group[open] > summary.settings-doc-header::after {
+  transform: rotate(-135deg);
+}
+
+.settings-host-row .settings-path-link {
+  text-align: left;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap-min);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-toggle-row input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent-primary);
+}

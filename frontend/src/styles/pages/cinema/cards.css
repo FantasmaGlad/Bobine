@@ -1,0 +1,124 @@
+.cinema-grid-layer {
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+.cinema-card {
+  flex: 0 0 280px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 0.12s ease;
+  animation: cinema-fade-up 0.45s ease both;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overflow: hidden;
+}
+
+.cinema-card:hover,
+.cinema-card:focus-visible {
+  transform: translateY(-3px) scale(1.03);
+  outline: none;
+}
+
+.cinema-card:active {
+  transform: scale(0.96);
+  filter: brightness(0.94);
+}
+
+.cinema-card-thumb {
+  position: relative;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  height: 157.5px;
+  min-height: 157.5px;
+  max-height: 157.5px;
+  aspect-ratio: 16 / 9;
+  flex: 0 0 157.5px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 18%, transparent);
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.cinema-card:hover .cinema-card-thumb,
+.cinema-card:focus-visible .cinema-card-thumb {
+  border-color: var(--accent-text);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+.cinema-card-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  background: color-mix(in srgb, var(--bg-main) 80%, transparent);
+  color: var(--text-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  z-index: 2;
+}
+
+.cinema-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cinema-card-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinema-card-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--bg-main) 55%, transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.cinema-card:hover .cinema-card-play,
+.cinema-card:focus-visible .cinema-card-play {
+  opacity: 1;
+}
+
+.cinema-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  width: 100%;
+  max-width: 280px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cinema-card-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

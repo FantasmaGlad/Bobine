@@ -1,0 +1,204 @@
+.cinema-sections {
+  padding: 24px 0 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  background: none;
+  overflow: hidden;
+}
+
+.cinema-row {
+  animation: cinema-fade-up 0.5s ease both;
+  width: 100%;
+}
+
+.cinema-row-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 0 var(--cinema-gutter);
+}
+
+.cinema-row-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.01em;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: var(--text-main) !important;
+}
+
+.cinema-row-count {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cinema-row-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.cinema-row-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 16px var(--cinema-gutter) 24px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  --row-mask: linear-gradient(to right, transparent 0, #000 var(--cinema-fade), #000 calc(100% - var(--cinema-fade)), transparent 100%);
+  -webkit-mask-image: var(--row-mask);
+  mask-image: var(--row-mask);
+}
+
+.cinema-row-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.cinema-row-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 16px;
+  width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  z-index: 5;
+  color: var(--text-main);
+  background: transparent;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cinema-row-arrow-left {
+  left: 4px;
+}
+
+.cinema-row-arrow-right {
+  right: 4px;
+}
+
+.cinema-row-arrow .material-symbols-outlined {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 24%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-main) 12%, transparent);
+  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cinema-row-arrow:hover .material-symbols-outlined {
+  transform: scale(1.12);
+  background: var(--bg-surface);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 38%, transparent);
+}
+
+.cinema-row-arrow:active .material-symbols-outlined {
+  transform: scale(0.94);
+}
+
+.cinema-all {
+  padding: 0 var(--cinema-gutter);
+}
+
+.cinema-all h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 14px;
+}
+
+.cinema-all-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.cinema-all-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-surface);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 14px 10px 10px;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, filter 0.12s ease;
+  animation: cinema-fade-up 0.4s ease both;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overflow: hidden;
+}
+
+.cinema-all-item:hover,
+.cinema-all-item:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--accent-text);
+  background: var(--bg-surface-hover);
+  outline: none;
+}
+
+.cinema-all-item:active {
+  transform: scale(0.98);
+  filter: brightness(0.95);
+}
+
+.cinema-all-thumb {
+  flex: 0 0 120px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  height: 67.5px;
+  min-height: 67.5px;
+  max-height: 67.5px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 16%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinema-all-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cinema-all-text {
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 134px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.cinema-all-title {
+  font-weight: 700;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cinema-all-meta {
+  font-size: 0.82rem;
+  font-weight: 600;
+}

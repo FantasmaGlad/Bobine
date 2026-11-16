@@ -1,0 +1,64 @@
+.schedule-occurrence-chip {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--accent-text);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
+}
+
+.schedule-occurrence-chip:hover {
+  border-color: var(--border-focus);
+  transform: translateY(-1px);
+}
+
+.schedule-occurrence-chip.cancelled {
+  opacity: 0.5;
+}
+
+.schedule-occurrence-chip.cancelled .schedule-occurrence-title {
+  text-decoration: line-through;
+}
+
+.schedule-occurrence-time {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.schedule-occurrence-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-occurrence-badge {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-warning-text);
+}
+
+.schedule-occurrence-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.schedule-occurrence-actions button {
+  width: 100%;
+  height: 26px;
+  font-size: 0.7rem;
+  padding: 0 8px;
+}

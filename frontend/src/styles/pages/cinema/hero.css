@@ -1,0 +1,238 @@
+.cinema-hero-description {
+  margin: 8px 0 0;
+  font-size: clamp(1rem, 1.7vw, 1.6rem);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 62ch;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+
+.cinema-root {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-main);
+  color: var(--text-main);
+  overflow: hidden;
+  cursor: default;
+}
+
+.cinema-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.12s ease;
+}
+
+.cinema-layer.visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.cinema-layer:not(.visible),
+.cinema-layer:not(.visible) * {
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.cinema-hero {
+  position: relative;
+  min-height: 100dvh;
+  padding: max(4vh, env(safe-area-inset-top)) max(4vw, env(safe-area-inset-right)) max(6vh, env(safe-area-inset-bottom)) max(4vw, env(safe-area-inset-left));
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  overflow: hidden;
+  background: var(--bg-main);
+  animation: cinema-fade-up 0.5s ease both;
+}
+
+.cinema-hero-backdrop-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cinema-hero-backdrop {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right 25%;
+  filter: saturate(1.15) contrast(1.05);
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.cinema-hero-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient( to right, color-mix(in srgb, var(--bg-main) 94%, var(--ink)) 0%, color-mix(in srgb, var(--bg-main) 88%, transparent) 40%, color-mix(in srgb, var(--bg-main) 42%, transparent) 64%, transparent 88% ), linear-gradient( to top, var(--bg-main) 0%, color-mix(in srgb, var(--bg-main) 85%, transparent) 40px, transparent 130px );
+}
+
+.cinema-hero-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  gap: clamp(10px, 2.2vh, 24px);
+  margin: 0;
+  padding: 0;
+  width: min(64%, 1180px);
+  max-width: none;
+  z-index: 2;
+}
+
+@media (max-width: 900px) {
+  .cinema-hero {
+    min-height: auto;
+    max-height: none;
+    flex-direction: column;
+  }
+
+  .cinema-hero-content {
+    width: auto;
+    max-width: none;
+    margin: 0;
+  }
+}
+
+.cinema-hero-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cinema-brand-logo {
+  height: clamp(80px, 10vw, 110px);
+  max-height: 110px;
+  width: auto;
+  object-fit: contain;
+}
+
+.cinema-hero-title {
+  font-size: clamp(2rem, 5.4vw, 5rem);
+  font-weight: 900;
+  line-height: 1.08;
+  margin: 0;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.cinema-hero-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.cinema-hero-program-tag {
+  color: var(--accent-text);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+}
+
+.cinema-hero-year,
+.cinema-hero-duration,
+.cinema-hero-badge-pill {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--bg-surface-elevated) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-main) 12%, var(--border-color));
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.cinema-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.cinema-hero-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--specular) 40%, transparent);
+  border-radius: 9999px;
+  padding: 12px 28px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--accent-primary-fg);
+  background: var(--accent-primary);
+  cursor: pointer;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-primary) 40%, transparent), inset 0 1px 1px color-mix(in srgb, var(--specular) 60%, transparent);
+  transition: transform 0.18s ease, filter 0.18s ease, box-shadow 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cinema-hero-play:hover,
+.cinema-hero-play:focus-visible {
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.08);
+  outline: none;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--accent-primary) 50%, transparent);
+}
+
+.cinema-hero-play:active {
+  transform: scale(0.97);
+  filter: brightness(0.92);
+}
+
+.cinema-video-layer {
+  background: var(--ink);
+}
+
+.cinema-tap-to-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--bg-main) 60%, transparent);
+  border: none;
+  color: var(--text-main);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cinema-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  text-shadow: 0 1px 4px color-mix(in srgb, var(--bg-main) 85%, transparent);
+}
+
+.cinema-video-layer.visible .cinema-deck.deck-active {
+  pointer-events: auto;
+}

@@ -1,0 +1,156 @@
+.coach-picker-screen {
+  padding: 24px;
+  gap: 20px;
+}
+
+.coach-picker-topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.coach-picker-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coach-picker-title {
+  font-size: 1.6rem;
+}
+
+.coach-picker-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.coach-picker-search {
+  width: 100%;
+}
+
+.coach-picker-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.coach-picker-tabs .speed-btn {
+  flex: 1;
+}
+
+.coach-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coach-course-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.coach-course-item:active {
+  background: var(--bg-surface-hover);
+}
+
+.coach-course-item-accent {
+  width: 6px;
+  align-self: stretch;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.coach-course-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.coach-course-item .material-symbols-outlined {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.coach-course-item-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-main);
+}
+
+.coach-course-item-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.coach-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-main) 62%, transparent);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.coach-sheet {
+  width: 100%;
+  max-height: 70vh;
+  background: var(--bg-surface);
+  border-top-left-radius: var(--radius-lg);
+  border-top-right-radius: var(--radius-lg);
+  padding: 12px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.coach-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  align-self: center;
+  margin-bottom: 12px;
+}
+
+.coach-sheet-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.coach-sheet-track {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 64px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0 16px;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.coach-sheet-track.active {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+
+.coach-picker-search {
+  height: auto;
+  min-height: var(--tap-min);
+  max-height: 56px;
+}

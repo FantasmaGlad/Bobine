@@ -1,0 +1,19 @@
+:root[data-input-mode="remote"] :focus {
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--focus-ring) 22%, transparent);
+  position: relative;
+  z-index: 5;
+}
+
+:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)) {
+  cursor: pointer;
+  transition: transform var(--dur-fast, 160ms) var(--ease-out, ease-out), filter var(--dur-fast, 160ms) var(--ease-out, ease-out), background-color var(--dur-fast, 160ms) var(--ease-out, ease-out), box-shadow var(--dur-fast, 160ms) var(--ease-out, ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)):hover {
+    filter: brightness(var(--hover-brightness, 1.08));
+  }
+}

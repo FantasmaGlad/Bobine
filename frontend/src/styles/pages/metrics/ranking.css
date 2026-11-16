@@ -1,0 +1,189 @@
+.metrics-rating-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.metrics-rating-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+}
+
+.metrics-rating-star-num {
+  width: 24px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.metrics-rating-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-surface-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metrics-rating-bar-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+}
+
+.metrics-rating-bar-pct {
+  width: 32px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-table-wrapper {
+  overflow-x: auto;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.metrics-table th {
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.metrics-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  color: var(--text-main);
+}
+
+.metrics-rank-cell {
+  text-align: center;
+}
+
+.metrics-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: var(--bg-surface-hover);
+  color: var(--text-muted);
+}
+
+.metrics-rank-badge.rank-1 {
+  background: var(--accent-primary);
+  color: var(--accent-primary-fg);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent-primary) 35%, transparent);
+}
+
+.metrics-rank-badge.rank-2 {
+  background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  color: var(--accent-text);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+.metrics-rank-badge.rank-3 {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--text-main);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+.metrics-course-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.metrics-course-thumb {
+  position: relative;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 27px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+}
+
+.metrics-course-thumb .card-thumbnail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.metrics-course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metrics-course-title {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.metrics-course-program {
+  font-size: 0.75rem;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.metrics-table-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.metrics-table-progress-bar {
+  width: 70px;
+  height: 6px;
+  background: var(--bg-surface-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metrics-table-progress-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+}
+
+.metrics-table-progress-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  width: 36px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-table-rating {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.metrics-table-rating-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: normal;
+}

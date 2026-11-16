@@ -1,0 +1,133 @@
+.cinema-upnext {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-main);
+}
+
+.cinema-upnext-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 560px;
+  padding: 24px;
+  text-align: center;
+  animation: cinema-fade-up 0.5s ease both;
+}
+
+.cinema-upnext-label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--upnext-accent, var(--accent-text));
+}
+
+.cinema-upnext-thumb {
+  position: relative;
+  width: min(480px, 78vw);
+  aspect-ratio: 16 / 9;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  background: var(--bg-surface-elevated);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--ink) 45%, transparent);
+  transition: transform 0.2s ease;
+}
+
+.cinema-upnext-thumb:hover,
+.cinema-upnext-thumb:focus-visible {
+  transform: scale(1.02);
+  outline: none;
+}
+
+.cinema-upnext-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cinema-upnext-ring {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.9s linear;
+}
+
+.cinema-upnext-ring-inner {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-main) 70%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cinema-upnext-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 6px 0 0;
+}
+
+.cinema-upnext-meta {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.cinema-upnext-autoplay {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.cinema-upnext-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.cinema-upnext-actions .cinema-ctl-btn {
+  background: var(--bg-surface-elevated);
+  border-color: transparent;
+  color: var(--text-main);
+}
+
+.cinema-upnext-actions .cinema-ctl-btn:hover {
+  background: var(--bg-surface-hover);
+}
+
+.cinema-upnext-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  max-width: 90vw;
+}
+
+@media (min-width: 900px) {
+  .cinema-upnext-layout {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.cinema-rating-container {
+  display: flex;
+  justify-content: center;
+}

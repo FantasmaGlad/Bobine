@@ -1,0 +1,136 @@
+.dv-link-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.dv-link-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+}
+
+.dv-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text-main) 14%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 8;
+}
+
+.dv-link {
+  stroke: var(--text-muted);
+  opacity: 0.5;
+  transition: opacity var(--dur-base) var(--ease-out), stroke var(--dur-base) var(--ease-out);
+}
+
+.dv-link.active {
+  stroke: var(--accent-text);
+  opacity: 0.8;
+}
+
+.dv-link.idle {
+  opacity: 0.32;
+}
+
+.dv-link.dim {
+  opacity: 0.08;
+}
+
+.dv-link.hot {
+  opacity: 1;
+}
+
+.dv-node {
+  cursor: pointer;
+  outline: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.dv-node.dim {
+  opacity: 0.22;
+}
+
+.dv-node.idle {
+  opacity: 0.7;
+}
+
+.dv-node-disc {
+  fill: var(--bg-surface-elevated);
+  stroke: color-mix(in srgb, var(--text-main) 22%, transparent);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--dur-base) var(--ease-spring), stroke var(--dur-fast) var(--ease-out), fill var(--dur-fast) var(--ease-out);
+}
+
+.dv-node.active .dv-node-disc {
+  stroke: var(--accent-text);
+}
+
+.dv-node-halo {
+  fill: none;
+  stroke: var(--accent-text);
+  stroke-width: 2;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.dv-node-icon {
+  fill: var(--text-main);
+  pointer-events: none;
+  font-variation-settings: "FILL" 0, "wght" 400;
+}
+
+.dv-node-label {
+  fill: var(--text-main);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--bg-main);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.dv-node--machine .dv-node-disc {
+  fill: var(--accent-text);
+  stroke: none;
+}
+
+.dv-node--machine .dv-node-icon {
+  fill: var(--accent-primary-fg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root:not([data-input-mode="remote"]) .dv-node:hover .dv-node-disc {
+    transform: scale(1.1);
+    fill: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-surface-elevated));
+  }
+
+  :root:not([data-input-mode="remote"]) .dv-node--machine:hover .dv-node-disc {
+    fill: var(--accent-text);
+  }
+}
+
+.dv-node:focus-visible .dv-node-halo,
+.dv-node.selected .dv-node-halo {
+  opacity: 1;
+}
+
+.dv-node.selected .dv-node-disc {
+  stroke-width: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-link.active {
+    animation: none !important;
+  }
+}

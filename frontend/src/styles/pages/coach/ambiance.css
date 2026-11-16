@@ -1,0 +1,107 @@
+.coach-live-screen {
+  padding: 20px 20px 40px;
+  gap: 20px;
+  border-top: 6px solid;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.coach-ambiance-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coach-ambiance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.coach-ambiance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.coach-ambiance-thumb-card {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+  position: relative;
+}
+
+.coach-ambiance-thumb-card:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, var(--border-color));
+}
+
+.coach-ambiance-thumb-card.active {
+  border-color: var(--accent-text);
+  background: var(--bg-surface-active);
+}
+
+.coach-ambiance-thumb-media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-surface-hover);
+  position: relative;
+  overflow: hidden;
+}
+
+.coach-ambiance-thumb-media img,
+.coach-ambiance-thumb-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coach-live-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.coach-live-track-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.coach-live-track-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.coach-live-track-title {
+  font-family: var(--font-title);
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1.15;
+}
+
+.coach-live-track-time {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
