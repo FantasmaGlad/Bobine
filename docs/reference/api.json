@@ -4447,7 +4447,7 @@
      "path": "/api/videos/upload",
      "path_parameters": [],
      "query": [],
-     "summary": "Upload une vidéo en HTTP et enregistre une tâche d'import suivie en arrière-plan (normalisation automatique si requise) — voir `_run_video_import_job` et `GET /api/import-jobs`."
+     "summary": "Upload une vidéo en HTTP et enregistre une tâche d'import suivie en arrière-plan (normalisation automatique si requise) — voir `GET /api/import-jobs`."
     },
     {
      "body": {

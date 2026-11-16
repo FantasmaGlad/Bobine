@@ -10,7 +10,7 @@ from app.config_apply.values import _integer, _list, _text
 
 
 def _apply_library_videos(ctx: _Context, file: str, document: dict) -> None:
-    from app.api.routes.videos import rename_video_file
+    from app.videos.files import rename_video_file
 
     for entry in _list(ctx, file, document, "videos"):
         video = _media(ctx, file, Video, entry, "vidéo", lambda v: v.file_path)
