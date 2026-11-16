@@ -1,4 +1,4 @@
-"""Pilote Android / Android TV : pont Kotlin `DeviceBridge` (Chaquopy)."""
+"""Pilote Android / Android TV : ponts Kotlin par domaine (Chaquopy)."""
 
 from __future__ import annotations
 
@@ -27,41 +27,45 @@ _NO_BT_CONNECT = "Android ne permet pas de connecter ou d'oublier un appareil d�
 _NO_WIFI = "Depuis Android 10, une application ne peut plus gérer le Wi-Fi : utilisez les réglages du système."
 
 
-def _default_bridge() -> tuple[Any, Any]:
+BRIDGES = {"audio": "AudioBridge", "bluetooth": "BluetoothBridge", "wifi": "WifiBridge", "settings": "SettingsBridge"}
+
+
+def _default_bridges() -> tuple[dict[str, Any], Any]:
     from com.chaquo.python import Python
     from java import jclass
 
-    return jclass("com.bobine.app.DeviceBridge").INSTANCE, Python.getPlatform().getApplication()
+    bridges = {domain: jclass(f"com.bobine.app.{name}").INSTANCE for domain, name in BRIDGES.items()}
+    return bridges, Python.getPlatform().getApplication()
 
 
 class AndroidDriver(DeviceDriver):
     name = "android"
 
-    def __init__(self, bridge_factory: Callable[[], tuple[Any, Any]] = _default_bridge) -> None:
+    def __init__(self, bridge_factory: Callable[[], tuple[dict[str, Any], Any]] = _default_bridges) -> None:
         super().__init__()
         self._factory = bridge_factory
-        self._bridge: Any = None
+        self._bridges: dict[str, Any] | None = None
         self._context: Any = None
 
-    def _ensure(self) -> tuple[Any, Any]:
-        if self._bridge is None:
+    def _ensure(self) -> tuple[dict[str, Any], Any]:
+        if self._bridges is None:
             try:
-                self._bridge, self._context = self._factory()
+                self._bridges, self._context = self._factory()
             except Exception as exc:
                 raise DeviceError("bridge_unavailable", "Le pont Android des périphériques est indisponible.", 501) from exc
-        return self._bridge, self._context
+        return self._bridges, self._context
 
-    async def _call(self, method: str, *args: Any) -> dict[str, Any]:
+    async def _call(self, domain: str, method: str, *args: Any) -> dict[str, Any]:
         def invoke() -> Any:
-            bridge, context = self._ensure()
-            return getattr(bridge, method)(context, *args)
+            bridges, context = self._ensure()
+            return getattr(bridges[domain], method)(context, *args)
 
         try:
             raw = await asyncio.get_running_loop().run_in_executor(None, invoke)
         except DeviceError:
             raise
         except Exception as exc:
-            logger.warning("DeviceBridge.%s a échoué : %s", method, exc)
+            logger.warning("Pont Android %s.%s en échec : %s", domain, method, exc)
             raise DeviceError("bridge_error", "L'appel au système Android a échoué.", 502) from exc
         try:
             data = json.loads(str(raw))
@@ -74,8 +78,8 @@ class AndroidDriver(DeviceDriver):
 
     async def _has_bluetooth(self) -> bool:
         def invoke() -> bool:
-            bridge, context = self._ensure()
-            return bool(bridge.hasBluetooth(context))
+            bridges, context = self._ensure()
+            return bool(bridges["bluetooth"].hasBluetooth(context))
 
         try:
             return await asyncio.get_running_loop().run_in_executor(None, invoke)
@@ -109,20 +113,20 @@ class AndroidDriver(DeviceDriver):
         return caps
 
     async def audio_list(self) -> dict[str, Any]:
-        return await self._call("audioList")
+        return await self._call("audio", "audioList")
 
     async def audio_set_volume(self, device_id: str, volume: float | None, muted: bool | None) -> None:
-        await self._call("audioSetVolume", -1.0 if volume is None else float(volume), -1 if muted is None else (1 if muted else 0))
+        await self._call("audio", "audioSetVolume", -1.0 if volume is None else float(volume), -1 if muted is None else (1 if muted else 0))
         self._emit("audio")
 
     async def audio_details(self, device_id: str) -> dict[str, Any]:
-        return await self._call("audioDetails", str(device_id))
+        return await self._call("audio", "audioDetails", str(device_id))
 
     async def bluetooth_status(self) -> dict[str, Any]:
         if not await self._has_bluetooth():
             return unsupported("Cet appareil n'a pas de Bluetooth.")
         try:
-            return await self._call("bluetoothStatus")
+            return await self._call("bluetooth", "bluetoothStatus")
         except DeviceError as exc:
             if exc.code == "permission_required":
                 return {"supported": True, "powered": False, "discovering": False, "devices": [], "pending_pairing": None,
@@ -133,7 +137,7 @@ class AndroidDriver(DeviceDriver):
 
     async def bluetooth_request_permission(self) -> None:
         try:
-            await self._call("bluetoothRequestPermission")
+            await self._call("bluetooth", "bluetoothRequestPermission")
         except DeviceError as exc:
             if exc.code != "permission_required":
                 raise
@@ -141,19 +145,19 @@ class AndroidDriver(DeviceDriver):
     async def bluetooth_set_power(self, on: bool) -> None:
         if not on:
             raise DeviceError("unsupported", "Android ne permet pas de couper le Bluetooth depuis une application : utilisez les réglages Bluetooth.", 501)
-        await self._call("bluetoothRequestEnable")
+        await self._call("bluetooth", "bluetoothRequestEnable")
         self._emit("bluetooth")
 
     async def bluetooth_scan(self, on: bool) -> None:
-        await self._call("bluetoothScan", bool(on))
+        await self._call("bluetooth", "bluetoothScan", bool(on))
         self._emit("bluetooth")
 
     async def bluetooth_pair(self, address: str) -> None:
-        await self._call("bluetoothPair", address)
+        await self._call("bluetooth", "bluetoothPair", address)
         self._emit("bluetooth")
 
     async def wifi_status(self) -> dict[str, Any]:
-        return await self._call("wifiStatus")
+        return await self._call("wifi", "wifiStatus")
 
     async def open_system_settings(self, target: str) -> None:
-        await self._call("openSettings", target)
+        await self._call("settings", "openSettings", target)
