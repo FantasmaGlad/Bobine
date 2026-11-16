@@ -399,7 +399,9 @@ jobs:
     timeout-minutes: 60
     needs: [version]
     if: needs.version.outputs.android == 'true'
-    environment: ${{ github.event_name != 'pull_request' && 'android-signing' || '' }}
+    environment:
+      name: ${{ github.event_name != 'pull_request' && 'android-signing' || '' }}
+      deployment: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
