@@ -16,19 +16,9 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.database import SessionLocal, _migrate_drop_devices_access_settings, init_db  # noqa: E402
 from app.devices import locality  # noqa: E402
 from app.devices.base import DeviceDriver, DeviceError, NullDriver  # noqa: E402
-from app.devices.linux_parse import (  # noqa: E402
-    audio_kind,
-    bluez_device_path,
-    is_valid_mac,
-    parse_bluez_objects,
-    parse_known_wifi,
-    parse_pw_dump,
-    parse_wifi_device,
-    parse_wifi_list,
-    parse_wpctl_volume,
-    split_terse,
-    wifi_band,
-)
+from app.devices.linux.parse.audio import audio_kind, parse_pw_dump, parse_wpctl_volume  # noqa: E402
+from app.devices.linux.parse.bluetooth import bluez_device_path, is_valid_mac, parse_bluez_objects  # noqa: E402
+from app.devices.linux.parse.wifi import parse_known_wifi, parse_wifi_device, parse_wifi_list, split_terse, wifi_band  # noqa: E402
 from app.devices.service import DevicesService, service  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
@@ -205,7 +195,7 @@ def driver():
 
 @pytest.fixture()
 def local(monkeypatch):
-    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.access.is_local_request", lambda request: True)
 
 
 def remote(host="192.168.1.7"):

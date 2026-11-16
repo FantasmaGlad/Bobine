@@ -11,7 +11,7 @@ import shutil
 import time
 from typing import Any, Awaitable, Callable
 
-from app.devices.linux import run_command
+from app.devices.linux.command import run_command
 from app.storage import health, portable
 from app.storage.formatting.disks import DISK_COLUMNS, DISK_COLUMNS_FALLBACK, parse_disks
 from app.storage.formatting.model import DiskInfo, FormatSpec

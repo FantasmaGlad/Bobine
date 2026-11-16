@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.devices.base import DeviceDriver, DeviceError  # noqa: E402
-from app.devices.linux import LinuxDriver  # noqa: E402
-from app.devices.linux_parse import (  # noqa: E402
+from app.devices.linux.driver import LinuxDriver  # noqa: E402
+from app.devices.linux.parse.audio_details import (  # noqa: E402
     balance_from_channel_volumes,
     channel_volumes_for_balance,
     find_sink_node,
@@ -116,7 +116,7 @@ class FakeRunner:
 def test_linux_driver_balance_profile_and_tone(monkeypatch):
     runner = FakeRunner()
     driver = LinuxDriver(runner=runner)
-    monkeypatch.setattr("app.devices.linux.shutil.which", lambda tool: "/usr/bin/" + tool)
+    monkeypatch.setattr("app.devices.linux.driver.shutil.which", lambda tool: "/usr/bin/" + tool)
 
     async def scenario():
         await driver.audio_set_balance(SINK, -1.0)
@@ -152,7 +152,7 @@ def test_linux_driver_balance_profile_and_tone(monkeypatch):
 
 def test_linux_driver_reports_missing_tools(monkeypatch):
     driver = LinuxDriver(runner=FakeRunner())
-    monkeypatch.setattr("app.devices.linux.shutil.which", lambda tool: None)
+    monkeypatch.setattr("app.devices.linux.driver.shutil.which", lambda tool: None)
 
     async def scenario():
         for call in (driver.audio_set_balance(SINK, 0.0), driver.audio_test_tone(SINK, "both")):
@@ -197,7 +197,7 @@ def api(monkeypatch):
     init_db()
     driver = FakeAudioDriver()
     service.set_driver(driver)
-    monkeypatch.setattr("app.api.routes.devices.is_local_request", lambda request: True)
+    monkeypatch.setattr("app.api.routes.devices.access.is_local_request", lambda request: True)
     with SessionLocal() as db:
         db.query(Setting).filter(Setting.key == "devices_audio_meta").delete(synchronize_session=False)
         db.commit()
