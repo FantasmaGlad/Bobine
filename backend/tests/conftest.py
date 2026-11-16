@@ -39,3 +39,23 @@ def _no_pending_config_mirror():
     cancel()
     yield
     cancel()
+
+
+@pytest.fixture()
+def recorder(monkeypatch):
+    from app import cli
+    from cli_support import Recorder
+
+    rec = Recorder({
+        ("GET", "/api/health"): {"status": "ok"},
+        ("GET", "/api/playback/state"): {"state": "waiting"},
+        ("GET", "/api/diagnostics/system"): {"status": "warning", "checks": [], "problems": [
+            {"code": "port_fallback", "severity": "warning", "message": "port", "remedy": "libérer"},
+        ]},
+        ("GET", "/api/logs"): {"entries": [], "truncated": False},
+        ("POST", "/api/config/apply"): {"applied": False, "changes": {}, "skipped": [], "restart_required": []},
+        ("GET", "/api/updates/check"): {"has_update": False, "current_version": "5.1.0"},
+    })
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: rec(self, method, path, **kw))
+    monkeypatch.setenv("BOBINE_PORT", "1903")
+    return rec
