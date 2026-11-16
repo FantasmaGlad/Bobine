@@ -246,7 +246,7 @@ _PORT_LITERAL = re.compile(r"(?<![\d.\-])(?:8000|1903)(?![\d\-])")
 
 _WIRED_FILES = [
     "backend/run_backend.py",
-    "backend/app/desktop/tray.py",
+    *sorted(str(p.relative_to(REPO_ROOT)) for p in (REPO_ROOT / "backend/app/desktop").glob("tray*.py")),
     "android/app/src/main/python/bobine_bootstrap.py",
     *sorted(str(p.relative_to(REPO_ROOT)) for p in (REPO_ROOT / "android/app/src/main/java").rglob("*.kt")),
 ]
@@ -283,10 +283,10 @@ def tray(monkeypatch):
     import sys
     from unittest.mock import MagicMock
     monkeypatch.setitem(sys.modules, "pystray", MagicMock())
-    monkeypatch.delitem(sys.modules, "app.desktop.tray", raising=False)
-    module = importlib.import_module("app.desktop.tray")
+    monkeypatch.delitem(sys.modules, "app.desktop.tray_urls", raising=False)
+    module = importlib.import_module("app.desktop.tray_urls")
     yield module
-    sys.modules.pop("app.desktop.tray", None)
+    sys.modules.pop("app.desktop.tray_urls", None)
 
 
 def test_tray_urls_follow_the_published_port(monkeypatch, tray):
@@ -300,16 +300,19 @@ def test_tray_urls_follow_the_published_port(monkeypatch, tray):
     assert tray._display_state_url() == "http://127.0.0.1:8003/api/display/state"
 
 
-def test_tray_dev_backend_command_goes_through_the_shared_launcher(monkeypatch, tmp_path, tray):
-    monkeypatch.setattr(tray.sys, "executable", str(tmp_path / "python"))
-    command = tray._backend_command()
+def test_tray_dev_backend_command_goes_through_the_shared_launcher(monkeypatch, tmp_path):
+    from app.desktop import tray_supervisor
+
+    monkeypatch.setattr(tray_supervisor.sys, "executable", str(tmp_path / "python"))
+    command = tray_supervisor._backend_command()
     assert command[0] == str(tmp_path / "python")
     assert Path(command[1]).name == "run_backend.py" and Path(command[1]).is_file()
     assert "--port" not in command
 
 
 def test_projector_window_resolves_a_callable_url_at_launch():
-    from app.desktop.displays import Monitor, ProjectorWindow
+    from app.desktop.monitors import Monitor
+    from app.desktop.projector import ProjectorWindow
     urls = iter(["http://127.0.0.1:8000/x", "http://127.0.0.1:8002/x"])
     launched = []
 
