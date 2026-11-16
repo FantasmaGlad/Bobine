@@ -266,62 +266,12 @@ class MediaClient:
         if self._next_id > 2**53 - 1:
             raise _Failure("protocol")
         request_id = self._next_id
-        raw = json.dumps({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
-        if len(raw) > MAX_REQUEST_BYTES:
-            raise _Failure("request_limit")
-        written: queue.Queue = queue.Queue(maxsize=1)
-
-        def write() -> None:
-            try:
-                assert generation.proc.stdin is not None
-                view = memoryview(raw + b"\n")
-                while view:
-                    count = generation.proc.stdin.write(view)
-                    if not count:
-                        raise OSError("closed pipe")
-                    view = view[count:]
-                written.put_nowait(True)
-            except (OSError, ValueError):
-                written.put_nowait(_Failure("io"))
-
-        writer = threading.Thread(target=write, daemon=True, name="bobine-media-writer")
-        generation.threads.append(writer)
-        writer.start()
-        try:
-            status = written.get(timeout=_remaining(deadline))
-            if isinstance(status, _Failure):
-                raise status
-            reply = generation.replies.get(timeout=_remaining(deadline))
-        except queue.Empty as exc:
-            raise _Failure("timeout") from exc
-        finally:
-            generation.threads[:] = [thread for thread in generation.threads if thread.is_alive()]
-        if isinstance(reply, _Failure):
-            raise reply
+        reply = _send(generation, _encode_request(request_id, method, params), deadline)
         _remaining(deadline)
-        try:
-            message = json.loads(reply.decode("utf-8", "strict"), object_pairs_hook=_pairs)
-            _validate_json(message)
-        except (ValueError, UnicodeError, RecursionError) as exc:
-            raise _Failure("protocol") from exc
-        if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or type(message.get("id")) is not int or message["id"] != request_id:
+        result = _decode_reply(reply, request_id)
+        if method == "probe_audio" and (not isinstance(result.get("format"), str) or result["format"] not in generation.formats):
             raise _Failure("protocol")
-        if ("result" in message) == ("error" in message):
-            raise _Failure("protocol")
-        if "error" in message:
-            error = message["error"]
-            if not isinstance(error, dict) or type(error.get("code")) is not int or not isinstance(error.get("message"), str):
-                raise _Failure("protocol")
-            data = error.get("data")
-            if not isinstance(data, dict) or not isinstance(data.get("reason"), str):
-                raise _Failure("protocol")
-            reason = data["reason"]
-            raise _NativeFailure(reason if reason in _NATIVE_REASONS else "native_error")
-        if not isinstance(message["result"], dict):
-            raise _Failure("protocol")
-        if method == "probe_audio" and (not isinstance(message["result"].get("format"), str) or message["result"]["format"] not in generation.formats):
-            raise _Failure("protocol")
-        return message["result"]
+        return result
 
     @staticmethod
     def _hello(result: dict) -> frozenset[str]:
@@ -468,3 +418,70 @@ def close_current_media_client() -> None:
         if _singleton is not None:
             _singleton.close()
             _singleton = None
+
+
+def _encode_request(request_id: int, method: str, params: dict) -> bytes:
+    raw = json.dumps({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
+    if len(raw) > MAX_REQUEST_BYTES:
+        raise _Failure("request_limit")
+    return raw
+
+
+def _write_request(generation: _Generation, raw: bytes, written: queue.Queue) -> None:
+    try:
+        assert generation.proc.stdin is not None
+        view = memoryview(raw + b"\n")
+        while view:
+            count = generation.proc.stdin.write(view)
+            if not count:
+                raise OSError("closed pipe")
+            view = view[count:]
+        written.put_nowait(True)
+    except (OSError, ValueError):
+        written.put_nowait(_Failure("io"))
+
+
+def _send(generation: _Generation, raw: bytes, deadline: float):
+    written: queue.Queue = queue.Queue(maxsize=1)
+    writer = threading.Thread(target=_write_request, args=(generation, raw, written), daemon=True, name="bobine-media-writer")
+    generation.threads.append(writer)
+    writer.start()
+    try:
+        status = written.get(timeout=_remaining(deadline))
+        if isinstance(status, _Failure):
+            raise status
+        reply = generation.replies.get(timeout=_remaining(deadline))
+    except queue.Empty as exc:
+        raise _Failure("timeout") from exc
+    finally:
+        generation.threads[:] = [thread for thread in generation.threads if thread.is_alive()]
+    if isinstance(reply, _Failure):
+        raise reply
+    return reply
+
+
+def _native_error(error) -> _NativeFailure:
+    if not isinstance(error, dict) or type(error.get("code")) is not int or not isinstance(error.get("message"), str):
+        raise _Failure("protocol")
+    data = error.get("data")
+    if not isinstance(data, dict) or not isinstance(data.get("reason"), str):
+        raise _Failure("protocol")
+    reason = data["reason"]
+    return _NativeFailure(reason if reason in _NATIVE_REASONS else "native_error")
+
+
+def _decode_reply(reply: bytes, request_id: int) -> dict:
+    try:
+        message = json.loads(reply.decode("utf-8", "strict"), object_pairs_hook=_pairs)
+        _validate_json(message)
+    except (ValueError, UnicodeError, RecursionError) as exc:
+        raise _Failure("protocol") from exc
+    if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or type(message.get("id")) is not int or message["id"] != request_id:
+        raise _Failure("protocol")
+    if ("result" in message) == ("error" in message):
+        raise _Failure("protocol")
+    if "error" in message:
+        raise _native_error(message["error"])
+    if not isinstance(message["result"], dict):
+        raise _Failure("protocol")
+    return message["result"]

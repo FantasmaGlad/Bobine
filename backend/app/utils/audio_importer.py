@@ -77,6 +77,26 @@ def wait_for_folder_to_stabilize(dir_path: str, stable_secs: int = 3, timeout: i
     return False
 
 
+def _ordered_tracks(mp3_paths: list[str]) -> list[tuple[int | None, str, Path]]:
+    parsed = [(*parse_track_number_and_title(Path(src).name), Path(src)) for src in mp3_paths]
+    parsed.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 0, str(t[2])))
+    return parsed
+
+
+def _store_track(course_id: int, course_dir: Path, position: int, number: int | None, title: str, src_path: Path) -> AudioTrack:
+    duration = extract_audio_duration(str(src_path))
+    dest_path = course_dir / f"track_{uuid.uuid4().hex}{src_path.suffix.lower()}"
+    shutil.move(str(src_path), dest_path)
+    return AudioTrack(
+        audio_course_id=course_id,
+        number=number,
+        title=title or f"Piste {position + 1}",
+        file_path=str(dest_path),
+        duration_seconds=duration,
+        position=position,
+    )
+
+
 def import_audio_course_from_files(
     mp3_paths: list[str],
     course_title: str,
@@ -92,13 +112,7 @@ def import_audio_course_from_files(
     course_dir = Path(settings.audio_dir) / f"course_{uuid.uuid4().hex}"
     course_dir.mkdir(parents=True, exist_ok=True)
 
-    parsed = []
-    for src in mp3_paths:
-        src_path = Path(src)
-        number, title = parse_track_number_and_title(src_path.name)
-        parsed.append((number, title, src_path))
-
-    parsed.sort(key=lambda t: (t[0] is None, t[0] if t[0] is not None else 0, str(t[2])))
+    parsed = _ordered_tracks(mp3_paths)
 
     update_job(job_id, stage="saving")
     db = SessionLocal()
@@ -112,21 +126,7 @@ def import_audio_course_from_files(
         db.flush()
 
         for position, (number, title, src_path) in enumerate(parsed):
-            duration = extract_audio_duration(str(src_path))
-            dest_name = f"track_{uuid.uuid4().hex}{src_path.suffix.lower()}"
-            dest_path = course_dir / dest_name
-            shutil.move(str(src_path), dest_path)
-
-            track = AudioTrack(
-                audio_course_id=course.id,
-                number=number,
-                title=title or f"Piste {position + 1}",
-                file_path=str(dest_path),
-                duration_seconds=duration,
-                position=position,
-            )
-            db.add(track)
-
+            db.add(_store_track(course.id, course_dir, position, number, title, src_path))
         db.commit()
         db.refresh(course)
         logger.info(f"Cours audio importé : {course.title} ({len(parsed)} piste(s), ID {course.id})")

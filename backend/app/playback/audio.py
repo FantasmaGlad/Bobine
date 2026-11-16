@@ -27,11 +27,7 @@ class AudioMixin:
         self._cancel_audio_chain_wait()
         self.state["current_video"] = None
         self.state["position_seconds"] = 0.0
-        self.state["playlist_id"] = None
-        self.state["playlist_name"] = None
-        self.state["playlist_items"] = None
-        self.state["playlist_index"] = None
-        self.state["playlist_waiting_remaining"] = None
+        self._forget_playlist()
         self._default_audio_background = (
             {"id": background_id, "title": background_title or "", "is_image": background_is_image}
             if background_id

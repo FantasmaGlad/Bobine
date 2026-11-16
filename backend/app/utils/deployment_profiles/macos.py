@@ -128,37 +128,41 @@ class MacOSHandler(ProfileHandler):
         )
 
         report("installing", message="Montage de l'image disque…")
-        mount_point: str | None = None
         try:
-            mount_res = run_checked(
-                ["hdiutil", "attach", "-nobrowse", "-plist", str(dmg_path)], timeout=60
-            )
-            for line in mount_res.stdout.splitlines():
-                stripped = line.strip()
-                if stripped.startswith("<string>/Volumes/"):
-                    mount_point = stripped.removeprefix("<string>").removesuffix("</string>")
-                    break
-            if not mount_point:
-                raise RuntimeError("Point de montage introuvable dans la sortie de hdiutil.")
-
-            source_app = Path(mount_point) / "Bobine.app"
-            if not source_app.exists():
-                raise RuntimeError(f"Bobine.app introuvable dans l'image montée ({mount_point}).")
-
-            report("installing", message="Remplacement de l'application…")
-            run_checked(
-                ["rsync", "-a", "--delete", f"{source_app}/", f"{_APP_PATH}/"], timeout=120
-            )
+            _install_from_image(dmg_path, report)
         finally:
-            if mount_point:
-                try:
-                    run_checked(["hdiutil", "detach", mount_point, "-quiet"], timeout=30)
-                except Exception as e:
-                    logger.warning(f"Échec du démontage de l'image disque ({mount_point}) : {e}")
             try:
                 dmg_path.unlink(missing_ok=True)
-            except OSError:
-                pass
+            except OSError as e:
+                logger.debug(f"Suppression de l'image disque impossible : {e}")
 
         report("restarting", message="Redémarrage…")
         self.relaunch_application()
+
+
+def _attach(dmg_path: Path) -> str:
+    result = run_checked(["hdiutil", "attach", "-nobrowse", "-plist", str(dmg_path)], timeout=60)
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("<string>/Volumes/"):
+            return stripped.removeprefix("<string>").removesuffix("</string>")
+    raise RuntimeError("Point de montage introuvable dans la sortie de hdiutil.")
+
+
+def _detach(mount_point: str) -> None:
+    try:
+        run_checked(["hdiutil", "detach", mount_point, "-quiet"], timeout=30)
+    except Exception as e:
+        logger.warning(f"Échec du démontage de l'image disque ({mount_point}) : {e}")
+
+
+def _install_from_image(dmg_path: Path, report: Callable[..., None]) -> None:
+    mount_point = _attach(dmg_path)
+    try:
+        source_app = Path(mount_point) / "Bobine.app"
+        if not source_app.exists():
+            raise RuntimeError(f"Bobine.app introuvable dans l'image montée ({mount_point}).")
+        report("installing", message="Remplacement de l'application…")
+        run_checked(["rsync", "-a", "--delete", f"{source_app}/", f"{_APP_PATH}/"], timeout=120)
+    finally:
+        _detach(mount_point)

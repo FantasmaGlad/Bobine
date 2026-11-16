@@ -13,11 +13,11 @@ from app.radio_manager import is_radio_channel, normalize_radio_channel
 from app.utils import video_sound
 from app.utils.importer.formats import is_image_background
 from app.utils.ws_manager import manager as ws_manager
+from app.videos.describe import playlist_video_items, video_details
 
 from . import audio_commands, cinema_commands
 from .context import Command
 from .core import CommandRejected, _reject_unavailable, _resolve_channel
-from .media_items import _build_playlist_video_items, _thumbnail_filename
 from .radio_commands import _handle_radio_command
 
 logger = logging.getLogger(__name__)
@@ -47,11 +47,7 @@ async def _load(cmd: Command) -> None:
     if not video.available:
         await _reject_unavailable(cmd.name, cmd.channel, video.title, cmd.db)
     await cmd.manager.load(
-        video.id, video.title, video.duration_seconds, video.program, cmd.client_ts,
-        release=video.release, thumbnail_url=_thumbnail_filename(video.thumbnail_path),
-        description=video.description, audio_channels=video.audio_channels,
-        audio_codec=video.audio_codec, fps=video.fps, bitrate_kbps=video.bitrate_kbps,
-        width=video.width, height=video.height,
+        video.id, video.title, video.duration_seconds, video.program, cmd.client_ts, **video_details(video),
     )
     await cmd.log("video_started", video.title)
 
@@ -71,7 +67,7 @@ async def _load_playlist(cmd: Command) -> None:
     playlist = await cmd.fetch(Playlist, playlist_id)
     if not playlist:
         raise cmd.not_found(f"Playlist {playlist_id}")
-    items = await run_in_threadpool(_build_playlist_video_items, playlist)
+    items = await run_in_threadpool(playlist_video_items, playlist)
     if not items and await run_in_threadpool(lambda: bool(playlist.items)):
         await _reject_unavailable(cmd.name, cmd.channel, playlist.name, cmd.db)
     await cmd.manager.load_playlist(playlist.id, playlist.name, items, cmd.client_ts)

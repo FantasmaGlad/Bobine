@@ -163,7 +163,7 @@ def test_startup_puts_every_external_path_in_waiting_state(env):
 
 def test_scheduler_and_playlists_skip_unavailable_media(env):
     from app.models import Playlist, PlaylistItem, ScheduleTargetType
-    from app.api.routes.playback.media_items import _build_playlist_video_items
+    from app.videos.describe import playlist_video_items
     from app.scheduling.launch import scheduled_target_unavailable
 
     with SessionLocal() as db:
@@ -181,9 +181,9 @@ def test_scheduler_and_playlists_skip_unavailable_media(env):
         assert scheduled_target_unavailable(db, ScheduleTargetType.video, remote_video.id) is True
         assert scheduled_target_unavailable(db, ScheduleTargetType.video, local_video.id) is False
         assert scheduled_target_unavailable(db, ScheduleTargetType.playlist, playlist.id) is False
-        assert [i["title"] for i in _build_playlist_video_items(playlist)] == ["__stk_Loc"]
+        assert [i["title"] for i in playlist_video_items(playlist)] == ["__stk_Loc"]
         availability.set_online({lib.id: "/mnt/y"})
-        assert [i["title"] for i in _build_playlist_video_items(playlist)] == ["__stk_Ext", "__stk_Loc"]
+        assert [i["title"] for i in playlist_video_items(playlist)] == ["__stk_Ext", "__stk_Loc"]
         availability.set_online({})
         db.query(PlaylistItem).filter(PlaylistItem.playlist_id == playlist.id).delete()
         db.query(Playlist).filter(Playlist.id == playlist.id).delete()

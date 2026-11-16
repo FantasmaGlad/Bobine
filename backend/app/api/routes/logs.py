@@ -102,6 +102,39 @@ def _parse_technical(handle: BinaryIO) -> tuple[list[dict[str, Any]], int]:
     return entries, orphans
 
 
+def _activity_entries(db: Session, threshold: int, start: datetime | None, limit: int) -> tuple[list[dict[str, Any]], bool]:
+    if threshold > LEVELS.index("info"):
+        return [], False
+    query = db.query(ActivityLog).order_by(ActivityLog.id.desc())
+    if start is not None:
+        query = query.filter(ActivityLog.timestamp >= start.astimezone(timezone.utc).replace(tzinfo=None))
+    rows = query.limit(limit + 1).all()
+    entries = []
+    for row in rows[:limit]:
+        stamp = row.timestamp if row.timestamp.tzinfo else row.timestamp.replace(tzinfo=timezone.utc)
+        entries.append({"timestamp": _utc_iso(stamp), "level": "info", "category": row.event_type, "message": row.detail or ""})
+    return entries, len(rows) > limit
+
+
+def _technical_entries(threshold: int, start: datetime | None, limit: int) -> tuple[list[dict[str, Any]], bool, int]:
+    entries: list[dict[str, Any]] = []
+    skipped = 0
+    with ExitStack() as stack:
+        for handle in _open_technical_files(stack):
+            parsed, orphans = _parse_technical(handle)
+            skipped += orphans
+            for entry in reversed(parsed):
+                if start is not None and entry["time"] < start:
+                    return entries, False, skipped
+                if LEVELS.index(entry["level"]) < threshold:
+                    continue
+                if len(entries) == limit:
+                    return entries, True, skipped
+                entries.append({"timestamp": _utc_iso(entry["time"]), "level": entry["level"],
+                                "category": entry["category"], "message": entry["message"]})
+    return entries, False, skipped
+
+
 @router.get("")
 def read_logs(
     source: str = Query("technical"),
@@ -117,40 +150,11 @@ def read_logs(
         raise HTTPException(status_code=422, detail={"code": "invalid_level", "message": f"level attend l'un de : {', '.join(LEVELS)}."})
     threshold = LEVELS.index(level) if level else 0
     start = _parse_since(since)
-    entries: list[dict[str, Any]] = []
-    truncated = False
-    skipped = 0
     if source == "activity":
-        if threshold > LEVELS.index("info"):
-            rows = []
-        else:
-            query = db.query(ActivityLog).order_by(ActivityLog.id.desc())
-            if start is not None:
-                query = query.filter(ActivityLog.timestamp >= start.astimezone(timezone.utc).replace(tzinfo=None))
-            rows = query.limit(limit + 1).all()
-        truncated = len(rows) > limit
-        for row in rows[:limit]:
-            stamp = row.timestamp if row.timestamp.tzinfo else row.timestamp.replace(tzinfo=timezone.utc)
-            entries.append({"timestamp": _utc_iso(stamp), "level": "info", "category": row.event_type, "message": row.detail or ""})
+        entries, truncated = _activity_entries(db, threshold, start, limit)
+        skipped = 0
     else:
-        done = False
-        with ExitStack() as stack:
-            for handle in _open_technical_files(stack):
-                parsed, orphans = _parse_technical(handle)
-                skipped += orphans
-                for entry in reversed(parsed):
-                    if start is not None and entry["time"] < start:
-                        done = True
-                        break
-                    if LEVELS.index(entry["level"]) < threshold:
-                        continue
-                    if len(entries) == limit:
-                        truncated = done = True
-                        break
-                    entries.append({"timestamp": _utc_iso(entry["time"]), "level": entry["level"],
-                                    "category": entry["category"], "message": entry["message"]})
-                if done:
-                    break
+        entries, truncated, skipped = _technical_entries(threshold, start, limit)
     return {
         "schema": 1,
         "generated_at": _utc_iso(datetime.now(timezone.utc)),

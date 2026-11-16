@@ -1,7 +1,9 @@
 """État logique partagé : position, instantané, diffusion aux écrans."""
+import asyncio
 import logging
 from typing import Any
 from app.playback.constants import PlaybackStateEnum
+from app.playback.sessions import _db_close_session
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,16 @@ class StateMixin:
         if self._waiting_task and not self._waiting_task.done():
             self._waiting_task.cancel()
         self._waiting_task = None
+
+    def _forget_playlist(self):
+        for key in ("playlist_id", "playlist_name", "playlist_items", "playlist_index", "playlist_waiting_remaining"):
+            self.state[key] = None
+
+    def _end_session(self, position: float, completed: bool | None = None):
+        if self._current_session_id is None:
+            return
+        session_id, self._current_session_id = self._current_session_id, None
+        asyncio.create_task(asyncio.to_thread(_db_close_session, session_id, position, completed))
 
     def _cancel_audio_chain_wait(self):
         if self._audio_chain_wait_task and not self._audio_chain_wait_task.done():

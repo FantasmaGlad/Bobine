@@ -20,9 +20,7 @@ async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_ma
     return result
 
 
-def _validate_and_write(
-    db: Session, files: dict[str, Any], dry_run: bool, include_machine: bool,
-) -> tuple[dict[str, Any], list[Callable[[Session], Awaitable[None]]]]:
+def _canonical_files(files: dict[str, Any]) -> dict[str, Any]:
     renamed: dict[str, Any] = {}
     errors = []
     for key, document in files.items():
@@ -32,37 +30,34 @@ def _validate_and_write(
         if name in renamed:
             errors.append(f"{name} fourni deux fois (nom plat et arborescence)")
         renamed[name] = document
-    files = renamed
-    errors += [f"fichier inconnu : {name}" for name in sorted(set(files) - set(APPLIERS))]
+    errors += [f"fichier inconnu : {name}" for name in sorted(set(renamed) - set(APPLIERS))]
     if errors:
         raise ConfigErrors(errors)
-    ctx = _Context(db)
-    skipped = []
-    changes: dict[str, list[str]] = {}
-    for name in ORDER:
-        if name not in files:
-            continue
-        document = files[name]
-        if name == "machine.json" and not include_machine:
-            skipped.append(name)
-            continue
-        if not isinstance(document, dict) or document.get("schema") not in config_files.ACCEPTED_SCHEMAS:
-            ctx.fail(name, f"« schema » doit valoir {' ou '.join(map(str, config_files.ACCEPTED_SCHEMAS))}")
-            continue
-        if document.get("kind") != config_files.KINDS[name]:
-            ctx.fail(name, f"« kind » doit valoir {config_files.KINDS[name]}")
-            continue
-        changes[name] = _diff(name, config_files.BUILDERS[name](db), document)
-        with db.no_autoflush:
-            try:
-                APPLIERS[name](ctx, name, document)
-            except (AttributeError, IndexError, KeyError, TypeError, ValueError, SQLAlchemyError) as exc:
-                ctx.fail(name, f"document invalide : {exc}")
-        if not ctx.errors:
-            try:
-                db.flush()
-            except Exception as exc:
-                ctx.fail(name, f"écriture refusée par la base : {exc}")
+    return renamed
+
+
+def _header_error(name: str, document: Any) -> str | None:
+    if not isinstance(document, dict) or document.get("schema") not in config_files.ACCEPTED_SCHEMAS:
+        return f"« schema » doit valoir {' ou '.join(map(str, config_files.ACCEPTED_SCHEMAS))}"
+    if document.get("kind") != config_files.KINDS[name]:
+        return f"« kind » doit valoir {config_files.KINDS[name]}"
+    return None
+
+
+def _apply_document(db: Session, ctx: _Context, name: str, document: dict) -> None:
+    with db.no_autoflush:
+        try:
+            APPLIERS[name](ctx, name, document)
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError, SQLAlchemyError) as exc:
+            ctx.fail(name, f"document invalide : {exc}")
+    if not ctx.errors:
+        try:
+            db.flush()
+        except Exception as exc:
+            ctx.fail(name, f"écriture refusée par la base : {exc}")
+
+
+def _finish(db: Session, ctx: _Context, dry_run: bool) -> None:
     if ctx.errors:
         db.rollback()
         raise ConfigErrors(ctx.errors)
@@ -75,6 +70,27 @@ def _validate_and_write(
         db.rollback()
     else:
         db.commit()
+
+
+def _validate_and_write(
+    db: Session, files: dict[str, Any], dry_run: bool, include_machine: bool,
+) -> tuple[dict[str, Any], list[Callable[[Session], Awaitable[None]]]]:
+    files = _canonical_files(files)
+    ctx = _Context(db)
+    skipped = []
+    changes: dict[str, list[str]] = {}
+    for name in (name for name in ORDER if name in files):
+        document = files[name]
+        if name == "machine.json" and not include_machine:
+            skipped.append(name)
+            continue
+        error = _header_error(name, document)
+        if error:
+            ctx.fail(name, error)
+            continue
+        changes[name] = _diff(name, config_files.BUILDERS[name](db), document)
+        _apply_document(db, ctx, name, document)
+    _finish(db, ctx, dry_run)
     result = {
         "applied": not dry_run,
         "changes": {name: lines for name, lines in changes.items() if lines},
