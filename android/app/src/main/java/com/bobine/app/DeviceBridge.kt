@@ -1,6 +1,5 @@
 package com.bobine.app
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothClass
@@ -21,7 +20,6 @@ import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.provider.Settings
 import android.util.Log
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
 import org.json.JSONObject
@@ -30,9 +28,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "DeviceBridge"
-private const val PERMISSION_REQUEST_CODE = 4107
 private const val PERMISSION_MESSAGE =
-    "Autorisez « Appareils à proximité » dans la boîte de dialogue affichée sur l'appareil Android, puis réessayez."
+    "Autorisez « Appareils à proximité » sur l'appareil Android, Bobine ouvert au premier plan, puis réessayez."
 
 object DeviceBridge {
     private val discovered = ConcurrentHashMap<String, JSONObject>()
@@ -151,25 +148,16 @@ object DeviceBridge {
     private fun adapter(context: Context): BluetoothAdapter? =
         (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
-    private fun missingBluetoothPermissions(context: Context, needScan: Boolean): List<String> {
-        val wanted = buildList {
-            add(Manifest.permission.BLUETOOTH_CONNECT)
-            if (needScan) add(Manifest.permission.BLUETOOTH_SCAN)
-        }
-        return wanted.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
-    }
+    private fun missingBluetooth(context: Context): Boolean =
+        Permissions.missing(context, Permissions.bluetooth).isNotEmpty()
 
-    private fun requestPermissions(missing: List<String>): String {
-        val activity = MainActivity.activeActivity?.get()
-        if (activity != null) {
-            activity.runOnUiThread { ActivityCompat.requestPermissions(activity, missing.toTypedArray(), PERMISSION_REQUEST_CODE) }
-        }
+    private fun permissionRequired(context: Context): String {
+        Permissions.requestWhenVisible(context, Permissions.bluetooth)
         return error("permission_required", PERMISSION_MESSAGE)
     }
 
     fun bluetoothRequestPermission(context: Context): String {
-        val missing = missingBluetoothPermissions(context, needScan = true)
-        return if (missing.isEmpty()) ok() else requestPermissions(missing)
+        return if (missingBluetooth(context)) permissionRequired(context) else ok()
     }
 
     fun hasBluetooth(context: Context): Boolean =
@@ -227,8 +215,7 @@ object DeviceBridge {
     fun bluetoothStatus(context: Context): String {
         return try {
             val adapter = adapter(context) ?: return error("no_adapter", "Cet appareil n'a pas de Bluetooth.")
-            val missing = missingBluetoothPermissions(context, needScan = false)
-            if (missing.isNotEmpty()) return error("permission_required", PERMISSION_MESSAGE)
+            if (missingBluetooth(context)) return error("permission_required", PERMISSION_MESSAGE)
             val powered = adapter.isEnabled
             val devices = JSONArray()
             if (powered) {
@@ -256,8 +243,7 @@ object DeviceBridge {
     fun bluetoothRequestEnable(context: Context): String {
         return try {
             val adapter = adapter(context) ?: return error("no_adapter", "Cet appareil n'a pas de Bluetooth.")
-            val missing = missingBluetoothPermissions(context, needScan = false)
-            if (missing.isNotEmpty()) return requestPermissions(missing)
+            if (missingBluetooth(context)) return permissionRequired(context)
             if (!adapter.isEnabled) {
                 context.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
@@ -309,8 +295,7 @@ object DeviceBridge {
     fun bluetoothScan(context: Context, on: Boolean): String {
         return try {
             val adapter = adapter(context) ?: return error("no_adapter", "Cet appareil n'a pas de Bluetooth.")
-            val missing = missingBluetoothPermissions(context, needScan = true)
-            if (missing.isNotEmpty()) return requestPermissions(missing)
+            if (missingBluetooth(context)) return permissionRequired(context)
             if (on) {
                 if (!adapter.isEnabled) return error("not_ready", "Activez d'abord le Bluetooth.")
                 ensureReceiver(context)
@@ -331,8 +316,7 @@ object DeviceBridge {
     fun bluetoothPair(context: Context, address: String): String {
         return try {
             val adapter = adapter(context) ?: return error("no_adapter", "Cet appareil n'a pas de Bluetooth.")
-            val missing = missingBluetoothPermissions(context, needScan = false)
-            if (missing.isNotEmpty()) return requestPermissions(missing)
+            if (missingBluetooth(context)) return permissionRequired(context)
             if (!BluetoothAdapter.checkBluetoothAddress(address.uppercase())) return error("bad_address", "Adresse Bluetooth invalide.")
             ensureReceiver(context)
             adapter.cancelDiscovery() // un appairage pendant une recherche échoue souvent

@@ -79,7 +79,8 @@ class AndroidDriver(DeviceDriver):
 
         try:
             return await asyncio.get_running_loop().run_in_executor(None, invoke)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Détection du Bluetooth Android impossible : %s", exc)
             return False
 
     async def capabilities(self) -> dict[str, dict[str, Any]]:

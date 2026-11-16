@@ -1,6 +1,5 @@
 package com.bobine.app
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.UiModeManager
 import android.content.Context
@@ -27,9 +26,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 
 private const val GRID_PATH = "/grid/"
 private const val KIOSK_PATH = "/kiosk"
@@ -56,19 +53,12 @@ class MainActivity : AppCompatActivity() {
     private var loadRetry = Runnable { }
     private var webView: WebView? = null
 
-    private val notificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* resultat ignore : au pire la notification reste invisible, rien de bloquant */ }
-
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         activeActivity = java.lang.ref.WeakReference(this)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        Permissions.requestNew(this)
         requestIgnoreBatteryOptimizations()
         requestOverlayPermissionOnce()
         UpdateManager.cleanupStaleDownloads(this)
@@ -200,6 +190,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         activeActivity = java.lang.ref.WeakReference(this)
+        Permissions.resumePending(this)
         BobineForegroundService.notifyDisplayStateChanged()
         webView?.onResume()
     }
