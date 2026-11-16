@@ -74,10 +74,14 @@ class Inventory:
     encrypted: list[Volume] = field(default_factory=list)
 
 
+def uuid_key(fs_uuid: str) -> str:
+    return "u-" + _KEY_SAFE.sub("_", fs_uuid.strip().lower())
+
+
 def make_key(fs_uuid: str | None, serial: str | None, model: str | None, partn: str | None, size: int) -> str:
     """Clé stable d'un volume : UUID du système de fichiers, sinon empreinte du matériel."""
     if fs_uuid:
-        return "u-" + _KEY_SAFE.sub("_", fs_uuid.strip().lower())
+        return uuid_key(fs_uuid)
     raw = "|".join([serial or "", model or "", partn or "", str(size)])
     return "d-" + hashlib.sha1(raw.encode()).hexdigest()[:12]
 
