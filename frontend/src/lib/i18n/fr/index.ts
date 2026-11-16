@@ -8,8 +8,6 @@ import { radioSound } from "./radioSound.ts";
 import { radioRemote } from "./radioRemote.ts";
 import { radioScreen } from "./radioScreen.ts";
 import { radioAnnouncements } from "./radioAnnouncements.ts";
-import { header } from "./header.ts";
-import { playbackState } from "./playbackState.ts";
 import { common } from "./common.ts";
 import { dashboard } from "./dashboard.ts";
 import { mediaNative } from "./mediaNative.ts";
@@ -45,8 +43,6 @@ export const dictionary: Dict = {
   radioRemote,
   radioScreen,
   radioAnnouncements,
-  header,
-  playbackState,
   common,
   dashboard,
   mediaNative,
