@@ -28,8 +28,7 @@ def _players(channel: str) -> list[dict[str, Any]]:
     ]
 
 
-async def routing_view(service: Any, db: Session) -> dict[str, Any]:
-    caps = await service.driver.capabilities()
+async def routing_view(service: Any, db: Session, caps: dict[str, Any]) -> dict[str, Any]:
     audio_cap = caps.get("audio_list", {"supported": False})
     sinks = await service.current_sinks()
     routes = load_routes(db)
