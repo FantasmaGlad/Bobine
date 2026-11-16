@@ -1,0 +1,210 @@
+.dv-defs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.dv-defs > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dv-defs dt {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dv-defs dd {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.dv-map-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dv-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.dv-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dv-legend-count {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+
+.dv-map-frame {
+  position: relative;
+  height: clamp(380px, 64vh, 680px);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  outline: none;
+  touch-action: none;
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--bg-surface));
+  border: 1px solid var(--glass-surface-border, var(--border-color));
+  cursor: grab;
+}
+
+.dv-map-frame:active {
+  cursor: grabbing;
+}
+
+.dv-map-frame:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-text);
+}
+
+.dv-map {
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+:root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--wifi,
+:root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--bluetooth {
+  animation: dv-flow 3.2s linear infinite;
+}
+
+.dv-map-controls {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dv-map-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+  border: 1px solid color-mix(in srgb, var(--text-main) 16%, var(--border-color));
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
+}
+
+.dv-map-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-surface));
+}
+
+.dv-map-btn:active {
+  transform: scale(0.92);
+}
+
+.dv-map-btn:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.dv-map-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14%;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 0 20px;
+  pointer-events: none;
+}
+
+.dv-map-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(320px, calc(100% - 24px));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  cursor: default;
+  animation: dv-panel-in var(--dur-slow) var(--ease-out) both;
+  background: var(--glass-floating-bg, var(--bg-surface));
+  border: 1px solid var(--glass-floating-border, var(--border-color));
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(var(--saturate-soft));
+  backdrop-filter: blur(var(--blur-lg)) saturate(var(--saturate-soft));
+  box-shadow: var(--glass-floating-shadow, 0 12px 32px color-mix(in srgb, var(--ink) 20%, transparent));
+}
+
+.dv-map-panel header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dv-map-panel header .dv-text {
+  flex: 1 1 0;
+}
+
+.dv-map-conn {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.dv-map-panel .dv-defs {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 720px) {
+  .dv-map-frame {
+    height: clamp(340px, 58vh, 560px);
+  }
+
+  .dv-map-panel {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 8px;
+    width: auto;
+    max-height: 56%;
+  }
+
+  .dv-map-controls {
+    bottom: auto;
+    top: 10px;
+  }
+
+  .dv-legend-count {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-map-panel {
+    animation: none;
+  }
+}

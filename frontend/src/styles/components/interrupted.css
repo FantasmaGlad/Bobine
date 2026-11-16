@@ -1,0 +1,36 @@
+.interrupted-block {
+  background: var(--bg-surface);
+  border: 1px solid color-mix(in srgb, var(--accent-warning) 35%, transparent);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.interrupted-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.interrupted-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-warning-text);
+}
+
+.interrupted-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.interrupted-actions {
+  display: flex;
+  gap: 10px;
+}

@@ -1,0 +1,100 @@
+.settings-danger {
+  background: var(--danger-panel-bg);
+  border-color: var(--danger-text);
+}
+
+.settings-danger:hover {
+  border-color: var(--danger-text);
+  transform: none;
+}
+
+.settings-danger h3 {
+  color: var(--danger-text);
+}
+
+.settings-danger .settings-hint {
+  color: var(--text-muted);
+}
+
+.settings-danger-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.settings-danger-card {
+  padding: 20px 22px;
+  background: var(--danger-card-bg);
+  border: 1px solid var(--danger-text);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-danger-card h4 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--danger-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-danger-card p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.settings-danger-manual {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  overflow-wrap: anywhere;
+  margin-top: 2px;
+}
+
+.settings-danger .btn-danger {
+  min-height: 44px;
+  max-width: 100%;
+  white-space: normal;
+  background: var(--danger-action-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-text);
+}
+
+.settings-danger .btn-danger:hover:not(:disabled) {
+  background: var(--danger-action-hover-bg);
+  border-color: var(--danger-text);
+  transform: none;
+}
+
+.settings-danger .btn-danger:active:not(:disabled) {
+  background: var(--danger-action-active-bg);
+  transform: none;
+  filter: none;
+}
+
+.settings-danger .btn-danger:focus-visible {
+  outline: 3px solid var(--danger-text);
+  outline-offset: 3px;
+}
+
+.settings-uninstall-list {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.settings-uninstall-list li::marker {
+  color: var(--accent-error-text);
+}

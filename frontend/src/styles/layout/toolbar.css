@@ -1,0 +1,45 @@
+.sticky-glass-toolbar {
+  position: sticky;
+  top: -16px;
+  z-index: 25;
+  background: var(--glass-card-bg);
+  -webkit-backdrop-filter: blur(var(--blur-xl)) saturate(var(--saturate-rich));
+  backdrop-filter: blur(var(--blur-xl)) saturate(var(--saturate-rich));
+  border: 1px solid var(--glass-card-border);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 10%, transparent), inset 0 1px 1px 0 color-mix(in srgb, var(--specular) 16%, transparent);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  transition: transform 0.2s ease, box-shadow var(--transition-normal), border-color var(--transition-normal);
+}
+
+.toolbar-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-grow: 1;
+}
+
+.toolbar-secondary-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .toolbar-secondary-filters {
+    display: none;
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .toolbar-secondary-filters.open {
+    display: flex;
+  }
+
+  .toolbar-secondary-filters .filter-select {
+    flex: 1 1 140px;
+  }
+}

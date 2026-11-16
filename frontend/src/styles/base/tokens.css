@@ -1,0 +1,110 @@
+:root {
+  --hover-brightness: 1.12;
+  --press-brightness: 0.9;
+  --font-title: 'Archivo Expanded', 'Barlow Condensed', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sidebar-width: 260px;
+  --header-height: 70px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --logo-filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--ink) 35%, transparent));
+  --bg-content: var(--bg-main);
+  --bg-mobile-content: var(--bg-content);
+  --content-text-dim: var(--text-dim);
+  --danger-panel-bg: color-mix(in srgb, var(--accent-error) 9%, var(--bg-main));
+  --danger-card-bg: color-mix(in srgb, var(--accent-error) 12%, var(--bg-main));
+  --danger-text: var(--accent-error-text);
+  --danger-action-bg: color-mix(in srgb, var(--accent-error) 16%, var(--bg-main));
+  --danger-action-hover-bg: color-mix(in srgb, var(--accent-error) 22%, var(--bg-main));
+  --danger-action-active-bg: color-mix(in srgb, var(--accent-error) 28%, var(--bg-main));
+  --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 56%, transparent);
+  --glass-surface-border: color-mix(in srgb, var(--specular) 13%, var(--border-color));
+  --glass-surface-blur: var(--blur-xl);
+  --glass-card-bg: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+  --glass-card-border: color-mix(in srgb, var(--specular) 15%, var(--border-color));
+  --glass-card-highlight: inset 0 1px 0 0 color-mix(in srgb, var(--specular) 13%, transparent), inset 0 0 0 0.5px color-mix(in srgb, var(--specular) 5%, transparent);
+  --glass-floating-bg: color-mix(in srgb, var(--bg-surface-elevated) 88%, transparent);
+  --glass-floating-border: color-mix(in srgb, var(--specular) 18%, var(--border-color));
+  --glass-floating-blur: var(--blur-2xl);
+  --glass-card-blur: var(--blur-md);
+  --glass-card-shadow: 0 10px 28px color-mix(in srgb, var(--ink) 32%, transparent);
+  --glass-floating-shadow: 0 22px 56px color-mix(in srgb, var(--ink) 50%, transparent);
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --accent-focus: var(--accent-text);
+  --bg-hover: var(--bg-surface-hover);
+  --bg-surface-active: color-mix(in srgb, var(--bg-surface-hover) 88%, var(--text-main));
+  --blur-scale: 1;
+  --blur-xs: calc(4px * var(--blur-scale));
+  --blur-sm: calc(8px * var(--blur-scale));
+  --blur-md: calc(14px * var(--blur-scale));
+  --blur-lg: calc(22px * var(--blur-scale));
+  --blur-xl: calc(30px * var(--blur-scale));
+  --blur-2xl: calc(36px * var(--blur-scale));
+  --saturate-soft: 165%;
+  --saturate-rich: 190%;
+  --ink: #000000;
+  --specular: #ffffff;
+  --scrim-soft: color-mix(in srgb, var(--ink) 45%, transparent);
+  --scrim: color-mix(in srgb, var(--ink) 58%, transparent);
+  --scrim-strong: color-mix(in srgb, var(--ink) 76%, transparent);
+  --glass-chip-bg: color-mix(in srgb, var(--ink) 70%, transparent);
+  --glass-chip-blur: var(--blur-sm);
+  --scrim-media: color-mix(in srgb, color-mix(in srgb, var(--bg-main) 35%, var(--ink)) 82%, transparent);
+  --cinema-gutter: clamp(20px, 3.5vw, 56px);
+  --cinema-fade: calc(var(--cinema-gutter) * 0.7);
+  --remote-focus-scale: 1.06;
+  --focus-ring: var(--accent-text);
+  --remote-focus-ring: 0 0 0 3px var(--bg-main), 0 0 0 6px var(--focus-ring);
+  --remote-focus-shadow: 0 16px 36px color-mix(in srgb, var(--ink) 55%, transparent);
+  --remote-focus-glow: 0 0 24px color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  --remote-focus-ease: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root[data-mode="light"] {
+  --logo-filter: none;
+  --hover-brightness: 0.96;
+  --press-brightness: 0.92;
+  --bg-content: var(--bg-main);
+  --bg-mobile-content: var(--bg-main);
+  --content-text-dim: var(--text-dim);
+  --btn-outline: color-mix(in srgb, var(--text-main) 50%, transparent);
+  --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 78%, transparent);
+  --glass-surface-border: color-mix(in srgb, var(--text-main) 12%, transparent);
+  --glass-card-bg: color-mix(in srgb, var(--bg-surface) 84%, transparent);
+  --glass-card-border: color-mix(in srgb, var(--text-main) 14%, transparent);
+  --glass-card-highlight: inset 0 1px 0 0 color-mix(in srgb, var(--specular) 70%, transparent);
+  --glass-floating-bg: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  --glass-floating-border: color-mix(in srgb, var(--text-main) 16%, transparent);
+  --glass-card-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 8%, transparent);
+  --glass-floating-shadow: 0 18px 42px color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
+:root[data-mode="dark"] {
+
+}
+
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+}
+
+:root {
+  --btn-outline: color-mix(in srgb, var(--text-main) 44%, transparent);
+  --btn-outline-hover: color-mix(in srgb, var(--accent-text) 70%, var(--text-main) 10%);
+}
+
+:root {
+  --control-outline: var(--accent-text);
+}
+
+:root {
+  --tap-min: 44px;
+  --sheet-radius: 22px;
+}

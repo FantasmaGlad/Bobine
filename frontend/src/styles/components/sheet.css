@@ -1,0 +1,212 @@
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-main) 55%, color-mix(in srgb, var(--ink) 45%, transparent));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  backdrop-filter: blur(var(--blur-sm));
+  animation: fadeIn 0.18s ease-out;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-width: 640px;
+  max-height: min(88dvh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-bottom: 0;
+  border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+  padding: 8px 16px 0;
+  outline: none;
+  animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sheet-panel--tall {
+  height: min(88dvh, 760px);
+}
+
+.sheet-handle {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-color);
+  margin: 4px 0 6px;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--tap-min);
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-close {
+  flex-shrink: 0;
+  width: var(--tap-min);
+  height: var(--tap-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.sheet-sticky {
+  padding: 4px 0 10px;
+}
+
+.sheet-search {
+  width: 100%;
+  min-height: var(--tap-min);
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+}
+
+.sheet-footer {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.sheet-footer .btn {
+  flex: 1;
+  min-height: 52px;
+}
+
+.sheet-panel:not(:has(.sheet-footer)) .sheet-body {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 700px) {
+  .sheet-overlay {
+    align-items: center;
+  }
+
+  .sheet-panel {
+    border-bottom: 1px solid var(--border-color);
+    border-radius: var(--sheet-radius);
+  }
+}
+
+.sheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheet-group__title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 4px 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: var(--bg-surface);
+}
+
+.sheet-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 12px;
+  text-align: left;
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+}
+
+.sheet-option.is-selected {
+  border-color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-surface-elevated));
+  color: var(--accent-text);
+}
+
+.sheet-option__thumb {
+  width: 84px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  flex-shrink: 0;
+}
+
+.sheet-option__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sheet-option__label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.sheet-option__label.is-placeholder {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.sheet-option__sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.sheet-option__meta {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.sheet-option__thumb.is-square {
+  width: 48px;
+  aspect-ratio: 1 / 1;
+}
+
+.sheet-option.is-active:not(.is-selected) {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+}

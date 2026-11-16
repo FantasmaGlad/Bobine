@@ -1,0 +1,30 @@
+.upload-zone {
+  background: var(--glass-card-bg);
+  -webkit-backdrop-filter: blur(var(--glass-card-blur));
+  backdrop-filter: blur(var(--glass-card-blur));
+  border: 2px dashed var(--glass-card-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--glass-card-shadow);
+}
+
+.upload-zone:hover,
+.upload-zone.drag-active {
+  border-color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--glass-card-bg));
+}
+
+.upload-icon {
+  color: var(--text-muted);
+}
+
+.upload-zone:hover .upload-icon {
+  color: var(--accent-text);
+}

@@ -1,0 +1,179 @@
+.grid-standby-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.grid-standby-card {
+  width: 100%;
+  max-width: 580px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 36px 32px;
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--ink) 35%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  animation: fadeIn 0.3s ease;
+}
+
+.grid-standby-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 20px;
+}
+
+.grid-standby-logo {
+  height: 48px;
+  width: auto;
+}
+
+.grid-standby-clock {
+  font-family: var(--font-title);
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-standby-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.grid-standby-title {
+  font-family: var(--font-title);
+  font-size: 1.45rem;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+.grid-standby-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.grid-standby-status-box {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid-standby-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-success-text);
+}
+
+.grid-standby-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-success);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-success) 70%, transparent);
+  animation: pulseSuccess 2s infinite;
+}
+
+.grid-standby-status-desc {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.grid-standby-now-playing {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.88rem;
+}
+
+.grid-standby-now-playing-label {
+  color: var(--accent-text);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.grid-standby-now-playing-title {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.grid-standby-now-playing-time {
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-standby-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.grid-standby-btn-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 52px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: none;
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.grid-standby-btn-main:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.grid-standby-action-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: -4px 0 6px;
+  line-height: 1.4;
+}
+
+.grid-standby-btn-admin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  font-size: 0.9rem;
+  text-decoration: none;
+}

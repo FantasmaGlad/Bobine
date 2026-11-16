@@ -1,0 +1,139 @@
+.coach-console-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+  .coach-console-grid {
+    grid-template-columns: 1fr 1.15fr;
+    max-width: 1280px;
+    align-items: start;
+    text-align: left;
+  }
+}
+
+.coach-audio-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  align-items: center;
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .coach-audio-col {
+    align-items: center;
+    text-align: center;
+  }
+}
+
+.coach-monitor-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.coach-monitor-placeholder {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-main));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coach-monitor-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 30%, transparent) 0%, transparent 40%, color-mix(in srgb, var(--ink) 50%, transparent) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.coach-monitor-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+}
+
+.coach-monitor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--glass-chip-bg);
+  -webkit-backdrop-filter: blur(var(--glass-chip-blur));
+  backdrop-filter: blur(var(--glass-chip-blur));
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--specular);
+  border: 1px solid color-mix(in srgb, var(--specular) 15%, transparent);
+}
+
+.coach-monitor-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-error);
+  box-shadow: 0 0 8px var(--accent-error);
+  animation: olcPulseDot 1.8s ease-in-out infinite;
+}
+
+.coach-monitor-bottom {
+  position: relative;
+  z-index: 2;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-monitor-track-title {
+  font-family: var(--font-title);
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--specular);
+  line-height: 1.2;
+  text-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 80%, transparent);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-monitor-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: color-mix(in srgb, var(--specular) 85%, transparent);
+  font-weight: 600;
+}
+
+.coach-volume-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.coach-volume-value {
+  flex: 1;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+}

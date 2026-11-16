@@ -1,0 +1,57 @@
+.drawer-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-body {
+  padding: 24px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.drawer-video-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  flex-shrink: 0;
+  background: var(--ink);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.drawer-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.drawer-form .form-group {
+  min-width: 0;
+}
+
+.drawer-form .form-control {
+  width: 100%;
+  min-width: 0;
+}
+
+.drawer-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}

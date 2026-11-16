@@ -1,0 +1,103 @@
+.cinema-controls {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px 36px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--bg-main) 70%, transparent), transparent 30%, transparent 65%, color-mix(in srgb, var(--bg-main) 80%, transparent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.cinema-controls.visible {
+  opacity: 1;
+  pointer-events: none;
+}
+
+.cinema-controls-top,
+.cinema-controls-bottom {
+  pointer-events: auto;
+}
+
+.cinema-controls-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cinema-controls-bottom {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.cinema-ctl-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg-main) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-main) 22%, transparent);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.cinema-ctl-btn:hover {
+  background: color-mix(in srgb, var(--text-main) 20%, transparent);
+}
+
+.cinema-ctl-round {
+  padding: 12px;
+  border-radius: 50%;
+}
+
+.cinema-seek {
+  flex: 1;
+  height: 6px;
+  cursor: pointer;
+}
+
+.cinema-deck-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink);
+}
+
+.cinema-deck {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 0.4s ease;
+  background: var(--ink);
+  pointer-events: none;
+}
+
+.cinema-deck.deck-active {
+  opacity: 1;
+  z-index: 2;
+}
+
+.cinema-deck.deck-idle {
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@media (min-width: 901px) {
+  .cinema-controls {
+    padding: clamp(14px, 3vmin, 36px) clamp(18px, 4vmin, 48px);
+  }
+}

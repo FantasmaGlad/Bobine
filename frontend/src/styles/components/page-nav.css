@@ -1,0 +1,17 @@
+.page-nav {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.page-nav-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.page-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}

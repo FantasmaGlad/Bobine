@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8") + "\n" + readFileSync(new URL("../src/app/themes.css", import.meta.url), "utf8");
+const STYLES = new URL("../src/styles/", import.meta.url);
+const css = [...readFileSync(new URL("index.css", STYLES), "utf8").matchAll(/@import "([^"]+)";/g)]
+  .map((m) => readFileSync(new URL(m[1], STYLES), "utf8"))
+  .join("\n");
 import { THEME_IDS } from "../src/lib/themePalettes.ts";
 
 type Rgba = { r: number; g: number; b: number; a: number };
@@ -186,7 +189,7 @@ for (const theme of THEMES) {
 }
 
 function declaration(selector: string, property: string): string {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/,\s*/g, ",\\s*");
   const block = new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(css)?.[1];
   assert.ok(block, `${selector} introuvable dans le CSS`);
   const value = new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+);?`).exec(block)?.[1];

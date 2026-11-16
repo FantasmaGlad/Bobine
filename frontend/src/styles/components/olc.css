@@ -1,0 +1,50 @@
+.olc-anim-in {
+  animation: olcSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.olc-spin {
+  animation: olcSpin 1s linear infinite;
+}
+
+.olc-indeterminate-bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 2px;
+  animation: olcIndeterminate 1.2s ease-in-out infinite;
+}
+
+.olc-card-hover {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.olc-card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 25%, transparent);
+  border-color: var(--border-focus);
+}
+
+.olc-press {
+  transition: transform 0.12s ease, filter 0.12s ease;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.olc-press:active {
+  transform: scale(0.96);
+  filter: brightness(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .olc-anim-in,
+  .dashboard-container > *,
+  .status-pill.ok::before {
+    animation: none !important;
+  }
+
+  .olc-card-hover,
+  .olc-press,
+  .btn,
+  .close-btn {
+    transition: none !important;
+  }
+}

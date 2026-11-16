@@ -1,0 +1,62 @@
+.view-toggle {
+  display: flex;
+  background: color-mix(in srgb, var(--text-main) 5%, var(--bg-surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--text-main) 16%, var(--border-color));
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+}
+
+.view-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
+}
+
+.view-btn:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--text-main) 5%, transparent);
+}
+
+.view-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-color: color-mix(in srgb, var(--text-main) 14%, var(--border-color));
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.view-toggle {
+  max-width: 100%;
+}
+
+.view-toggle,
+.seg,
+.display-output-buttons {
+  border-color: color-mix(in srgb, var(--text-main) 36%, transparent);
+}
+
+@media (max-width: 640px) {
+  .view-toggle {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .view-toggle::-webkit-scrollbar {
+    display: none;
+  }
+
+  .view-toggle .view-btn {
+    flex-shrink: 0;
+    min-height: 38px;
+  }
+}

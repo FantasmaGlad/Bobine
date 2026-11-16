@@ -1,0 +1,15 @@
+.glass,
+.glass-surface {
+  background: var(--glass-surface-bg);
+  -webkit-backdrop-filter: blur(var(--glass-surface-blur));
+  backdrop-filter: blur(var(--glass-surface-blur));
+  border: 1px solid var(--glass-surface-border);
+}
+
+.glass-floating {
+  background: var(--glass-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-floating-blur));
+  backdrop-filter: blur(var(--glass-floating-blur));
+  border: 1px solid var(--glass-floating-border);
+  box-shadow: var(--glass-card-highlight), 0 18px 42px color-mix(in srgb, var(--ink) 28%, transparent);
+}

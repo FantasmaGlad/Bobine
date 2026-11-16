@@ -1,0 +1,92 @@
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--tap-min);
+  text-align: left;
+  cursor: pointer;
+}
+
+.select-trigger__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-trigger__label.is-placeholder {
+  color: var(--text-muted);
+}
+
+.rs-trigger {
+  width: 100%;
+  min-width: 0;
+}
+
+.rs-trigger.has-preview {
+  min-height: 58px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.rs-trigger__selected {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.rs-trigger__selected .sheet-option__thumb {
+  width: 76px;
+}
+
+.rs-trigger__selected .sheet-option__label,
+.rs-trigger__selected .sheet-option__sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rs-popover {
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--bg-surface);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--ink) 28%, transparent);
+  overflow: hidden;
+}
+
+.rs-popover__search {
+  flex-shrink: 0;
+}
+
+.rs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.rs-popover .sheet-option {
+  min-height: 52px;
+}
+
+.rs-popover .sheet-option__thumb {
+  width: 76px;
+}
+
+.rs-popover .sheet-option__thumb.is-square,
+.rs-trigger__selected .sheet-option__thumb.is-square {
+  width: 48px;
+}

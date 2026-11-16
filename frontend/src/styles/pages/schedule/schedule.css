@@ -1,0 +1,54 @@
+.schedule-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  min-height: 0;
+}
+
+.schedule-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.schedule-day-header {
+  padding: 10px 12px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--specular) 2%, transparent);
+}
+
+.schedule-day-header-name {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.schedule-day-header-date {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.schedule-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.schedule-list-day-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 14px 4px 8px;
+}

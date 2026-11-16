@@ -1,0 +1,89 @@
+.coach-exit-btn-centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  min-height: 52px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--accent-error) 12%, var(--bg-surface-elevated));
+  border: 1.5px solid color-mix(in srgb, var(--accent-error) 45%, var(--border-color));
+  color: var(--accent-error-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.coach-exit-btn-centered:hover {
+  background: color-mix(in srgb, var(--accent-error) 22%, var(--bg-surface-elevated));
+  border-color: var(--accent-error);
+}
+
+.coach-icon-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.coach-controls-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.coach-btn {
+  min-height: 64px;
+  min-width: 64px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.coach-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.coach-btn-main {
+  min-height: 96px;
+  min-width: 96px;
+  border-radius: 50%;
+  font-size: 2.2rem;
+  color: var(--accent-primary-fg);
+  border: none;
+}
+
+.coach-btn-wide {
+  width: 100%;
+  max-width: 360px;
+  font-size: 1rem;
+  font-weight: 700;
+  gap: 10px;
+}
+
+.coach-btn-square {
+  min-height: 64px;
+  min-width: 64px;
+  border-radius: var(--radius-md);
+}

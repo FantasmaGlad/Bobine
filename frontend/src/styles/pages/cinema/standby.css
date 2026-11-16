@@ -1,0 +1,116 @@
+.cinema-empty-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 5vh 5vw;
+  background: var(--bg-main);
+  color: var(--text-main);
+  text-align: center;
+}
+
+.cinema-empty-logo {
+  height: min(28vh, 36vw);
+  width: auto;
+}
+
+.cinema-empty-clock {
+  font-size: 5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.cinema-empty-message {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.cinema-standby-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 5vh 5vw;
+  background: var(--bg-main);
+  color: var(--text-main);
+  text-align: center;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.cinema-standby-logo {
+  height: min(24vh, 30vw);
+  width: auto;
+  margin-bottom: 4px;
+}
+
+.cinema-standby-clock {
+  font-family: var(--font-title, sans-serif);
+  font-size: clamp(3.5rem, 8vw, 6.5rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--accent-text);
+  line-height: 1;
+}
+
+.cinema-standby-title {
+  font-family: var(--font-title, sans-serif);
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.cinema-standby-hint {
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.cinema-empty {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  padding: 0 var(--cinema-gutter);
+}
+
+.cinema-empty-logo {
+  height: min(28vmin, 36vw);
+}
+
+.cinema-empty-clock {
+  font-size: clamp(3rem, 11vmin, 10rem);
+}
+
+.cinema-empty-message {
+  font-size: clamp(1rem, 2.4vmin, 2rem);
+}
+
+.cinema-standby-logo {
+  height: min(24vmin, 30vw);
+}
+
+.cinema-standby-clock {
+  font-size: clamp(3rem, 12vmin, 11rem);
+}
+
+.cinema-standby-title {
+  font-size: clamp(1.6rem, 5vmin, 4.4rem);
+}
+
+.cinema-standby-hint {
+  font-size: clamp(1rem, 2.6vmin, 2.2rem);
+  max-width: 90vw;
+}

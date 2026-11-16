@@ -1,0 +1,155 @@
+.radio-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  padding: 5vh 5vw;
+  overflow: hidden;
+  text-align: center;
+}
+
+.radio-screen-clock {
+  font-size: 6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.radio-screen-idle-label {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-top: -12px;
+}
+
+.radio-cover {
+  width: min(38vh, 38vw);
+  height: min(38vh, 38vw);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--ink) 40%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.radio-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.radio-meta-title {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.radio-meta-artist {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.radio-screen-progress {
+  width: min(600px, 80vw);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.radio-screen-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.radio-screen-volume {
+  width: min(300px, 60vw);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+}
+
+.radio-brand-logo {
+  height: min(30vh, 38vw);
+  width: auto;
+}
+
+.radio-lib {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.radio-lib-main {
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.radio-screen {
+  gap: clamp(8px, 2.6vmin, 40px);
+  padding: 3vmin 4vmin;
+  overflow: hidden auto;
+  scrollbar-width: none;
+}
+
+.radio-screen::-webkit-scrollbar {
+  display: none;
+}
+
+.radio-screen-clock {
+  font-size: clamp(3rem, 14vmin, 14rem);
+  line-height: 1;
+}
+
+.radio-screen-idle-label {
+  font-size: clamp(0.9rem, 2.4vmin, 2rem);
+  margin-top: 0;
+}
+
+.radio-cover {
+  width: min(34vmin, 70vw);
+  height: min(34vmin, 70vw);
+  border-radius: clamp(10px, 2vmin, 28px);
+}
+
+.radio-meta-title {
+  font-size: clamp(1.3rem, 4.2vmin, 4.4rem);
+  line-height: 1.15;
+  max-width: 92vw;
+}
+
+.radio-meta-artist {
+  font-size: clamp(0.95rem, 2.6vmin, 2.4rem);
+}
+
+.radio-screen-progress {
+  width: min(90vmin, 80vw);
+}
+
+.radio-screen-controls {
+  gap: clamp(10px, 2.4vmin, 36px);
+}
+
+.radio-screen-volume {
+  width: min(40vmin, 60vw);
+}
+
+.radio-brand-logo {
+  height: min(30vmin, 38vw);
+}

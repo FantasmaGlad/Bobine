@@ -1,0 +1,142 @@
+.mobile-remote {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 16px 28px;
+  align-items: center;
+}
+
+.mobile-remote-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  text-align: center;
+  gap: 8px;
+}
+
+.mobile-remote-now {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mobile-remote-title {
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.mobile-remote-progress {
+  width: 100%;
+}
+
+.mobile-remote-seek {
+  width: 100%;
+  height: 10px;
+}
+
+.mobile-remote-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-top: auto;
+}
+
+.mobile-remote-stop {
+  width: 100%;
+  max-width: 360px;
+  font-size: 0.95rem;
+  color: var(--accent-text);
+  transition: background var(--transition-fast);
+}
+
+.mobile-remote-stop.holding {
+  background: color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-color: var(--accent-text);
+}
+
+.mobile-remote-quick-row {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mobile-remote-quick-btn {
+  flex: 1;
+  min-width: 100px;
+  min-height: 64px;
+  text-align: center;
+  justify-content: center;
+}
+
+.mobile-remote-output {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 0;
+}
+
+.now-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
+  -webkit-backdrop-filter: blur(var(--glass-card-blur));
+  backdrop-filter: blur(var(--glass-card-blur));
+  box-shadow: var(--glass-card-highlight), 0 8px 28px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.now-card__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.now-card__label .is-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.now-card .course-card--hero .course-card__thumb {
+  border-radius: var(--radius-md);
+}
+
+.now-card__times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.now-card__next {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.now-card .mobile-remote-seek {
+  margin-top: 2px;
+}

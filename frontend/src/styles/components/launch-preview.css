@@ -1,0 +1,39 @@
+.launch-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.launch-preview__description {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+
+.launch-preview__specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.launch-preview__specs span {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-elevated);
+}
+
+.launch-tabs {
+  display: flex;
+}
+
+.launch-tabs .view-btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 40px;
+}

@@ -1,0 +1,53 @@
+.wired-display-action-card {
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.wired-display-action-card:hover {
+  border-color: var(--accent-text) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+.theme-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.theme-picker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface-elevated);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.theme-picker-card:hover {
+  transform: translateY(-2px);
+}
+
+.theme-picker-card.active {
+  border-color: var(--accent-text);
+}
+
+.theme-picker-swatch {
+  display: flex;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.theme-picker-swatch span {
+  flex: 1;
+}
+
+.theme-picker-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  text-align: center;
+}

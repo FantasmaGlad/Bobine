@@ -1,0 +1,31 @@
+.drag-drop-zone {
+  flex: 1;
+  min-height: 150px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--specular) 1%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+}
+
+.drag-drop-zone.drag-over {
+  border-color: var(--accent-text);
+  background: color-mix(in srgb, var(--accent-primary) 5%, transparent);
+}
+
+.drag-handle {
+  color: var(--text-dim);
+  cursor: grab;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}

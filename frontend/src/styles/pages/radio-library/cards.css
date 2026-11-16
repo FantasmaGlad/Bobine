@@ -1,0 +1,238 @@
+.rl-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.rl-card {
+  position: relative;
+}
+
+.rl-card.selected {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 0;
+}
+
+.rl-card-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  background: color-mix(in srgb, var(--ink) 50%, transparent);
+  border: none;
+  border-radius: 999px;
+  color: var(--specular);
+  cursor: pointer;
+  display: flex;
+  padding: 3px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.rl-card:hover .rl-card-check,
+.rl-card-check.on {
+  opacity: 1;
+}
+
+.rl-card-check.on {
+  color: var(--accent-text);
+  background: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+
+.rl-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  padding-top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-elevated);
+}
+
+.rl-card-artist {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rl-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.rl-card-tag {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  background: var(--bg-surface-elevated);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.rl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.rl-cards--compact {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.rl-pcard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  text-align: left;
+  color: var(--text-main);
+  background: var(--glass-card-bg, var(--bg-surface));
+  border: 1px solid var(--glass-surface-border, transparent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font: inherit;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.rl-pcard:hover {
+  border-color: var(--accent-text);
+  transform: translateY(-1px);
+}
+
+.rl-pcard-cover {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rl-pcard-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rl-pcard-cover--round {
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  width: 96px;
+  margin: 0 auto;
+}
+
+.rl-pcard-star {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: var(--accent-warning);
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+  border-radius: 999px;
+  padding: 3px;
+  display: flex;
+}
+
+.rl-pcard-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rl-pcard-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rl-pcard-meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.rl-pcard-badges {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.rl-pcard-badges .rl-card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rl-pcard-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rl-pcard-actions .btn {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+.rl-pcard--simple {
+  align-items: stretch;
+}
+
+.rl-tagcard {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--glass-card-bg, var(--bg-surface));
+  border: 1px solid var(--glass-surface-border, transparent);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px 2px 2px;
+}
+
+.rl-tagcard:hover {
+  border-color: var(--accent-text);
+}
+
+.rl-tagcard-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 8px;
+  font: inherit;
+  text-align: left;
+}
+
+.rl-tagcard-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+}
+
+.rl-tagcard-btn:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+}
+
+@media (max-width: 768px) {
+  .rl-cards {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}

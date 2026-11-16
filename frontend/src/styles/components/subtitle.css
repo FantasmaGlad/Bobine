@@ -1,0 +1,25 @@
+.subtitle-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subtitle-picker__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.subtitle-picker .filter-select,
+.subtitle-picker .select-trigger {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+
+.subtitle-picker--inline {
+  margin: 8px 0;
+}

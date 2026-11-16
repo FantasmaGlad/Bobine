@@ -1,0 +1,23 @@
+:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.dv-map-btn)):active {
+  transform: scale(0.97);
+  filter: brightness(var(--press-brightness, 0.92));
+}
+
+:where([role="button"]:not(button)):where(:not([aria-disabled="true"])):active {
+  transform: scale(0.988);
+}
+
+:where(*):focus:not(:focus-visible) {
+  outline: none;
+}
+
+:where(button, [role="button"], summary, a.btn, [tabindex="0"]):focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"], summary, a.btn):active {
+    transform: none;
+  }
+}

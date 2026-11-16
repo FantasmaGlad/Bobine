@@ -1,0 +1,30 @@
+@media (max-width: 720px) {
+  .live-controls--icons {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .live-controls--icons .control-label {
+    display: none;
+  }
+
+  .live-controls--icons .control-btn,
+  .live-controls--icons .control-btn-main,
+  .live-controls--icons .control-btn-pill {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    height: 46px;
+    padding: 0;
+    border-radius: var(--radius-md);
+  }
+
+  .live-controls--icons .control-btn-main {
+    flex: 1.6 1 0;
+  }
+
+  .live-controls--icons ~ .volume-row .volume-presets {
+    display: none;
+  }
+}

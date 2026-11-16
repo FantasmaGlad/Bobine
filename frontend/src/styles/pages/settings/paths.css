@@ -1,0 +1,126 @@
+.settings-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-path-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: baseline;
+  padding: 8px 10px;
+  background: var(--bg-surface-elevated);
+  border-radius: var(--radius-sm);
+}
+
+.settings-path-key {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.settings-path-val {
+  color: var(--text-main);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem;
+  text-align: right;
+  word-break: break-all;
+}
+
+.settings-path-link {
+  color: var(--accent-text);
+  text-decoration: none;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem;
+  text-align: right;
+  word-break: break-all;
+  transition: opacity var(--transition-fast);
+}
+
+.settings-path-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .settings-path-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .settings-path-key {
+    flex-shrink: 1;
+  }
+
+  .settings-path-link,
+  .settings-path-val {
+    min-width: 0 !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-size: 0.8rem;
+  }
+}
+
+.settings-paths--compact {
+  gap: 4px;
+}
+
+.settings-path-row--system {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-path-row--system .settings-path-key {
+  min-width: 180px;
+}
+
+.settings-path-val--path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-path-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .settings-path-row--system {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 10px 12px;
+  }
+
+  .settings-path-row--system .settings-path-key {
+    min-width: 0;
+    flex: 1 1 100%;
+    font-weight: 700;
+  }
+
+  .settings-path-row--system .settings-path-val--path {
+    flex: 1 1 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 0.75rem;
+  }
+
+  .settings-path-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  .settings-path-actions .btn {
+    flex: 1;
+    min-height: 40px;
+  }
+}

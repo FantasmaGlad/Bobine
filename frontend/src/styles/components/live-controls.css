@@ -1,0 +1,30 @@
+.live-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .live-controls {
+    gap: 6px;
+    justify-content: space-between;
+  }
+
+  .live-controls .control-btn {
+    min-width: 40px;
+    height: 44px;
+    padding: 0 8px;
+  }
+
+  .live-controls .control-btn-main {
+    flex: 2 1 auto;
+    min-width: 90px;
+  }
+
+  .live-controls .control-btn-icon {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+  }
+}

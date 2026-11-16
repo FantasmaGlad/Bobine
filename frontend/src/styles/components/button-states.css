@@ -1,0 +1,37 @@
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-focus);
+}
+
+.btn-secondary:not(:disabled),
+.coach-btn:not(.coach-btn-main):not(:disabled),
+.radio-transport-btn:not(.main):not(.active) {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--btn-outline);
+}
+
+.btn-secondary:hover:not(:disabled),
+.coach-btn:not(.coach-btn-main):hover:not(:disabled),
+.radio-transport-btn:not(.main):not(.active):hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--btn-outline-hover);
+}
+
+.grid-now-playing-btn:not(.grid-now-playing-btn-main),
+.cinema-ctl-btn {
+  border: 1px solid color-mix(in srgb, var(--text-main) 28%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--specular) 28%, transparent), 0 6px 18px color-mix(in srgb, var(--ink) 28%, transparent);
+}
+
+.btn-primary:not(:disabled),
+.btn-primary:hover:not(:disabled),
+.radio-transport-btn.main,
+.grid-now-playing-btn-main {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 72%, var(--ink) 28%);
+}
+
+.mobile-filter-toggle-btn.active {
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated));
+  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent);
+  color: var(--accent-text);
+}

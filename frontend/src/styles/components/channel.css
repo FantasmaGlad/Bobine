@@ -1,0 +1,22 @@
+.channel-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.channel-card-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .channel-card-right {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+}

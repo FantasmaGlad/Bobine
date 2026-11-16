@@ -1,0 +1,44 @@
+.volume-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+
+.volume-preset-btn {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast), filter var(--transition-fast);
+}
+
+.volume-preset-btn:hover {
+  color: var(--text-main);
+  border-color: var(--border-focus);
+}
+
+.volume-preset-btn.active {
+  background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated));
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.volume-value {
+  min-width: 40px;
+  text-align: right;
+  color: var(--text-main);
+}

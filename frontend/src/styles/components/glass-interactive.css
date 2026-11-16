@@ -1,0 +1,40 @@
+.glass-interactive {
+  position: relative;
+  isolation: isolate;
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+
+.glass-interactive:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.glass-interactive.is-selected,
+.dv-row.active.glass-interactive {
+  border-color: color-mix(in srgb, var(--accent-primary) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary) 55%, transparent), 0 4px 14px color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  background-image: none;
+  background-color: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent-primary) 35%, transparent);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--ink) 14%, transparent);
+  }
+
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover .dv-icon,
+  :root:not([data-input-mode="remote"]) .glass-interactive:hover .rl-list-cover {
+    background: color-mix(in srgb, var(--accent-primary) 16%, var(--bg-surface-elevated));
+    color: var(--accent-text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-interactive,
+  .seg-indicator {
+    transition: none !important;
+    transform: none !important;
+  }
+}
