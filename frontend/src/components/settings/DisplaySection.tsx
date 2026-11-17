@@ -5,7 +5,7 @@ import DisplayLinkCard from "@/components/settings/display/DisplayLinkCard";
 import DisplayModeCard from "@/components/settings/display/DisplayModeCard";
 import LidSetting from "@/components/settings/display/LidSetting";
 import type { SettingsData } from "@/components/settings/types";
-import type { DisplayModeSetting } from "@/lib/AppSettingsContext";
+import type { DisplayModeSetting } from "@/lib/settings/types";
 import type { ShowToast } from "@/lib/useToast";
 
 interface DisplaySectionProps {
