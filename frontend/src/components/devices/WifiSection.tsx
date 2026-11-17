@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
-import { devicesRequest, secondsLeft, signalBars, wifiConnectPlan, type WifiNetwork, type WifiStatus } from "@/lib/devicesApi";
+import { devicesRequest } from "@/lib/devices/request";
+import { secondsLeft, signalBars, wifiConnectPlan } from "@/lib/devices/wireless";
+import { type WifiNetwork, type WifiStatus } from "@/lib/devices/types";
 import { errorText, openSystemSettings, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
 
 interface AckRequest {

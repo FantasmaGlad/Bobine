@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
-import { importJobsUrl, isFinished, jobPercent, type ImportJob } from "@/lib/storageApi";
+import { importJobsUrl } from "@/lib/storage/request";
+import { isFinished, jobPercent } from "@/lib/storage/display";
+import { type ImportJob } from "@/lib/storage/types";
 import { tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {

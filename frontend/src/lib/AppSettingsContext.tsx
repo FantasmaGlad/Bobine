@@ -1,67 +1,25 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { clearCachesAndReload } from "@/lib/cacheReload";
 import { translate, translateList, UI_LANGUAGE, type Language } from "@/lib/i18n";
-import { pushThemeToNative, pushUpdateChannelToNative } from "@/lib/nativeBridge";
-import { applyChannelFavicon, DEFAULT_RELEASE_CHANNEL, isReleaseChannel, type UpdateChannel } from "@/lib/releaseChannel";
-import { useGlassGovernor } from "@/lib/useGlassGovernor";
+import { pushUpdateChannelToNative } from "@/lib/nativeBridge";
+import { DEFAULT_RELEASE_CHANNEL, type UpdateChannel } from "@/lib/releaseChannel";
+import { readBranding, readSettings, fetchSettings, persistSettings, type SettingsPatch } from "@/lib/settings/payload";
 import {
-  DEFAULT_MODE,
-  DEFAULT_THEME,
-  resolveMode,
-  resolveStored,
-  type ResolvedMode,
-  type ThemeId,
-  type ThemeMode,
-} from "@/lib/themePalettes";
-import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
-
-export type Theme = ThemeId;
-
-export interface NetworkInfo {
-  localIp: string | null;
-  port: number;
-  mdnsUrl: string;
-}
-
-export type ActiveLogo = "default" | "custom";
-export type { UpdateChannel };
-export type WiredDisplayMode = "dual_screen" | "headless";
-export type DisplayModeSetting = "auto" | WiredDisplayMode;
-
-interface AppSettingsContextValue {
-  theme: Theme;
-  themeMode: ThemeMode;
-  resolvedMode: ResolvedMode;
-  language: Language;
-  storedLanguage: Language;
-  languagePending: boolean;
-  simplifiedUi: boolean;
-  setSimplifiedUi: (value: boolean) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-  tList: (key: string) => string[];
-  setTheme: (theme: Theme) => void;
-  setThemeMode: (mode: ThemeMode) => void;
-  setLanguage: (language: Language) => void;
-  hasCustomLogo: boolean;
-  activeLogo: ActiveLogo;
-  setActiveLogo: (activeLogo: ActiveLogo) => void;
-  logoVersion: number;
-  refreshBranding: () => void;
-  updateChannel: UpdateChannel;
-  wiredDisplayMode: WiredDisplayMode;
-  setWiredDisplayMode: (mode: WiredDisplayMode) => void;
-  displayModeSetting: DisplayModeSetting;
-  setDisplayModeSetting: (setting: DisplayModeSetting) => void;
-  displayExternalCount: number | null;
-  waitTimeBetweenCourses: number;
-  network: NetworkInfo;
-}
-
-const DEFAULT_LANGUAGE: Language = "fr";
-const DEFAULT_WIRED_DISPLAY_MODE: WiredDisplayMode = "headless";
-const DEFAULT_NETWORK: NetworkInfo = { localIp: null, port: 1903, mdnsUrl: "http://bobine.local" };
+  DEFAULT_LANGUAGE,
+  DEFAULT_NETWORK,
+  DEFAULT_WIRED_DISPLAY_MODE,
+  type ActiveLogo,
+  type AppSettingsContextValue,
+  type DisplayModeSetting,
+  type NetworkInfo,
+  type Theme,
+  type WiredDisplayMode,
+} from "@/lib/settings/types";
+import { useSettingsSocket } from "@/lib/settings/useSettingsSocket";
+import { useThemeDocument } from "@/lib/settings/useThemeDocument";
+import { useGlassGovernor } from "@/lib/useGlassGovernor";
+import { DEFAULT_MODE, DEFAULT_THEME, resolveStored, type ThemeMode } from "@/lib/themePalettes";
 
 const AppSettingsContext = createContext<AppSettingsContextValue>({
   theme: DEFAULT_THEME,
@@ -96,322 +54,134 @@ export function useAppSettings() {
   return useContext(AppSettingsContext);
 }
 
-export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  useGlassGovernor();
-  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(DEFAULT_MODE);
-  const [resolvedMode, setResolvedMode] = useState<ResolvedMode>("light");
-  const language: Language = UI_LANGUAGE;
-  const [storedLanguage, setLanguageState] = useState<Language>(UI_LANGUAGE);
-  const [simplifiedUi, setSimplifiedUiState] = useState(false);
+function useSettingsState() {
+  const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(DEFAULT_MODE);
+  const [storedLanguage, setLanguage] = useState<Language>(UI_LANGUAGE);
+  const [simplifiedUi, setSimplifiedUi] = useState(false);
   const [hasCustomLogo, setHasCustomLogo] = useState(false);
-  const [activeLogo, setActiveLogoState] = useState<ActiveLogo>("default");
+  const [activeLogo, setActiveLogo] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
-  const [wiredDisplayMode, setWiredDisplayModeState] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
+  const [wiredDisplayMode, setWiredDisplayMode] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
   const [waitTimeBetweenCourses, setWaitTimeBetweenCourses] = useState<number>(0);
-  const [displayModeSetting, setDisplayModeSettingState] = useState<DisplayModeSetting>("auto");
+  const [displayModeSetting, setDisplayModeSetting] = useState<DisplayModeSetting>("auto");
   const [displayExternalCount, setDisplayExternalCount] = useState<number | null>(null);
   const [network, setNetwork] = useState<NetworkInfo>(DEFAULT_NETWORK);
   const [updateChannel, setUpdateChannel] = useState<UpdateChannel>(DEFAULT_RELEASE_CHANNEL);
 
-  const refreshBranding = useCallback(() => {
-    fetch(getApiUrl("/settings"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        if (typeof data.has_custom_logo === "boolean") {
-          setHasCustomLogo(data.has_custom_logo);
-          setLogoVersion((v) => v + 1);
-        }
-        if (data.active_logo === "default" || data.active_logo === "custom") {
-          setActiveLogoState(data.active_logo);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const applySettingsPayload = useCallback((data: Record<string, unknown> | null) => {
-    if (!data) return;
-    if (typeof data.theme === "string") {
-      const stored = resolveStored(data.theme, data.theme_mode);
-      setThemeState(stored.theme);
-      setThemeModeState(stored.mode);
-    }
-    if (data.language === "fr" || data.language === "en") {
-      setLanguageState(data.language);
-    }
-    if (data.simplified_ui === "true" || data.simplified_ui === "false") {
-      setSimplifiedUiState(data.simplified_ui === "true");
-    }
-    if (typeof data.has_custom_logo === "boolean") {
-      setHasCustomLogo(data.has_custom_logo);
+  const apply = useCallback((patch: SettingsPatch) => {
+    if (patch.theme !== undefined) setTheme(patch.theme);
+    if (patch.themeMode !== undefined) setThemeMode(patch.themeMode);
+    if (patch.language !== undefined) setLanguage(patch.language);
+    if (patch.simplifiedUi !== undefined) setSimplifiedUi(patch.simplifiedUi);
+    if (patch.hasCustomLogo !== undefined) {
+      setHasCustomLogo(patch.hasCustomLogo);
       setLogoVersion((v) => v + 1);
     }
-    if (data.active_logo === "default" || data.active_logo === "custom") {
-      setActiveLogoState(data.active_logo);
+    if (patch.activeLogo !== undefined) setActiveLogo(patch.activeLogo);
+    if (patch.wiredDisplayMode !== undefined) setWiredDisplayMode(patch.wiredDisplayMode);
+    if (patch.updateChannel !== undefined) {
+      setUpdateChannel(patch.updateChannel);
+      pushUpdateChannelToNative(patch.updateChannel);
     }
-    if (data.wired_display_mode === "dual_screen" || data.wired_display_mode === "headless") {
-      setWiredDisplayModeState(data.wired_display_mode);
-    }
-    if (isReleaseChannel(data.update_channel)) {
-      setUpdateChannel(data.update_channel);
-      pushUpdateChannelToNative(data.update_channel);
-    }
-    if (data.display_mode_setting === "auto" || data.display_mode_setting === "dual_screen" || data.display_mode_setting === "headless") {
-      setDisplayModeSettingState(data.display_mode_setting);
-    }
-    setDisplayExternalCount(typeof data.display_external_count === "number" ? data.display_external_count : null);
-    if (typeof data.wait_time_between_courses === "number") {
-      setWaitTimeBetweenCourses(data.wait_time_between_courses);
-    }
-    if (data.network && typeof data.network === "object") {
-      const net = data.network as { local_ip?: string | null; port?: number; mdns_url?: string };
-      setNetwork({
-        localIp: typeof net.local_ip === "string" ? net.local_ip : null,
-        port: typeof net.port === "number" ? net.port : DEFAULT_NETWORK.port,
-        mdnsUrl: typeof net.mdns_url === "string" ? net.mdns_url : DEFAULT_NETWORK.mdnsUrl,
-      });
-    }
+    if (patch.displayModeSetting !== undefined) setDisplayModeSetting(patch.displayModeSetting);
+    if ("displayExternalCount" in patch) setDisplayExternalCount(patch.displayExternalCount ?? null);
+    if (patch.waitTimeBetweenCourses !== undefined) setWaitTimeBetweenCourses(patch.waitTimeBetweenCourses);
+    if (patch.network !== undefined) setNetwork(patch.network);
   }, []);
+
+  const values = React.useMemo(
+    () => ({ theme, themeMode, storedLanguage, simplifiedUi, hasCustomLogo, activeLogo, logoVersion, wiredDisplayMode, waitTimeBetweenCourses, displayModeSetting, displayExternalCount, network, updateChannel }),
+    [theme, themeMode, storedLanguage, simplifiedUi, hasCustomLogo, activeLogo, logoVersion, wiredDisplayMode, waitTimeBetweenCourses, displayModeSetting, displayExternalCount, network, updateChannel],
+  );
+  return { values, apply };
+}
+
+function useSettingsSync(apply: (patch: SettingsPatch) => void) {
+  const refetch = useCallback(() => {
+    fetchSettings().then((data) => data && apply(readSettings(data))).catch(() => {});
+  }, [apply]);
 
   useEffect(() => {
     try {
       const cachedTheme = localStorage.getItem("olc-theme");
       if (cachedTheme) {
         const stored = resolveStored(cachedTheme, localStorage.getItem("olc-theme-mode"));
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état avec le cache localStorage au montage, même motif que le chargement initial ailleurs dans le projet (library/playlists/schedule)
-        setThemeState(stored.theme);
-        setThemeModeState(stored.mode);
+        apply({ theme: stored.theme, themeMode: stored.mode });
       }
     } catch {
     }
-
-    fetch(getApiUrl("/settings"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then(applySettingsPayload)
-      .catch(() => {});
-  }, [applySettingsPayload]);
+    refetch();
+  }, [apply, refetch]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      fetch(getApiUrl("/settings"), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then(applySettingsPayload)
-        .catch(() => {});
-    }, 15000);
+    const id = setInterval(refetch, 15000);
     return () => clearInterval(id);
-  }, [applySettingsPayload]);
+  }, [refetch]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let ws: WebSocket | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout>;
-    let bootId: string | null = null;
+  useSettingsSocket({ apply, refetch });
 
-    const connect = () => {
-      if (cancelled || typeof window === "undefined") return;
-      ws = new WebSocket(getPlaybackWsUrl());
-      ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
-      ws.onmessage = (evt) => {
-        try {
-          const parsed = JSON.parse(evt.data);
-          if (parsed.event === "ping") {
-            ws?.send(JSON.stringify({ command: "pong" }));
-            return;
-          }
-          if (parsed.event === "boot_id") {
-            if (bootId === null) bootId = parsed.boot_id;
-            else if (bootId !== parsed.boot_id) void clearCachesAndReload();
-            return;
-          }
-          if (parsed.event === "settings_change") {
-            if (typeof parsed.theme === "string") {
-              const stored = resolveStored(parsed.theme, parsed.theme_mode);
-              setThemeState(stored.theme);
-              setThemeModeState(stored.mode);
-            }
-            if (parsed.language === "fr" || parsed.language === "en") {
-              setLanguageState(parsed.language);
-            }
-            if (parsed.simplified_ui === "true" || parsed.simplified_ui === "false") {
-              setSimplifiedUiState(parsed.simplified_ui === "true");
-            }
-            if (typeof parsed.has_custom_logo === "boolean") {
-              setHasCustomLogo(parsed.has_custom_logo);
-              setLogoVersion((v) => v + 1);
-            }
-            if (parsed.active_logo === "default" || parsed.active_logo === "custom") {
-              setActiveLogoState(parsed.active_logo);
-            }
-            if (parsed.wired_display_mode === "dual_screen" || parsed.wired_display_mode === "headless") {
-              setWiredDisplayModeState(parsed.wired_display_mode);
-            }
-            if (isReleaseChannel(parsed.update_channel)) {
-              setUpdateChannel(parsed.update_channel);
-              pushUpdateChannelToNative(parsed.update_channel);
-            }
-          }
-          if (parsed.event === "display_mode_change") {
-            const mode = parsed.mode || parsed.wired_display_mode;
-            if (mode === "dual_screen" || mode === "headless") {
-              setWiredDisplayModeState(mode);
-            }
-            fetch(getApiUrl("/settings"), { cache: "no-store" })
-              .then((res) => (res.ok ? res.json() : null))
-              .then(applySettingsPayload)
-              .catch(() => {});
-          }
-        } catch {
-        }
-      };
-      ws.onclose = () => {
-        if (!cancelled) reconnectTimer = setTimeout(connect, 3000);
-      };
-      ws.onerror = () => ws?.close();
-    };
+  return useCallback(() => {
+    fetchSettings().then((data) => data && apply(readBranding(data))).catch(() => {});
+  }, [apply]);
+}
 
-    connect();
-    return () => {
-      cancelled = true;
-      clearTimeout(reconnectTimer);
-      ws?.close();
-    };
-  }, [applySettingsPayload]);
+export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
+  useGlassGovernor();
+  const { values, apply } = useSettingsState();
+  const refreshBranding = useSettingsSync(apply);
+  const language: Language = UI_LANGUAGE;
+  const { theme, themeMode } = values;
+  const resolvedMode = useThemeDocument(theme, themeMode, language, values.updateChannel);
 
-  useEffect(() => {
-    const query = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : null;
-    const apply = () => {
-      const resolved = resolveMode(themeMode, Boolean(query?.matches));
-      document.documentElement.setAttribute("data-mode", resolved);
-      setResolvedMode(resolved);
-    };
-    apply();
-    if (themeMode !== "auto" || !query) return;
-    query.addEventListener("change", apply);
-    return () => query.removeEventListener("change", apply);
-  }, [themeMode]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    try {
-      localStorage.setItem("olc-theme", theme);
-      localStorage.setItem("olc-theme-mode", themeMode);
-    } catch {
-    }
-    const frame = requestAnimationFrame(() => requestAnimationFrame(pushThemeToNative));
-    return () => cancelAnimationFrame(frame);
-  }, [theme, themeMode, resolvedMode]);
-
-  useEffect(() => {
-    document.documentElement.lang = language;
-  }, [language]);
-
-  useEffect(() => {
-    applyChannelFavicon(document, updateChannel);
-  }, [updateChannel]);
-
-  const persist = useCallback((payload: Record<string, string | boolean>) => {
-    fetch(getApiUrl("/settings"), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).catch(() => {});
-  }, []);
-
-  const setTheme = useCallback(
-    (value: Theme) => {
-      setThemeState(value);
-      persist({ theme: value, theme_mode: themeMode });
+  const setTheme = useCallback((value: Theme) => {
+    apply({ theme: value });
+    persistSettings({ theme: value, theme_mode: themeMode });
+  }, [apply, themeMode]);
+  const setThemeMode = useCallback((value: ThemeMode) => {
+    apply({ themeMode: value });
+    persistSettings({ theme, theme_mode: value });
+  }, [apply, theme]);
+  const setters = React.useMemo(() => ({
+    setLanguage: (value: Language) => {
+      apply({ language: value });
+      persistSettings({ language: value });
     },
-    [persist, themeMode]
-  );
-
-  const setThemeMode = useCallback(
-    (value: ThemeMode) => {
-      setThemeModeState(value);
-      persist({ theme, theme_mode: value });
+    setSimplifiedUi: (value: boolean) => {
+      apply({ simplifiedUi: value });
+      persistSettings({ simplified_ui: value ? "true" : "false" });
     },
-    [persist, theme]
-  );
-
-  const setLanguage = useCallback(
-    (value: Language) => {
-      setLanguageState(value);
-      persist({ language: value });
+    setActiveLogo: (value: ActiveLogo) => {
+      apply({ activeLogo: value });
+      persistSettings({ active_logo: value });
     },
-    [persist]
-  );
-
-  const setSimplifiedUi = useCallback(
-    (value: boolean) => {
-      setSimplifiedUiState(value);
-      persist({ simplified_ui: value ? "true" : "false" });
+    setWiredDisplayMode: (value: WiredDisplayMode) => {
+      apply({ wiredDisplayMode: value });
+      persistSettings({ wired_display_mode: value });
     },
-    [persist]
-  );
-
-  const setActiveLogo = useCallback(
-    (value: ActiveLogo) => {
-      setActiveLogoState(value);
-      persist({ active_logo: value });
+    setDisplayModeSetting: (value: DisplayModeSetting) => {
+      apply(value !== "auto" ? { displayModeSetting: value, wiredDisplayMode: value } : { displayModeSetting: value });
+      persistSettings({ display_mode_setting: value });
     },
-    [persist]
-  );
+  }), [apply]);
 
-  const setWiredDisplayMode = useCallback(
-    (value: WiredDisplayMode) => {
-      setWiredDisplayModeState(value);
-      persist({ wired_display_mode: value });
-    },
-    [persist]
-  );
-
-  const setDisplayModeSetting = useCallback(
-    (value: DisplayModeSetting) => {
-      setDisplayModeSettingState(value);
-      if (value !== "auto") setWiredDisplayModeState(value);
-      persist({ display_mode_setting: value });
-    },
-    [persist]
-  );
-
-  const t = useCallback(
-    (key: string, params?: Record<string, string | number>) => translate(key, params),
-    []
-  );
-
+  const t = useCallback((key: string, params?: Record<string, string | number>) => translate(key, params), []);
   const tList = useCallback((key: string) => translateList(key), []);
 
   const value = React.useMemo(
     () => ({
-      theme,
-      themeMode,
-      resolvedMode,
-      language,
-      storedLanguage,
-      languagePending: storedLanguage !== language,
-      simplifiedUi,
-      setSimplifiedUi,
-      t,
-      tList,
+      ...values,
+      ...setters,
       setTheme,
       setThemeMode,
-      setLanguage,
-      hasCustomLogo,
-      activeLogo,
-      setActiveLogo,
-      logoVersion,
+      resolvedMode,
+      language,
+      languagePending: values.storedLanguage !== language,
+      t,
+      tList,
       refreshBranding,
-      wiredDisplayMode,
-      setWiredDisplayMode,
-      displayModeSetting,
-      setDisplayModeSetting,
-      displayExternalCount,
-      waitTimeBetweenCourses,
-      network,
-      updateChannel,
     }),
-    [theme, themeMode, resolvedMode, language, storedLanguage, simplifiedUi, setSimplifiedUi, t, tList, setTheme, setThemeMode, setLanguage, hasCustomLogo, activeLogo, setActiveLogo, logoVersion, refreshBranding, wiredDisplayMode, setWiredDisplayMode, displayModeSetting, setDisplayModeSetting, displayExternalCount, waitTimeBetweenCourses, network, updateChannel]
+    [values, setters, setTheme, setThemeMode, resolvedMode, language, t, tList, refreshBranding]
   );
 
   return (

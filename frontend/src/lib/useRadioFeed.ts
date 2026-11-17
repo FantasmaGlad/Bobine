@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { RadioOutputId } from "@/lib/devicesApi";
+import type { RadioOutputId } from "@/lib/devices/routing";
 import { clampMix, smoothLevel, type MeterId, type RadioMix } from "@/lib/radioMix";
 import { clampSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { RadioRoute } from "@/lib/audioRoute";

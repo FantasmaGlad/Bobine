@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import Icon from "@/components/Icon";
-import { audioKindIcon } from "@/lib/devicesApi";
+import { audioKindIcon } from "@/lib/devices/audio";
 import {
   assignmentFor, layoutRoutingGraph, sinkAt, truncateLabel,
   type Assignment, type GraphLayout, type GraphSink, type GraphSource, type RoutingGraphModel,

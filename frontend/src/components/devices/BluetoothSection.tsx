@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
-import { bluetoothKindIcon, devicesRequest, splitBluetooth, type BluetoothDevice, type BluetoothStatus } from "@/lib/devicesApi";
+import { bluetoothKindIcon, splitBluetooth } from "@/lib/devices/wireless";
+import { devicesRequest } from "@/lib/devices/request";
+import { type BluetoothDevice, type BluetoothStatus } from "@/lib/devices/types";
 import { errorText, openSystemSettings, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
 
 export default function BluetoothSection({ caps, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {

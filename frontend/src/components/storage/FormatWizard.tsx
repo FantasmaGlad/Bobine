@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
-import {
-  canConfirmFormat, canLeaveWizard, defaultFormat, encodeKey, formatBytes, formatFinished, formatTravels, fsLabel, labelProblem, needsNewPlan,
-  reflectionLeft, refusalKey, stepIcon, storageRequest, visibleNotes, FORMAT_STEP_ORDER,
-  type FormatFs, type FormatJob, type FormatOption, type FormatPlan,
-} from "@/lib/storageApi";
-import type { ApiError } from "@/lib/devicesApi";
+import { canConfirmFormat, canLeaveWizard, defaultFormat, formatFinished, formatTravels, labelProblem, needsNewPlan, reflectionLeft, refusalKey, stepIcon, FORMAT_STEP_ORDER, type FormatFs, type FormatJob, type FormatOption, type FormatPlan } from "@/lib/storage/format";
+import { encodeKey, storageRequest } from "@/lib/storage/request";
+import { formatBytes } from "@/lib/storage/display";
+import { fsLabel, visibleNotes } from "@/lib/storage/advice";
+import type { ApiError } from "@/lib/apiError";
 import { storageErrorText, tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {

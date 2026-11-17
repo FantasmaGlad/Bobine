@@ -1,4 +1,5 @@
-import type { AudioDevice, AudioKind, RadioOutputId, RoutingOutput } from "./devicesApi.ts";
+import type { AudioDevice, AudioKind } from "./devices/types.ts";
+import type { RadioOutputId, RoutingOutput } from "./devices/routing.ts";
 
 export type SourceKind = "radio" | "announcements" | "video";
 

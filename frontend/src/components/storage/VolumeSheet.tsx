@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
-import {
-  encodeKey, formatBytes, fsLabel, healthWarningKeys, longevitySummary, overallTone, STANDBY_CHOICES, storageRequest, visibleNotes,
-  type Health, type LongevityItem, type LongevitySettings, type StorageVolume,
-} from "@/lib/storageApi";
+import { encodeKey, storageRequest } from "@/lib/storage/request";
+import { formatBytes, healthWarningKeys, longevitySummary, overallTone, STANDBY_CHOICES } from "@/lib/storage/display";
+import { fsLabel, visibleNotes } from "@/lib/storage/advice";
+import { type Health, type LongevityItem, type LongevitySettings, type StorageVolume } from "@/lib/storage/types";
 import { storageErrorText, tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {

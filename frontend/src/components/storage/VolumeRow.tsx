@@ -1,10 +1,8 @@
 "use client";
 
 import Icon from "@/components/Icon";
-import {
-  formatBytes, healthWarningKeys, portableIcon, primaryAction, statusIcon, volumeIcon, volumeStatus,
-  type PortableDevice, type StorageVolume,
-} from "@/lib/storageApi";
+import { formatBytes, healthWarningKeys, portableIcon, primaryAction, statusIcon, volumeIcon, volumeStatus } from "@/lib/storage/display";
+import { type PortableDevice, type StorageVolume } from "@/lib/storage/types";
 import { tr, type StorageCtx } from "./common";
 
 interface VolumeProps extends StorageCtx {

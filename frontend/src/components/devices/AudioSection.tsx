@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
-import { audioDisplayName, audioKindIcon, devicesRequest, type AudioDevice, type AudioListing } from "@/lib/devicesApi";
+import { audioDisplayName, audioKindIcon } from "@/lib/devices/audio";
+import { devicesRequest } from "@/lib/devices/request";
+import { type AudioDevice, type AudioListing } from "@/lib/devices/types";
 import AudioDetailSheet from "./AudioDetailSheet";
 import { errorText, openSystemSettings, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
 

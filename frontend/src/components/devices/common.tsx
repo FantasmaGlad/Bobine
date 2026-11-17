@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { devicesRequest, type ApiError, type Capabilities } from "@/lib/devicesApi";
+import { devicesRequest } from "@/lib/devices/request";
+import { type ApiError } from "@/lib/apiError";
+import { type Capabilities } from "@/lib/devices/types";
 
 export type Notify = (message: string, type?: "success" | "error" | "warning") => void;
 

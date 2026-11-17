@@ -1,5 +1,5 @@
-import type { ApiError } from "@/lib/devicesApi";
-import { formatBytes } from "@/lib/storageApi";
+import type { ApiError } from "@/lib/apiError";
+import { formatBytes } from "@/lib/storage/display";
 import type { Notify } from "@/components/devices/common";
 
 export type T = (key: string, params?: Record<string, string | number>) => string;

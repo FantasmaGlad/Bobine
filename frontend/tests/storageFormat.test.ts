@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  canConfirmFormat, canLeaveWizard, defaultFormat, formatFinished, formatTravels, labelProblem, needsNewPlan, primaryAction, reflectionLeft, refusalKey,
-  stepIcon, volumeStatus, FORMAT_STEP_ORDER, type FormatOption, type FormatPlan,
-} from "../src/lib/storageApi.ts";
+import { canConfirmFormat, canLeaveWizard, defaultFormat, formatFinished, formatTravels, labelProblem, needsNewPlan, reflectionLeft, refusalKey, stepIcon, FORMAT_STEP_ORDER, type FormatOption, type FormatPlan } from "../src/lib/storage/format.ts";
+import { primaryAction, volumeStatus } from "../src/lib/storage/display.ts";
 import { dictionaries } from "../src/lib/i18n/all.ts";
 
 const option = (fs: FormatOption["fs"], available = true): FormatOption => ({

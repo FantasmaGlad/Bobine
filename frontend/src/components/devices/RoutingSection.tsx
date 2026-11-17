@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect, { type SelectOption } from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
-import {
-  audioDisplayName, devicesRequest, summarizeRouting,
-  type AudioListing, type RadioOutputId, type RoutingOutput, type RoutingView,
-} from "@/lib/devicesApi";
+import { audioDisplayName } from "@/lib/devices/audio";
+import { devicesRequest } from "@/lib/devices/request";
+import { summarizeRouting, type RadioOutputId, type RoutingOutput, type RoutingView } from "@/lib/devices/routing";
+import { type AudioListing } from "@/lib/devices/types";
 import type { RadioFeed } from "@/lib/useRadioFeed";
 import { buildRoutingGraph, type Assignment } from "@/lib/routingGraph";
 import { errorText, useDevicesResource, type SectionProps } from "./common";
