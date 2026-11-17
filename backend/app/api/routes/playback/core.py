@@ -7,9 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from app.api.contract import CHANNELS, DEFAULT_CHANNEL
 from app.playback.manager import init_playback_managers
-from app.radio_manager import (
-    init_radio_managers,
-)
+from app.radio.manager import init_radio_managers
 from app.utils.activity_log import log_activity
 from app.utils.ws_manager import manager as ws_manager
 

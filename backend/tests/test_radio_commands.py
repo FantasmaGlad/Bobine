@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import config_files
+from app import config_mirror
 from app.database import SessionLocal, init_db
 from app.main import app
 from app.models import RadioAnnouncement
@@ -33,7 +34,7 @@ class FakeManager:
 @pytest.fixture()
 def mirrors(monkeypatch):
     calls = []
-    monkeypatch.setattr(config_files, "schedule_mirror", lambda: calls.append(True))
+    monkeypatch.setattr(config_mirror, "schedule_mirror", lambda: calls.append(True))
     return calls
 
 
@@ -71,7 +72,7 @@ def test_rest_routes_use_the_shared_code():
 
 
 def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
-    from app.radio_manager import get_radio_manager
+    from app.radio.manager import get_radio_manager
     from app.utils.radio_sound import load_sound
 
     init_db()
@@ -90,7 +91,7 @@ def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
 
 
 def test_play_now_and_the_facade_reach_the_same_players():
-    from app.radio_manager import get_radio_manager
+    from app.radio.manager import get_radio_manager
 
     init_db()
     with SessionLocal() as db:

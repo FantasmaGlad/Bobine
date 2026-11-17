@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from app.devices.base import DeviceError
-from app.storage import availability, library, transfer
+from app.storage import availability, library, verified_copy
 from app.storage.lsblk import duplicate_uuids
 from app.storage.types import Inventory, Volume
 
@@ -31,7 +31,7 @@ class MonitorMixin:
         try:
             await asyncio.to_thread(_offline)
             availability.set_online({})
-            await asyncio.to_thread(transfer.purge_staging)
+            await asyncio.to_thread(verified_copy.purge_staging)
         except Exception as exc:
             logger.warning("Initialisation du stockage externe : %s", exc)
         try:
@@ -211,5 +211,5 @@ class MonitorMixin:
             "ready": self._ready,
             "error": self._last_error,
             "hidden_count": len(self._inventory.excluded),
-            "free_local_bytes": await asyncio.to_thread(transfer.free_bytes),
+            "free_local_bytes": await asyncio.to_thread(verified_copy.free_bytes),
         }

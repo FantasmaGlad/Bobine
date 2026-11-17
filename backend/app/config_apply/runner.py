@@ -5,6 +5,8 @@ from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app import config_files
+from app import config_builders
+from app import config_mirror
 from app.config_apply.context import ConfigErrors, _Context
 from app.config_apply.registry import APPLIERS, ORDER
 from app.config_apply.values import _diff
@@ -16,7 +18,7 @@ async def apply(db: Session, files: dict[str, Any], *, dry_run: bool, include_ma
     for effect in effects:
         await effect(db)
     if not dry_run:
-        config_files.schedule_mirror()
+        config_mirror.schedule_mirror()
     return result
 
 
@@ -88,7 +90,7 @@ def _validate_and_write(
         if error:
             ctx.fail(name, error)
             continue
-        changes[name] = _diff(name, config_files.BUILDERS[name](db), document)
+        changes[name] = _diff(name, config_builders.BUILDERS[name](db), document)
         _apply_document(db, ctx, name, document)
     _finish(db, ctx, dry_run)
     result = {

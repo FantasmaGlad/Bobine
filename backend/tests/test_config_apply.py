@@ -11,6 +11,8 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app import config_files  # noqa: E402
+from app import config_mirror  # noqa: E402
+from app import config_builders  # noqa: E402
 from app.config_apply.context import ConfigErrors  # noqa: E402
 from app.config_apply.runner import apply as apply_configuration  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
@@ -32,13 +34,13 @@ def _quiet_effects(monkeypatch):
     synced = []
     monkeypatch.setattr("app.scheduling.jobs.sync_schedule_job", lambda schedule: synced.append(schedule.channel))
     monkeypatch.setattr("app.scheduling.jobs.remove_schedule_job", lambda schedule_id: None)
-    monkeypatch.setattr(config_files, "schedule_mirror", lambda: None)
+    monkeypatch.setattr(config_mirror, "schedule_mirror", lambda: None)
     return synced
 
 
 def _export():
     with SessionLocal() as db:
-        files = config_files.export_all(db)
+        files = config_builders.export_all(db)
     files.pop("machine.json")
     return files
 
@@ -115,7 +117,7 @@ def test_announcements_toggle_and_machine_file_needs_consent(single_names):
     files = _export()
     files["library/announcements.json"]["announcements"][0]["enabled"] = False
     with SessionLocal() as db:
-        machine = config_files.build_machine(db)
+        machine = config_builders.build_machine(db)
     result = _apply({"library/announcements.json": files["library/announcements.json"], "machine.json": machine})
     assert result["skipped"] == ["machine.json"]
     with SessionLocal() as db:

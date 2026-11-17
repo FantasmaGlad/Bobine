@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models import Setting
-from app.radio_manager import RADIO_CHANNELS
+from app.api.contract import RADIO_CHANNELS
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ def save_routes(db: Session, routes: dict[str, dict[str, Any]]) -> None:
 
 def load_routes_into_managers(db: Session) -> None:
     """Au démarrage : publie les routes mémorisées dans l'état des deux sorties radio."""
-    from app.radio_manager import get_all_radio_managers
+    from app.radio.manager import get_all_radio_managers
 
     routes = load_routes(db)
     for channel, manager in get_all_radio_managers().items():

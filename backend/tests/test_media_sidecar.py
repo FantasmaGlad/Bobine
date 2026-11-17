@@ -7,6 +7,7 @@ import time
 
 import pytest
 
+from app.utils import media_protocol
 from app.utils import media_sidecar as media
 
 
@@ -211,7 +212,7 @@ def test_close_interrupts_active_request_and_is_final(child_factory):
 def test_request_limit_and_missing_binary_use_fallback(child_factory, monkeypatch):
     create, children = child_factory
     client = create()
-    assert client.probe_audio("x" * media.MAX_REQUEST_BYTES) is None
+    assert client.probe_audio("x" * media_protocol.MAX_REQUEST_BYTES) is None
     assert children[0].returncode is not None
     monkeypatch.setenv("BOBINE_MEDIA_SIDECAR", "/nonexistent component --shell-option")
     assert media.find_binary() is None

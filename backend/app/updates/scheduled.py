@@ -25,7 +25,7 @@ def something_is_playing() -> bool:
     """Vrai si un canal vidéo ou une sortie radio joue : une mise à jour planifiée ne coupe jamais une séance."""
     from app.playback.constants import PlaybackStateEnum
     from app.playback.manager import get_all_playback_managers
-    from app.radio_manager import get_all_radio_managers
+    from app.radio.manager import get_all_radio_managers
 
     try:
         playback, radios = get_all_playback_managers(), get_all_radio_managers()

@@ -51,10 +51,10 @@ def load_all_video_sounds_into_managers(db: Session) -> None:
 
 async def apply_video_sound(db: Session, manager, raw, client_ts: float | None = None) -> dict[str, Any]:
     """Réglages de son d'UN canal : bornés (jamais d'erreur), champs absents inchangés ; persistés puis diffusés."""
-    from app import config_files
+    from app import config_mirror
 
     sound = sanitize_sound(raw, base=manager.state.get("sound"))
     save_video_sound(db, manager.channel, sound)
     await manager.set_sound(sound, client_ts)
-    config_files.schedule_mirror()
+    config_mirror.schedule_mirror()
     return sound

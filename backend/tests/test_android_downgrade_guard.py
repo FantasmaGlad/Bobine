@@ -195,7 +195,7 @@ def test_planification_reportee_pendant_une_lecture(monkeypatch, android_beta):
 
 
 def test_detection_de_lecture_video_et_radio(monkeypatch):
-    from app import radio_manager
+    from app.radio import manager as radio_manager
     from app.playback import manager as playback_manager
 
     class Fake:

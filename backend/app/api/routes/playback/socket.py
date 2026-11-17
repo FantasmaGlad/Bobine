@@ -10,11 +10,8 @@ from sqlalchemy.orm import Session
 from app.api.contract import CHANNELS, DEFAULT_CHANNEL
 from app.database import get_db
 from app.playback.manager import get_playback_manager
-from app.radio_manager import (
-    get_all_radio_managers,
-    is_radio_channel,
-    normalize_radio_channel,
-)
+from app.radio.channels import is_radio_channel, normalize_radio_channel
+from app.radio.manager import get_all_radio_managers
 from app.utils.boot_state import current_boot_id
 from app.utils.ws_manager import manager as ws_manager
 

@@ -22,7 +22,8 @@ from app.models import (
     ScheduleType,
     Video,
 )
-from app.radio_manager import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS, normalize_radio_channel
+from app.api.contract import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS
+from app.radio.channels import normalize_radio_channel
 from app.scheduling.jobs import remove_schedule_job, sync_schedule_job
 from app.scheduling.occurrences import ensure_utc, expand_occurrences, resolve_target_display, resolve_target_title
 from app.utils.activity_log import log_activity

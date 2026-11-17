@@ -6,7 +6,8 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-from app.radio_manager import TRACK_END_GRACE_SECONDS, RadioPlaybackManager  # noqa: E402
+from app.radio.constants import TRACK_END_GRACE_SECONDS  # noqa: E402
+from app.radio.manager import RadioPlaybackManager  # noqa: E402
 from app.utils.playback_clock import PlaybackClock  # noqa: E402
 
 TRACKS = [

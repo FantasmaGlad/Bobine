@@ -83,7 +83,7 @@ def test_import_refuses_when_local_disk_is_too_small(env, monkeypatch):
     vol = env.driver.plug("sda", "AAAA-0009", {"a.mp4": b"x" * 1000})
     env.refresh()
     env.client.post(f"/api/storage/volumes/{vol.key}/mount", json={})
-    monkeypatch.setattr("app.storage.transfer.free_bytes", lambda directory=None: 10)
+    monkeypatch.setattr("app.storage.verified_copy.free_bytes", lambda directory=None: 10)
     response = env.client.post(f"/api/storage/volumes/{vol.key}/import", json={"entries": [{"path": "a.mp4"}], "kind": "video"})
     assert response.status_code == 409 and codes(response) == "insufficient_space"
     assert response.json()["detail"]["needed_bytes"] > response.json()["detail"]["free_bytes"]

@@ -9,7 +9,7 @@ import shutil
 from typing import Any, Callable
 
 from app.devices.base import DeviceError
-from app.storage import fsadvisor, library, paths, transfer
+from app.storage import fsadvisor, import_plan, library, paths, transfer, verified_copy
 from app.storage.lsblk import media_for_kind
 from app.storage.types import Volume
 
@@ -22,7 +22,7 @@ def _export_items(kind: str, ids: list[int]) -> list[tuple[str, str]]:
 
     model = {"video": Video, "audio": AudioTrack, "radio": RadioTrack}.get(kind)
     if model is None:
-        raise transfer.TransferError("bad_kind", "Nature d'export inconnue.", 400)
+        raise verified_copy.TransferError("bad_kind", "Nature d'export inconnue.", 400)
     with SessionLocal() as db:
         rows = db.query(model).filter(model.id.in_(ids)).all()
         return [(row.file_path, paths.safe_dest_name(f"{row.title}{os.path.splitext(row.file_path)[1].lower()}"))
@@ -90,18 +90,18 @@ class TransferMixin:
 
         source = self._source(key)
         if not entries:
-            raise transfer.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
+            raise verified_copy.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
 
-        def _plan() -> transfer.Plan:
+        def _plan() -> import_plan.Plan:
             with SessionLocal() as db:
-                return transfer.plan_import(source.root, entries, kind, source.source_id, db, force)
+                return import_plan.plan_import(source.root, entries, kind, source.source_id, db, force)
 
         plan = await asyncio.to_thread(_plan)
         if not plan.units:
             return {"job_id": None, "files": 0, "bytes": 0, "skipped": plan.skipped, "truncated": plan.truncated}
-        transfer.check_space(plan.total_bytes)
+        verified_copy.check_space(plan.total_bytes)
         label = plan.units[0].title if len(plan.units) == 1 else f"{len(plan.units)} éléments"
-        job_id = create_job(transfer.JOB_KIND[kind], label, label, source="storage")
+        job_id = create_job(import_plan.JOB_KIND[kind], label, label, source="storage")
         release = self._mark_busy(key, job_id)
         verify_source = not source.portable
         future = transfer.storage_executor.submit(
@@ -132,12 +132,12 @@ class TransferMixin:
         if lib_id is None:
             raise DeviceError("not_registered", "Enregistrez d'abord ce support comme bibliothèque externe.", 409)
         if not entries:
-            raise transfer.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
+            raise verified_copy.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
         plan = await asyncio.to_thread(indexer.plan_index, source.root, entries, kind)
         if not plan.units:
             return {"job_id": None, "files": 0, "skipped": plan.skipped, "truncated": plan.truncated}
         label = plan.units[0].title if len(plan.units) == 1 else f"{len(plan.units)} éléments"
-        job_id = create_job(transfer.JOB_KIND[kind], label, label, source="storage")
+        job_id = create_job(import_plan.JOB_KIND[kind], label, label, source="storage")
         release = self._mark_busy(key, job_id)
         future = transfer.storage_executor.submit(indexer.run_index_job, job_id, lib_id, source.root, plan, release)
         register_job_future(job_id, future)
@@ -154,7 +154,7 @@ class TransferMixin:
         if not assessment.write_allowed:
             raise DeviceError("write_refused", "Ce système de fichiers n'est pas fiable en écriture : exportez vers un autre support.", 409)
         if not ids:
-            raise transfer.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
+            raise verified_copy.TransferError("empty_selection", "Aucun élément sélectionné.", 400)
         paths.clean_rel_path(dest or "Bobine")
         return source, vol
 
@@ -194,11 +194,11 @@ class TransferMixin:
         source, vol = self._check_export_target(key, ids, dest)
         items = await asyncio.to_thread(_export_items, kind, ids)
         if not items:
-            raise transfer.TransferError("nothing_to_export", "Aucun média local à exporter dans cette sélection.", 400)
+            raise verified_copy.TransferError("nothing_to_export", "Aucun média local à exporter dans cette sélection.", 400)
         total = sum(os.path.getsize(p) for p, _ in items)
         free = (await asyncio.to_thread(shutil.disk_usage, source.root)).free
         if free < int(total * 1.02) + 16 * 1024 * 1024:
-            raise transfer.TransferError("insufficient_space", "Espace libre insuffisant sur le support.", 409, needed_bytes=total, free_bytes=free)
+            raise verified_copy.TransferError("insufficient_space", "Espace libre insuffisant sur le support.", 409, needed_bytes=total, free_bytes=free)
         settings = await self._effective_settings(vol)
         back_to_read_only = vol.mounted_read_only is not False or bool(settings.get("read_only"))
         job_id = create_job(kind, f"{len(items)} fichier(s) vers le support", "Export", source="storage")
@@ -238,12 +238,12 @@ class TransferMixin:
                     raise JobCancelledError(job_id)
                 update_job(job_id, current_file=name, files_done=index)
                 try:
-                    result = transfer.export_file(src, target, name, is_cancelled=lambda: is_job_cancelled(job_id), on_bytes=bump)
+                    result = verified_copy.export_file(src, target, name, is_cancelled=lambda: is_job_cancelled(job_id), on_bytes=bump)
                     summary["exported"] += 1
                     summary["bytes"] += result["size"]
-                except transfer.Cancelled:
+                except verified_copy.Cancelled:
                     raise JobCancelledError(job_id)
-                except transfer.TransferError as exc:
+                except verified_copy.TransferError as exc:
                     summary["failed"].append({"path": name, "code": exc.code, "message": exc.message})
                     if exc.code in ("dest_io",):
                         break
@@ -260,7 +260,7 @@ class TransferMixin:
                 update_job(job_id, stage="done", details=summary, files_done=len(items), progress_percent=100.0)
         except JobCancelledError:
             update_job(job_id, stage="cancelled", details=summary)
-        except transfer.TransferError as exc:
+        except verified_copy.TransferError as exc:
             update_job(job_id, stage="error", error=exc.message, details=summary)
         except Exception as exc:
             logger.warning("Export vers un support : %s", exc, exc_info=True)

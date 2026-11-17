@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.utils import ui_language
 from app import config_files
+from app import config_builders
 from app.models import (
     Setting,
 )
@@ -58,7 +59,7 @@ def _apply_settings(ctx: _Context, file: str, document: dict) -> None:
                 continue
             from app.config import settings as runtime_settings
 
-            if value != config_files._stored_int(ctx.db, setting_key, getattr(runtime_settings, setting_key)):
+            if value != config_builders._stored_int(ctx.db, setting_key, getattr(runtime_settings, setting_key)):
                 _write_setting(ctx.db, setting_key, str(value))
                 ctx.restart_required.append(f"radio.{key}")
 

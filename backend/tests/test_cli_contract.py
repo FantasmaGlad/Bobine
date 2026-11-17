@@ -136,7 +136,7 @@ def test_openapi_publishes_the_contract_patterns():
 
 
 def test_engines_and_routers_share_the_contract_values():
-    from app import radio_manager
+    from app.radio import manager as radio_manager
     from app.playback import manager as playback_manager
     from app.api.routes import logs, playback, schedule
 

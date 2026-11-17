@@ -9,9 +9,7 @@ from app.api.contract import PLAYBACK_ACTIONS, RADIO_ACTIONS, RADIO_OUTPUTS
 from app.database import get_db
 from app.api.contract import CHANNELS
 from app.playback.manager import get_playback_manager
-from app.radio_manager import (
-    get_radio_manager,
-)
+from app.radio.manager import get_radio_manager
 
 from .commands import execute_command
 from .core import CommandRejected

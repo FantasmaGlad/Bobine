@@ -4,7 +4,8 @@ import time
 
 from fastapi import WebSocket
 
-from app.radio_manager import LEGACY_RADIO_CHANNEL, normalize_radio_channel
+from app.api.contract import LEGACY_RADIO_CHANNEL
+from app.radio.channels import normalize_radio_channel
 
 logger = logging.getLogger(__name__)
 

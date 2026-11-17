@@ -11,6 +11,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest  # noqa: E402
 
 from app import config_files  # noqa: E402
+from app import config_library  # noqa: E402
 from app.config_apply.context import ConfigErrors  # noqa: E402
 from app.config_apply.runner import apply as apply_configuration  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
@@ -257,7 +258,7 @@ def data_dirs(tmp_path, monkeypatch):
 
 def _video_entry():
     with SessionLocal() as db:
-        return config_files.build_library_videos(db)["videos"][0]
+        return config_library.build_library_videos(db)["videos"][0]
 
 
 def test_library_links_chapters_and_subtitles_when_none_exist(single_names):

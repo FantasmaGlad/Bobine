@@ -19,7 +19,8 @@ from app.api.paging import Window, window
 from app.utils._pydantic_compat import fields_set
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
-from app.radio_manager import LEGACY_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
+from app.api.contract import LEGACY_RADIO_CHANNEL
+from app.radio.channels import RULE_TARGETS, normalize_rule_target
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
 from app.utils.radio_importer import import_radio_announcement, import_radio_announcements_from_files
@@ -213,7 +214,9 @@ def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
 @router.post("/announcements/play-now", response_model=AnnouncementPlayed)
 async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get_db)):
     """Déclenchement manuel — toujours en mode « duck » (fondu immédiat, la musique continue)."""
-    from app.radio_manager import RADIO_CHANNELS, RULE_TARGET_BOTH, get_radio_manager, normalize_rule_target
+    from app.api.contract import RADIO_CHANNELS
+    from app.radio.channels import RULE_TARGET_BOTH, normalize_rule_target
+    from app.radio.manager import get_radio_manager
     from app.utils.radio_commands import play_announcement_now as play_now, resolve_announcement
 
     announcement = resolve_announcement(db, payload.announcement_id)

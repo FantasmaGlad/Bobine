@@ -11,12 +11,12 @@ from app.utils.radio_sound import sanitize_sound, save_sound
 
 async def apply_sound(db: Session, manager, raw, client_ts: float | None = None) -> dict:
     """Réglages de son d'UNE sortie : valeurs bornées (jamais d'erreur), champs absents inchangés ; persistés, diffusés avec l'état du moteur, copie de la configuration demandée."""
-    from app import config_files
+    from app import config_mirror
 
     sound = sanitize_sound(raw, base=manager.state.get("sound"))
     save_sound(db, manager.channel, sound)
     await manager.set_sound(sound, client_ts)
-    config_files.schedule_mirror()
+    config_mirror.schedule_mirror()
     return sound
 
 

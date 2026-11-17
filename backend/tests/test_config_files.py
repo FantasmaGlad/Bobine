@@ -11,6 +11,8 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app import config_files  # noqa: E402
+from app import config_builders  # noqa: E402
+from app import config_mirror  # noqa: E402
 from app.utils.uid import is_uid
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.main import app  # noqa: E402
@@ -97,21 +99,21 @@ def _uids(value):
 
 
 def test_one_file_per_kind_of_setting():
-    assert list(config_files.BUILDERS) == [
+    assert list(config_builders.BUILDERS) == [
         "settings.json", "machine.json", "outputs/display.json", "outputs/radio.json", "library/videos.json",
         "library/audio.json", "library/radio.json", "library/backgrounds.json", "library/announcements.json",
         "playlists/video.json", "playlists/audio.json", "playlists/radio.json", "schedule/cable.json",
         "schedule/network.json", "schedule/radio-cable.json", "schedule/radio-network.json", "radio/tags.json",
         "radio/announcement-rules.json",
     ]
-    assert set(config_files.KINDS) == {"manifest.json", *config_files.BUILDERS}
-    assert set(config_files.LEGACY_NAMES.values()) <= set(config_files.BUILDERS)
+    assert set(config_files.KINDS) == {"manifest.json", *config_builders.BUILDERS}
+    assert set(config_files.LEGACY_NAMES.values()) <= set(config_builders.BUILDERS)
 
 
 def test_objects_are_referenced_by_readable_keys(library):
     with SessionLocal() as db:
-        files = config_files.export_all(db)
-    assert set(files) == {"manifest.json", *config_files.BUILDERS}
+        files = config_builders.export_all(db)
+    assert set(files) == {"manifest.json", *config_builders.BUILDERS}
     for name, document in files.items():
         assert document["schema"] == 2 and document["kind"] == config_files.KINDS[name]
         assert '"id"' not in json.dumps(document), name
@@ -153,21 +155,21 @@ def test_api_exports_all_files_or_one(library):
 
 
 def test_mirror_rewrites_only_changed_files(library, tmp_path, monkeypatch):
-    monkeypatch.setattr(config_files, "mirror_dir", lambda: tmp_path / "config")
-    assert config_files.write_mirror() == len(config_files.BUILDERS) + 1
+    monkeypatch.setattr(config_mirror, "mirror_dir", lambda: tmp_path / "config")
+    assert config_mirror.write_mirror() == len(config_builders.BUILDERS) + 1
     assert json.loads((tmp_path / "config" / "settings.json").read_text(encoding="utf-8"))["kind"] == "settings"
     assert (tmp_path / "config" / "playlists" / "video.json").exists()
-    assert config_files.write_mirror() == 0
+    assert config_mirror.write_mirror() == 0
     with SessionLocal() as db:
         db.query(RadioAnnouncement).update({"enabled": False})
         db.commit()
-    assert config_files.write_mirror() == 1
+    assert config_mirror.write_mirror() == 1
 
 
 def test_a_successful_change_requests_a_mirror_update(monkeypatch):
     init_db()
     calls = []
-    monkeypatch.setattr(config_files, "schedule_mirror", lambda: calls.append(True))
+    monkeypatch.setattr(config_mirror, "schedule_mirror", lambda: calls.append(True))
     client = TestClient(app)
     client.get("/api/settings")
     assert calls == []

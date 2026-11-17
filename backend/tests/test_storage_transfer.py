@@ -6,13 +6,14 @@ import pytest
 
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.storage import portable, transfer  # noqa: E402
-from app.storage.transfer import Cancelled, TransferError, copy_verified, export_file, plan_import  # noqa: E402
+from app.storage import portable, verified_copy  # noqa: E402
+from app.storage.import_plan import plan_import  # noqa: E402
+from app.storage.verified_copy import Cancelled, TransferError, copy_verified, export_file  # noqa: E402
 
 
 @pytest.fixture()
 def staging(tmp_path, monkeypatch):
-    monkeypatch.setattr(transfer, "staging_root", lambda: _mk(tmp_path / "staging"))
+    monkeypatch.setattr(verified_copy, "staging_root", lambda: _mk(tmp_path / "staging"))
     return _mk(tmp_path / "staging")
 
 
@@ -36,7 +37,7 @@ def source(tmp_path):
 
 def part_for(source, staging):
     st = source.stat()
-    return transfer.part_path_for("U-1", "cours.mp4", st.st_size, st.st_mtime_ns)
+    return verified_copy.part_path_for("U-1", "cours.mp4", st.st_size, st.st_mtime_ns)
 
 
 def test_copy_is_exact_and_leaves_the_source_alone(source, staging, tmp_path):
@@ -115,7 +116,7 @@ def test_resume_is_refused_when_source_changed_or_prefix_differs(source, staging
     assert result["resumed_from"] == 0 and sha(tmp_path / "out.mp4") == sha(source)
 
     st = source.stat()
-    part2 = transfer.part_path_for("U-2", "cours.mp4", st.st_size, st.st_mtime_ns)
+    part2 = verified_copy.part_path_for("U-2", "cours.mp4", st.st_size, st.st_mtime_ns)
     part2.write_bytes(b"corrompu" * 200)
     Path(str(part2) + ".json").write_text(f'{{"size": {st.st_size}, "mtime_ns": {st.st_mtime_ns}}}')
     result = copy_verified(str(source), str(tmp_path / "out2.mp4"), part=part2)
@@ -143,8 +144,8 @@ def test_source_modified_during_copy_is_detected(source, staging, tmp_path):
 
 
 def test_corrupted_write_is_caught_by_the_verification(source, staging, tmp_path, monkeypatch):
-    real = transfer._sha_of_file
-    monkeypatch.setattr(transfer, "_sha_of_file", lambda path: "0" * 64 if str(path).endswith(".part") else real(path))
+    real = verified_copy._sha_of_file
+    monkeypatch.setattr(verified_copy, "_sha_of_file", lambda path: "0" * 64 if str(path).endswith(".part") else real(path))
     with pytest.raises(TransferError) as exc:
         copy_verified(str(source), str(tmp_path / "out.mp4"), part=part_for(source, staging))
     assert exc.value.code == "verify_failed" and not (tmp_path / "out.mp4").exists()
@@ -152,10 +153,10 @@ def test_corrupted_write_is_caught_by_the_verification(source, staging, tmp_path
 
 def test_space_check_keeps_a_reserve():
     with pytest.raises(TransferError) as exc:
-        transfer.check_space(10**9, free=10**9)
+        verified_copy.check_space(10**9, free=10**9)
     assert exc.value.code == "insufficient_space" and exc.value.extra["needed_bytes"] > 10**9 and exc.value.status == 409
-    transfer.check_space(10**9, free=transfer.needed_bytes(10**9))
-    transfer.check_space(10**9, already=10**9 - 10, free=transfer.RESERVE_BYTES + 100)
+    verified_copy.check_space(10**9, free=verified_copy.needed_bytes(10**9))
+    verified_copy.check_space(10**9, already=10**9 - 10, free=verified_copy.RESERVE_BYTES + 100)
 
 
 def test_purge_staging_removes_stale_parts_and_orphan_workdirs(staging):
@@ -165,7 +166,7 @@ def test_purge_staging_removes_stale_parts_and_orphan_workdirs(staging):
     os.utime(old, (1, 1))
     (staging / "jobabc").mkdir()
     (staging / "jobabc" / "x").write_bytes(b"3")
-    assert transfer.purge_staging() == 2
+    assert verified_copy.purge_staging() == 2
     assert not old.exists() and fresh.exists() and not (staging / "jobabc").exists()
 
 

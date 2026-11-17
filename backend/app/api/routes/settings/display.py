@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Setting
 from app.playback.manager import get_playback_manager
-from app.radio_manager import get_radio_manager
+from app.radio.manager import get_radio_manager
 from app.scheduling.radio import activate_radio_output
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
@@ -89,9 +89,9 @@ async def apply_display_output(db: Session, channel: str, output: str, *, activa
     else:
         db.add(Setting(key=key, value=output))
     db.commit()
-    from app import config_files
+    from app import config_mirror
 
-    config_files.schedule_mirror()
+    config_mirror.schedule_mirror()
 
     if output in ("cinema", "radio"):
         manager = get_playback_manager(channel)

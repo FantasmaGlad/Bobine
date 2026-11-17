@@ -81,7 +81,7 @@ def sanitize_sound(raw: Any, base: dict[str, Any] | None = None) -> dict[str, An
 
 
 def sound_setting_key(radio_channel: str) -> str:
-    from app.radio_manager import normalize_radio_channel
+    from app.radio.channels import normalize_radio_channel
 
     return f"radio_sound_{normalize_radio_channel(radio_channel)}"
 
@@ -111,7 +111,8 @@ def save_sound(db: Session, radio_channel: str, sound: dict[str, Any]) -> None:
 
 def load_all_sounds_into_managers(db: Session) -> None:
     """Charge les réglages persistés dans l'état de chaque moteur radio (au démarrage)."""
-    from app.radio_manager import RADIO_CHANNELS, get_all_radio_managers
+    from app.api.contract import RADIO_CHANNELS
+    from app.radio.manager import get_all_radio_managers
 
     managers = get_all_radio_managers()
     for radio_channel in RADIO_CHANNELS:

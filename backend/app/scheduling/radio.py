@@ -10,7 +10,8 @@ from app.models import (
     RadioTrack,
     Setting,
 )
-from app.radio_manager import DEFAULT_RADIO_CHANNEL, get_all_radio_managers, get_radio_manager, normalize_radio_channel
+from app.radio.channels import DEFAULT_RADIO_CHANNEL, normalize_radio_channel
+from app.radio.manager import get_all_radio_managers, get_radio_manager
 
 logger = logging.getLogger(__name__)
 

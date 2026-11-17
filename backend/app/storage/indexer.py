@@ -7,7 +7,7 @@ import os
 import uuid
 from typing import Any
 
-from app.storage.transfer import Plan, Unit
+from app.storage.import_plan import Plan, Unit
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ def mounted_path(root: str, rel: str) -> str:
 
 def plan_index(root: str, entries: list[dict[str, str]], kind: str) -> Plan:
     """Même sélection que l'import (sans contrôle d'espace ni d'historique d'import)."""
-    from app.storage.transfer import plan_import
+    from app.storage.import_plan import plan_import
 
     return plan_import(root, entries, kind, source_id="", db=None, force=True)
 

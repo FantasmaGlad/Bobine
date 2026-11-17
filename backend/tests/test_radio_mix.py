@@ -13,7 +13,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.database import SessionLocal, init_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
-from app.radio_manager import METER_LEASE_SECONDS, RadioPlaybackManager, get_radio_manager  # noqa: E402
+from app.radio.constants import METER_LEASE_SECONDS  # noqa: E402
+from app.radio.manager import RadioPlaybackManager, get_radio_manager  # noqa: E402
 from app.utils.radio_mix import (  # noqa: E402
     GAIN_MAX_DB,
     GAIN_MIN_DB,
@@ -161,7 +162,7 @@ def _manager():
 def test_le_vumetre_demande_s_active_une_fois_puis_expire_sans_renouvellement(monkeypatch):
     manager, sent = _manager()
     clock = [1000.0]
-    monkeypatch.setattr("app.radio_manager.time.monotonic", lambda: clock[0])
+    monkeypatch.setattr("app.radio.outputs.time.monotonic", lambda: clock[0])
 
     async def scenario():
         assert manager.state["meter"] is False

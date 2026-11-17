@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.playback.manager import get_all_playback_managers
-from app.radio_manager import get_all_radio_managers
+from app.radio.manager import get_all_radio_managers
 from app.api.routes import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
@@ -29,7 +29,7 @@ from app.api.network_guard import LocalNetworkGuard
 from app.api.origin_guard import SameOriginGuard, dev_origins
 from app.utils.deployment import get_profile_handler
 from app.utils.port import active_port
-from app import config_files
+from app import config_mirror
 from app.api.routes import config_files as config_files_router
 from app.utils import media_native, port80, tor_proxy
 from app.utils.media_sidecar import close_current_media_client
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
     start_mdns_responder(active_port())
     if get_profile_handler().tries_port80_redirect():
         await port80.start(active_port())
-    config_files.schedule_mirror()
+    config_mirror.schedule_mirror()
     with SessionLocal() as sound_db:
         load_all_sounds_into_managers(sound_db)
         load_all_video_sounds_into_managers(sound_db)
@@ -137,7 +137,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 app.add_middleware(SameOriginGuard, allowed_origins=dev_origins())
-app.add_middleware(config_files.ConfigMirrorTrigger)
+app.add_middleware(config_mirror.ConfigMirrorTrigger)
 app.add_middleware(ApiCompressionMiddleware)
 app.add_middleware(LocalNetworkGuard)
 
