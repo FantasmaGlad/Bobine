@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import init_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.utils import tor_proxy  # noqa: E402
+from app.utils import tor_daemon, tor_proxy, tor_socks  # noqa: E402
 from app.utils.deployment import ProfileHandler  # noqa: E402
 
 
@@ -72,13 +72,13 @@ class FakeSocksProxy:
 
 @pytest.mark.parametrize("value, expected", [("127.0.0.1:9050", ("127.0.0.1", 9050)), ("[::1]:9150", ("::1", 9150))])
 def test_parse_proxy(value, expected):
-    assert tor_proxy.parse_proxy(value) == expected
+    assert tor_socks.parse_proxy(value) == expected
 
 
 @pytest.mark.parametrize("value", ["", "127.0.0.1", "127.0.0.1:0", "127.0.0.1:70000", ":9050", "hôte:abc"])
 def test_parse_proxy_rejects_invalid_addresses(value):
     with pytest.raises(ValueError):
-        tor_proxy.parse_proxy(value)
+        tor_socks.parse_proxy(value)
 
 
 def test_host_name_is_resolved_by_the_proxy_not_locally():
@@ -93,14 +93,14 @@ def test_host_name_is_resolved_by_the_proxy_not_locally():
 
 
 def test_enabled_without_tor_never_goes_direct(monkeypatch):
-    monkeypatch.setattr(tor_proxy, "find_tor_binary", lambda: None)
+    monkeypatch.setattr(tor_daemon, "find_tor_binary", lambda: None)
 
     def direct(*_args, **_kwargs):
         raise AssertionError("requête partie en direct")
 
     monkeypatch.setattr(urllib.request, "urlopen", direct)
     tor_proxy.configure(True, f"127.0.0.1:{_free_port()}")
-    with pytest.raises(tor_proxy.TorUnavailable):
+    with pytest.raises(tor_socks.TorUnavailable):
         tor_proxy.urlopen("https://api.github.com/", timeout=5)
 
 
@@ -154,10 +154,10 @@ def test_on_demand_tor_starts_once_and_stops_when_idle(monkeypatch, tmp_path):
         launched.append(process)
         return process
 
-    monkeypatch.setattr(tor_proxy.subprocess, "Popen", popen)
-    monkeypatch.setattr(tor_proxy, "_cache_dir", lambda: tmp_path / "tor")
-    monkeypatch.setattr(tor_proxy, "IDLE_STOP_SECONDS", 0.2)
-    on_demand = tor_proxy._OnDemandTor()
+    monkeypatch.setattr(tor_daemon.subprocess, "Popen", popen)
+    monkeypatch.setattr(tor_daemon, "_cache_dir", lambda: tmp_path / "tor")
+    monkeypatch.setattr(tor_daemon, "IDLE_STOP_SECONDS", 0.2)
+    on_demand = tor_daemon._OnDemandTor()
     assert on_demand.acquire("/usr/bin/tor") == ("127.0.0.1", 19999)
     assert on_demand.acquire("/usr/bin/tor") == ("127.0.0.1", 19999)
     assert len(launched) == 1
@@ -169,7 +169,7 @@ def test_on_demand_tor_starts_once_and_stops_when_idle(monkeypatch, tmp_path):
 
 def test_existing_proxy_is_preferred_to_launching_tor(monkeypatch):
     proxy = FakeSocksProxy()
-    monkeypatch.setattr(tor_proxy, "find_tor_binary", lambda: pytest.fail("Tor lancé alors qu'un proxy répond"))
+    monkeypatch.setattr(tor_daemon, "find_tor_binary", lambda: pytest.fail("Tor lancé alors qu'un proxy répond"))
     try:
         session = tor_proxy.TorSession(f"127.0.0.1:{proxy.port}")
         assert session.source == "existing"

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.api.contract import GITHUB_REPO
 from app.database import get_db
-from app.utils import tor_proxy
+from app.utils import tor_proxy, tor_socks
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
     UpdateUnsupported,
@@ -125,7 +125,7 @@ async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
     proxy = payload.proxy
     if proxy is not None:
         try:
-            tor_proxy.parse_proxy(proxy)
+            tor_socks.parse_proxy(proxy)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     return await asyncio.to_thread(tor_proxy.check, proxy)
