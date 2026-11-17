@@ -104,8 +104,7 @@
 @media (max-width: 640px) {
   .metrics-page,
   .metrics-filters-bar,
-  .metrics-filter-group,
-  .metrics-kpis-grid {
+  .metrics-filter-group {
     min-width: 0;
     max-width: 100%;
   }

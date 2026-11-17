@@ -1,11 +1,3 @@
-@media (max-width: 768px) {
-  .videos-table th,
-  .videos-table td {
-    padding: 10px 12px;
-    font-size: 0.85rem;
-  }
-}
-
 .videos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -46,10 +38,6 @@
   transform: scale(1);
 }
 
-.videos-table tr.row-selected td {
-  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
-}
-
 .video-card.program-rpm,
 .video-card.program-autre {
   border-left-color: var(--glass-card-border);
@@ -59,50 +47,13 @@
   transform: scale(1.05);
 }
 
-.videos-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.videos-table th,
-.videos-table td {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.videos-table th {
-  font-family: var(--font-body);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  background: color-mix(in srgb, var(--specular) 2%, transparent);
-}
-
-.videos-table tr:last-child td {
-  border-bottom: none;
-}
-
-.videos-table tr:hover td {
-  background: color-mix(in srgb, var(--specular) 1%, transparent);
-  cursor: pointer;
-}
-
-.video-card .card-thumbnail,
-.cinema-card-thumb img {
+.video-card .card-thumbnail {
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   will-change: transform;
 }
 
 .video-card:hover .card-thumbnail,
 .video-card:focus-visible .card-thumbnail,
-.video-card.selected .card-thumbnail,
-.cinema-card:hover .cinema-card-thumb img,
-.cinema-card:focus-visible .cinema-card-thumb img,
-.cinema-card.selected .cinema-card-thumb img,
-.cinema-card.active .cinema-card-thumb img,
-.kiosk-remote-focus .cinema-card-thumb img {
+.video-card.selected .card-thumbnail {
   transform: scale(1.08);
 }

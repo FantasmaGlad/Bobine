@@ -34,7 +34,6 @@
   background: var(--accent-primary);
   color: var(--accent-primary-fg);
   border: none;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
 
 .radio-transport-btn.main:hover {

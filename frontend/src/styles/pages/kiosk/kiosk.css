@@ -175,13 +175,6 @@
   text-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 90%, transparent);
 }
 
-.kiosk-root,
-.cinema-root,
-.radio-screen,
-.radio-unlock-overlay {
-  inset: var(--screen-safe-y, 0px) var(--screen-safe-x, 0px);
-}
-
 .kiosk-osd {
   bottom: calc(6vh + 1vmin);
   max-width: 92vw;

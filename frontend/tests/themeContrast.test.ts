@@ -116,6 +116,11 @@ const MAIN_MIN = 4.5;
 
 test("les 9 thèmes sont couverts, chacun en clair et en sombre", () => {
   assert.equal(THEMES.length, 18);
+  const missing = THEMES.filter((combo) => {
+    const [theme, mode] = combo.split("/");
+    return !ALL_RULES.some((r) => r.selectors.includes(`:root[data-theme="${theme}"][data-mode="${mode}"]`));
+  });
+  assert.deepEqual(missing, [], "chaque thème a son bloc clair et son bloc sombre");
 });
 
 for (const theme of THEMES) {

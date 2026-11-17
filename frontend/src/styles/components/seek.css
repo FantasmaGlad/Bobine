@@ -1,7 +1,0 @@
-.seek-slider,
-.volume-slider {
-  flex-grow: 1;
-  accent-color: var(--accent-primary);
-  height: 6px;
-  cursor: pointer;
-}

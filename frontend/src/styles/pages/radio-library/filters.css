@@ -1,13 +1,3 @@
-.rl-tab-count {
-  font-size: 0.7rem;
-  opacity: 0.75;
-  background: color-mix(in srgb, currentColor 14%, transparent);
-  border-radius: 999px;
-  padding: 0 7px;
-  margin-left: 2px;
-  font-variant-numeric: tabular-nums;
-}
-
 .rl-create-row {
   display: flex;
   gap: 6px;
@@ -23,8 +13,7 @@
   padding: 6px 10px;
 }
 
-.rl-toolbar,
-.rl-selection-bar {
+.rl-toolbar {
   display: flex;
   align-items: center;
   gap: 10px;

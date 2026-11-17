@@ -40,7 +40,6 @@
   align-items: center;
   gap: 8px;
   background: color-mix(in srgb, var(--bg-main) 65%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-main) 22%, transparent);
   color: var(--text-main);
   border-radius: 999px;
   padding: 10px 18px;
