@@ -13,7 +13,8 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.database import SessionLocal, _migrate_drop_devices_access_settings, init_db  # noqa: E402
+from app.database import SessionLocal, init_db  # noqa: E402
+from app.migrations import migrate_drop_devices_access_settings  # noqa: E402
 from app.devices import locality  # noqa: E402
 from app.devices.base import DeviceDriver, DeviceError, NullDriver  # noqa: E402
 from app.devices.linux.parse.audio import audio_kind, parse_pw_dump, parse_wpctl_volume  # noqa: E402
@@ -311,13 +312,13 @@ def test_migration_drops_devices_access_settings():
         db.merge(Setting(key="devices_pin_hash", value="scrypt$sel$empreinte"))
         db.merge(Setting(key="devices_enabled", value="true"))
         db.commit()
-    _migrate_drop_devices_access_settings()
+    migrate_drop_devices_access_settings()
     with SessionLocal() as db:
         remaining = {row.key for row in db.query(Setting).filter(
             Setting.key.in_(("devices_pin_hash", "devices_enabled"))
         ).all()}
     assert remaining == set()
-    _migrate_drop_devices_access_settings()
+    migrate_drop_devices_access_settings()
 
 
 def test_event_is_a_data_free_signal(monkeypatch):

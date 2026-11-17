@@ -80,7 +80,7 @@ def test_backend_n_ecrit_pas_la_liste_des_canaux_ailleurs_que_dans_le_registre()
             code = line.split("#")[0]
             if re.search(r"""["']canary["']""", code) and re.search(r"""["']beta["']""", code):
                 offenders.append(f"{path.relative_to(REPO)}:{number}")
-    offenders = [o for o in offenders if not o.startswith("backend/app/database.py")]
+    offenders = [o for o in offenders if not o.startswith("backend/app/migrations.py")]
     assert not offenders, "liste de canaux écrite en dur : " + ", ".join(offenders)
 
 
