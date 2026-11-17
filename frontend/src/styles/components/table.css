@@ -1,3 +1,46 @@
+@media (max-width: 768px) {
+  .videos-table th,
+  .videos-table td {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+}
+
+.videos-table tr.row-selected td {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+}
+
+.videos-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.videos-table th,
+.videos-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.videos-table th {
+  font-family: var(--font-body);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--specular) 2%, transparent);
+}
+
+.videos-table tr:last-child td {
+  border-bottom: none;
+}
+
+.videos-table tr:hover td {
+  background: color-mix(in srgb, var(--specular) 1%, transparent);
+  cursor: pointer;
+}
+
 .table-wrapper {
   background: var(--glass-card-bg);
   -webkit-backdrop-filter: blur(var(--glass-card-blur));

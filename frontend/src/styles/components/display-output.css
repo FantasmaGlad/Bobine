@@ -84,3 +84,7 @@
     margin-inline: auto;
   }
 }
+
+.display-output-buttons {
+  border-color: color-mix(in srgb, var(--text-main) 36%, transparent);
+}

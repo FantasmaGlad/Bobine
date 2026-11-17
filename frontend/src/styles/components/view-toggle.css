@@ -38,9 +38,7 @@
   max-width: 100%;
 }
 
-.view-toggle,
-.seg,
-.display-output-buttons {
+.view-toggle {
   border-color: color-mix(in srgb, var(--text-main) 36%, transparent);
 }
 

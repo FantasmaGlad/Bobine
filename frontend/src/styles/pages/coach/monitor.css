@@ -1,3 +1,17 @@
+.coach-stage-monitor {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 50%, transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
 .coach-console-grid {
   display: grid;
   grid-template-columns: 1fr;

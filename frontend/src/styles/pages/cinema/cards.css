@@ -82,6 +82,19 @@
   display: block;
 }
 
+.cinema-card-thumb img {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+.cinema-card:hover .cinema-card-thumb img,
+.cinema-card:focus-visible .cinema-card-thumb img,
+.cinema-card.selected .cinema-card-thumb img,
+.cinema-card.active .cinema-card-thumb img,
+.kiosk-remote-focus .cinema-card-thumb img {
+  transform: scale(1.08);
+}
+
 .cinema-card-thumb-fallback {
   width: 100%;
   height: 100%;

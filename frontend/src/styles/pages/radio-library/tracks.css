@@ -5,6 +5,13 @@
 }
 
 .rl-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rl-selection-bar {
   background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-surface));
   -webkit-backdrop-filter: blur(var(--glass-card-blur));
   backdrop-filter: blur(var(--glass-card-blur));
