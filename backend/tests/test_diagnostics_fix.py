@@ -5,7 +5,7 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-from app.api.routes import diagnostics
+from app.api.routes.diagnostics import system as diagnostics
 
 
 def test_problem_carries_its_fix_only_when_given():
@@ -16,10 +16,10 @@ def test_problem_carries_its_fix_only_when_given():
 
 
 def test_stuck_imports_expose_their_full_job_ids(monkeypatch):
-    monkeypatch.setattr(diagnostics, "_jobs_state", lambda: {"active": [
+    monkeypatch.setattr(diagnostics, "jobs_state", lambda: {"active": [
         {"id": "abcdef01", "job_id": "abcdef0123456789", "idle_seconds": 9999}], "counts": {}})
-    monkeypatch.setattr(diagnostics, "_executor_state", lambda: {"ffmpeg": {"shutdown": False}})
-    monkeypatch.setattr(diagnostics, "_staging_state", lambda: {})
+    monkeypatch.setattr(diagnostics, "executor_state", lambda: {"ffmpeg": {"shutdown": False}})
+    monkeypatch.setattr(diagnostics, "staging_state", lambda: {})
     report = diagnostics._Report()
     diagnostics._probe_imports(report)
     assert report.problems[0]["fix"] == {"action": "cancel_import_jobs", "job_ids": ["abcdef0123456789"]}

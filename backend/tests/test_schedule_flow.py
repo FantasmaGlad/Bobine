@@ -28,17 +28,9 @@ from app.models import (
 )
 from app.playback.manager import init_playback_managers, get_playback_manager
 from app.api.routes.playback.state import dismiss_interrupted_state, resume_interrupted_state
-from app.api.routes.schedule import (
-    OverrideInput,
-    ScheduleInput,
-    create_override,
-    create_schedule,
-    delete_schedule,
-    get_next_schedule,
-    get_schedule,
-    list_schedules,
-    update_schedule,
-)
+from app.api.routes.schedule.overrides import create_override
+from app.api.routes.schedule.schedules import create_schedule, delete_schedule, get_next_schedule, get_schedule, list_schedules, update_schedule
+from app.api.routes.schedule.schemas import OverrideInput, ScheduleInput
 from app.scheduling.jobs import start_scheduler, stop_scheduler
 from app.scheduling.launch import fire_schedule
 from app.scheduling.occurrences import expand_occurrences
