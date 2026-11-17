@@ -2,7 +2,7 @@
 
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import type { PendingUploadSpec } from "@/lib/UploadManager";
+import type { PendingUploadSpec } from "@/lib/uploads/types";
 
 import { PROGRAMS_LIST_ID, SUBTITLE_ACCEPT, type PendingSpec } from "./types";
 

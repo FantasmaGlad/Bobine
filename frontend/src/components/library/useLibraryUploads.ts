@@ -6,7 +6,8 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { formatCleanDescription } from "@/lib/formatDescription";
 import { isArchiveName, partitionVideoFiles } from "@/lib/mediaFiles";
 import { parseMediaName } from "@/lib/parseMediaName";
-import { useUploadManager, type PendingUploadSpec } from "@/lib/UploadManager";
+import { useUploadManager } from "@/lib/UploadManager";
+import type { PendingUploadSpec } from "@/lib/uploads/types";
 import type { ShowToast } from "@/lib/useToast";
 
 import type { PendingSpec } from "./types";

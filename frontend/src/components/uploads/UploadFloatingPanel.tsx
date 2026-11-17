@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { useUploadManager, type UploadKind } from "@/lib/UploadManager";
+import { useUploadManager } from "@/lib/UploadManager";
+import type { UploadKind } from "@/lib/uploads/types";
 import { formatNotice, phaseLabelKey } from "@/lib/uploadFlow";
 
 const STAGE_ICONS: Record<string, string> = {

@@ -1,4 +1,4 @@
-import type { PendingUploadSpec } from "@/lib/UploadManager";
+import type { PendingUploadSpec } from "@/lib/uploads/types";
 
 export interface VideoSubtitleItem {
   id: number;
