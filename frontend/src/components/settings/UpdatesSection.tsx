@@ -1,15 +1,18 @@
 "use client";
 import { errorMessage } from "@/lib/apiError";
-import React, { useEffect, useState } from "react";
-import { channelI18nSuffix, channelLogoUrl, isRollingReleaseChannel, RELEASE_CHANNELS, type UpdateChannel } from "@/lib/releaseChannel";
+import React, { useState } from "react";
+import { channelI18nSuffix, isRollingReleaseChannel, type UpdateChannel } from "@/lib/releaseChannel";
 import Icon from "@/components/Icon";
 import ChannelConfirmDialog from "./ChannelConfirmDialog";
+import AutoUpdateSettings from "./updates/AutoUpdateSettings";
+import ChannelPicker from "./updates/ChannelPicker";
+import { useUpdateCheck } from "./updates/useUpdateCheck";
 import ReleaseBanner from "./ReleaseBanner";
 import StoreUpdatePanel from "./StoreUpdatePanel";
 import TorUpdateSettings from "./TorUpdateSettings";
 import { getApiUrl } from "@/lib/apiUrl";
 import type { ShowToast } from "@/lib/useToast";
-import type { SettingsData, UpdateInfo } from "./types";
+import type { SettingsData } from "./types";
 
 interface UpdatesSectionProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -22,87 +25,9 @@ interface UpdatesSectionProps {
 
 export default function UpdatesSection({ t, data, setData, showToast, hidden, openSection }: UpdatesSectionProps) {
   const [confirmingChannel, setConfirmingChannel] = useState<UpdateChannel | null>(null);
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [storeBusy, setStoreBusy] = useState(false);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const { updateInfo, storeBusy, checkingUpdate, checkForUpdates, handleStoreAction } = useUpdateCheck(t, showToast, openSection);
   const [applyingUpdate, setApplyingUpdate] = useState(false);
   const [changingChannel, setChangingChannel] = useState(false);
-
-  const checkForUpdates = async (silent = false) => {
-    setCheckingUpdate(true);
-    try {
-      const res = await fetch(getApiUrl(`/updates/check${silent ? "" : "?refresh=1"}`), { cache: "no-store" });
-      if (res.ok) {
-        const info: UpdateInfo = await res.json();
-        setUpdateInfo(info);
-        if (info.store_managed) {
-          const state = info.store?.state;
-          if (state === "available") {
-            showToast(t("settingsPage.storeAvailable"), "warning", () => {
-              openSection("updates-section");
-            });
-          } else if (!silent) {
-            showToast(state === "none" ? t("settingsPage.storeUpToDate") : t("settingsPage.storeUnavailable"), state === "none" ? "success" : "warning");
-          }
-          return;
-        }
-        if (info.has_update && info.is_downgrade && silent) {
-        } else if (info.has_update) {
-          showToast(
-            `${t("settingsPage.updateAvailable")} (${info.latest_version})`,
-            "warning",
-            () => {
-              openSection("updates-section");
-            },
-          );
-        } else if (!silent) {
-          if (info.online) {
-            showToast(t("settingsPage.upToDate"), "success");
-          } else {
-            showToast(info.message || t("settingsPage.updateError"), "warning");
-          }
-        }
-      } else if (!silent) {
-        showToast(t("settingsPage.updateError"), "error");
-      }
-    } catch {
-      if (!silent) showToast(t("settingsPage.updateError"), "error");
-    } finally {
-      setCheckingUpdate(false);
-    }
-  };
-
-  const handleStoreAction = async (action: "start" | "complete" | "open") => {
-    setStoreBusy(true);
-    try {
-      const res = await fetch(getApiUrl(`/updates/store/${action}`), { method: "POST" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        showToast(errorMessage(body, t("settingsPage.storeActionError")), "error");
-        return;
-      }
-      if (action === "start") showToast(t("settingsPage.storeStarted"), "success");
-      if (action !== "open") await checkForUpdates(true);
-    } catch {
-      showToast(t("settingsPage.storeActionError"), "error");
-    } finally {
-      setStoreBusy(false);
-    }
-  };
-
-  const storeDownloading = updateInfo?.store?.state === "downloading";
-  useEffect(() => {
-    if (!storeDownloading) return;
-    const timer = setInterval(() => { void checkForUpdates(true); }, 5000);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seule la présence d'un téléchargement en cours compte
-  }, [storeDownloading]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- vérification ponctuelle contre une API externe (GitHub via le backend), pas un calcul dérivable au rendu
-    checkForUpdates(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule vérification au montage, volontairement indépendante des re-rendus de checkForUpdates
-  }, []);
 
   const handleApplyUpdate = async () => {
     const confirmText = updateInfo?.is_downgrade
@@ -224,37 +149,13 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
   
             {!data.store_managed && (
               <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
-              <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
-                {t("settingsPage.updateChannelLabel")}
-              </span>
-              <div
-                style={{
-                  display: "inline-flex",
-                  borderRadius: "var(--radius-md)",
-                  overflow: "hidden",
-                  border: "1px solid var(--border-color)",
-                  background: "var(--bg-surface-elevated)",
-                }}
-              >
-                {RELEASE_CHANNELS.map((channel) => (
-                  <button
-                    key={channel}
-                    type="button"
-                    className={`btn btn-sm ${data.update_channel === channel ? "btn-primary" : "btn-secondary"}`}
-                    style={{ borderRadius: 0, border: "none", minHeight: "34px", padding: "6px 14px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}
-                    onClick={() => {
-                      if (!isRollingReleaseChannel(channel)) handleChannelChange(channel);
-                      else if (data.update_channel !== channel) setConfirmingChannel(channel);
-                    }}
-                    disabled={changingChannel}
-                  >
-                    <img src={channelLogoUrl(channel)} alt="" width={18} height={18} style={{ borderRadius: "4px" }} />
-                    {t(`settingsPage.updateChannel${channelI18nSuffix(channel)}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <ChannelPicker
+              t={t} current={data.update_channel} disabled={changingChannel}
+              onPick={(channel) => {
+                if (!isRollingReleaseChannel(channel)) handleChannelChange(channel);
+                else if (data.update_channel !== channel) setConfirmingChannel(channel);
+              }}
+            />
             <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
             {data.update_tor_supported && (
               <TorUpdateSettings t={t} data={data} setData={setData} handleAutoUpdateChange={handleAutoUpdateChange} />
@@ -266,40 +167,9 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
               <StoreUpdatePanel t={t} updateInfo={updateInfo} storeBusy={storeBusy} handleStoreAction={handleStoreAction} />
             )}
             {!data.store_managed && data.auto_update_supported !== false && (
-              <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "520px", gap: "16px", flexWrap: "wrap" }}>
-              <span className="form-label" style={{ margin: 0, fontWeight: 600 }}>
-                {t("settingsPage.autoUpdateSection")}
-              </span>
-              <label className="ra-switch" title={t("settingsPage.autoUpdateToggleLabel")}>
-                <input
-                  type="checkbox"
-                  checked={data.auto_update_enabled === "true"}
-                  onChange={(e) => handleAutoUpdateChange({ auto_update_enabled: e.target.checked ? "true" : "false" })}
-                />
-                <span className="ra-switch-track" />
-              </label>
-            </div>
-            {data.auto_update_enabled === "true" && (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <label htmlFor="auto-update-time" className="form-label" style={{ margin: 0 }}>
-                  {t("settingsPage.autoUpdateTimeLabel")}
-                </label>
-                <input
-                  id="auto-update-time"
-                  type="time"
-                  className="form-control"
-                  style={{ maxWidth: "140px" }}
-                  value={data.auto_update_time}
-                  onChange={(e) => setData({ ...data, auto_update_time: e.target.value })}
-                  onBlur={(e) => handleAutoUpdateChange({ auto_update_time: e.target.value })}
-                />
-              </div>
+              <AutoUpdateSettings t={t} data={data} setData={setData} onChange={handleAutoUpdateChange} />
             )}
-            <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.autoUpdateToggleHint")}</p>
-              </>
-            )}
-  
+
             {updateInfo && !updateInfo.store_managed && (
               <ReleaseBanner t={t} updateInfo={updateInfo} applyingUpdate={applyingUpdate} handleApplyUpdate={handleApplyUpdate} />
             )}

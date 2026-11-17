@@ -1,44 +1,15 @@
 "use client";
-import { errorMessage } from "@/lib/apiError";
-
 import PageNav from "@/components/PageNav";
 import React, { useCallback, useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import type { Language } from "@/lib/i18n";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
+import ActivityTable from "@/components/logs/ActivityTable";
+import { eventTypeLabel, type ActivityLogEntry } from "@/components/logs/events";
 import { getApiUrl } from "@/lib/apiUrl";
-
-interface ActivityLogEntry {
-  id: number;
-  timestamp: string;
-  event_type: string;
-  detail: string | null;
-}
-
-function formatTimestamp(iso: string, language: Language) {
-  const d = new Date(iso.endsWith("Z") ? iso : `${iso}Z`);
-  return d.toLocaleString(language === "fr" ? "fr-FR" : "en-US", { dateStyle: "short", timeStyle: "medium" });
-}
 
 export default function LogsPage() {
   const { t, language } = useAppSettings();
-  const EVENT_LABELS: Record<string, string> = {
-    video_imported: t("logs.eventLabels.video_imported"),
-    background_imported: t("logs.eventLabels.background_imported"),
-    audio_course_imported: t("logs.eventLabels.audio_course_imported"),
-    video_started: t("logs.eventLabels.video_started"),
-    background_started: t("logs.eventLabels.background_started"),
-    audio_course_started: t("logs.eventLabels.audio_course_started"),
-    playlist_started: t("logs.eventLabels.playlist_started"),
-    playback_stopped: t("logs.eventLabels.playback_stopped"),
-    playlist_created: t("logs.eventLabels.playlist_created"),
-    playlist_updated: t("logs.eventLabels.playlist_updated"),
-    playlist_deleted: t("logs.eventLabels.playlist_deleted"),
-    schedule_created: t("logs.eventLabels.schedule_created"),
-    schedule_updated: t("logs.eventLabels.schedule_updated"),
-    schedule_deleted: t("logs.eventLabels.schedule_deleted"),
-    schedule_override_created: t("logs.eventLabels.schedule_override_created"),
-  };
+  const eventLabel = (type: string) => eventTypeLabel(type, t);
   const [tab, setTab] = useState<"activity" | "technical">("activity");
   const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
   const [eventTypes, setEventTypes] = useState<string[]>([]);
@@ -165,7 +136,7 @@ export default function LogsPage() {
               onChange={setFilter}
               placeholder={t("logs.allEventTypes")}
               title={t("logs.allEventTypes")}
-              options={eventTypes.map((eventType) => ({ value: eventType, label: EVENT_LABELS[eventType] || eventType }))}
+              options={eventTypes.map((eventType) => ({ value: eventType, label: eventLabel(eventType) }))}
             />
             <button className="btn btn-secondary" onClick={fetchActivity}>
               {t("logs.refresh")}
@@ -238,43 +209,10 @@ export default function LogsPage() {
           ) : entries.length === 0 ? (
             <div className="live-empty">{t("logs.noActivity")}</div>
           ) : (
-            <div className="table-wrapper glass-surface">
-              <table className="videos-table responsive-table responsive-table--select">
-                <thead>
-                  <tr>
-                    <th style={{ width: "36px" }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.length === entries.length && entries.length > 0}
-                        onChange={toggleSelectAll}
-                        title={t("logs.selectAll")}
-                      />
-                    </th>
-                    <th style={{ width: "180px" }}>{t("logs.timestampHeader")}</th>
-                    <th style={{ width: "220px" }}>{t("logs.eventHeader")}</th>
-                    <th>{t("logs.detailHeader")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(entry.id)}
-                          onChange={() => toggleSelected(entry.id)}
-                        />
-                      </td>
-                      <td data-label={t("logs.timestampHeader")} style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
-                        {formatTimestamp(entry.timestamp, language)}
-                      </td>
-                      <td data-label={t("logs.eventHeader")} style={{ fontWeight: 700 }}>{EVENT_LABELS[entry.event_type] || entry.event_type}</td>
-                      <td data-label={t("logs.detailHeader")} style={{ color: "var(--text-muted)" }}>{errorMessage(entry, "—")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ActivityTable
+              entries={entries} selectedIds={selectedIds} onToggle={toggleSelected} onToggleAll={toggleSelectAll}
+              eventLabel={eventLabel} language={language} t={t}
+            />
           )}
         </>
       ) : (

@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
-import { canConfirmFormat, canLeaveWizard, defaultFormat, formatFinished, formatTravels, labelProblem, needsNewPlan, reflectionLeft, refusalKey, stepIcon, FORMAT_STEP_ORDER, type FormatFs, type FormatJob, type FormatOption, type FormatPlan } from "@/lib/storage/format";
+import { canConfirmFormat, canLeaveWizard, defaultFormat, formatTravels, labelProblem, needsNewPlan, reflectionLeft, refusalKey, type FormatFs, type FormatJob, type FormatOption, type FormatPlan } from "@/lib/storage/format";
 import { encodeKey, storageRequest } from "@/lib/storage/request";
-import { formatBytes } from "@/lib/storage/display";
-import { fsLabel, visibleNotes } from "@/lib/storage/advice";
 import type { ApiError } from "@/lib/apiError";
 import { storageErrorText, tr, type StorageCtx } from "./common";
+import FormatChoose from "./format/FormatChoose";
+import FormatConfirm from "./format/FormatConfirm";
+import FormatProgress from "./format/FormatProgress";
+import { useFormatJobPolling } from "./format/useFormatJobPolling";
 
 interface Props extends StorageCtx {
   target: { key: string; name: string; resume?: FormatJob | null } | null;
@@ -18,7 +20,6 @@ interface Props extends StorageCtx {
 
 type Stage = "loading" | "refused" | "choose" | "confirm" | "running" | "result";
 
-const POLL_MS = 700;
 const REFLECTION_SECONDS = 5;
 
 export default function FormatWizard({ target, onClose, onChanged, t, lang, notify }: Props) {
@@ -41,10 +42,6 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
   const [pollError, setPollError] = useState(false);
   const [job, setJob] = useState<FormatJob | null>(target.resume ?? null);
   const finished = useRef(false);
-  const changed = useRef(onChanged);
-  useEffect(() => {
-    changed.current = onChanged;
-  }, [onChanged]);
 
   const loadPlan = useCallback(async (travels: boolean) => {
     setStage("loading");
@@ -74,29 +71,8 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
     return () => clearInterval(timer);
   }, [stage]);
 
-  useEffect(() => {
-    if (stage !== "running" || !job) return;
-    const jobId = job.job_id;
-    const timer = setInterval(async () => {
-      const result = await storageRequest<FormatJob>(`/format/jobs/${encodeKey(jobId)}`);
-      if (!result.ok) {
-        setPollError(true);
-        if (result.error.status === 404) {
-          setJob({ ...job, state: "failed", outcome: "unverified", can_cancel: false, error: { code: "format_job_not_found", message: "" } });
-          setStage("result");
-        }
-        return;
-      }
-      setPollError(false);
-      setJob(result.data);
-      if (formatFinished(result.data) && !finished.current) {
-        finished.current = true;
-        setStage("result");
-        changed.current();
-      }
-    }, POLL_MS);
-    return () => clearInterval(timer);
-  }, [stage, job]);
+  const showResult = useCallback(() => setStage("result"), []);
+  useFormatJobPolling({ active: stage === "running", job, setJob, setPollError, onResult: showResult, finished, onChanged });
 
   const option: FormatOption | undefined = plan?.options.find((o) => o.fs === fs);
   const labelIssue = fs ? labelProblem(fs, label) : "empty";
@@ -188,73 +164,12 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
       </div>
     );
   } else if (stage === "choose" && plan) {
-    const volume = plan.content.volumes[0];
-    const media = plan.content.volumes.reduce((acc, v) => ({ video: acc.video + (v.media?.video ?? 0), audio: acc.audio + (v.media?.audio ?? 0) }), { video: 0, audio: 0 });
-    const roots = plan.content.volumes.flatMap((v) => v.root ?? []).slice(0, 8).map((e) => e.name).join(", ");
     body = (
-      <div className="dv-detail">
-        <div className="fmt-erase" role="note">
-          <strong>{t("storage.format.warning")}</strong>
-          <span className="dv-sub">{t("storage.format.erasesLine", { partitions: plan.erases.partitions, files: plan.erases.files })}</span>
-          {volume?.readable !== false && plan.erases.files > 0 && (
-            <span className="dv-sub">
-              {plan.erases.truncated ? t("storage.format.filesMore", { files: plan.erases.files }) : t("storage.format.filesLine", { files: plan.erases.files, dirs: plan.content.volumes.reduce((n, v) => n + (v.dirs ?? 0), 0) })}
-              {(media.video || media.audio) ? ` · ${t("storage.format.mediaLine", { videos: media.video, tracks: media.audio })}` : ""}
-            </span>
-          )}
-          {roots && <span className="dv-sub">{t("storage.format.rootLine", { names: roots })}</span>}
-          {plan.erases.unreadable && <span className="dv-sub">{t("storage.format.unreadable")}</span>}
-        </div>
-        <div className="dv-detail-block">
-          <div className="dv-row">
-            <span className="dv-icon"><Icon name="usb" size={22} /></span>
-            <span className="dv-text">
-              <span className="dv-title">{plan.target.name}</span>
-              <span className="dv-sub">
-                {t("storage.format.currentLine", {
-                  fs: plan.target.partitions.map((p) => fsLabel(p.fstype)).join(" + ") || "—",
-                  used: formatBytes(plan.content.bytes_used, lang),
-                  size: formatBytes(plan.target.size_bytes, lang),
-                })}
-              </span>
-            </span>
-          </div>
-        </div>
-        <label className="st-check st-check--chip">
-          <input type="checkbox" checked={windowsOrMac} onChange={(e) => { setWindowsOrMac(e.target.checked); void loadPlan(e.target.checked); }} />
-          <span>{t("storage.format.travels")}</span>
-        </label>
-        <div className="dv-detail-block">
-          <h4>{t("storage.format.formatTitle")}</h4>
-          <div className="fmt-options" role="radiogroup" aria-label={t("storage.format.formatTitle")}>
-            {plan.options.map((o) => {
-              const notes = visibleNotes({ reason: o.reason, notes: o.notes.filter((n) => n !== "quick_format_only") }, 3);
-              return (
-                <label key={o.fs} className="fmt-option glass-interactive" aria-disabled={!o.available}>
-                  <input type="radio" name="fmt-fs" checked={fs === o.fs} disabled={!o.available} onChange={() => choose(o)} />
-                  <span className="dv-text">
-                    <span className="dv-title">
-                      {fsLabel(o.fs)}
-                      {o.recommended && <span className="dv-badge">{t("storage.format.recommended")}</span>}
-                    </span>
-                    <span className="dv-sub">{o.available ? `${t(`storage.verdict.${o.verdict}`)} · ${tr(t, `storage.fsReasons.${o.reason}`)}` : tr(t, `storage.format.unavailable.${o.unavailable}`, "", { package: o.install_package ?? "" })}</span>
-                    {o.available && notes.length > 0 && <span className="dv-sub">{notes.map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>}
-                    {o.available && o.fs === "exfat" && o.cluster_bytes && <span className="dv-sub">{t("storage.format.cluster", { size: formatBytes(o.cluster_bytes, lang) })}</span>}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-          <p className="dv-sub"><Icon name="info" size={14} /> {t("storage.fsNotes.quick_format_only")}</p>
-        </div>
-        <div className="fmt-field">
-          <label htmlFor="fmt-label" className="dv-title">{t("storage.format.labelTitle")}</label>
-          <input id="fmt-label" className="form-control" value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} aria-invalid={!!labelIssue} autoComplete="off" />
-          <span className={labelIssue ? "dv-error" : "dv-sub"}>
-            {labelIssue ? t(`storage.format.labelProblem.${labelIssue}`) : t("storage.format.labelHint", { max: option?.label_max ?? 11 })}
-          </span>
-        </div>
-      </div>
+      <FormatChoose
+        plan={plan} fs={fs} onChoose={choose} travels={windowsOrMac}
+        onTravels={(checked) => { setWindowsOrMac(checked); void loadPlan(checked); }}
+        label={label} onLabel={setLabel} labelIssue={labelIssue} labelMax={option?.label_max ?? 11} t={t} lang={lang}
+      />
     );
     footer = (
       <div className="dv-actions">
@@ -265,21 +180,10 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
   } else if (stage === "confirm" && plan && fs) {
     const ready = canConfirmFormat({ typed, expected: plan.confirm.expected, acknowledged, secondsLeft, labelOk: !labelIssue });
     body = (
-      <div className="dv-detail">
-        <div className="fmt-erase" role="alert">
-          <strong>{t("storage.format.summary", { name: plan.target.name, fs: fsLabel(fs), label: label.trim() })}</strong>
-          <span className="dv-sub">{t("storage.format.warning")}</span>
-        </div>
-        <div className="fmt-field">
-          <label htmlFor="fmt-confirm" className="dv-title">{t(`storage.format.confirmMode.${plan.confirm.mode}`, { value: plan.confirm.expected })}</label>
-          <input id="fmt-confirm" className="form-control" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="off" spellCheck={false} />
-        </div>
-        <label className="st-check st-check--chip">
-          <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
-          <span>{t("storage.format.ack")}</span>
-        </label>
-        {secondsLeft > 0 && <p className="dv-sub fmt-count" role="status">{t("storage.format.wait", { count: secondsLeft })}</p>}
-      </div>
+      <FormatConfirm
+        plan={plan} fs={fs} label={label} typed={typed} onTyped={setTyped}
+        acknowledged={acknowledged} onAcknowledged={setAcknowledged} secondsLeft={secondsLeft} t={t}
+      />
     );
     footer = (
       <div className="dv-actions">
@@ -288,47 +192,7 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
       </div>
     );
   } else if (stage === "running" || (stage === "result" && job)) {
-    const steps = job?.steps ?? FORMAT_STEP_ORDER.map((id) => ({ id, state: "pending" as const }));
-    const report = job?.report;
-    const outcome = job?.outcome;
-    body = (
-      <div className="dv-detail">
-        {stage === "running" && pollError && <p className="dv-error" role="status">{t("storage.format.connectionLost")}</p>}
-        {stage === "running" && (
-          <div className="dv-note dv-note--strong" role="status">
-            <Icon name={job?.point_of_no_return ? "lock" : "pending"} size={20} />
-            <span>{job?.point_of_no_return ? t("storage.format.noReturn") : t("storage.format.canCancel")}</span>
-          </div>
-        )}
-        {stage === "result" && outcome && (
-          <div className={outcome === "verified" ? "dv-note dv-note--strong" : "fmt-erase"} role="status">
-            <strong>{t(`storage.format.outcomeTitle.${outcome}`)}</strong>
-            <span className="dv-sub">{t(`storage.format.outcomeText.${outcome}`)}</span>
-            {job?.error && <span className="dv-sub">{tr(t, refusalKey(job.error.code), job.error.message)}</span>}
-          </div>
-        )}
-        <ul className="fmt-steps" aria-label={t("storage.format.stepsTitle")}>
-          {steps.map((s) => (
-            <li key={s.id} data-state={s.state}>
-              <Icon name={stepIcon(s.state)} size={20} />
-              <span>{t(`storage.format.steps.${s.id}`)}</span>
-            </li>
-          ))}
-        </ul>
-        {stage === "result" && report && (report.checks?.length ?? 0) > 0 && (
-          <div className="dv-detail-block">
-            <div className="fmt-checks">
-              {report.checks?.map((c) => (
-                <span key={c.id} className="fmt-chip" data-ok={c.ok}><Icon name={c.ok ? "check_circle" : "error"} size={16} />{tr(t, `storage.format.checks.${c.id}`, c.id)}</span>
-              ))}
-            </div>
-            {report.size_bytes != null && <p className="dv-sub">{t("storage.format.resultLine", { fs: fsLabel(report.filesystem), label: report.label ?? "", size: formatBytes(report.size_bytes, lang) })}</p>}
-            <p className="dv-sub">{report.health?.available ? t(`storage.format.health.${report.health.status === "ok" ? "ok" : "warn"}`) : t("storage.format.health.unknown")}</p>
-            {report.mounted_read_only && <p className="dv-sub">{t("storage.format.readOnlyNote")}</p>}
-          </div>
-        )}
-      </div>
-    );
+    body = <FormatProgress job={job} running={stage === "running"} pollError={pollError} t={t} lang={lang} />;
     footer = stage === "running" ? (
       <div className="dv-actions">
         {job?.can_cancel && <button type="button" className="btn btn-secondary" onClick={cancel}>{t("storage.format.cancelJob")}</button>}
