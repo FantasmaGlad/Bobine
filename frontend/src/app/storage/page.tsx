@@ -10,8 +10,12 @@ import TransferStatus from "@/components/storage/TransferStatus";
 import VolumeSheet from "@/components/storage/VolumeSheet";
 import { PortableRow, VolumeRow } from "@/components/storage/VolumeRow";
 import { storageErrorText } from "@/components/storage/common";
-import { devicesRequest, type DevicesStatus } from "@/lib/devicesApi";
-import { diffVolumes, encodeKey, storageRequest, type FormatJob, type PortableListing, type StorageVolume, type VolumeListing } from "@/lib/storageApi";
+import { devicesRequest } from "@/lib/devices/request";
+import { type DevicesStatus } from "@/lib/devices/types";
+import { diffVolumes } from "@/lib/storage/display";
+import { encodeKey, storageRequest } from "@/lib/storage/request";
+import { type FormatJob } from "@/lib/storage/format";
+import { type PortableListing, type StorageVolume, type VolumeListing } from "@/lib/storage/types";
 import { useStorageEvents } from "@/lib/useStorageEvents";
 import { useToast } from "@/lib/useToast";
 

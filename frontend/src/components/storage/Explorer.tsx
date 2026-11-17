@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Icon from "@/components/Icon";
 import SegmentedTabs from "@/components/SegmentedTabs";
-import {
-  breadcrumbs, encodeKey, formatBytes, isSelectable, joinPath, selectableEntries, selectionBytes, storageRequest, suggestKind, toggleSelection,
-  type BrowseEntry, type BrowseResult, type TransferKind, type TransferStart,
-} from "@/lib/storageApi";
+import { breadcrumbs, isSelectable, joinPath, selectableEntries, selectionBytes, suggestKind, toggleSelection } from "@/lib/storage/browse";
+import { encodeKey, storageRequest } from "@/lib/storage/request";
+import { formatBytes } from "@/lib/storage/display";
+import { type BrowseEntry, type BrowseResult, type TransferKind, type TransferStart } from "@/lib/storage/types";
 import { storageErrorText, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {

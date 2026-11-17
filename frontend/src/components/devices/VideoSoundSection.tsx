@@ -5,7 +5,7 @@ import Icon from "@/components/Icon";
 import RadioSoundPanel from "@/components/RadioSoundPanel";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { clampSound, defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
-import { getDevicesApiUrl } from "@/lib/devicesApi";
+import { getDevicesApiUrl } from "@/lib/devices/request";
 import type { SectionProps } from "./common";
 
 const CHANNELS = ["cable", "network"] as const;

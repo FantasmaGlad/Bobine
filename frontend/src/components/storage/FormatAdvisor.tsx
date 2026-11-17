@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import Sheet from "@/components/Sheet";
-import { adviceQuery, fsLabel, OS_CHOICES, storageRequest, visibleNotes, type FormatAdvice, type OsChoice } from "@/lib/storageApi";
+import { adviceQuery, fsLabel, OS_CHOICES, visibleNotes, type OsChoice } from "@/lib/storage/advice";
+import { storageRequest } from "@/lib/storage/request";
+import { type FormatAdvice } from "@/lib/storage/types";
 import { storageErrorText, tr, type StorageCtx } from "./common";
 
 interface Props extends StorageCtx {

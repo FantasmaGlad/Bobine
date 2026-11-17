@@ -3,19 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
-import {
-  audioDisplayName,
-  audioKindIcon,
-  balanceFromSlider,
-  describeBalance,
-  describeChannels,
-  devicesRequest,
-  formatLatency,
-  formatSampleRate,
-  sliderFromBalance,
-  type AudioDetails,
-  type AudioDevice,
-} from "@/lib/devicesApi";
+import { audioDisplayName, audioKindIcon, balanceFromSlider, describeBalance, describeChannels, formatLatency, formatSampleRate, sliderFromBalance } from "@/lib/devices/audio";
+import { devicesRequest } from "@/lib/devices/request";
+import { type AudioDetails, type AudioDevice } from "@/lib/devices/types";
 import { errorText, type SectionProps } from "./common";
 
 interface Props extends Pick<SectionProps, "caps" | "notify" | "t"> {

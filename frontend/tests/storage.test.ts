@@ -2,11 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import {
-  adviceQuery, breadcrumbs, diffVolumes, formatBytes, fsLabel, isFinished, isSelectable, jobPercent, joinPath, longevitySummary,
-  overallTone, primaryAction, selectableEntries, selectionBytes, statusIcon, suggestKind, toggleSelection, visibleNotes, volumeIcon, volumeStatus,
-  type BrowseEntry, type LongevityItem, type StorageVolume,
-} from "../src/lib/storageApi.ts";
+import { adviceQuery, fsLabel, visibleNotes } from "../src/lib/storage/advice.ts";
+import { breadcrumbs, isSelectable, joinPath, selectableEntries, selectionBytes, suggestKind, toggleSelection } from "../src/lib/storage/browse.ts";
+import { diffVolumes, formatBytes, isFinished, jobPercent, longevitySummary, overallTone, primaryAction, statusIcon, volumeIcon, volumeStatus } from "../src/lib/storage/display.ts";
+import { type BrowseEntry, type LongevityItem, type StorageVolume } from "../src/lib/storage/types.ts";
 import { isPlugEvent } from "../src/lib/useStorageEvents.ts";
 import { dictionaries } from "../src/lib/i18n/all.ts";
 

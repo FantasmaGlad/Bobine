@@ -4,7 +4,8 @@ import {
   assignmentFor, buildRoutingGraph, DEFAULT_SINK_ID, edgePath, layoutRoutingGraph, NODE_HEIGHT, NODE_WIDTH, sinkAt, truncateLabel,
   type GraphInput,
 } from "../src/lib/routingGraph.ts";
-import { outputLabelsHidden, summarizeRouting, type AudioDevice, type RoutingOutput, type RoutingPlayer } from "../src/lib/devicesApi.ts";
+import { outputLabelsHidden, summarizeRouting, type RoutingOutput, type RoutingPlayer } from "../src/lib/devices/routing.ts";
+import { type AudioDevice } from "../src/lib/devices/types.ts";
 
 const device = (id: string, patch: Partial<AudioDevice> = {}): AudioDevice => ({
   id, name: id.toUpperCase(), kind: "internal", is_default: false, volume: 1, muted: false, available: true, ...patch,

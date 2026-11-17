@@ -1,14 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  audioKindIcon,
-  bluetoothKindIcon,
-  secondsLeft,
-  signalBars,
-  splitBluetooth,
-  wifiConnectPlan,
-  type BluetoothDevice,
-} from "../src/lib/devicesApi.ts";
+import { audioKindIcon } from "../src/lib/devices/audio.ts";
+import { bluetoothKindIcon, secondsLeft, signalBars, splitBluetooth, wifiConnectPlan } from "../src/lib/devices/wireless.ts";
+import { type BluetoothDevice } from "../src/lib/devices/types.ts";
 import { errorMessage, parseApiError } from "../src/lib/apiError.ts";
 
 test("erreurs de l'API : détail structuré, texte simple ou absent", () => {
@@ -63,7 +57,7 @@ test("icônes et compte à rebours", () => {
   assert.equal(secondsLeft(null, 0), 0);
 });
 
-import { audioDisplayName, balanceFromSlider, describeBalance, describeChannels, formatLatency, formatSampleRate, sliderFromBalance } from "../src/lib/devicesApi.ts";
+import { audioDisplayName, balanceFromSlider, describeBalance, describeChannels, formatLatency, formatSampleRate, sliderFromBalance } from "../src/lib/devices/audio.ts";
 
 test("détail audio : balance avec cran central, bornes et lecture", () => {
   assert.equal(balanceFromSlider(0), 0);

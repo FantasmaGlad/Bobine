@@ -1,4 +1,4 @@
-import type { Tone, Verdict, VolumeKind } from "./storageApi.ts";
+import type { Tone, Verdict, VolumeKind } from "./types.ts";
 
 export type FormatFs = "ext4" | "exfat" | "vfat" | "ntfs";
 export type FormatStepId = "unmount" | "recheck" | "table" | "format" | "settle" | "readback" | "mount_ro" | "write_test" | "back_ro" | "health";
