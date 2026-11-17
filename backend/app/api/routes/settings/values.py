@@ -20,7 +20,7 @@ from app.config import (
 )
 from app.database import get_db
 from app.models import Setting
-from app.utils import media_native, themes, tor_proxy, ui_language
+from app.utils import media_native, themes, tor_proxy, tor_socks, ui_language
 from app.utils.deployment import (
     get_deployment_profile,
     get_profile_handler,
@@ -198,7 +198,7 @@ def _check_string(key: str, value: str) -> None:
         _refuse(409, "Mises à jour par Tor indisponibles sur ce profil : une partie du téléchargement ne passerait pas par Tor.")
     if key == "update_tor_proxy":
         try:
-            tor_proxy.parse_proxy(value)
+            tor_socks.parse_proxy(value)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
