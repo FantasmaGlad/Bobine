@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import Icon from "@/components/Icon";
-import type { PendingUploadSpec } from "@/lib/UploadManager";
+import type { PendingUploadSpec } from "@/lib/uploads/types";
 
 interface PendingBackgroundsProps {
   t: (key: string, vars?: Record<string, string | number>) => string;

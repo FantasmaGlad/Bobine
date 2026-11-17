@@ -4,7 +4,7 @@ import React from "react";
 
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import type { PendingUploadSpec } from "@/lib/UploadManager";
+import type { PendingUploadSpec } from "@/lib/uploads/types";
 
 import PendingSpecCard from "./PendingSpecCard";
 import type { PendingSpec } from "./types";
