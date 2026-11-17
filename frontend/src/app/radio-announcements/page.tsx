@@ -1,188 +1,26 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useAppSettings } from "@/lib/AppSettingsContext";
+import React, { useRef, useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
-import { useUploadManager } from "@/lib/UploadManager";
-import { RADIO_AUDIO_EXTENSIONS, hasExtension } from "@/lib/mediaFiles";
-import { getApiUrl } from "@/lib/apiUrl";
-import { formatMediaDuration } from "@/lib/format";
-import { useToast } from "@/lib/useToast";
+import AnnouncementList from "@/components/radio-announcements/AnnouncementList";
+import DeleteAnnouncementDialog from "@/components/radio-announcements/DeleteAnnouncementDialog";
+import ImportCard from "@/components/radio-announcements/ImportCard";
 import RulesPanel from "@/components/radio-announcements/RulesPanel";
-import type { Announcement, Rule, RuleTarget } from "@/components/radio-announcements/types";
-
-const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
+import type { RuleTarget } from "@/components/radio-announcements/types";
+import { useAnnouncementImport } from "@/components/radio-announcements/useAnnouncementImport";
+import { useAnnouncements } from "@/components/radio-announcements/useAnnouncements";
+import { useAppSettings } from "@/lib/AppSettingsContext";
+import { getApiUrl } from "@/lib/apiUrl";
+import { useToast } from "@/lib/useToast";
 
 export default function RadioAnnouncementsPage() {
   const { t } = useAppSettings();
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [rules, setRules] = useState<Rule[]>([]);
-  const [loading, setLoading] = useState(true);
   const { toast, showToast } = useToast();
-  const [description, setDescription] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const list = useAnnouncements(t, showToast);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const io = useAnnouncementImport(fileInputRef, t, showToast, list.fetchAll);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const [uploadMode, setUploadMode] = useState<"file" | "folder">("file");
-  const [dragActive, setDragActive] = useState(false);
-  const [selectedFileName, setSelectedFileName] = useState("");
-  const [showImportCard, setShowImportCard] = useState(false);
-  const { uploads, addUploads } = useUploadManager();
-  const seenDoneIds = useRef<Set<string>>(new Set());
-
-  const openFilePicker = () => {
-    setUploadMode("file");
-    const el = fileInputRef.current;
-    if (!el) return;
-    el.removeAttribute("webkitdirectory");
-    el.removeAttribute("directory");
-    el.multiple = false;
-    el.click();
-  };
-
-  const openFolderPicker = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUploadMode("folder");
-    const el = fileInputRef.current;
-    if (!el) return;
-    el.setAttribute("webkitdirectory", "");
-    el.setAttribute("directory", "");
-    el.multiple = true;
-    el.click();
-  };
-
-  const fetchAll = useCallback(() => {
-    Promise.all([
-      fetch(getApiUrl("/radio/announcements"), { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
-      fetch(getApiUrl("/radio/announcement-rules"), { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])),
-    ])
-      .then(([a, r]) => {
-        setAnnouncements(a);
-        setRules(r);
-      })
-      .catch(() => showToast(t("radioAnnouncements.genericError"), "error"))
-      .finally(() => setLoading(false));
-  }, [showToast, t]);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
-  useEffect(() => {
-    const newlyDone = uploads.filter(
-      (u) => u.kind === "radio_announcement_files" && u.status === "done" && !seenDoneIds.current.has(u.id)
-    );
-    if (newlyDone.length === 0) return;
-    newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
-    fetchAll();
-  }, [uploads, fetchAll]);
-
-  const handleUpload = async () => {
-    const file = fileInputRef.current?.files?.[0];
-    if (!file || !description.trim()) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("description", description.trim());
-      const res = await fetch(getApiUrl("/radio/announcements/upload"), { method: "POST", body: fd });
-      if (res.ok) {
-        showToast(t("radioAnnouncements.importedToast"));
-        setDescription("");
-        setSelectedFileName("");
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        fetchAll();
-      } else {
-        showToast(t("radioAnnouncements.importError"), "error");
-      }
-    } catch {
-      showToast(t("radioAnnouncements.importError"), "error");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleFolderUpload = (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList).filter((f) => isAudioFile(f.name));
-    if (files.length === 0) {
-      showToast(t("radioAnnouncements.noAudioInFolder"), "warning");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    addUploads(files.map((f) => ({ kind: "radio_announcement_files" as const, files: [f], title: f.name })));
-    showToast(t("radioAnnouncements.importStarted"));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(e.type === "dragenter" || e.type === "dragover");
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (uploadMode === "folder") {
-      handleFolderUpload(e.dataTransfer.files);
-    } else if (e.dataTransfer.files?.[0] && fileInputRef.current) {
-      const dt = new DataTransfer();
-      dt.items.add(e.dataTransfer.files[0]);
-      fileInputRef.current.files = dt.files;
-      setSelectedFileName(e.dataTransfer.files[0].name);
-    }
-  };
-
-  const toggleEnabled = async (a: Announcement) => {
-    const res = await fetch(getApiUrl(`/radio/announcements/${a.id}`), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: !a.enabled }),
-    });
-    if (res.ok) {
-      setAnnouncements((prev) => prev.map((x) => (x.id === a.id ? { ...x, enabled: !x.enabled } : x)));
-    } else {
-      showToast(t("radioAnnouncements.genericError"), "error");
-    }
-  };
-
-  const startEdit = (a: Announcement) => {
-    setEditingId(a.id);
-    setEditValue(a.description);
-  };
-
-  const saveEdit = async (id: number) => {
-    if (!editValue.trim()) return;
-    const res = await fetch(getApiUrl(`/radio/announcements/${id}`), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: editValue.trim() }),
-    });
-    if (res.ok) {
-      showToast(t("radioAnnouncements.updatedToast"));
-      setEditingId(null);
-      fetchAll();
-    } else {
-      showToast(t("radioAnnouncements.genericError"), "error");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    const res = await fetch(getApiUrl(`/radio/announcements/${id}`), { method: "DELETE" });
-    if (res.ok) {
-      showToast(t("radioAnnouncements.deletedToast"));
-      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
-    } else {
-      showToast(t("radioAnnouncements.genericError"), "error");
-    }
-    setConfirmDeleteId(null);
-  };
-
   const [playNowTarget, setPlayNowTarget] = useState<RuleTarget>("radio_network");
 
   const handlePlayNow = async (announcementId?: number) => {
@@ -206,25 +44,14 @@ export default function RadioAnnouncementsPage() {
   ];
 
   return (
-    <div
-      className="ra-page"
-      onDragEnter={handleDrag}
-      onDragOver={handleDrag}
-      onDragLeave={handleDrag}
-      onDrop={handleDrop}
-    >
+    <div className="ra-page" onDragEnter={io.handleDrag} onDragOver={io.handleDrag} onDragLeave={io.handleDrag} onDrop={io.handleDrop}>
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
 
       <div className="ra-header" style={{ justifyContent: "flex-end" }}>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setShowImportCard((v) => !v)}
-            style={{ height: "44px" }}
-          >
+          <button type="button" className="btn btn-secondary" onClick={() => io.setShowImportCard((v) => !v)} style={{ height: "44px" }}>
             <Icon name="cloud_upload" size={18} />
-            <span>{showImportCard ? t("radioAnnouncements.closeImport") : t("radioAnnouncements.openImport")}</span>
+            <span>{io.showImportCard ? t("radioAnnouncements.closeImport") : t("radioAnnouncements.openImport")}</span>
           </button>
           <ResponsiveSelect
             className="form-control"
@@ -234,7 +61,7 @@ export default function RadioAnnouncementsPage() {
             title={t("radioAnnouncements.playNowTargetTitle")}
             options={targetOptions}
           />
-          <button className="btn btn-primary ra-playnow" onClick={() => handlePlayNow()} disabled={announcements.filter((a) => a.enabled).length === 0}>
+          <button className="btn btn-primary ra-playnow" onClick={() => handlePlayNow()} disabled={list.announcements.filter((a) => a.enabled).length === 0}>
             <Icon name="play_arrow" size={18} filled /> {t("radioAnnouncements.playNow")}
           </button>
         </div>
@@ -242,164 +69,28 @@ export default function RadioAnnouncementsPage() {
 
       <div className="ra-grid">
         <section className="ra-col">
-          {(showImportCard || dragActive || Boolean(selectedFileName)) && (
-          <div className="ra-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <h3 className="ra-card-title" style={{ margin: 0 }}>
-                <Icon name="upload" size={18} /> {t("radioAnnouncements.importTitle")}
-              </h3>
-              <button aria-label={t("common.close")}
-                type="button"
-                className="close-btn"
-                style={{ padding: "4px" }}
-                onClick={() => {
-                  setShowImportCard(false);
-                  setSelectedFileName("");
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </div>
-
-            <div
-              className={`upload-zone ${dragActive ? "drag-active" : ""}`}
-              onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}
-              onClick={openFilePicker}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                style={{ display: "none" }}
-                onChange={(e) =>
-                  uploadMode === "folder"
-                    ? handleFolderUpload(e.target.files)
-                    : setSelectedFileName(e.target.files?.[0]?.name ?? "")
-                }
-              />
-              <Icon name="cloud_upload" size={36} className="upload-icon" />
-              <p style={{ fontSize: "1rem", fontWeight: 800, color: "var(--text-main)", margin: "8px 0 0" }}>
-                {t("radioAnnouncements.importCta")}
-              </p>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "2px 0 0" }}>
-                {t("radioAnnouncements.dropFileHint")}
-              </p>
-              {selectedFileName && (
-                <p style={{ fontSize: "0.8rem", fontWeight: 700, margin: "4px 0 0", color: "var(--accent-text)" }}>{selectedFileName}</p>
-              )}
-              <button
-                type="button"
-                onClick={openFolderPicker}
-                style={{
-                  marginTop: "10px", background: "none", border: "none", padding: 0,
-                  color: "var(--accent-text)", fontWeight: 700, fontSize: "0.8rem",
-                  cursor: "pointer", textDecoration: "underline",
-                }}
-              >
-                {t("radioAnnouncements.chooseFolder")}
-              </button>
-            </div>
-
-            {uploadMode === "file" && (
-              <div className="ra-import-form" style={{ marginTop: "10px" }}>
-                <label className="ra-field">
-                  <span className="ra-field-label">{t("radioAnnouncements.descriptionLabel")}</span>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder={t("radioAnnouncements.descriptionPlaceholder")}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </label>
-                <button className="btn btn-primary" style={{ height: "44px" }} onClick={handleUpload} disabled={uploading || !description.trim()}>
-                  <Icon name="upload" size={16} /> {uploading ? t("radioAnnouncements.importing") : t("radioAnnouncements.importButton")}
-                </button>
-              </div>
-            )}
-          </div>
-          )}
-
-          <div className="ra-card">
-            <h3 className="ra-card-title">
-              <Icon name="record_voice_over" size={18} /> {t("radioAnnouncements.listTitle")}
-              {announcements.length > 0 && <span className="ra-count">{announcements.length}</span>}
-            </h3>
-            {loading ? (
-              <p className="live-empty">{t("radioAnnouncements.loading")}</p>
-            ) : announcements.length === 0 ? (
-              <div className="ra-empty">
-                <Icon name="campaign" size={36} style={{ opacity: 0.25 }} />
-                <p>{t("radioAnnouncements.empty")}</p>
-              </div>
-            ) : (
-              <div className="ra-list">
-                {announcements.map((a) => (
-                  <div key={a.id} className={`ra-item ${a.enabled ? "" : "off"}`}>
-                    <button
-                      className="ra-item-play"
-                      onClick={() => handlePlayNow(a.id)}
-                      disabled={!a.enabled}
-                      title={t("radioAnnouncements.playNow")}
-                    >
-                      <Icon name="play_arrow" size={18} filled />
-                    </button>
-                    <div className="ra-item-body">
-                      {editingId === a.id ? (
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") saveEdit(a.id); }}
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <span className="ra-item-desc">{a.description}</span>
-                          <span className="ra-item-dur">{formatMediaDuration(a.duration_seconds)}</span>
-                        </>
-                      )}
-                    </div>
-                    <label className="ra-switch" title={t("radioAnnouncements.enabledLabel")}>
-                      <input type="checkbox" checked={a.enabled} onChange={() => toggleEnabled(a)} />
-                      <span className="ra-switch-track" />
-                    </label>
-                    {editingId === a.id ? (
-                      <div className="ra-item-actions">
-                        <button className="btn btn-primary ra-icon-btn" onClick={() => saveEdit(a.id)} title={t("radioAnnouncements.save")}><Icon name="check" size={16} /></button>
-                        <button className="btn btn-secondary ra-icon-btn" onClick={() => setEditingId(null)} title={t("radioAnnouncements.cancel")}><Icon name="close" size={16} /></button>
-                      </div>
-                    ) : (
-                      <div className="ra-item-actions">
-                        <button className="btn btn-secondary ra-icon-btn" onClick={() => startEdit(a)} title={t("radioAnnouncements.edit")}><Icon name="edit" size={16} /></button>
-                        <button className="btn btn-danger ra-icon-btn" onClick={() => setConfirmDeleteId(a.id)} title={t("radioAnnouncements.delete")}><Icon name="delete" size={16} /></button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {(io.showImportCard || io.dragActive || Boolean(io.selectedFileName)) && <ImportCard io={io} fileInputRef={fileInputRef} />}
+          <AnnouncementList
+            announcements={list.announcements}
+            loading={list.loading}
+            onSave={list.saveDescription}
+            onToggle={list.toggleEnabled}
+            onPlay={handlePlayNow}
+            onAskDelete={setConfirmDeleteId}
+          />
         </section>
-
-        <RulesPanel t={t} rules={rules} setRules={setRules} fetchAll={fetchAll} showToast={showToast} targetOptions={targetOptions} />
+        <RulesPanel t={t} rules={list.rules} setRules={list.setRules} fetchAll={list.fetchAll} showToast={showToast} targetOptions={targetOptions} />
       </div>
 
       {confirmDeleteId !== null && (
-        <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "420px" }}>
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0 }}>{t("radioAnnouncements.deleteConfirmTitle")}</h3>
-            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.5 }}>
-              {t("radioAnnouncements.deleteConfirmText", { description: announcements.find((a) => a.id === confirmDeleteId)?.description || "" })}
-            </p>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setConfirmDeleteId(null)}>{t("radioAnnouncements.cancel")}</button>
-              <button className="btn btn-primary" style={{ backgroundColor: "var(--accent-error)" }} onClick={() => handleDelete(confirmDeleteId)}>{t("radioAnnouncements.confirmDelete")}</button>
-            </div>
-          </div>
-        </div>
+        <DeleteAnnouncementDialog
+          description={list.announcements.find((a) => a.id === confirmDeleteId)?.description || ""}
+          onCancel={() => setConfirmDeleteId(null)}
+          onConfirm={async () => {
+            await list.remove(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }}
+        />
       )}
     </div>
   );

@@ -1,390 +1,83 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useAppSettings } from "@/lib/AppSettingsContext";
+import React, { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/Icon";
-import ScrollNav from "@/components/ScrollNav";
+import AttendanceChart from "@/components/metrics/AttendanceChart";
+import CourseRanking from "@/components/metrics/CourseRanking";
+import FilterGroup from "@/components/metrics/FilterGroup";
+import KpiCard from "@/components/metrics/KpiCard";
+import RatingBars from "@/components/metrics/RatingBars";
+import type { DashboardMetrics } from "@/components/metrics/types";
+import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 
-interface RatingBreakdown {
-  score: number;
-  count: number;
-  percentage: number;
-}
+type Period = "7d" | "30d" | "this_month" | "all";
+type Channel = "all" | "cable" | "network";
 
-interface CourseStat {
-  video_id: number;
-  title: string;
-  program: string | null;
-  thumbnail_path: string | null;
-  total_sessions: number;
-  completed_sessions: number;
-  completion_rate: number;
-  total_duration_hours: number;
-  average_rating: number | null;
-  ratings_count: number;
-  sessions_count?: number;
-  duration_seconds?: number;
-}
-
-interface HourlyAttendance {
-  hour: number;
-  sessions: number;
-}
-
-interface DashboardMetrics {
-  period: string;
-  channel: string;
-  kpis: {
-    average_satisfaction: number | null;
-    ratings_count: number;
-    completion_rate: number;
-    total_broadcast_hours: number;
-    total_sessions: number;
-    completed_sessions: number;
-  };
-  rating_breakdown: RatingBreakdown[];
-  hourly_attendance: HourlyAttendance[];
-  peak_hours: number[];
-  top_courses: CourseStat[];
-}
-
-function getThumbnailSrc(thumbnailPath: string | null): string | null {
-  if (!thumbnailPath) return null;
-  const filename = thumbnailPath.split("/").pop();
-  return filename ? `/api/thumbnails/${filename}` : null;
-}
-
-export default function MetricsCoursesPage() {
-  const { t } = useAppSettings();
-  const [period, setPeriod] = useState<"7d" | "30d" | "this_month" | "all">("7d");
-  const [channel, setChannel] = useState<"all" | "cable" | "network">("all");
+function useDashboard(period: Period, channel: Channel) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-
   const fetchDashboard = useCallback(() => fetch(getApiUrl(`/metrics/dashboard?period=${period}&channel=${channel}`))
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
       if (data) setMetrics(data);
     })
     .catch((err) => console.error("Erreur chargement métriques cours:", err)), [period, channel]);
-
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
-
   useEffect(() => {
     const id = setInterval(fetchDashboard, 15000);
     return () => clearInterval(id);
   }, [fetchDashboard]);
+  return metrics;
+}
 
+export default function MetricsCoursesPage() {
+  const { t } = useAppSettings();
+  const [period, setPeriod] = useState<Period>("7d");
+  const [channel, setChannel] = useState<Channel>("all");
+  const metrics = useDashboard(period, channel);
   const kpis = metrics?.kpis;
   const ratingBreakdown = metrics?.rating_breakdown || [];
-  const hourly = metrics?.hourly_attendance || [];
-  const maxHourlySessions = Math.max(1, ...(hourly.length ? hourly.map((h) => Number(h?.sessions) || 0) : [1]));
-  const courses = metrics?.top_courses || [];
+  const completed = t("metricsPage.kpiSessionsCompleted", { count: kpis?.completed_sessions ?? 0 });
 
   return (
     <div className="metrics-page">
       <div className="metrics-filters-bar" style={{ marginTop: 0 }}>
-        <div className="metrics-filter-group">
-          <span className="metrics-filter-label">
-            <Icon name="date_range" size={16} /> {t("metricsPage.periodLabel")} :
-          </span>
-          <ScrollNav>
-            <button
-              type="button"
-              className={`view-btn ${period === "7d" ? "active" : ""}`}
-              onClick={() => setPeriod("7d")}
-            >
-              {t("metricsPage.period7d")}
-            </button>
-            <button
-              type="button"
-              className={`view-btn ${period === "30d" ? "active" : ""}`}
-              onClick={() => setPeriod("30d")}
-            >
-              {t("metricsPage.period30d")}
-            </button>
-            <button
-              type="button"
-              className={`view-btn ${period === "this_month" ? "active" : ""}`}
-              onClick={() => setPeriod("this_month")}
-            >
-              {t("metricsPage.periodMonth")}
-            </button>
-            <button
-              type="button"
-              className={`view-btn ${period === "all" ? "active" : ""}`}
-              onClick={() => setPeriod("all")}
-            >
-              {t("metricsPage.periodAll")}
-            </button>
-          </ScrollNav>
-        </div>
-
-        <div className="metrics-filter-group">
-          <span className="metrics-filter-label">
-            <Icon name="tune" size={16} /> {t("metricsPage.channelLabel")} :
-          </span>
-          <ScrollNav>
-            <button
-              type="button"
-              className={`view-btn ${channel === "all" ? "active" : ""}`}
-              onClick={() => setChannel("all")}
-            >
-              {t("metricsPage.channelAll")}
-            </button>
-            <button
-              type="button"
-              className={`view-btn ${channel === "cable" ? "active" : ""}`}
-              onClick={() => setChannel("cable")}
-            >
-              <Icon name="cable" size={14} /> {t("metricsPage.channelCable")}
-            </button>
-            <button
-              type="button"
-              className={`view-btn ${channel === "network" ? "active" : ""}`}
-              onClick={() => setChannel("network")}
-            >
-              <Icon name="wifi" size={14} /> {t("metricsPage.channelNetwork")}
-            </button>
-          </ScrollNav>
-        </div>
+        <FilterGroup icon="date_range" label={t("metricsPage.periodLabel")} value={period} onChange={setPeriod} choices={[
+          { value: "7d", label: t("metricsPage.period7d") },
+          { value: "30d", label: t("metricsPage.period30d") },
+          { value: "this_month", label: t("metricsPage.periodMonth") },
+          { value: "all", label: t("metricsPage.periodAll") },
+        ]} />
+        <FilterGroup icon="tune" label={t("metricsPage.channelLabel")} value={channel} onChange={setChannel} choices={[
+          { value: "all", label: t("metricsPage.channelAll") },
+          { value: "cable", label: t("metricsPage.channelCable"), icon: "cable" },
+          { value: "network", label: t("metricsPage.channelNetwork"), icon: "wifi" },
+        ]} />
       </div>
 
       <section className="metrics-kpis-grid">
-        <div className="metrics-kpi-card">
-          <div className="metrics-kpi-header">
-            <span className="metrics-kpi-title">{t("metricsPage.kpiSatisfaction")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="star" size={24} filled />
-            </div>
-          </div>
-          <div className="metrics-kpi-value-row">
-            <span className="metrics-kpi-main-num">
-              {kpis?.average_satisfaction != null ? kpis.average_satisfaction.toFixed(1) : "--"}
-            </span>
-            <span className="metrics-kpi-unit">/ 5</span>
-          </div>
-          <p className="metrics-kpi-detail">
-            {t("metricsPage.kpiSatisfactionCount", { count: kpis?.ratings_count ?? 0 })}
-          </p>
-
-          {ratingBreakdown.length > 0 && (
-            <div className="metrics-rating-bars">
-              {[5, 4, 3, 2, 1].map((star) => {
-                const item = ratingBreakdown.find((r) => r.score === star);
-                const pct = item?.percentage ?? 0;
-                return (
-                  <div key={star} className="metrics-rating-bar-row">
-                    <span className="metrics-rating-star-num" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
-                      {star}
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    </span>
-                    <div className="metrics-rating-bar-track">
-                      <div className="metrics-rating-bar-fill" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="metrics-rating-bar-pct">{pct.toFixed(0)}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="metrics-kpi-card">
-          <div className="metrics-kpi-header">
-            <span className="metrics-kpi-title">{t("metricsPage.kpiCompletionRate")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="task_alt" size={24} />
-            </div>
-          </div>
-          <div className="metrics-kpi-value-row">
-            <span className="metrics-kpi-main-num">
-              {kpis?.completion_rate != null ? kpis.completion_rate.toFixed(0) : "0"}
-            </span>
-            <span className="metrics-kpi-unit">%</span>
-          </div>
-          <p className="metrics-kpi-detail">{t("metricsPage.kpiCompletionDesc")}</p>
+        <KpiCard title={t("metricsPage.kpiSatisfaction")} icon="star" filled unit="/ 5"
+          value={kpis?.average_satisfaction != null ? kpis.average_satisfaction.toFixed(1) : "--"}
+          detail={t("metricsPage.kpiSatisfactionCount", { count: kpis?.ratings_count ?? 0 })}>
+          {ratingBreakdown.length > 0 && <RatingBars breakdown={ratingBreakdown} />}
+        </KpiCard>
+        <KpiCard title={t("metricsPage.kpiCompletionRate")} icon="task_alt" unit="%"
+          value={kpis?.completion_rate != null ? kpis.completion_rate.toFixed(0) : "0"} detail={t("metricsPage.kpiCompletionDesc")}>
           <div className="metrics-kpi-extra">
             <Icon name="check_circle" size={14} />
-            <span>
-              {t("metricsPage.kpiSessionsCompleted", {
-                count: kpis?.completed_sessions ?? 0,
-              })}{" "}
-              / {kpis?.total_sessions ?? 0}
-            </span>
+            <span>{completed}{" "}/ {kpis?.total_sessions ?? 0}</span>
           </div>
-        </div>
-
-        <div className="metrics-kpi-card">
-          <div className="metrics-kpi-header">
-            <span className="metrics-kpi-title">{t("metricsPage.kpiBroadcastHours")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="schedule" size={24} />
-            </div>
-          </div>
-          <div className="metrics-kpi-value-row">
-            <span className="metrics-kpi-main-num">
-              {kpis?.total_broadcast_hours != null ? kpis.total_broadcast_hours.toFixed(1) : "0.0"}
-            </span>
-            <span className="metrics-kpi-unit">h</span>
-          </div>
-          <p className="metrics-kpi-detail">{t("metricsPage.kpiBroadcastDesc")}</p>
-        </div>
-
-        <div className="metrics-kpi-card">
-          <div className="metrics-kpi-header">
-            <span className="metrics-kpi-title">{t("metricsPage.kpiTotalSessions")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="play_circle" size={24} />
-            </div>
-          </div>
-          <div className="metrics-kpi-value-row">
-            <span className="metrics-kpi-main-num">{kpis?.total_sessions ?? 0}</span>
-            <span className="metrics-kpi-unit">{t("metricsPage.sessionsCount")}</span>
-          </div>
-          <p className="metrics-kpi-detail">
-            {t("metricsPage.kpiSessionsCompleted", { count: kpis?.completed_sessions ?? 0 })}
-          </p>
-        </div>
+        </KpiCard>
+        <KpiCard title={t("metricsPage.kpiBroadcastHours")} icon="schedule" unit="h"
+          value={kpis?.total_broadcast_hours != null ? kpis.total_broadcast_hours.toFixed(1) : "0.0"} detail={t("metricsPage.kpiBroadcastDesc")} />
+        <KpiCard title={t("metricsPage.kpiTotalSessions")} icon="play_circle" unit={t("metricsPage.sessionsCount")}
+          value={kpis?.total_sessions ?? 0} detail={completed} />
       </section>
 
-      <section className="metrics-section-card metrics-chart-card">
-        <div className="metrics-section-header">
-          <div>
-            <h3>
-              <Icon name="bar_chart" size={20} /> {t("metricsPage.chartTitle")}
-            </h3>
-            <p className="metrics-section-subtitle">{t("metricsPage.chartSubtitle")}</p>
-          </div>
-          {metrics?.peak_hours && metrics.peak_hours.length > 0 && (
-            <span className="metrics-peak-badge">
-              <Icon name="trending_up" size={14} />
-              {t("metricsPage.peakHours", {
-                hours: metrics.peak_hours.map((h) => `${h}h`).join(", "),
-              })}
-            </span>
-          )}
-        </div>
-
-        <div className="metrics-histogram-container">
-          <div className="metrics-histogram-bars">
-            {hourly.map((item) => {
-              const sessCount = Number(item?.sessions) || 0;
-              const heightPct = Math.max(4, Math.min(100, (sessCount / (maxHourlySessions || 1)) * 100));
-              const isPeak = metrics?.peak_hours?.includes(item.hour);
-              return (
-                <div key={item.hour} className="metrics-histogram-column">
-                  <div
-                    className={`metrics-histogram-bar ${isPeak ? "peak" : ""}`}
-                    style={{ height: `${heightPct}%` }}
-                    title={`${item.hour}h:00 — ${sessCount} ${t("metricsPage.sessionsCount")}`}
-                  >
-                    <span className="metrics-histogram-tooltip">{sessCount}</span>
-                  </div>
-                  <span className="metrics-histogram-label">
-                    {item.hour % 3 === 0 ? `${item.hour}h` : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="metrics-section-card">
-        <div className="metrics-section-header">
-          <div>
-            <h3>
-              <Icon name="leaderboard" size={20} /> {t("metricsPage.rankingTitle")}
-            </h3>
-            <p className="metrics-section-subtitle">{t("metricsPage.rankingSubtitle")}</p>
-          </div>
-        </div>
-
-        {courses.length > 0 ? (
-          <div className="metrics-table-wrapper">
-            <table className="metrics-table">
-              <thead>
-                <tr>
-                  <th style={{ width: "48px" }}>{t("metricsPage.thRank")}</th>
-                  <th>{t("metricsPage.thCourse")}</th>
-                  <th style={{ textAlign: "center" }}>{t("metricsPage.thSessions")}</th>
-                  <th style={{ textAlign: "center" }}>{t("metricsPage.thCompletion")}</th>
-                  <th style={{ textAlign: "right" }}>{t("metricsPage.thRating")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {courses.map((course, idx) => {
-                  const rank = idx + 1;
-                  const rankClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
-                  const thumbSrc = getThumbnailSrc(course.thumbnail_path);
-                  return (
-                    <tr key={course.video_id}>
-                      <td className="metrics-rank-cell">
-                        <span className={`metrics-rank-badge ${rankClass}`}>{rank}</span>
-                      </td>
-                      <td>
-                        <div className="metrics-course-cell">
-                          <div className="metrics-course-thumb">
-                            {thumbSrc ? (
-                              <img src={thumbSrc} alt="" className="card-thumbnail" />
-                            ) : (
-                              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <Icon name="movie" size={16} style={{ opacity: 0.25 }} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="metrics-course-info">
-                            <span className="metrics-course-title">{course.title}</span>
-                            <span className="metrics-course-program">{course.program || "Autre"}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: "center", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
-                        {course.total_sessions}
-                      </td>
-                      <td>
-                        <div className="metrics-table-progress-wrap">
-                          <div className="metrics-table-progress-bar">
-                            <div
-                              className="metrics-table-progress-fill"
-                              style={{ width: `${course.completion_rate}%` }}
-                            />
-                          </div>
-                          <span className="metrics-table-progress-text">{course.completion_rate.toFixed(0)}%</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {course.average_rating != null && course.ratings_count > 0 ? (
-                          <div className="metrics-table-rating">
-                            <span style={{ color: "var(--accent-text)", display: "inline-flex", alignItems: "center" }}>
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                              </svg>
-                            </span>
-                            <span>{course.average_rating.toFixed(1)}</span>
-                            <span className="metrics-table-rating-count">({course.ratings_count})</span>
-                          </div>
-                        ) : (
-                          <span className="metrics-no-rating">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="metrics-empty">
-            <p>{t("metricsPage.emptyCourses")}</p>
-          </div>
-        )}
-      </section>
+      <AttendanceChart hourly={metrics?.hourly_attendance || []} peakHours={metrics?.peak_hours} />
+      <CourseRanking courses={metrics?.top_courses || []} />
     </div>
   );
 }

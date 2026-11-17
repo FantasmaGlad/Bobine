@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Icon from "@/components/Icon";
-import ResponsiveSelect, { type SelectOption } from "@/components/ResponsiveSelect";
+import ResponsiveSelect from "@/components/ResponsiveSelect";
+import type { SelectOption } from "@/components/select/options";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { audioDisplayName } from "@/lib/devices/audio";
 import { devicesRequest } from "@/lib/devices/request";

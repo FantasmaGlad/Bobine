@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { formatBinarySize } from "@/lib/format";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import Icon from "@/components/Icon";
-import ScrollNav from "@/components/ScrollNav";
+import FilterGroup from "@/components/metrics/FilterGroup";
+import TelemetryTile from "@/components/metrics/TelemetryTile";
 import TelemetryHistoryDrawer from "@/components/TelemetryHistoryDrawer";
 import { getApiUrl } from "@/lib/apiUrl";
 
@@ -73,12 +73,10 @@ export default function MetricsSystemPage() {
     setActiveDrawer({ metric, title, iconName });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, metric: string, title: string, iconName: string) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      openDrawer(metric, title, iconName);
-    }
-  };
+  const ramLabel = telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : t("metricsPage.ramFallback"));
+  const energyLabel = telemetry?.runtime?.cumulative_energy_wh != null
+    ? t("metricsPage.energySummary", { total: telemetry.runtime.cumulative_energy_wh.toFixed(1), average: telemetry.runtime.average_power_watts != null ? telemetry.runtime.average_power_watts.toFixed(1) + " W" : "--" })
+    : t("metricsPage.systemPower");
 
   const freeStorage = telemetry?.storage_free_bytes ?? telemetry?.storage?.free_bytes ?? 0;
   const totalStorage = telemetry?.storage_total_bytes ?? telemetry?.storage?.total_bytes ?? 0;
@@ -87,205 +85,44 @@ export default function MetricsSystemPage() {
   return (
     <div className="metrics-page">
       <div className="metrics-filters-bar" style={{ marginTop: 0 }}>
-        <div className="metrics-filter-group">
-          <span className="metrics-filter-label">
-            <Icon name="date_range" size={16} /> {t("metricsPage.periodLabel")} :
-          </span>
-          <ScrollNav>
-            {(
-              [
-                ["7d", "metricsPage.period7d"],
-                ["30d", "metricsPage.period30d"],
-                ["this_month", "metricsPage.periodMonth"],
-                ["all", "metricsPage.periodAll"],
-              ] as const
-            ).map(([value, key]) => (
-              <button
-                key={value}
-                type="button"
-                className={`view-btn ${period === value ? "active" : ""}`}
-                onClick={() => setPeriod(value)}
-              >
-                {t(key)}
-              </button>
-            ))}
-          </ScrollNav>
-        </div>
+        <FilterGroup icon="date_range" label={t("metricsPage.periodLabel")} value={period} onChange={setPeriod} choices={[
+          { value: "7d", label: t("metricsPage.period7d") },
+          { value: "30d", label: t("metricsPage.period30d") },
+          { value: "this_month", label: t("metricsPage.periodMonth") },
+          { value: "all", label: t("metricsPage.periodAll") },
+        ]} />
       </div>
 
       <section className="metrics-telemetry-grid">
-        <div
-          className="metrics-telemetry-item interactive"
-          role="button"
-          tabIndex={0}
-          onClick={() => openDrawer("cpu", t("metricsPage.drawerCpu"), "memory")}
-          onKeyDown={(e) => handleKeyDown(e, "cpu", t("metricsPage.drawerCpu"), "memory")}
-          aria-label={t("metricsPage.ariaCpu")}
-        >
-          <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.cpu")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="memory" size={24} />
-            </div>
-          </div>
-          <span className="metrics-telemetry-component-name" title={telemetry?.cpu_name}>
-            {telemetry?.cpu_name || t("common.processor")}
-          </span>
-          <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num">
-              {telemetry?.cpu_percent != null ? telemetry.cpu_percent.toFixed(0) : "0"}%
-            </span>
-            {telemetry?.cpu_temp_c != null && (
-              <span className="metrics-telemetry-temp">{telemetry.cpu_temp_c.toFixed(0)} °C</span>
-            )}
-          </div>
-          <span className="metrics-telemetry-cta">
-            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
-          </span>
-        </div>
-
-        <div
-          className="metrics-telemetry-item interactive"
-          role="button"
-          tabIndex={0}
-          onClick={() => openDrawer("gpu", t("metricsPage.drawerGpu"), "videogame_asset")}
-          onKeyDown={(e) => handleKeyDown(e, "gpu", t("metricsPage.drawerGpu"), "videogame_asset")}
-          aria-label={t("metricsPage.ariaGpu")}
-        >
-          <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.gpu")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="videogame_asset" size={24} />
-            </div>
-          </div>
-          <span className="metrics-telemetry-component-name" title={telemetry?.gpu_name || "Puce Graphique"}>
-            {telemetry?.gpu_name || "Puce Graphique"}
-          </span>
-          <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num">
-              {telemetry?.gpu_percent != null ? telemetry.gpu_percent.toFixed(0) : "0"}%
-            </span>
-            {telemetry?.gpu_temp_c != null && (
-              <span className="metrics-telemetry-temp">{telemetry.gpu_temp_c.toFixed(0)} °C</span>
-            )}
-          </div>
-          <span className="metrics-telemetry-cta">
-            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
-          </span>
-        </div>
-
-        <div
-          className="metrics-telemetry-item interactive"
-          role="button"
-          tabIndex={0}
-          onClick={() => openDrawer("memory", t("metricsPage.drawerRam"), "developer_board")}
-          onKeyDown={(e) => handleKeyDown(e, "memory", t("metricsPage.drawerRam"), "developer_board")}
-          aria-label={t("metricsPage.ariaRam")}
-        >
-          <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.ram")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="developer_board" size={24} />
-            </div>
-          </div>
-          <span
-            className="metrics-telemetry-component-name"
-            title={telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : t("metricsPage.ramFallback"))}
-          >
-            {telemetry?.ram_model || (telemetry?.ram_type ? `${telemetry.ram_brand ? telemetry.ram_brand + " " : ""}${telemetry.ram_type}${telemetry.ram_freq ? " " + telemetry.ram_freq : ""}` : t("metricsPage.ramFallback"))}
-          </span>
-          <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num">
-              {telemetry?.memory_percent != null ? telemetry.memory_percent.toFixed(0) : "0"}%
-            </span>
-            <span className="metrics-telemetry-temp">
-              {formatBinarySize(telemetry?.memory_used_bytes, "0 Go")} / {formatBinarySize(telemetry?.memory_total_bytes, "0 Go")}
-            </span>
-          </div>
-          <span className="metrics-telemetry-cta">
-            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
-          </span>
-        </div>
-
-        <div
-          className="metrics-telemetry-item interactive"
-          role="button"
-          tabIndex={0}
-          onClick={() => openDrawer("storage", t("metricsPage.drawerStorage"), "storage")}
-          onKeyDown={(e) => handleKeyDown(e, "storage", t("metricsPage.drawerStorage"), "storage")}
-          aria-label={t("metricsPage.ariaStorage")}
-        >
-          <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.storage")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="storage" size={24} />
-            </div>
-          </div>
-          <span className="metrics-telemetry-component-name" title={telemetry?.storage_model || t("common.mainDisk")}>
-            {telemetry?.storage_model || t("common.mainDisk")}
-          </span>
-          <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num">
-              {usedStoragePct.toFixed(0)}%
-            </span>
-            <span className="metrics-telemetry-temp">
-              {t("metricsPage.storageFree", { free: formatBinarySize(freeStorage, "0 Go"), total: formatBinarySize(totalStorage, "0 Go") })}
-            </span>
-          </div>
-          <span className="metrics-telemetry-cta">
-            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
-          </span>
-        </div>
-
-        <div
-          className="metrics-telemetry-item interactive"
-          role="button"
-          tabIndex={0}
-          onClick={() => openDrawer("power", t("metricsPage.drawerPower"), "bolt")}
-          onKeyDown={(e) => handleKeyDown(e, "power", t("metricsPage.drawerPower"), "bolt")}
-          aria-label={t("metricsPage.ariaPower")}
-        >
-          <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.powerAndEnergy")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="bolt" size={24} />
-            </div>
-          </div>
-          <span className="metrics-telemetry-component-name">
-            {telemetry?.runtime?.cumulative_energy_wh != null
-              ? t("metricsPage.energySummary", { total: telemetry.runtime.cumulative_energy_wh.toFixed(1), average: telemetry.runtime.average_power_watts != null ? telemetry.runtime.average_power_watts.toFixed(1) + " W" : "--" })
-              : t("metricsPage.systemPower")}
-          </span>
-          <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num" style={{ color: "var(--accent-text)" }}>
-              {telemetry?.power_watts != null ? `${telemetry.power_watts.toFixed(1)} W` : "-- W"}
-            </span>
-          </div>
-          <span className="metrics-telemetry-cta">
-            {t("metricsPage.history")} <Icon name="chevron_right" size={14} />
-          </span>
-        </div>
-
-        <div className="metrics-telemetry-item">
-          <div className="metrics-telemetry-item-head">
-            <span className="metrics-telemetry-name">{t("metricsPage.runtime")}</span>
-            <div className="metrics-kpi-icon-wrap" style={{ color: "var(--accent-text)" }}>
-              <Icon name="timer" size={24} />
-            </div>
-          </div>
-          <span className="metrics-telemetry-component-name">
-            {t("metricsPage.systemUptime", { value: telemetry?.runtime?.uptime_formatted || "--" })}
-          </span>
-          <div className="metrics-telemetry-metric-val">
-            <span className="metrics-telemetry-big-num" style={{ fontSize: "1.4rem", color: "var(--accent-text)" }}>
-              {telemetry?.runtime?.app_runtime_formatted || "--"}
-            </span>
-            <span className="metrics-telemetry-temp">
-              {t("metricsPage.bobineService")}
-            </span>
-          </div>
-          <div style={{ marginTop: "auto" }} />
-        </div>
+        <TelemetryTile name={t("metricsPage.cpu")} icon="memory" ariaLabel={t("metricsPage.ariaCpu")}
+          onOpen={() => openDrawer("cpu", t("metricsPage.drawerCpu"), "memory")}
+          component={telemetry?.cpu_name || t("common.processor")} componentTitle={telemetry?.cpu_name}
+          value={`${telemetry?.cpu_percent != null ? telemetry.cpu_percent.toFixed(0) : "0"}%`}
+          detail={telemetry?.cpu_temp_c != null && <span className="metrics-telemetry-temp">{telemetry.cpu_temp_c.toFixed(0)} °C</span>} />
+        <TelemetryTile name={t("metricsPage.gpu")} icon="videogame_asset" ariaLabel={t("metricsPage.ariaGpu")}
+          onOpen={() => openDrawer("gpu", t("metricsPage.drawerGpu"), "videogame_asset")}
+          component={telemetry?.gpu_name || "Puce Graphique"} componentTitle={telemetry?.gpu_name || "Puce Graphique"}
+          value={`${telemetry?.gpu_percent != null ? telemetry.gpu_percent.toFixed(0) : "0"}%`}
+          detail={telemetry?.gpu_temp_c != null && <span className="metrics-telemetry-temp">{telemetry.gpu_temp_c.toFixed(0)} °C</span>} />
+        <TelemetryTile name={t("metricsPage.ram")} icon="developer_board" ariaLabel={t("metricsPage.ariaRam")}
+          onOpen={() => openDrawer("memory", t("metricsPage.drawerRam"), "developer_board")}
+          component={ramLabel} componentTitle={ramLabel}
+          value={`${telemetry?.memory_percent != null ? telemetry.memory_percent.toFixed(0) : "0"}%`}
+          detail={<span className="metrics-telemetry-temp">{formatBinarySize(telemetry?.memory_used_bytes, "0 Go")} / {formatBinarySize(telemetry?.memory_total_bytes, "0 Go")}</span>} />
+        <TelemetryTile name={t("metricsPage.storage")} icon="storage" ariaLabel={t("metricsPage.ariaStorage")}
+          onOpen={() => openDrawer("storage", t("metricsPage.drawerStorage"), "storage")}
+          component={telemetry?.storage_model || t("common.mainDisk")} componentTitle={telemetry?.storage_model || t("common.mainDisk")}
+          value={`${usedStoragePct.toFixed(0)}%`}
+          detail={<span className="metrics-telemetry-temp">{t("metricsPage.storageFree", { free: formatBinarySize(freeStorage, "0 Go"), total: formatBinarySize(totalStorage, "0 Go") })}</span>} />
+        <TelemetryTile name={t("metricsPage.powerAndEnergy")} icon="bolt" ariaLabel={t("metricsPage.ariaPower")}
+          onOpen={() => openDrawer("power", t("metricsPage.drawerPower"), "bolt")}
+          component={energyLabel} valueStyle={{ color: "var(--accent-text)" }}
+          value={telemetry?.power_watts != null ? `${telemetry.power_watts.toFixed(1)} W` : "-- W"} />
+        <TelemetryTile name={t("metricsPage.runtime")} icon="timer"
+          component={t("metricsPage.systemUptime", { value: telemetry?.runtime?.uptime_formatted || "--" })}
+          valueStyle={{ fontSize: "1.4rem", color: "var(--accent-text)" }}
+          value={telemetry?.runtime?.app_runtime_formatted || "--"}
+          detail={<span className="metrics-telemetry-temp">{t("metricsPage.bobineService")}</span>} />
       </section>
 
       {activeDrawer && (
