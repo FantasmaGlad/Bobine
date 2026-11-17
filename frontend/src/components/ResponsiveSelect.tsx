@@ -1,23 +1,17 @@
 "use client";
 
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Highlight from "@/components/Highlight";
 import Icon from "@/components/Icon";
 import Sheet from "@/components/Sheet";
+import OptionBody from "@/components/select/OptionBody";
+import OptionRows from "@/components/select/OptionRows";
+import { listKeyHandler } from "@/components/select/listKeyboard";
+import { groupOptions, searchTextOf, type SelectOption } from "@/components/select/options";
+import { POPOVER_MAX_HEIGHT, usePopoverAnchor } from "@/components/select/usePopoverAnchor";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { rankByQuery } from "@/lib/searchText";
 import { useIsMobile } from "@/lib/useIsMobile";
-
-export interface SelectOption {
-  value: string;
-  label: string;
-  sublabel?: string;
-  thumbnail?: string | null;
-  square?: boolean;
-  meta?: string;
-  group?: string;
-}
 
 interface ResponsiveSelectProps {
   value: string;
@@ -31,59 +25,20 @@ interface ResponsiveSelectProps {
   searchable?: boolean;
 }
 
-const POPOVER_MAX_HEIGHT = 380;
-const POPOVER_MIN_WIDTH = 340;
-
-function searchTextOf(option: SelectOption): string {
-  return `${option.label} ${option.sublabel ?? ""} ${option.group ?? ""} ${option.meta ?? ""}`;
-}
-
-function OptionBody({ option, query = "" }: { option: SelectOption; query?: string }) {
-  return (
-    <>
-      {option.thumbnail ? (
-        <img
-          className={`sheet-option__thumb${option.square ? " is-square" : ""}`}
-          src={option.thumbnail}
-          alt=""
-          loading="lazy"
-        />
-      ) : null}
-      <span className="sheet-option__text">
-        <span className="sheet-option__label">
-          <Highlight text={option.label} query={query} />
-        </span>
-        {option.sublabel ? (
-          <span className="sheet-option__sub">
-            <Highlight text={option.sublabel} query={query} />
-          </span>
-        ) : null}
-      </span>
-      {option.meta ? <span className="sheet-option__meta">{option.meta}</span> : null}
-    </>
-  );
-}
-
-function groupOptions(options: SelectOption[]): [string, SelectOption[]][] {
-  const map = new Map<string, SelectOption[]>();
-  for (const option of options) {
-    const key = option.group ?? "";
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(option);
-  }
-  return [...map.entries()];
+function useFlatRows(options: SelectOption[], query: string, placeholder: string | undefined) {
+  const hasEmptyEntry = placeholder !== undefined && !query;
+  const visible = useMemo(() => rankByQuery(options, query, searchTextOf), [options, query]);
+  const flat = useMemo(() => {
+    const rows: SelectOption[] = [];
+    if (hasEmptyEntry) rows.push({ value: "", label: placeholder ?? "" });
+    for (const [, items] of groupOptions(visible)) rows.push(...items);
+    return rows;
+  }, [visible, hasEmptyEntry, placeholder]);
+  return { hasEmptyEntry, visible, flat };
 }
 
 export default function ResponsiveSelect({
-  value,
-  onChange,
-  options,
-  placeholder,
-  title,
-  className = "filter-select",
-  style,
-  disabled,
-  searchable,
+  value, onChange, options, placeholder, title, className = "filter-select", style, disabled, searchable,
 }: ResponsiveSelectProps) {
   const isMobile = useIsMobile();
   const { t } = useAppSettings();
@@ -94,24 +49,15 @@ export default function ResponsiveSelect({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const [anchor, setAnchor] = useState<{ left: number; top: number; width: number; above: boolean } | null>(null);
-
   const selected = options.find((option) => option.value === value);
   const showSearch = searchable ?? options.length > 4;
-  const hasEmptyEntry = placeholder !== undefined && !query;
-
-  const visible = useMemo(() => rankByQuery(options, query, searchTextOf), [options, query]);
-  const flat = useMemo(() => {
-    const rows: SelectOption[] = [];
-    if (hasEmptyEntry) rows.push({ value: "", label: placeholder ?? "" });
-    for (const [, items] of groupOptions(visible)) rows.push(...items);
-    return rows;
-  }, [visible, hasEmptyEntry, placeholder]);
+  const { hasEmptyEntry, visible, flat } = useFlatRows(options, query, placeholder);
 
   const close = useCallback(() => {
     setOpen(false);
     setQuery("");
   }, []);
+  const anchor = usePopoverAnchor(open && !isMobile, triggerRef, popoverRef, close);
 
   const choose = (next: string) => {
     onChange(next);
@@ -126,40 +72,6 @@ export default function ResponsiveSelect({
     setOpen(true);
   };
 
-  const measure = useCallback(() => {
-    const trigger = triggerRef.current;
-    if (!trigger) return;
-    const rect = trigger.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const above = spaceBelow < Math.min(POPOVER_MAX_HEIGHT, 260) && rect.top > spaceBelow;
-    const width = Math.max(rect.width, POPOVER_MIN_WIDTH);
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    setAnchor({ left, top: above ? rect.top - 4 : rect.bottom + 4, width, above });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!open || isMobile) return;
-    measure();
-    const onChangeViewport = () => measure();
-    window.addEventListener("resize", onChangeViewport);
-    window.addEventListener("scroll", onChangeViewport, true);
-    return () => {
-      window.removeEventListener("resize", onChangeViewport);
-      window.removeEventListener("scroll", onChangeViewport, true);
-    };
-  }, [open, isMobile, measure]);
-
-  useEffect(() => {
-    if (!open || isMobile) return;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (popoverRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
-      close();
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [open, isMobile, close]);
-
   useEffect(() => {
     if (open && anchor && !showSearch && !isMobile) listRef.current?.focus();
   }, [open, anchor, showSearch, isMobile]);
@@ -169,83 +81,25 @@ export default function ResponsiveSelect({
     listRef.current?.querySelector<HTMLElement>(`[data-row="${activeIndex}"]`)?.scrollIntoView({ block: "nearest" });
   }, [open, activeIndex]);
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActiveIndex((current) => Math.min(flat.length - 1, current + 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActiveIndex((current) => Math.max(0, current - 1));
-    } else if (event.key === "Home") {
-      event.preventDefault();
-      setActiveIndex(0);
-    } else if (event.key === "End") {
-      event.preventDefault();
-      setActiveIndex(Math.max(0, flat.length - 1));
-    } else if (event.key === "Enter") {
-      event.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => listKeyHandler({
+    count: flat.length,
+    setActive: setActiveIndex,
+    chooseActive: () => {
       const row = flat[activeIndex];
       if (row) choose(row.value);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
+    },
+    dismiss: () => {
       close();
       triggerRef.current?.focus();
-    } else if (event.key === "Tab") {
-      close();
-    }
-  };
+    },
+    close,
+  })(event);
 
-  const noResults = visible.length === 0;
-
-  let rowCounter = hasEmptyEntry ? 1 : 0;
   const rows = (
-    <>
-      {hasEmptyEntry && (
-        <button
-          type="button"
-          role="option"
-          aria-selected={value === ""}
-          data-row={0}
-          id={`${listId}-0`}
-          className={`sheet-option olc-press${value === "" ? " is-selected" : ""}${activeIndex === 0 ? " is-active" : ""}`}
-          onMouseEnter={() => setActiveIndex(0)}
-          onClick={() => choose("")}
-        >
-          <span className="sheet-option__text">
-            <span className="sheet-option__label is-placeholder">{placeholder}</span>
-          </span>
-          {value === "" && <Icon name="check" size={18} />}
-        </button>
-      )}
-      {noResults ? (
-        <p className="live-empty">{t("mobileRemote.noResults")}</p>
-      ) : (
-        groupOptions(visible).map(([group, items]) => (
-          <div key={group} className="sheet-group">
-            {group ? <div className="sheet-group__title">{group}</div> : null}
-            {items.map((option) => {
-              const index = rowCounter++;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  role="option"
-                  aria-selected={option.value === value}
-                  data-row={index}
-                  id={`${listId}-${index}`}
-                  className={`sheet-option olc-press${option.value === value ? " is-selected" : ""}${activeIndex === index ? " is-active" : ""}`}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  onClick={() => choose(option.value)}
-                >
-                  <OptionBody option={option} query={query} />
-                  {option.value === value && <Icon name="check" size={18} />}
-                </button>
-              );
-            })}
-          </div>
-        ))
-      )}
-    </>
+    <OptionRows
+      listId={listId} value={value} visible={visible} query={query} placeholder={placeholder} hasEmptyEntry={hasEmptyEntry}
+      activeIndex={activeIndex} emptyLabel={t("mobileRemote.noResults")} onActivate={setActiveIndex} onChoose={choose}
+    />
   );
 
   const searchField = showSearch ? (
@@ -308,14 +162,7 @@ export default function ResponsiveSelect({
     return (
       <>
         {trigger}
-        <Sheet
-          open={open}
-          onClose={close}
-          title={title ?? placeholder}
-          tall={options.length > 6}
-          closeLabel={t("mobileRemote.close")}
-          header={searchField ?? undefined}
-        >
+        <Sheet open={open} onClose={close} title={title ?? placeholder} tall={options.length > 6} closeLabel={t("mobileRemote.close")} header={searchField ?? undefined}>
           <div ref={listRef} id={listId} role="listbox" className="rs-list">
             {rows}
           </div>
@@ -327,29 +174,26 @@ export default function ResponsiveSelect({
   return (
     <>
       {trigger}
-      {open &&
-        anchor &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            className="rs-popover glass-floating"
-            style={{
-              position: "fixed",
-              left: anchor.left,
-              width: anchor.width,
-              maxHeight: POPOVER_MAX_HEIGHT,
-              ...(anchor.above ? { bottom: window.innerHeight - anchor.top } : { top: anchor.top }),
-            }}
-            onKeyDown={handleKeyDown}
-          >
-            {searchField ? <div className="rs-popover__search">{searchField}</div> : null}
-            <div ref={listRef} id={listId} role="listbox" className="rs-list" tabIndex={searchField ? -1 : 0}>
-              {rows}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {open && anchor && typeof document !== "undefined" && createPortal(
+        <div
+          ref={popoverRef}
+          className="rs-popover glass-floating"
+          style={{
+            position: "fixed",
+            left: anchor.left,
+            width: anchor.width,
+            maxHeight: POPOVER_MAX_HEIGHT,
+            ...(anchor.above ? { bottom: window.innerHeight - anchor.top } : { top: anchor.top }),
+          }}
+          onKeyDown={handleKeyDown}
+        >
+          {searchField ? <div className="rs-popover__search">{searchField}</div> : null}
+          <div ref={listRef} id={listId} role="listbox" className="rs-list" tabIndex={searchField ? -1 : 0}>
+            {rows}
+          </div>
+        </div>,
+        document.body,
+      )}
     </>
   );
 }
