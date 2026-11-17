@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import init_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.api.routes import diagnostics  # noqa: E402
+from app.api.routes.diagnostics import system as diagnostics  # noqa: E402
 
 
 @pytest.fixture()
