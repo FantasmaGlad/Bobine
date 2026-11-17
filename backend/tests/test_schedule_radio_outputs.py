@@ -22,7 +22,7 @@ from app.models import (  # noqa: E402
     ScheduleType,
     Setting,
 )
-from app.radio_manager import get_radio_manager  # noqa: E402
+from app.radio.manager import get_radio_manager  # noqa: E402
 from app.scheduling.launch import launch_target, fire_schedule_end  # noqa: E402
 
 

@@ -19,7 +19,7 @@ from app.models import (
 )
 from app.playback.constants import PlaybackStateEnum
 from app.playback.manager import get_playback_manager
-from app.radio_manager import normalize_radio_channel
+from app.radio.channels import normalize_radio_channel
 from app.scheduling import launch_store as scheduled_launch_store
 from app.scheduling.offsets import playback_offset, playlist_resume_point
 from app.videos.describe import video_details, video_item

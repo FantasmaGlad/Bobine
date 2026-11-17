@@ -6,7 +6,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.radio_manager import RADIO_CHANNELS, get_all_radio_managers
+from app.api.contract import RADIO_CHANNELS
+from app.radio.manager import get_all_radio_managers
 from app.utils.ws_manager import manager as ws_manager
 
 from . import locality

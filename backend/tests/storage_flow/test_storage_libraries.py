@@ -193,7 +193,7 @@ def test_scheduler_and_playlists_skip_unavailable_media(env):
 def test_radio_engine_skips_tracks_of_unplugged_storage():
     import asyncio
 
-    from app.radio_manager import RadioPlaybackManager
+    from app.radio.manager import RadioPlaybackManager
 
     async def noop(message):
         return None

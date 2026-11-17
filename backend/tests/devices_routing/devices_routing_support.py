@@ -24,7 +24,7 @@ from app.devices.routing import (  # noqa: E402
 from app.devices.service import PLAYER_ROUTE_STATUSES, DevicesService, service  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
-from app.radio_manager import get_radio_manager  # noqa: E402
+from app.radio.manager import get_radio_manager  # noqa: E402
 
 
 KEYS = (ROUTES_SETTING, "devices_audio_meta")

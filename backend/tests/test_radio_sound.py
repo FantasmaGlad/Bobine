@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
-from app.radio_manager import RadioPlaybackManager, get_radio_manager  # noqa: E402
+from app.radio.manager import RadioPlaybackManager, get_radio_manager  # noqa: E402
 from app.utils.radio_sound import (  # noqa: E402
     default_sound,
     load_all_sounds_into_managers,

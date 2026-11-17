@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Callable
 from app import config_files
+from app.api import contract
 from app.config_apply.apply_library import _apply_library_audio, _apply_library_backgrounds, _apply_library_radio, _apply_library_videos
 from app.config_apply.apply_playlists import _apply_audio_playlists, _apply_video_playlists
 from app.config_apply.apply_radio import _apply_announcement_rules, _apply_announcements, _apply_radio_outputs, _apply_radio_playlists, _apply_radio_tags
@@ -25,7 +26,7 @@ APPLIERS: dict[str, Callable[[_Context, str, dict], None]] = {
     "radio/tags.json": _apply_radio_tags,
     "radio/announcement-rules.json": _apply_announcement_rules,
     **{config_files.schedule_path(c): (lambda ctx, f, d, c=c: _apply_schedule(ctx, f, d, c))
-       for c in config_files.SCHEDULE_CHANNELS},
+       for c in contract.SCHEDULE_CHANNELS},
     "machine.json": _apply_machine,
 }
 
@@ -44,6 +45,6 @@ ORDER = [
     "outputs/radio.json",
     "radio/tags.json",
     "radio/announcement-rules.json",
-    *[config_files.schedule_path(channel) for channel in config_files.SCHEDULE_CHANNELS],
+    *[config_files.schedule_path(channel) for channel in contract.SCHEDULE_CHANNELS],
     "machine.json",
 ]

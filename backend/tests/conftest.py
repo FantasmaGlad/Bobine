@@ -30,9 +30,10 @@ def _no_pending_config_mirror():
 
     def cancel() -> None:
         from app import config_files
+        from app import config_mirror
 
-        with config_files._mirror_lock:
-            timer, config_files._mirror_timer = config_files._mirror_timer, None
+        with config_mirror._mirror_lock:
+            timer, config_mirror._mirror_timer = config_mirror._mirror_timer, None
         if timer is not None:
             timer.cancel()
 

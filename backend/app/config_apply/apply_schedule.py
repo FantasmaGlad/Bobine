@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app import config_files
+from app import config_builders
 from app.utils.uid import is_uid
 from app.models import (
     OverrideAction, Playlist, RadioPlaylist, Schedule, ScheduleOverride, ScheduleTargetType, ScheduleType,
@@ -42,7 +42,7 @@ def _schedule_target(ctx: _Context, file: str, ref: dict | None) -> tuple[Schedu
 
 def _signature(schedule: Schedule) -> tuple:
     rule = json.dumps(json.loads(schedule.recurrence_rule), sort_keys=True) if schedule.recurrence_rule else None
-    return (schedule.target_type, schedule.target_id, schedule.schedule_type, config_files._iso(schedule.run_at), rule)
+    return (schedule.target_type, schedule.target_id, schedule.schedule_type, config_builders._iso(schedule.run_at), rule)
 
 
 def _set_timing(ctx: _Context, file: str, entry: dict, wanted: Schedule, radio: bool) -> bool:
@@ -126,7 +126,7 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
     unused = list(existing)
     kept: list[Schedule] = []
     entries = _list(ctx, file, document, "schedules")
-    for uid in config_files._duplicates(e.get("uid") for e in entries if isinstance(e, dict) and is_uid(e.get("uid"))):
+    for uid in config_builders._duplicates(e.get("uid") for e in entries if isinstance(e, dict) and is_uid(e.get("uid"))):
         ctx.fail(file, f"uid {uid} présent deux fois")
     for entry in entries:
         entry = entry or {}

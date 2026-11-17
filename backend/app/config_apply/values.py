@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any
 from app import config_files
+from app import config_builders
 from app.utils.uid import is_uid
 from app.config_apply.context import _Context
 
@@ -17,9 +18,9 @@ def _names(ctx: _Context, file: str, entries: list) -> bool:
     if any(not isinstance(n, str) or not n.strip() for n in names) or len(names) != len(entries):
         ctx.fail(file, "chaque playlist doit avoir un nom")
         return False
-    for name in config_files._duplicates(names):
+    for name in config_builders._duplicates(names):
         ctx.fail(file, f"playlist « {name} » présente deux fois")
-    for uid in config_files._duplicates(e.get("uid") for e in entries if is_uid(e.get("uid"))):
+    for uid in config_builders._duplicates(e.get("uid") for e in entries if is_uid(e.get("uid"))):
         ctx.fail(file, f"uid {uid} présent deux fois")
     return True
 

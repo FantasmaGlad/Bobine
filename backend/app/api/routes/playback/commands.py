@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.contract import DEFAULT_CHANNEL
 from app.models import Background, Playlist, Video
 from app.playback.manager import get_playback_manager
-from app.radio_manager import is_radio_channel, normalize_radio_channel
+from app.radio.channels import is_radio_channel, normalize_radio_channel
 from app.utils import video_sound
 from app.utils.importer.formats import is_image_background
 from app.utils.ws_manager import manager as ws_manager

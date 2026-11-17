@@ -173,7 +173,7 @@ class DevicesService:
     async def reconcile_routes(self) -> None:
         """Résout les routes mémorisées contre les sorties actuelles, publie l'état « route » aux lecteurs de chaque sortie radio, puis laisse le serveur déplacer un flux quand c'est possible et nécessaire."""
         from app.database import SessionLocal
-        from app.radio_manager import get_all_radio_managers
+        from app.radio.manager import get_all_radio_managers
 
         try:
             with SessionLocal() as db:
@@ -190,7 +190,7 @@ class DevicesService:
             logger.debug("Réconciliation des routes audio : %s", exc)
 
     async def _apply_server_routes(self, routes: dict[str, dict[str, Any]], sinks: list[dict[str, Any]] | None) -> None:
-        from app.radio_manager import get_all_radio_managers
+        from app.radio.manager import get_all_radio_managers
 
         before = json.dumps(self._server_status, sort_keys=True, default=str)
         caps = await self.driver.capabilities()

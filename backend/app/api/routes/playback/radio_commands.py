@@ -14,10 +14,8 @@ from app.models import (
     RadioPlaylist,
     RadioTrack,
 )
-from app.radio_manager import (
-    get_radio_manager,
-    rule_targets_output,
-)
+from app.radio.channels import rule_targets_output
+from app.radio.manager import get_radio_manager
 from app.scheduling.radio import radio_track_dict
 from app.utils import radio_commands
 from app.utils.activity_log import log_activity

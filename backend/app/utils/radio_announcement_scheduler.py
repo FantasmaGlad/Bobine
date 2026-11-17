@@ -10,7 +10,7 @@ from tzlocal import get_localzone
 
 from app.database import SessionLocal
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
-from app.radio_manager import rule_targets_output
+from app.radio.channels import rule_targets_output
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ async def _loop() -> None:
 
 
 async def _check_rules() -> None:
-    from app.radio_manager import get_all_radio_managers
+    from app.radio.manager import get_all_radio_managers
 
     for manager in get_all_radio_managers().values():
         await _check_rules_for(manager)

@@ -15,7 +15,7 @@ from app.storage import fsadvisor
 from app.storage.paths import PathError
 from app.utils._pydantic_compat import list_max_items
 from app.storage.service import service
-from app.storage.transfer import TransferError
+from app.storage.verified_copy import TransferError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/storage", tags=["storage"])

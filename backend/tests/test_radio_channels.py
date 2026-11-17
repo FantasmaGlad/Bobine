@@ -10,14 +10,9 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
-from app.radio_manager import (  # noqa: E402
-    RADIO_CHANNELS,
-    RadioPlaybackManager,
-    get_all_radio_managers,
-    get_radio_manager,
-    is_radio_channel,
-    normalize_radio_channel,
-)
+from app.api.contract import RADIO_CHANNELS  # noqa: E402
+from app.radio.channels import is_radio_channel, normalize_radio_channel  # noqa: E402
+from app.radio.manager import RadioPlaybackManager, get_all_radio_managers, get_radio_manager  # noqa: E402
 from app.utils.ws_manager import ConnectionManager  # noqa: E402
 
 TRACKS = [
