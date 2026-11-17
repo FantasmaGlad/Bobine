@@ -297,24 +297,24 @@ async def delete_schedule(schedule_id: int, db: Session = Depends(get_db)):
     return {"message": "Programmation supprimée avec succès"}
 
 
-@router.post("/{schedule_id}/overrides", response_model=OverrideResponse)
-def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends(get_db)):
+def _checked_override(db: Session, schedule_id: int, data: OverrideInput) -> datetime:
     schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="Programmation non trouvée")
     if schedule.schedule_type != ScheduleType.recurring:
         raise HTTPException(status_code=409, detail="Les overrides ne s'appliquent qu'aux programmations récurrentes")
-
     try:
         occurrence_date = datetime.strptime(data.occurrence_date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=422, detail="Date d'occurrence invalide (attendu YYYY-MM-DD)")
-
     if data.action == OverrideAction.replaced:
         if not data.replacement_target_type or not data.replacement_target_id:
             raise HTTPException(status_code=422, detail="Une occurrence remplacée nécessite une cible de remplacement")
         _check_target_exists(db, data.replacement_target_type, data.replacement_target_id)
+    return occurrence_date
 
+
+def _drop_override(db: Session, schedule_id: int, occurrence_date: datetime) -> None:
     existing = (
         db.query(ScheduleOverride)
         .filter(ScheduleOverride.schedule_id == schedule_id, ScheduleOverride.occurrence_date == occurrence_date)
@@ -324,6 +324,11 @@ def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends
         db.delete(existing)
         db.flush()
 
+
+@router.post("/{schedule_id}/overrides", response_model=OverrideResponse)
+def create_override(schedule_id: int, data: OverrideInput, db: Session = Depends(get_db)):
+    occurrence_date = _checked_override(db, schedule_id, data)
+    _drop_override(db, schedule_id, occurrence_date)
     override = ScheduleOverride(
         schedule_id=schedule_id,
         occurrence_date=occurrence_date,

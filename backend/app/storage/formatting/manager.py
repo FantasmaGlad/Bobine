@@ -41,19 +41,29 @@ class FormatManager(PlanMixin, StepsMixin, VerifyMixin):
             raise
 
     async def _start(self, key: str, *, token: str | None, fs: str, label: str, confirm_text: str, acknowledged: bool, owner: str) -> dict[str, Any]:
-        if not token:
-            raise FormatRefusal("format_token_missing")
-        if fs not in SPECS:
-            raise FormatRefusal("format_fs_unknown")
-        try:
-            label_ok = normalize_label(fs, label)
-        except LabelError as exc:
-            raise FormatRefusal("format_label_invalid", label_error=exc.code) from exc
-        if not acknowledged:
-            raise FormatRefusal("format_ack_missing")
+        label_ok = _checked_request(token, fs, label, acknowledged)
         self.tokens.check_age(token)
+        support = await self._precheck(key, fs, confirm_text)
+        if self._gate.locked():
+            raise FormatRefusal("format_busy_operation")
+        await self._gate.acquire()
+        job: FormatJob | None = None
+        try:
+            disk = await self._confirmed_disk(key, token, owner, support)
+            job = FormatJob(
+                id=uuid.uuid4().hex[:12], key=key, fs=fs, label=label_ok, disk_name=disk.name, started_at=time.time(),
+                volume_keys=tuple(self._volume_keys_of(disk)),
+            )
+            self._launch(job, disk, support)
+            return {"job_id": job.id}
+        except BaseException:
+            if job is None:
+                self._gate.release()
+            raise
+
+    async def _precheck(self, key: str, fs: str, confirm_text: str) -> dict[str, Any]:
         support = await self.svc.driver.format_support()
-        vol, disk, disks = await self._resolve(key)
+        _vol, disk, _disks = await self._resolve(key)
         if disk is None:
             raise FormatRefusal("format_not_found")
         if not confirm_matches(disk, confirm_text):
@@ -63,41 +73,31 @@ class FormatManager(PlanMixin, StepsMixin, VerifyMixin):
         limit = capacity_limit(fs, disk.size_bytes)
         if limit:
             raise FormatRefusal("format_fs_unavailable", reason=limit)
+        return support
 
-        if self._gate.locked():
-            raise FormatRefusal("format_busy_operation")
-        await self._gate.acquire()
-        job: FormatJob | None = None
-        try:
-            record = self.tokens.consume(token, owner=owner)
-            if record.key != key:
-                raise FormatRefusal("format_identity_changed")
-            vol, disk, disks = await self._resolve(key)
-            ctx = await self._context(disk, support)
-            refusal = self._refusal(evaluate(ctx), disk)
-            if refusal is not None:
-                raise refusal
-            assert disk is not None
-            if fingerprint(disk) != record.identity or inventory_digest(candidates(disks, allow_images=_env_allow_images())) != record.inventory:
-                raise FormatRefusal("format_identity_changed")
+    async def _confirmed_disk(self, key: str, token: str, owner: str, support: dict[str, Any]):
+        record = self.tokens.consume(token, owner=owner)
+        if record.key != key:
+            raise FormatRefusal("format_identity_changed")
+        _vol, disk, disks = await self._resolve(key)
+        ctx = await self._context(disk, support)
+        refusal = self._refusal(evaluate(ctx), disk)
+        if refusal is not None:
+            raise refusal
+        assert disk is not None
+        if fingerprint(disk) != record.identity or inventory_digest(candidates(disks, allow_images=_env_allow_images())) != record.inventory:
+            raise FormatRefusal("format_identity_changed")
+        return disk
 
-            job = FormatJob(
-                id=uuid.uuid4().hex[:12], key=key, fs=fs, label=label_ok, disk_name=disk.name, started_at=time.time(),
-                volume_keys=tuple(self._volume_keys_of(disk)),
-            )
-            self._jobs[job.id] = job
-            self._active = job
-            self.svc._formatting.update(job.volume_keys)
-            self.svc._log("storage_format_started", f"{disk.display_name} -> {fs}")
-            task = asyncio.create_task(self._run(job, disk, support))
-            self._tasks.add(task)
-            task.add_done_callback(self._tasks.discard)
-            self.svc.notify("format", ["format_started"])
-            return {"job_id": job.id}
-        except BaseException:
-            if job is None:
-                self._gate.release()
-            raise
+    def _launch(self, job: FormatJob, disk, support: dict[str, Any]) -> None:
+        self._jobs[job.id] = job
+        self._active = job
+        self.svc._formatting.update(job.volume_keys)
+        self.svc._log("storage_format_started", f"{disk.display_name} -> {job.fs}")
+        task = asyncio.create_task(self._run(job, disk, support))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        self.svc.notify("format", ["format_started"])
 
     def _step(self, job: FormatJob, step: str, state: str) -> None:
         job.steps[step] = state
@@ -192,3 +192,16 @@ class FormatManager(PlanMixin, StepsMixin, VerifyMixin):
     def active(self) -> FormatJob | None:
         return self._active if self._active and self._active.state == "running" else None
 
+
+def _checked_request(token: str | None, fs: str, label: str, acknowledged: bool) -> str:
+    if not token:
+        raise FormatRefusal("format_token_missing")
+    if fs not in SPECS:
+        raise FormatRefusal("format_fs_unknown")
+    try:
+        label_ok = normalize_label(fs, label)
+    except LabelError as exc:
+        raise FormatRefusal("format_label_invalid", label_error=exc.code) from exc
+    if not acknowledged:
+        raise FormatRefusal("format_ack_missing")
+    return label_ok

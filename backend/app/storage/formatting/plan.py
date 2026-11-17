@@ -112,59 +112,40 @@ class PlanMixin:
 
     async def plan(self, key: str, *, owner: str, travels: list[str]) -> dict[str, Any]:
         support = await self.svc.driver.format_support()
-        vol, disk, disks = await self._resolve(key)
-        ctx = await self._context(disk, support)
-        checks = evaluate(ctx)
-        refusal = self._refusal(checks, disk)
-        if refusal is not None:
-            raise refusal
+        vol, disk, _disks, checks = await self._eligible(key, support)
         assert disk is not None and vol is not None
-
         reads = await self._content_of(disk)
-        _, disk, disks = await self._resolve(key)
-        if disk is None:
-            raise FormatRefusal("format_not_found")
-        ctx = await self._context(disk, support)
-        refusal = self._refusal(evaluate(ctx), disk)
-        if refusal is not None:
-            raise refusal
-
-        others = tuple(o for o in travels if o in fsadvisor.OSES and o != "linux")
-        media = media_for_kind(disk.kind)
-        recommended = fsadvisor.recommend_format("linux", others, media)
-        tools = support.get("tools", {})
-        options = [option_for(fs, disk, tool_present=bool(tools.get(fs)), others=others, media=media) for fs in SUPPORTED]
-        for opt in options:
-            opt["recommended"] = opt["fs"] == recommended["fstype"]
-        confirm = confirm_expected(disk)
+        _, disk, disks, _checks = await self._eligible(key, support, require_disk=True)
+        options, recommended = _options(disk, support, travels)
         token = self.tokens.issue(
             key=key, identity=fingerprint(disk), inventory=inventory_digest(candidates(disks, allow_images=_env_allow_images())), owner=owner
         )
-        used = sum(r.get("bytes_used", 0) for r in reads if r.get("readable"))
         return {
             "token": token,
             "expires_in": int(self.tokens.ttl),
             "min_wait": int(self.tokens.min_age),
             "checks": [{"id": c.id, "ok": c.ok} for c in checks],
-            "target": {
-                "key": key, "name": disk.display_name, "size_bytes": disk.size_bytes, "kind": disk.kind, "transport": disk.transport,
-                "vendor": disk.vendor, "model": disk.model, "table": disk.ptable,
-                "partitions": [
-                    {"label": p.label, "fstype": p.fstype, "size_bytes": p.size_bytes, "mounted": p.mounted}
-                    for p in disk.partitions
-                ],
-            },
-            "content": {"volumes": reads, "bytes_used": used},
-            "erases": {"partitions": len(disk.partitions), "files": sum(r.get("files", 0) for r in reads if r.get("readable")),
-                       "truncated": any(r.get("truncated") for r in reads if r.get("readable")),
-                       "unreadable": any(not r.get("readable") for r in reads)},
+            "target": _target(key, disk),
+            "content": {"volumes": reads, "bytes_used": sum(r.get("bytes_used", 0) for r in reads if r.get("readable"))},
+            "erases": _erases(disk, reads),
             "recommended": recommended["fstype"],
             "recommended_reason": recommended["reason"],
             "options": options,
-            "confirm": confirm,
+            "confirm": confirm_expected(disk),
             "alignment_bytes": ALIGNMENT,
             "quick_only": True,
         }
+
+    async def _eligible(self, key: str, support: dict[str, Any], *, require_disk: bool = False):
+        vol, disk, disks = await self._resolve(key)
+        if require_disk and disk is None:
+            raise FormatRefusal("format_not_found")
+        ctx = await self._context(disk, support)
+        checks = evaluate(ctx)
+        refusal = self._refusal(checks, disk)
+        if refusal is not None:
+            raise refusal
+        return vol, disk, disks, checks
 
     async def _content_of(self, disk: DiskInfo) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
@@ -207,3 +188,34 @@ class PlanMixin:
             mkfs_args=tuple(mkfs_args(fs, partition_bytes_for(disk.size_bytes))), take_ownership=spec.take_ownership,
         )
 
+
+def _options(disk: DiskInfo, support: dict[str, Any], travels: list[str]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    others = tuple(o for o in travels if o in fsadvisor.OSES and o != "linux")
+    media = media_for_kind(disk.kind)
+    recommended = fsadvisor.recommend_format("linux", others, media)
+    tools = support.get("tools", {})
+    options = [option_for(fs, disk, tool_present=bool(tools.get(fs)), others=others, media=media) for fs in SUPPORTED]
+    for opt in options:
+        opt["recommended"] = opt["fs"] == recommended["fstype"]
+    return options, recommended
+
+
+def _target(key: str, disk: DiskInfo) -> dict[str, Any]:
+    return {
+        "key": key, "name": disk.display_name, "size_bytes": disk.size_bytes, "kind": disk.kind, "transport": disk.transport,
+        "vendor": disk.vendor, "model": disk.model, "table": disk.ptable,
+        "partitions": [
+            {"label": p.label, "fstype": p.fstype, "size_bytes": p.size_bytes, "mounted": p.mounted}
+            for p in disk.partitions
+        ],
+    }
+
+
+def _erases(disk: DiskInfo, reads: list[dict[str, Any]]) -> dict[str, Any]:
+    readable = [r for r in reads if r.get("readable")]
+    return {
+        "partitions": len(disk.partitions),
+        "files": sum(r.get("files", 0) for r in readable),
+        "truncated": any(r.get("truncated") for r in readable),
+        "unreadable": any(not r.get("readable") for r in reads),
+    }

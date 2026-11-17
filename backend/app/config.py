@@ -150,56 +150,49 @@ DATA_DIRS = (
     "radio_dir", "radio_covers_dir", "radio_announcements_dir", "radio_watch_dir", "branding_dir", "logs_dir", "subtitles_dir",
 )
 
-def load_settings() -> Settings:
+def _read_config_file() -> dict:
     local_config = ROOT_DIR / "config.toml"
     global_config = _global_config_path()
+    config_path = global_config if global_config.exists() else local_config if local_config.exists() else None
+    if not config_path:
+        return {}
+    try:
+        with open(config_path, "rb") as f:
+            return tomllib.load(f)
+    except Exception as e:
+        print(f"Erreur lors du chargement de la configuration TOML: {e}", file=sys.stderr)
+        return {}
 
-    config_path = None
-    if global_config.exists():
-        config_path = global_config
-    elif local_config.exists():
-        config_path = local_config
 
-    config_data = {}
-    if config_path:
-        try:
-            with open(config_path, "rb") as f:
-                config_data = tomllib.load(f)
-        except Exception as e:
-            print(f"Erreur lors du chargement de la configuration TOML: {e}", file=sys.stderr)
-
+def _flatten(config_data: dict) -> dict:
     flat_config = {}
     for section_key, section_val in config_data.items():
         if isinstance(section_val, dict):
-            for k, v in section_val.items():
-                flat_config[k] = v
+            flat_config.update(section_val)
         else:
             flat_config[section_key] = section_val
+    return {name: value for name, value in flat_config.items() if f"BOBINE_{name.upper()}" not in os.environ}
 
-    for field_name in list(flat_config.keys()):
-        if f"BOBINE_{field_name.upper()}" in os.environ:
-            del flat_config[field_name]
 
-    settings = Settings(**flat_config)
-
+def _anchor_paths(settings: Settings) -> None:
     for path_attr in DATA_DIRS:
-        path_str = getattr(settings, path_attr)
-        path = Path(path_str)
-        if not path.is_absolute():
-            root = DATA_ROOT
-            if path_attr in _ANDROID_INTERNAL_ROOT_FIELDS:
-                internal_root = _android_internal_root()
-                if internal_root is not None:
-                    root = internal_root
-            setattr(settings, path_attr, str((root / path).resolve()))
-
+        path = Path(getattr(settings, path_attr))
+        if path.is_absolute():
+            continue
+        root = DATA_ROOT
+        if path_attr in _ANDROID_INTERNAL_ROOT_FIELDS:
+            root = _android_internal_root() or DATA_ROOT
+        setattr(settings, path_attr, str((root / path).resolve()))
     if settings.database_url.startswith("sqlite:///"):
-        db_path_str = settings.database_url[len("sqlite:///"):]
-        db_path = Path(db_path_str)
+        db_path = Path(settings.database_url[len("sqlite:///"):])
         if not db_path.is_absolute():
             db_root = _android_internal_root() or DATA_ROOT
             settings.database_url = f"sqlite:///{(db_root / db_path).resolve()}"
 
+
+def load_settings() -> Settings:
+    settings = Settings(**_flatten(_read_config_file()))
+    _anchor_paths(settings)
     _apply_db_overrides(settings)
     return settings
 
