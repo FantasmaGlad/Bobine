@@ -9,7 +9,8 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app.database import SessionLocal, _migrate_schedule_radio_channel_to_network  # noqa: E402
+from app.database import SessionLocal  # noqa: E402
+from app.migrations import migrate_schedule_radio_channel_to_network  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
     ImportSource,
@@ -91,8 +92,8 @@ def test_la_migration_rattache_l_ancienne_voie_radio_a_la_sortie_reseau_et_est_i
         db.commit()
     finally:
         db.close()
-    _migrate_schedule_radio_channel_to_network()
-    _migrate_schedule_radio_channel_to_network()
+    migrate_schedule_radio_channel_to_network()
+    migrate_schedule_radio_channel_to_network()
     db = SessionLocal()
     try:
         channels = sorted(s.channel for s in db.query(Schedule).all())

@@ -8,7 +8,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest
 from sqlalchemy import text
 
-from app import database
+from app import database, migrations
 from app.database import SessionLocal, init_db
 from app.models import Playlist, UidMixin, Base
 from app.utils.uid import PREFIXES, is_uid, new_uid
@@ -49,12 +49,12 @@ def test_migration_backfills_existing_rows():
         db.execute(text("INSERT INTO playlists (name, created_at) VALUES ('ancienne', CURRENT_TIMESTAMP)"))
         db.execute(text("UPDATE playlists SET uid = NULL WHERE name = 'ancienne'"))
         db.commit()
-    database._migrate_add_uids()
+    migrations.migrate_add_uids()
     with SessionLocal() as db:
         row = db.query(Playlist).filter(Playlist.name == "ancienne").one()
         assert is_uid(row.uid, "pl")
         first = row.uid
-    database._migrate_add_uids()
+    migrations.migrate_add_uids()
     with SessionLocal() as db:
         row = db.query(Playlist).filter(Playlist.name == "ancienne").one()
         assert row.uid == first
