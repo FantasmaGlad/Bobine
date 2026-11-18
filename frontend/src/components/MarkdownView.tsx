@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { isServedImage, safeLinkUrl } from "@/lib/safeUrl";
 
 interface MarkdownViewProps {
   content: string;
@@ -24,6 +25,11 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
       if (imgMatch) {
         const alt = imgMatch[1];
         const src = imgMatch[2];
+        remaining = remaining.slice(imgMatch[0].length);
+        if (!isServedImage(src)) {
+          if (alt) nodes.push(alt);
+          continue;
+        }
         nodes.push(
           <img
             key={`img-${keyIdx++}`}
@@ -33,13 +39,18 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
             loading="lazy"
           />
         );
-        remaining = remaining.slice(imgMatch[0].length);
         continue;
       }
 
       const htmlImgMatch = remaining.match(/^<img\s+([^>]*?)src=["'](.*?)["']([^>]*?)\/?>/i);
       if (htmlImgMatch) {
         const src = htmlImgMatch[2];
+        remaining = remaining.slice(htmlImgMatch[0].length);
+        if (!isServedImage(src)) {
+          const alt = htmlImgMatch[0].match(/alt=["'](.*?)["']/i)?.[1];
+          if (alt) nodes.push(alt);
+          continue;
+        }
         nodes.push(
           <img
             key={`himg-${keyIdx++}`}
@@ -49,14 +60,18 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
             loading="lazy"
           />
         );
-        remaining = remaining.slice(htmlImgMatch[0].length);
         continue;
       }
 
       const linkMatch = remaining.match(/^\[(.*?)\]\((.*?)\)/);
       if (linkMatch) {
         const linkText = linkMatch[1];
-        const linkUrl = linkMatch[2];
+        const linkUrl = safeLinkUrl(linkMatch[2]);
+        remaining = remaining.slice(linkMatch[0].length);
+        if (!linkUrl) {
+          nodes.push(...renderInline(linkText));
+          continue;
+        }
         nodes.push(
           <a
             key={`link-${keyIdx++}`}
@@ -68,7 +83,6 @@ export default function MarkdownView({ content, className = "" }: MarkdownViewPr
             {renderInline(linkText)}
           </a>
         );
-        remaining = remaining.slice(linkMatch[0].length);
         continue;
       }
 
