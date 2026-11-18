@@ -246,14 +246,14 @@ class TestVideoFlow(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 422)
 
     def test_10_target_bitrate_heavy_video_4k_60(self):
-        from app.utils.video_utils.encoders import get_target_bitrate
+        from app.videos.encoding import get_target_bitrate
         self.assertEqual(get_target_bitrate(3840, 2160), "28M")
         self.assertEqual(get_target_bitrate(2560, 1440), "14M")
         self.assertEqual(get_target_bitrate(1920, 1080), "6M")
         self.assertEqual(get_target_bitrate(1280, 720), "6M")
 
     def test_11_encoder_args_multi_os(self):
-        from app.utils.video_utils.encoders import get_encoder_args
+        from app.videos.encoding import get_encoder_args
         args_android, name_android = get_encoder_args(is_android=True, width=1920, height=1080)
         self.assertEqual(name_android, "h264_mediacodec")
         self.assertIn("-operating_rate", args_android)
@@ -277,7 +277,7 @@ class TestVideoFlow(unittest.TestCase):
             import_video(self.dummy_compatible_path, "cancelled_import.mp4", ImportSource.upload, job_id=job_id)
         
     def test_13_transcode_pipeline_multi_os(self):
-        from app.utils.video_utils.encoders import get_transcode_pipeline
+        from app.videos.encoding import get_transcode_pipeline
 
         android_pipeline = get_transcode_pipeline(is_android=True, in_codec="av1", width=3840, height=2160)
         self.assertEqual(len(android_pipeline), 3)
@@ -309,7 +309,7 @@ class TestVideoFlow(unittest.TestCase):
             self.assertEqual(win_pipeline[1]["name"], "qsv_hybrid")
             self.assertEqual(win_pipeline[2]["name"], "software_libx264")
 
-        with patch("platform.system", return_value="Linux"), patch("app.utils.video_utils.encoders.find_vaapi_device", return_value="/dev/dri/renderD128"):
+        with patch("platform.system", return_value="Linux"), patch("app.videos.encoding.registry.find_vaapi_device", return_value="/dev/dri/renderD128"):
             linux_pipeline = get_transcode_pipeline(is_android=False, in_codec="av1", width=3840, height=2160)
             self.assertEqual(len(linux_pipeline), 3)
             self.assertEqual(linux_pipeline[0]["name"], "vaapi_full")

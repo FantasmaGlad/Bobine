@@ -5,7 +5,7 @@ from pathlib import Path
 from app.utils.ffmpeg_binaries import (
     FFMPEG_BIN,
 )
-from app.utils.video_utils.encoders import get_encoder_args, get_transcode_pipeline
+from app.videos.encoding import get_encoder_args, get_transcode_pipeline
 from app.utils.video_utils.probe import extract_metadata
 from app.utils.video_utils.progress import run_ffmpeg_with_progress
 
