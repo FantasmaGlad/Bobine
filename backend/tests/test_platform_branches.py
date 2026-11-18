@@ -8,6 +8,7 @@ REGISTRIES = {
     "app/hardware/platforms.py",
     "app/hardware/probe.py",
     "app/process/priority/registry.py",
+    "app/process/spawn/registry.py",
     "app/utils/android_runtime.py",
     "app/utils/deployment.py",
     "app/videos/encoding/registry.py",
@@ -24,13 +25,10 @@ PENDING = {
     "app/desktop/tray_install.py": 2,
     "app/desktop/tray_supervisor.py": 1,
     "app/desktop/tray_updates.py": 1,
-    "app/devices/sidecar.py": 1,
-    "app/utils/ffmpeg_binaries.py": 3,
+    "app/utils/ffmpeg_binaries.py": 2,
     "app/utils/firewall.py": 1,
     "app/utils/mdns.py": 1,
-    "app/utils/media_sidecar.py": 2,
     "app/utils/port.py": 4,
-    "app/utils/tor_daemon.py": 3,
     "app/utils/zip_safety.py": 1,
 }
 

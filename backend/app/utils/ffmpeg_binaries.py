@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app.process.spawn import hidden_console_kwargs
 from app.utils.android_runtime import is_android
 
 
@@ -134,9 +135,7 @@ def probe_tool(bin_path: str) -> dict:
         if not info["executable"]:
             info["error"] = "non exécutable"
             return info
-        kwargs = media_subprocess_kwargs()
-        if os.name == "nt":
-            kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        kwargs = {**media_subprocess_kwargs(), **hidden_console_kwargs()}
         res = subprocess.run([resolved, "-version"], capture_output=True, text=True, timeout=5, **kwargs)
         first = (res.stdout or "").splitlines()[0] if res.stdout else ""
         info["version"] = first[:120] or None
