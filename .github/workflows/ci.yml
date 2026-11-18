@@ -393,6 +393,49 @@ jobs:
           cargo build --release --locked
           ls target/release/bobine-media* | grep -v '\.d$' | xargs wc -c
 
+  media-fuzz:
+    name: Media fuzzing
+    needs: [version]
+    if: needs.version.outputs.media == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+        working-directory: media/fuzz
+    env:
+      CARGO_NET_RETRY: "10"
+      FUZZ_TOOLCHAIN: nightly-2026-10-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Installer la toolchain et cargo-fuzz
+        run: |
+          rustup toolchain install "$FUZZ_TOOLCHAIN" --profile minimal
+          cargo +"$FUZZ_TOOLCHAIN" install cargo-fuzz --version 0.13.2 --locked
+      - name: Cache cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            media/fuzz/target
+          key: cargo-media-fuzz-${{ hashFiles('media/Cargo.lock', 'media/fuzz/Cargo.lock') }}
+      - name: Lancer chaque cible
+        run: |
+          cargo +"$FUZZ_TOOLCHAIN" fuzz build
+          for target in $(cargo +"$FUZZ_TOOLCHAIN" fuzz list); do
+            mkdir -p "corpus/$target"
+            cargo +"$FUZZ_TOOLCHAIN" fuzz run "$target" "corpus/$target" "seeds/$target" -- -max_total_time=30 -rss_limit_mb=2048
+          done
+      - name: Garder les cas en échec
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: media-fuzz-artifacts
+          path: media/fuzz/artifacts
+          retention-days: ${{ github.event_name == 'pull_request' && 1 || 3 }}
+
   android-build:
     name: Android (Chaquopy) — build & sign
     runs-on: ubuntu-latest
@@ -1121,7 +1164,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, media-fuzz, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -1148,6 +1191,7 @@ jobs:
           controle install-script "${{ needs.install-script.result }}" "$INSTALL"
           controle devices-sidecar "${{ needs.devices-sidecar.result }}" "$DEVICES"
           controle media-component "${{ needs.media-component.result }}" "$MEDIA"
+          controle media-fuzz "${{ needs.media-fuzz.result }}" "$MEDIA"
           controle android-build "${{ needs.android-build.result }}" "$ANDROID"
           controle android-startup "${{ needs.android-startup.result }}" "$ANDROID"
           controle windows-build "${{ needs.windows-build.result }}" "$PACKAGING"
