@@ -1,6 +1,7 @@
 """Forme unique des erreurs de l'API : `{"detail": {"code", "message", ...}}`."""
 
 import json
+import re
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -25,10 +26,21 @@ CODE_BY_STATUS = {
 }
 
 
+_ABSOLUTE_PATH = re.compile(r"(?<![\w/\\])(?:[A-Za-z]:[\\/]|/)(?:[^\s'\"<>|:/\\]+[\\/])+([^\s'\"<>|:/\\]*)")
+
+
+def redact_paths(text: str) -> str:
+    """Réduit chaque chemin absolu d'un message à son dernier élément."""
+    return _ABSOLUTE_PATH.sub(lambda match: match.group(1), text)
+
+
 def error_body(status: int, detail: object) -> dict:
     if isinstance(detail, dict):
-        return {"code": CODE_BY_STATUS.get(status, "error"), "message": "", **detail}
-    return {"code": CODE_BY_STATUS.get(status, "error"), "message": "" if detail is None else str(detail)}
+        body = {"code": CODE_BY_STATUS.get(status, "error"), "message": "", **detail}
+        if isinstance(body["message"], str):
+            body["message"] = redact_paths(body["message"])
+        return body
+    return {"code": CODE_BY_STATUS.get(status, "error"), "message": "" if detail is None else redact_paths(str(detail))}
 
 
 async def send_forbidden(send: Send, code: str, message: str) -> None:
