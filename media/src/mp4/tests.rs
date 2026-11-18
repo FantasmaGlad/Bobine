@@ -195,3 +195,11 @@ fn unknown_items_boxes_and_layouts_are_refused() {
     assert_eq!(scanned(&branded).unwrap_err().reason, "unsupported");
     assert_eq!(scanned(&[]).unwrap_err().reason, "corrupt");
 }
+
+#[test]
+fn box_size_past_the_address_space_is_corrupt() {
+    let mut data = atom(b"free", &[0; 8]);
+    data.extend_from_slice(&u32::MAX.to_be_bytes());
+    data.extend_from_slice(b"moov");
+    assert!(boxes(&data).is_err());
+}

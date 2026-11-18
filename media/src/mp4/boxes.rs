@@ -6,16 +6,17 @@ pub(super) fn boxes(data: &[u8]) -> Result<Boxes<'_>> {
     let mut out = Vec::new();
     let mut at = 0;
     while at < data.len() {
-        let head = data.get(at..at + 8).ok_or_else(corrupt)?;
+        let head = data
+            .get(at..)
+            .and_then(|rest| rest.get(..8))
+            .ok_or_else(corrupt)?;
         let size = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
-        if size < 8 || at + size > data.len() {
-            return Err(corrupt());
-        }
-        out.push((
-            [head[4], head[5], head[6], head[7]],
-            &data[at + 8..at + size],
-        ));
-        at += size;
+        let end = at
+            .checked_add(size)
+            .filter(|&end| size >= 8 && end <= data.len())
+            .ok_or_else(corrupt)?;
+        out.push(([head[4], head[5], head[6], head[7]], &data[at + 8..end]));
+        at = end;
     }
     Ok(out)
 }
