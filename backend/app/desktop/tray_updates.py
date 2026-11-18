@@ -9,6 +9,7 @@ import threading
 import time
 import urllib.request
 import webbrowser
+from urllib.parse import urlsplit
 
 import pystray
 
@@ -115,9 +116,11 @@ def _update_status_poll_loop(icon: "pystray.Icon") -> None:
 def _on_check_update(icon, item) -> None:
     with _update_lock:
         has_update, download_url = _update_state["has_update"], _update_state["download_url"]
-    if has_update and download_url:
+    if has_update and download_url and urlsplit(download_url).scheme in ("http", "https"):
         webbrowser.open(download_url)
     else:
+        if has_update and download_url:
+            logger.warning("Adresse de mise à jour refusée (schéma non web) : %s", download_url)
         threading.Thread(target=_check_for_update_once, daemon=True, name="bobine-tray-update-check-now").start()
 
 
