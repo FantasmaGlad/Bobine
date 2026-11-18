@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from app.utils.ffmpeg_binaries import FFPROBE_BIN, media_subprocess_kwargs
+from app.utils.video_utils.limits import FFPROBE_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ def extract_audio_duration(file_path: str) -> float | None:
         file_path,
     ]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True, **media_subprocess_kwargs())
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=FFPROBE_TIMEOUT_SECONDS, **media_subprocess_kwargs())
         data = json.loads(res.stdout)
         duration = data.get("format", {}).get("duration")
         if duration is None:

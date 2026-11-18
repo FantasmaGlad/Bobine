@@ -55,11 +55,11 @@ def _ensure_launch_agent_macos() -> None:
 
         subprocess.run(
             ["launchctl", "bootout", f"gui/{os.getuid()}/{_LAUNCH_AGENT_LABEL}"],
-            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
         )
         subprocess.run(
             ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(agent_path)],
-            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
         )
         logger.info(f"LaunchAgent installé et activé : {agent_path} -> {tray_exe}")
     except Exception as e:
@@ -83,7 +83,7 @@ def _ensure_desktop_shortcut() -> None:
                         if shutil.which("gio"):
                             subprocess.run(
                                 ["gio", "set", str(dest), "metadata::trusted", "true"],
-                                check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
                             )
                         logger.info(f"Raccourci Bureau Linux créé : {dest}")
                     break
