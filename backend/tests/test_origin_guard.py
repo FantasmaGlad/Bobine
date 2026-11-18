@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
@@ -81,6 +82,46 @@ def test_dns_rebinding_is_refused(monkeypatch):
             pass
     monkeypatch.setenv("BOBINE_ALLOWED_HOSTS", "evil.example")
     assert TestClient(_guarded_app()).post("/api/action", headers=rebound).status_code == 200
+
+
+def test_rebound_host_cannot_read(monkeypatch):
+    client = TestClient(_guarded_app())
+    refused = client.get("/api/state", headers={"Host": "attacker.example"})
+    assert refused.status_code == 403
+    assert refused.json()["detail"]["code"] == "cross_origin"
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws", headers={"Host": "attacker.example"}):
+            pass
+    monkeypatch.setenv("BOBINE_ALLOWED_HOSTS", "attacker.example")
+    assert TestClient(_guarded_app()).get("/api/state", headers={"Host": "attacker.example"}).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["192.168.1.20:1903", "[fe80::1]:1903", "localhost:1903", "wyse", "bobine.local", "abcdef.onion"],
+)
+def test_trusted_hosts_can_read(host):
+    assert TestClient(_guarded_app()).get("/api/state", headers={"Host": host}).status_code == 200
+
+
+def test_request_without_host_is_admitted():
+    sent: list[dict] = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": "http", "method": "GET", "path": "/api/state", "raw_path": b"/api/state", "query_string": b"",
+             "headers": [], "scheme": "http", "server": ("127.0.0.1", 1903), "client": ("127.0.0.1", 5000),
+             "root_path": "", "http_version": "1.1"}
+    asyncio.run(_guarded_app()(scope, receive, send))
+    assert sent[0]["status"] == 200
+
+
+def test_real_app_refuses_rebound_read():
+    assert TestClient(real_app).get("/api/settings", headers={"Host": "attacker.example"}).status_code == 403
 
 
 def test_foreign_origin_cannot_change_state():
