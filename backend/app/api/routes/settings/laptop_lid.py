@@ -25,6 +25,8 @@ class LaptopLidPayload(BaseModel):
 _COMMAND_TIMEOUT_SECONDS = 10
 
 def _has_laptop_lid() -> bool:
+    if sys.platform == "darwin":
+        return False
     if sys.platform == "win32":
         try:
             return psutil.sensors_battery() is not None
