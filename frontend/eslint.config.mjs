@@ -8,6 +8,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   compat.configs["flat/recommended"],
   {
+    settings: { polyfills: ["navigator.wakeLock"] },
     rules: {
       "@next/next/no-img-element": "off",
       "react-hooks/set-state-in-effect": "error",

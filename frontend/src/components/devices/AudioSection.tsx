@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Icon from "@/components/Icon";
 import { audioDisplayName, audioKindIcon } from "@/lib/devices/audio";
 import { devicesRequest } from "@/lib/devices/request";
@@ -33,12 +33,12 @@ export default function AudioSection({ caps, refreshKey, notify, t, focusId, foc
     });
   };
 
-  useEffect(() => {
-    if (focusId && data?.devices?.some((d) => d.id === focusId)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- ouverture demandée par un raccourci externe (carte)
-      setOpenId(focusId);
-    }
-  }, [focusId, focusNonce, data]);
+  const focusRequest = focusId ? `${focusId}|${focusNonce}` : null;
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  if (focusId && focusRequest && focusRequest !== openedFor && data?.devices?.some((d) => d.id === focusId)) {
+    setOpenedFor(focusRequest);
+    setOpenId(focusId);
+  }
   useFocusFlash(focusId, focusNonce, !!data?.supported);
 
   const canDefault = caps.audio_set_default?.supported;

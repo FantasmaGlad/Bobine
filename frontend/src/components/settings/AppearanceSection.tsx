@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import { useClientChoice } from "@/lib/useClientSnapshot";
+import React, { useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SegmentedTabs from "@/components/SegmentedTabs";
@@ -12,11 +13,7 @@ import type { SettingsData } from "./types";
 
 export default function AppearanceSection({ hidden, data }: { hidden: boolean; data: SettingsData }) {
   const { theme, themeMode, resolvedMode, storedLanguage, languagePending, simplifiedUi, setSimplifiedUi, setTheme, setThemeMode, setLanguage, t } = useAppSettings();
-  const [glassMode, setGlassMode] = useState<GlassMode>("auto");
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- relit le réglage mémorisé dans le navigateur au montage
-    setGlassMode(loadMode());
-  }, []);
+  const [glassMode, setGlassMode] = useClientChoice<GlassMode>(loadMode, "auto");
   const [restarting, setRestarting] = useState(false);
   const [restartMessage, setRestartMessage] = useState<string | null>(null);
   const restartNow = async () => {

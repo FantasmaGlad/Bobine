@@ -38,20 +38,19 @@ export default function StoragePage() {
   const [modes, setModes] = useState<Record<string, "import" | "index" | "export">>({});
   const previous = useRef<StorageVolume[] | null>(null);
 
-  const loadStatus = useCallback(async () => {
-    const result = await devicesRequest<DevicesStatus>("/status");
+  const loadStatus = useCallback(() => devicesRequest<DevicesStatus>("/status").then((result) => {
     if (result.ok) {
       setStatus(result.data);
       setLoadError(false);
-    } else setLoadError(true);
-  }, []);
+    } else {
+      setLoadError(true);
+    }
+  }), []);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial d'une ressource externe (API)
     void loadStatus();
   }, [loadStatus]);
 
-  const reload = useCallback(async () => {
-    const [volumes, phones] = await Promise.all([storageRequest<VolumeListing>("/volumes"), storageRequest<PortableListing>("/portable")]);
+  const reload = useCallback(() => Promise.all([storageRequest<VolumeListing>("/volumes"), storageRequest<PortableListing>("/portable")]).then(([volumes, phones]) => {
     if (volumes.ok) {
       const before = previous.current;
       previous.current = volumes.data.volumes;
@@ -68,11 +67,10 @@ export default function StoragePage() {
       notify(storageErrorText(volumes.error, t, lang), "error");
     }
     if (phones.ok) setPortable(phones.data);
-  }, [notify, t, lang]);
+  }), [notify, t, lang]);
 
   useEffect(() => {
     if (!status) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial d'une ressource externe (API)
     void reload();
   }, [status, reload]);
 

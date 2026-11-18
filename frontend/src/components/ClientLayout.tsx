@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import AppLogo from "@/components/AppLogo";
@@ -80,10 +80,11 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const plug = usePlugNotice(!isFullscreenRoute && !pathname.startsWith("/storage"));
   const { activeGroup, toggleGroup } = useActiveGroup(navEntries, pathname);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronise l'état du tiroir avec le système de routing externe (Next.js), pas un simple calcul dérivable au rendu
+  const [drawerPath, setDrawerPath] = useState(pathname);
+  if (drawerPath !== pathname) {
+    setDrawerPath(pathname);
     setDrawerOpen(false);
-  }, [pathname]);
+  }
 
   const footerLinks = React.useMemo(
     () => visibleFooterLinks(simplifiedUi).map((link) => ({ ...link, label: t(link.labelKey) })),

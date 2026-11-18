@@ -22,33 +22,41 @@ export default function AudioDetailSheet({ device, caps, notify, t, onClose, onC
   const [failed, setFailed] = useState<string | null>(null);
   const [sliding, setSliding] = useState<number | null>(null);
   const [playing, setPlaying] = useState<Tone | null>(null);
-  const [alias, setAlias] = useState("");
+  const [alias, setAlias] = useState(device?.alias ?? "");
+  const aliasKey = `${device?.id}|${device?.alias}`;
+  const [aliasFor, setAliasFor] = useState(aliasKey);
+  if (aliasFor !== aliasKey) {
+    setAliasFor(aliasKey);
+    setAlias(device?.alias ?? "");
+  }
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    const result = await devicesRequest<AudioDetails>(`/audio/details?id=${encodeURIComponent(id)}`);
-    if (result.ok) {
-      setDetails(result.data);
+  const [detailsFor, setDetailsFor] = useState(id);
+  if (detailsFor !== id) {
+    setDetailsFor(id);
+    if (id) {
+      setDetails(null);
       setFailed(null);
-    } else {
-      setFailed(errorText(result.error, t));
     }
+  }
+
+  const load = useCallback(() => {
+    if (!id) return Promise.resolve();
+    return devicesRequest<AudioDetails>(`/audio/details?id=${encodeURIComponent(id)}`).then((result) => {
+      if (result.ok) {
+        setDetails(result.data);
+        setFailed(null);
+      } else {
+        setFailed(errorText(result.error, t));
+      }
+    });
   }, [id, t]);
 
   useEffect(() => {
     if (!id) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement d'une ressource externe (API) à l'ouverture
-    setDetails(null);
-    setFailed(null);
     void load();
     const timer = setInterval(() => { void load(); }, 2000);
     return () => clearInterval(timer);
   }, [id, load]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reprend l'alias enregistré à l'ouverture
-    setAlias(device?.alias ?? "");
-  }, [device?.id, device?.alias]);
 
   const call = async (path: string, body: unknown, method = "POST") => {
     const result = await devicesRequest(path, { method, body });

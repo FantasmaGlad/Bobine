@@ -23,16 +23,13 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(getApiUrl(`/videos/${videoId}`), { cache: "no-store" });
+  const load = useCallback(() => fetch(getApiUrl(`/videos/${videoId}`), { cache: "no-store" })
+    .then(async (res) => {
       if (res.ok) setState(await res.json());
-    } catch {
-    }
-  }, [videoId]);
+    })
+    .catch(() => {}), [videoId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture ponctuelle d'une API externe, déclenchée aussi par library_change
     void load();
   }, [load, libraryVersion]);
 

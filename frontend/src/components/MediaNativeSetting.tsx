@@ -17,17 +17,11 @@ export default function MediaNativeSetting() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch(getApiUrl("/settings/media-native"), { cache: "no-store" });
-      setStatus(res.ok ? parseMediaNativeStatus(await res.json()) : null);
-    } catch {
-      setStatus(null);
-    }
-  }, []);
+  const refresh = useCallback(() => fetch(getApiUrl("/settings/media-native"), { cache: "no-store" })
+    .then(async (res) => setStatus(res.ok ? parseMediaNativeStatus(await res.json()) : null))
+    .catch(() => setStatus(null)), []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture initiale de l'état réel côté serveur
     void refresh();
   }, [refresh]);
 

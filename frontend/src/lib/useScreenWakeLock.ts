@@ -28,7 +28,6 @@ export function useScreenWakeLock(enabled: boolean) {
         if (document.visibilityState !== "visible") return;
         if (wakeLockRef.current && !wakeLockRef.current.released) return;
 
-        // eslint-disable-next-line compat/compat -- détectée par feature detection
         const sentinel = await navigator.wakeLock.request("screen");
         if (!isActive) {
           await sentinel.release();

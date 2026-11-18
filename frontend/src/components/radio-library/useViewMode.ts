@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useClientChoice } from "@/lib/useClientSnapshot";
 
 import type { ViewMode } from "./types";
 
 const STORAGE_KEY = "bobine.radioLibrary.view";
 
-export function useViewMode() {
-  const [mode, setMode] = useState<ViewMode>("grid");
+function readStoredMode(): ViewMode | null {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "grid" || stored === "list") return stored;
+  } catch {
+  }
+  return null;
+}
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique d'une preference locale apres hydratation
-      if (stored === "grid" || stored === "list") setMode(stored);
-    } catch {
-    }
-  }, []);
+export function useViewMode() {
+  const [mode, setMode] = useClientChoice<ViewMode>(readStoredMode, "grid");
 
   const choose = (next: ViewMode) => {
     setMode(next);

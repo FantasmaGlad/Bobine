@@ -104,21 +104,22 @@ export default function CinemaPage() {
     videoRef.current = activeDeck === "A" ? deckA.current : deckB.current;
   }, [activeDeck]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reinitialise le choix a chaque cours
+  const [subtitleFor, setSubtitleFor] = useState(selected?.id);
+  if (subtitleFor !== selected?.id) {
+    setSubtitleFor(selected?.id);
     setActiveSubtitle("off");
-  }, [selected?.id]);
+  }
 
   useEffect(() => {
     if (state.state === "coach_mode") window.location.replace(buildOutputUrl("kiosk", window.location.search, channel));
   }, [state.state, channel]);
 
-  useEffect(() => {
-    if (!selected || (selected.thumbnail_path && selected.description)) return;
-    const fresh = videos.find((v) => Number(v.id) === Number(selected.id));
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- complete la fiche avec le catalogue
-    if (fresh) setSelected((prev) => (prev ? { ...prev, ...fresh } : fresh));
-  }, [videos, selected]);
+  const fresh = selected && !(selected.thumbnail_path && selected.description)
+    ? videos.find((v) => Number(v.id) === Number(selected.id))
+    : undefined;
+  if (selected && fresh && Object.entries(fresh).some(([key, value]) => selected[key as keyof typeof selected] !== value)) {
+    setSelected({ ...selected, ...fresh });
+  }
 
   const wakeControls = useCallback(() => {
     setControlsVisible(true);

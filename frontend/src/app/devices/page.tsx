@@ -1,5 +1,6 @@
 "use client";
 
+import { useClientChoice } from "@/lib/useClientSnapshot";
 import React, { useCallback, useEffect, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import SegmentedTabs from "@/components/SegmentedTabs";
@@ -20,38 +21,37 @@ import { useToast } from "@/lib/useToast";
 type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "videosound";
 const TAB_KEY = "bobine.devices.tab";
 
+function readSavedTab(): Tab | null {
+  try {
+    const saved = window.localStorage.getItem(TAB_KEY);
+    if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer" || saved === "videosound") return saved;
+  } catch { }
+  return null;
+}
+
 export default function DevicesPage() {
   const { t } = useAppSettings();
   const [status, setStatus] = useState<DevicesStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useState<Tab>("map");
+  const [tab, setTab] = useClientChoice<Tab>(readSavedTab, "map");
   const [focus, setFocus] = useState<{ id: string | null; nonce: number }>({ id: null, nonce: 0 });
   const [refreshKey, setRefreshKey] = useState(0);
   const { toast, showToast: notify } = useToast();
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(TAB_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- restaure la dernière section (stockage local du navigateur)
-      if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer" || saved === "videosound") setTab(saved);
-    } catch { }
-  }, []);
   const chooseTab = (next: Tab) => {
     setTab(next);
     try { window.localStorage.setItem(TAB_KEY, next); } catch { }
   };
 
-  const loadStatus = useCallback(async () => {
-    const result = await devicesRequest<DevicesStatus>("/status");
+  const loadStatus = useCallback(() => devicesRequest<DevicesStatus>("/status").then((result) => {
     if (result.ok) {
       setStatus(result.data);
       setLoadError(false);
     } else {
       setLoadError(true);
     }
-  }, []);
+  }), []);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial d'une ressource externe (API)
     void loadStatus();
   }, [loadStatus]);
 

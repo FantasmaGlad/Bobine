@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { getApiUrl } from "@/lib/apiUrl";
 import { useUploadManager } from "@/lib/UploadManager";
@@ -21,35 +21,39 @@ export function useRadioCatalog() {
   const { uploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
-  const refreshAll = async () => {
-    setLoading(true);
-    const [tr, pl, ar, al, tg] = await Promise.all([
-      fetchJson<RadioTrack[]>("/radio/tracks", []),
-      fetchJson<PlaylistSummary[]>("/radio/playlists", []),
-      fetchJson<ArtistEntry[]>("/radio/artists", []),
-      fetchJson<AlbumEntry[]>("/radio/albums", []),
-      fetchJson<TagEntry[]>("/radio/tags", []),
-    ]);
+  const fetchAll = () => Promise.all([
+    fetchJson<RadioTrack[]>("/radio/tracks", []),
+    fetchJson<PlaylistSummary[]>("/radio/playlists", []),
+    fetchJson<ArtistEntry[]>("/radio/artists", []),
+    fetchJson<AlbumEntry[]>("/radio/albums", []),
+    fetchJson<TagEntry[]>("/radio/tags", []),
+  ]).then(([tr, pl, ar, al, tg]) => {
     setTracks(tr);
     setPlaylists(pl);
     setArtists(ar);
     setAlbums(al);
     setTags(tg);
     setLoading(false);
+  });
+
+  const refreshAll = () => {
+    setLoading(true);
+    return fetchAll();
   };
+
+  const reloadCatalog = useEffectEvent(() => fetchAll());
 
   const refreshPlaylists = async () => setPlaylists(await fetchJson<PlaylistSummary[]>("/radio/playlists", []));
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial
-    refreshAll();
+    reloadCatalog();
   }, []);
 
   useEffect(() => {
     const newlyDone = uploads.filter((u) => isRadioUpload(u.kind) && u.status === "done" && !seenDoneIds.current.has(u.id));
     if (newlyDone.length === 0) return;
     newlyDone.forEach((u) => seenDoneIds.current.add(u.id));
-    refreshAll();
+    void reloadCatalog();
   }, [uploads]);
 
   const coverUrl = (id: number) => `${getApiUrl(`/radio/tracks/${id}/cover`)}?v=${coverVersion}`;

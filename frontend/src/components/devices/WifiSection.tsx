@@ -25,9 +25,12 @@ export default function WifiSection({ caps, local, refreshKey, notify, t, focusI
 
   useFocusFlash(focusId, focusNonce, !!data?.supported);
   const pending = data?.pending_change ?? null;
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- recale le compte à rebours sur la valeur reçue du serveur
+  const [elapsedFor, setElapsedFor] = useState(pending);
+  if (elapsedFor !== pending) {
+    setElapsedFor(pending);
     setElapsed(0);
+  }
+  useEffect(() => {
     if (!pending) return;
     const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(timer);
