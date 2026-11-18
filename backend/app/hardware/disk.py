@@ -94,5 +94,6 @@ def get_storage_usage() -> dict[str, Any]:
             "free_bytes": usage.free,
             "used_percent": used_pct,
         }
-    except Exception:
+    except Exception as exc:
+        logger.warning("Espace disque illisible : %s", exc)
         return {"total_bytes": 0, "used_bytes": 0, "free_bytes": 0, "used_percent": 0.0}
