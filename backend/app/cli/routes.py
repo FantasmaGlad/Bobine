@@ -63,7 +63,6 @@ COVERED.update({route: spec.command for spec in SPECS for route in spec.covers})
 
 class Exemption(NamedTuple):
     pattern: str
-    status: str
     reason: str
 
     def matches(self, route: str) -> bool:
@@ -71,25 +70,23 @@ class Exemption(NamedTuple):
 
 
 EXEMPT: tuple[Exemption, ...] = (
-    Exemption(r"GET /api/(videos/\{video_id\}|audio/tracks/\{track_id\}|backgrounds/\{background_id\}|radio/tracks/\{track_id\}|radio/announcements/\{announcement_id\})/stream",
-              "never", "flux média pour un lecteur"),
-    Exemption(r"GET /api/(radio/tracks/\{track_id\}/cover|videos/\{video_id\}/subtitles/\{subtitle_id\}/vtt)", "never", "contenu pour un lecteur ou un navigateur"),
-    Exemption(r"GET /api/logs/technical/download", "never", "téléchargement du journal : `bobine logs` lit le même journal"),
-    Exemption(r"POST /api/metrics/(sessions/(start|end)|ratings)", "never", "rapport émis par un lecteur"),
-    Exemption(r"(GET|PUT) /api/display/state", "never", "rapport des clients natifs (écrans, Android)"),
-    Exemption(r"POST /api/updates/(_android-callback|store/.+)", "never", "mise à jour par la boutique ou par Android"),
-    Exemption(r"GET /api/time", "never", "horloge de synchronisation des lecteurs"),
-    Exemption(r"POST /api/settings/open-path", "never", "ouvre un dossier sur l'écran de la machine"),
-    Exemption(r"POST /api/settings/system/(reset|uninstall|reset-data)", "never", "irréversible : interface, ou install.sh --uninstall"),
-    Exemption(r"POST /api/settings/system/restart", "never", "autre outil : bobine restart de l'appliance, menu de la barre système"),
-    Exemption(r"GET /api/config", "never", "liste des fichiers : `bobine config export` les écrit"),
-    Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "never", "envoi reprenable par morceaux du navigateur : `bobine <famille> import` envoie en une fois"),
+    Exemption(r"GET /api/(videos/\{video_id\}|audio/tracks/\{track_id\}|backgrounds/\{background_id\}|radio/tracks/\{track_id\}|radio/announcements/\{announcement_id\})/stream", "flux média pour un lecteur"),
+    Exemption(r"GET /api/(radio/tracks/\{track_id\}/cover|videos/\{video_id\}/subtitles/\{subtitle_id\}/vtt)", "contenu pour un lecteur ou un navigateur"),
+    Exemption(r"GET /api/logs/technical/download", "téléchargement du journal : `bobine logs` lit le même journal"),
+    Exemption(r"POST /api/metrics/(sessions/(start|end)|ratings)", "rapport émis par un lecteur"),
+    Exemption(r"(GET|PUT) /api/display/state", "rapport des clients natifs (écrans, Android)"),
+    Exemption(r"POST /api/updates/(_android-callback|store/.+)", "mise à jour par la boutique ou par Android"),
+    Exemption(r"GET /api/time", "horloge de synchronisation des lecteurs"),
+    Exemption(r"POST /api/settings/open-path", "ouvre un dossier sur l'écran de la machine"),
+    Exemption(r"POST /api/settings/system/(reset|uninstall|reset-data)", "irréversible : interface, ou install.sh --uninstall"),
+    Exemption(r"POST /api/settings/system/restart", "autre outil : bobine restart de l'appliance, menu de la barre système"),
+    Exemption(r"GET /api/config", "liste des fichiers : `bobine config export` les écrit"),
+    Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "envoi reprenable par morceaux du navigateur : `bobine <famille> import` envoie en une fois"),
 )
 
 
 def exemption_for(route: str) -> list[Exemption]:
-    """Règles qui exemptent la route ; une route couverte par une commande n'est jamais exemptée (les règles par famille de `todo` peuvent donc rester larges)."""
+    """Règles qui exemptent la route ; une route couverte par une commande n'est jamais exemptée."""
     if route in COVERED:
         return []
-    rules = [rule for rule in EXEMPT if rule.matches(route)]
-    return [rule for rule in rules if rule.status == "never"] or rules
+    return [rule for rule in EXEMPT if rule.matches(route)]

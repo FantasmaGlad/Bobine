@@ -181,10 +181,6 @@ class ConnectionManager:
         """Retourne True si ce websocket est le kiosk primaire de son canal (dernier statut connu, mis à jour à chaque identify)."""
         return self._kiosk_primary_status.get(websocket, False)
 
-    def kiosk_channel(self, websocket: WebSocket) -> str | None:
-        """Canal déclaré par ce kiosk à son identify (None si pas un kiosk)."""
-        return self._kiosk_channel.get(websocket)
-
     async def _unregister_kiosk(self, websocket: WebSocket) -> None:
         channel = self._kiosk_channel.pop(websocket, None)
         was_primary = self._kiosk_primary_status.pop(websocket, False)

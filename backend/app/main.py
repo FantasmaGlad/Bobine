@@ -20,7 +20,6 @@ from app.api.routes import (
 from app.api.routes.media_streams import reset_stale_web_rendition_status
 from app.api.static_files import mount_static_files
 from app.api.errors import install_error_handlers
-from app.utils.android_runtime import is_android
 from app.api.http_compression import (
     ApiCompressionMiddleware,
 )
@@ -54,7 +53,6 @@ from app.utils.ws_manager import manager as ws_manager
 from app.devices.service import service as devices_service
 from app.storage.service import service as storage_service
 
-_IS_ANDROID = is_android()
 
 
 settings.technical_log_path.parent.mkdir(parents=True, exist_ok=True)
