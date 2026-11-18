@@ -27,6 +27,7 @@ from app.api.http_compression import (
 from app.utils import ui_language
 from app.api.network_guard import LocalNetworkGuard
 from app.api.origin_guard import SameOriginGuard, dev_origins
+from app.api.security_headers import SecurityHeaders
 from app.utils.deployment import get_profile_handler
 from app.utils.port import active_port
 from app import config_mirror
@@ -139,6 +140,7 @@ app.add_middleware(
 app.add_middleware(SameOriginGuard, allowed_origins=dev_origins())
 app.add_middleware(config_mirror.ConfigMirrorTrigger)
 app.add_middleware(ApiCompressionMiddleware)
+app.add_middleware(SecurityHeaders)
 app.add_middleware(LocalNetworkGuard)
 
 app.include_router(videos.router)
