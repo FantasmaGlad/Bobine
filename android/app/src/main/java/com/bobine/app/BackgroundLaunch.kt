@@ -44,7 +44,8 @@ fun launchScreenFromBackground(context: Context, handler: Handler) {
         handler.postDelayed({
             try {
                 windowManager.removeView(anchor)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.d(TAG, "Fenetre d'ancrage deja retiree : ${e.message}")
             }
         }, 4000)
     }, 400)

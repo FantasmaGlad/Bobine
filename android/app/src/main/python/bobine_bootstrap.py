@@ -1,11 +1,14 @@
 """Démarrage du backend réel : import de `app.main` (le vrai backend, mis en scène par la tâche Gradle `stagePythonSources`) et lancement d'uvicorn dans un thread."""
 
+import logging
 import os
 import shutil
 import sqlite3
 import threading
 
 os.environ["BOBINE_PLATFORM"] = "android"
+
+logger = logging.getLogger("bobine.bootstrap")
 
 _started = False
 _lock = threading.Lock()
@@ -56,12 +59,13 @@ def _checkpoint_and_copy_database(external_data_dir, internal_data_dir):
             os.remove(internal_db)
             return False
         return True
-    except Exception:
+    except Exception as exc:
+        logger.warning("Migration de la base vers le stockage interne impossible : %s", exc)
         try:
             if os.path.exists(internal_db):
                 os.remove(internal_db)
-        except Exception:
-            pass
+        except OSError as cleanup:
+            logger.warning("Copie partielle de la base non supprimee : %s", cleanup)
         return False
 
 
@@ -73,8 +77,8 @@ def _migrate_small_dirs(external_data_dir, internal_data_dir):
             continue
         try:
             shutil.copytree(src, dst)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Migration du dossier %s impossible : %s", rel_dir, exc)
 
 
 def _migrate_to_internal_storage_once(external_files_dir, internal_files_dir):

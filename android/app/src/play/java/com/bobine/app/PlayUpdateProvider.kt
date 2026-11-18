@@ -1,6 +1,7 @@
 package com.bobine.app
 
 import android.content.Context
+import android.util.Log
 import com.google.android.gms.tasks.Tasks
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -14,6 +15,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 private const val UPDATE_REQUEST_CODE = 4108
+private const val TAG = "PlayUpdateProvider"
 
 class PlayUpdateProvider : StoreUpdateProvider {
     @Volatile private var manager: AppUpdateManager? = null
@@ -63,6 +65,7 @@ class PlayUpdateProvider : StoreUpdateProvider {
     override fun check(context: Context): String = try {
         describe(info(context)).toString()
     } catch (e: Exception) {
+        Log.i(TAG, "Verification Google Play impossible : ${e.message}")
         JSONObject().put("state", "unavailable")
             .put("message", "Google Play ne propose pas de mise à jour pour cette installation (installée hors du Play Store ?).").toString()
     }
@@ -86,6 +89,7 @@ class PlayUpdateProvider : StoreUpdateProvider {
             }
         }
     } catch (e: Exception) {
+        Log.w(TAG, "Demarrage de la mise a jour Google Play impossible", e)
         JSONObject().put("error", "update_failed").put("message", "La mise à jour via Google Play n'a pas pu démarrer.").toString()
     }
 
@@ -93,6 +97,7 @@ class PlayUpdateProvider : StoreUpdateProvider {
         manager(context).completeUpdate() // redémarre l'application une fois l'installation faite
         JSONObject().put("ok", true).toString()
     } catch (e: Exception) {
+        Log.w(TAG, "Installation de la mise a jour Google Play impossible", e)
         JSONObject().put("error", "update_failed").put("message", "L'installation de la mise à jour a échoué.").toString()
     }
 }
