@@ -89,11 +89,18 @@ curl -fsSL https://packages.bobine.fit/bobine.gpg | gpg --show-keys --fingerprin
 
 The `install-tor.sh` script pins the primary key fingerprint and stops if it differs. Automatic updates verify the SHA-256 digest of the files published on GitHub Releases.
 
+Every file published on GitHub Releases since 2026-11-18 also carries a build provenance attestation, signed through Sigstore by the release workflow. Earlier releases have none. To check that a downloaded file was built by this repository:
+
+```bash
+gh attestation verify bobine_canary_amd64.deb --repo FantasmaGlad/Bobine
+```
+
 ## Document history
 
 | Date | Change |
 |---|---|
 | 2026-10-07 | Policy published with the report key `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`. `security.txt` signed with this key. |
 | 2026-10-08 | Dedicated disclosure site <https://security.bobine.fit> published, and the fingerprint added to the DNS of `bobine.fit`. A daily check verifies that every channel serves the same fingerprint. |
+| 2026-11-18 | Build provenance attestation added to every file published on GitHub Releases. |
 
 This history lists every change of key, fingerprint or commitment. A key rotation or revocation is announced here and on <https://bobine.fit/en/securite>.

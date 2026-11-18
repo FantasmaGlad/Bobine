@@ -89,11 +89,18 @@ curl -fsSL https://packages.bobine.fit/bobine.gpg | gpg --show-keys --fingerprin
 
 Le script `install-tor.sh` épingle l'empreinte de la clé principale et s'arrête si elle diffère. Les mises à jour automatiques vérifient le condensé SHA-256 des fichiers publiés sur GitHub Releases.
 
+Chaque fichier publié sur GitHub Releases depuis le 2026-11-18 porte aussi une attestation de provenance, signée par Sigstore depuis le workflow de publication. Les releases antérieures n'en ont pas. Pour vérifier qu'un fichier téléchargé a été construit par ce dépôt :
+
+```bash
+gh attestation verify bobine_canary_amd64.deb --repo FantasmaGlad/Bobine
+```
+
 ## Historique du document
 
 | Date | Modification |
 |---|---|
 | 2026-10-07 | Publication de la politique avec la clé de réception `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`. `security.txt` signé avec cette clé. |
 | 2026-10-08 | Publication du site de divulgation dédié <https://security.bobine.fit> et de l'empreinte dans le DNS de `bobine.fit`. Une vérification quotidienne contrôle que tous les canaux servent la même empreinte. |
+| 2026-11-18 | Attestation de provenance ajoutée à chaque fichier publié sur GitHub Releases. |
 
 Cet historique recense tout changement de clé, d'empreinte ou d'engagement. Une rotation ou une révocation de clé y est annoncée, ainsi que sur <https://bobine.fit/fr/securite>.
