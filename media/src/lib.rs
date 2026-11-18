@@ -1,6 +1,8 @@
 mod aiff;
 mod audio;
 mod flac;
+#[cfg(feature = "fuzzing")]
+pub mod fuzzing;
 mod image;
 mod mp3;
 mod mp4;

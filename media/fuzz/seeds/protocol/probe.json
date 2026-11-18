@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":2,"method":"probe_audio","params":{"path":"/nonexistent/a.mp3","profile":"desktop"}}

@@ -69,3 +69,7 @@ scripts/browser-bench/.wd_session
 
 # Composant natif de métadonnées audio
 media/target/
+media/fuzz/target/
+media/fuzz/corpus/
+media/fuzz/artifacts/
+media/fuzz/coverage/
