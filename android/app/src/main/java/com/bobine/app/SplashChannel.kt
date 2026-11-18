@@ -3,6 +3,7 @@ package com.bobine.app
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.ImageView
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,6 +16,8 @@ fun splashDrawableForChannel(channel: String?): Int = when (channel) {
     "canary" -> R.drawable.bobine_splash_logo_canary
     else -> R.drawable.bobine_splash_logo_stable
 }
+
+private const val TAG = "SplashChannel"
 
 object SplashChannel {
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -48,6 +51,7 @@ object SplashChannel {
                     connection.disconnect()
                     if (channel != null) break
                 } catch (e: Exception) {
+                    Log.d(TAG, "Canal de mise a jour illisible (tentative $attempt) : ${e.message}")
                 }
                 Thread.sleep(300)
             }

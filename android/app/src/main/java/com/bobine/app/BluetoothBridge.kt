@@ -72,7 +72,7 @@ object BluetoothBridge {
             val latch = CountDownLatch(1)
             val listener = object : BluetoothProfile.ServiceListener {
                 override fun onServiceConnected(p: Int, proxy: BluetoothProfile) {
-                    try { proxy.connectedDevices.forEach { connected.add(it.address) } } catch (_: SecurityException) {}
+                    try { proxy.connectedDevices.forEach { connected.add(it.address) } } catch (e: SecurityException) { Log.w(TAG, "Appareils connectes illisibles", e) }
                     adapter.closeProfileProxy(p, proxy)
                     latch.countDown()
                 }
