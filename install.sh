@@ -1155,9 +1155,11 @@ EOF
 
 step_uninstaller() {
     step uninstaller "Désinstalleur détaché (bouton « Désinstaller » de l'UI)"
+    local installer
+    installer=$(printf '%q' "${REPO_DIR}/install.sh")
     write_file /usr/local/sbin/bobine-uninstall <<EOF
 #!/usr/bin/env bash
-exec systemd-run --collect --unit=olmc-uninstall --description="Bobine uninstall" ${REPO_DIR}/install.sh --uninstall --purge --purge-data -y
+exec systemd-run --collect --unit=olmc-uninstall --description="Bobine uninstall" ${installer} --uninstall --purge --purge-data -y
 EOF
     run chmod +x /usr/local/sbin/bobine-uninstall
     ok "désinstalleur '/usr/local/sbin/bobine-uninstall' installé"
