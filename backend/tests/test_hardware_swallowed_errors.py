@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.hardware import power  # noqa: E402
+from app.hardware.power import watts  # noqa: E402
 from app.hardware.disk import usage  # noqa: E402
 
 
@@ -23,7 +23,7 @@ def test_failing_power_probe_is_logged(monkeypatch, caplog):
     def fallback():
         return 7.0
 
-    monkeypatch.setattr(power, "_power_probes", lambda: [_boom, fallback])
-    with caplog.at_level("DEBUG", logger=power.logger.name):
-        assert power.get_power_watts() == 7.0
+    monkeypatch.setattr(watts, "_power_probes", lambda: [_boom, fallback])
+    with caplog.at_level("DEBUG", logger=watts.logger.name):
+        assert watts.get_power_watts() == 7.0
     assert "_boom" in caplog.text and "unreadable" in caplog.text
