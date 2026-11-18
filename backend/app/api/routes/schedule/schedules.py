@@ -20,6 +20,8 @@ from app.utils.activity_log import log_activity
 from .schemas import OccurrenceResponse, ScheduleInput, ScheduleResponse
 from .validation import check_target_exists, normalize_channel, storage_channel, to_response, validate_and_normalize
 
+MAX_OCCURRENCE_SPAN = timedelta(days=62)
+
 router = APIRouter()
 
 
@@ -39,6 +41,8 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
     start, end = ensure_utc(start), ensure_utc(end)
     if end <= start:
         raise HTTPException(status_code=422, detail="La date de fin doit être postérieure à la date de début")
+    if end - start > MAX_OCCURRENCE_SPAN:
+        raise HTTPException(status_code=422, detail="L'intervalle demandé dépasse 62 jours")
     query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
     if normalize_channel(channel):
         query = query.filter(Schedule.channel == normalize_channel(channel))
