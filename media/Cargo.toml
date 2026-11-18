@@ -11,6 +11,9 @@ lofty = "=0.25.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 
+[features]
+fuzzing = []
+
 [profile.release]
 lto = true
 codegen-units = 1

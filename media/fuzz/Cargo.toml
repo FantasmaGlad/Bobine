@@ -1,0 +1,72 @@
+[package]
+name = "bobine-media-fuzz"
+version = "0.0.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.10"
+bobine-media = { path = "..", features = ["fuzzing"] }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "mp3"
+path = "fuzz_targets/mp3.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "flac"
+path = "fuzz_targets/flac.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wav"
+path = "fuzz_targets/wav.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mp4"
+path = "fuzz_targets/mp4.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ogg"
+path = "fuzz_targets/ogg.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "aiff"
+path = "fuzz_targets/aiff.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "image"
+path = "fuzz_targets/image.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "protocol"
+path = "fuzz_targets/protocol.rs"
+test = false
+doc = false
+bench = false
