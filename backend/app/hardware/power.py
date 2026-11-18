@@ -259,7 +259,8 @@ def get_power_watts() -> float | None:
     for probe in _power_probes():
         try:
             watts = probe()
-        except Exception:
+        except Exception as exc:
+            logger.debug("Sonde de puissance %s en échec : %s", probe.__name__, exc)
             continue
         if watts is not None:
             return watts
