@@ -115,7 +115,7 @@ object BluetoothBridge {
                 .put("supported", true).put("powered", powered).put("discovering", discovering)
                 .put("adapter_name", adapter.name ?: "")
                 .put("devices", devices)
-                .put("pending_pairing", JSONObject.NULL) // l'appairage se confirme dans la boîte de dialogue système
+                .put("pending_pairing", JSONObject.NULL) // Android confirms pairing in its own system dialog
                 .put("pairing", pairing ?: JSONObject.NULL)
                 .toString()
         } catch (e: Exception) {
@@ -203,7 +203,7 @@ object BluetoothBridge {
             if (missingBluetooth(context)) return permissionRequired(context)
             if (!BluetoothAdapter.checkBluetoothAddress(address.uppercase())) return bridgeError("bad_address", "Adresse Bluetooth invalide.")
             ensureReceiver(context)
-            adapter.cancelDiscovery() // un appairage pendant une recherche échoue souvent
+            adapter.cancelDiscovery() // bonding during discovery often fails
             discovering = false
             val device = adapter.getRemoteDevice(address.uppercase())
             pairing = JSONObject().put("address", device.address).put("state", "pairing").put("error", JSONObject.NULL)

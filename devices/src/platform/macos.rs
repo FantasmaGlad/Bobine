@@ -244,7 +244,7 @@ impl Platform for MacOs {
                     "known": known,
                 }))
             }
-            "wifi.scan" => Ok(Value::Null), // la lecture de `wifi.status` déclenche déjà un balayage
+            "wifi.scan" => Ok(Value::Null), // reading `wifi.status` already triggers a scan
             "wifi.set_power" => {
                 let device = self.wifi_device()?;
                 require_success(

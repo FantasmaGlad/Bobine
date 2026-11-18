@@ -1,6 +1,6 @@
 
 _bobine_stop() {
-    # sentinelle de la mise à jour interne : Bobine se relance lui-même
+    # in-app update sentinel: Bobine restarts itself
     [ -f /run/bobine-self-update-in-progress ] && return 0
     if pgrep -x BobineTray >/dev/null 2>&1 || pgrep -x BobineBackend >/dev/null 2>&1; then
         touch /run/bobine-restart-after-upgrade 2>/dev/null || touch /tmp/bobine-restart-after-upgrade 2>/dev/null || true

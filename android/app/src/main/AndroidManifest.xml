@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- specialUse : aucun type standard ne couvre un serveur local avec affichage externe -->
+    <!-- specialUse: no standard type covers a local server driving an external display -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -64,7 +64,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- exported et BIND_DEVICE_ADMIN imposes par DevicePolicyManager -->
+        <!-- exported and BIND_DEVICE_ADMIN are required by DevicePolicyManager -->
         <receiver
             android:name=".BobineDeviceAdminReceiver"
             android:exported="true"

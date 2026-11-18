@@ -1,4 +1,4 @@
-"""Routage audio par sortie radio (phase 2) : à quelle sortie PHYSIQUE de la machine chaque sortie radio doit jouer."""
+"""Routage audio par sortie radio : à quelle sortie PHYSIQUE de la machine chaque sortie radio doit jouer."""
 
 from __future__ import annotations
 from app.api.contract import ROUTING_FALLBACKS
