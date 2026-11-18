@@ -4,7 +4,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.hardware import disk, power  # noqa: E402
+from app.hardware import power  # noqa: E402
+from app.hardware.disk import usage  # noqa: E402
 
 
 def _boom(*_args, **_kwargs):
@@ -13,8 +14,8 @@ def _boom(*_args, **_kwargs):
 
 def test_unreadable_disk_usage_is_logged(monkeypatch, caplog):
     monkeypatch.setattr(shutil, "disk_usage", _boom)
-    with caplog.at_level("WARNING", logger=disk.logger.name):
-        assert disk.get_storage_usage()["total_bytes"] == 0
+    with caplog.at_level("WARNING", logger=usage.logger.name):
+        assert usage.get_storage_usage()["total_bytes"] == 0
     assert "unreadable" in caplog.text
 
 
