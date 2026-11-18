@@ -1,4 +1,3 @@
-import { getApiUrl } from "@/lib/apiUrl";
 
 export function formatDuration(seconds: number) {
   const total = Math.max(0, Math.floor(seconds));
@@ -8,11 +7,7 @@ export function formatDuration(seconds: number) {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export function getThumbnailSrc(thumb?: string | null): string | null {
-  if (!thumb) return null;
-  const filename = thumb.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
-}
+
 
 export type OsdContent = { icon: string; label: string } | null;
 

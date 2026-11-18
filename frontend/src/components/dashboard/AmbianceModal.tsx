@@ -5,7 +5,8 @@ import { useState } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 
-import { thumbnailOf, type BackgroundSummary } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
+import type { BackgroundSummary } from "./types";
 
 interface Props {
   backgrounds: BackgroundSummary[];
@@ -15,7 +16,7 @@ interface Props {
 
 function Tile({ background, selected, onClick }: { background: BackgroundSummary; selected: boolean; onClick: () => void }) {
   const { t } = useAppSettings();
-  const thumb = thumbnailOf(background.thumbnail_path);
+  const thumb = thumbnailUrl(background.thumbnail_path);
   return (
     <div onClick={onClick} className="olc-card-hover olc-press" style={{
       cursor: "pointer", borderRadius: "var(--radius-md)", overflow: "hidden", display: "flex", flexDirection: "column", transition: "all var(--transition-normal)",

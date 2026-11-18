@@ -13,6 +13,7 @@ import { formatTime } from "@/lib/format";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
 
 import { THUMB_STYLE, type Send } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 const SPEED_OPTIONS = [0.5, 1, 1.25, 1.5, 2];
 const VOLUME_PRESETS = [25, 50, 75, 100];
@@ -27,7 +28,7 @@ interface Props {
 function NowPlaying({ state, backgroundThumb }: Pick<Props, "state" | "backgroundThumb">) {
   const { t } = useAppSettings();
   const background = state.state === "background";
-  const thumb = background ? backgroundThumb : state.current_video?.thumbnail_url ? getApiUrl(`/thumbnails/${state.current_video.thumbnail_url}`) : null;
+  const thumb = background ? backgroundThumb : state.current_video?.thumbnail_url ? thumbnailUrl(state.current_video.thumbnail_url) : null;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
       {thumb ? <img src={thumb} alt="" style={THUMB_STYLE} /> : background && (

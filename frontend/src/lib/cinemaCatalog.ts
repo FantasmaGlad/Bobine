@@ -1,4 +1,4 @@
-import { getApiUrl } from "./apiUrl.ts";
+import { thumbnailUrl as thumbnailFromPath } from "./thumbnail.ts";
 
 export interface CinemaVideo {
   id: number;
@@ -19,8 +19,5 @@ export interface CinemaVideo {
 }
 
 export function thumbnailUrl(video: CinemaVideo): string | null {
-  const path = video.thumbnail_path || video.thumbnail_url;
-  if (!path) return null;
-  const filename = path.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
+  return thumbnailFromPath(video.thumbnail_path || video.thumbnail_url);
 }

@@ -9,7 +9,8 @@ import { formatMinutes } from "@/lib/format";
 import { matchesQuery } from "@/lib/searchText";
 import type { TargetType } from "@/lib/scheduleTime";
 
-import { blockMinutes, coverSrc, thumbnailSrc } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
+import { blockMinutes, coverSrc } from "./media";
 import PickerCard from "./PickerCard";
 import type { ScheduleDrag } from "./useDrag";
 import type { ScheduleCatalog } from "./useScheduleData";
@@ -61,7 +62,7 @@ function VideoCards({ catalog, drag, isMobile, query }: Omit<Props, "radio" | "o
         <PickerCard
           key={`v-${v.id}`}
           payload={{ type: "video", id: v.id, durationMinutes: blockMinutes(v.duration_seconds), label: v.title }}
-          thumb={thumbnailSrc(v.thumbnail_path)}
+          thumb={thumbnailUrl(v.thumbnail_path)}
           fallbackIcon="movie"
           duration={formatMinutes(v.duration_seconds)}
           title={v.title}
@@ -74,7 +75,7 @@ function VideoCards({ catalog, drag, isMobile, query }: Omit<Props, "radio" | "o
         <PickerCard
           key={`p-${p.id}`}
           payload={{ type: "playlist", id: p.id, durationMinutes: blockMinutes(p.total_duration_seconds), label: p.name }}
-          thumb={thumbnailSrc(p.thumbnail_path)}
+          thumb={thumbnailUrl(p.thumbnail_path)}
           fallbackIcon="playlist_play"
           duration={formatMinutes(p.total_duration_seconds)}
           title={<><Icon name="playlist_play" size={12} /> {p.name}</>}

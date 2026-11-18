@@ -8,7 +8,8 @@ import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
 import { PlaylistBar, PlaylistWaiting } from "./KioskPlaylist";
 import KioskPlayer from "./KioskPlayer";
 import LiveCinema from "./LiveCinema";
-import { thumbnailOf, type BackgroundSummary, type Send, type VideoSummary } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
+import type { BackgroundSummary, Send, VideoSummary } from "./types";
 
 interface Props {
   isCable: boolean;
@@ -43,9 +44,9 @@ export default function LiveHero({ isCable, cinema, state, livePosition, remote,
   const active = state.current_video !== null || state.state === "playlist_waiting" || state.state === "background";
   const live = remote.nowPlaying;
   const cinemaVideo = live?.video_id ? videos.find((v) => v.id === live.video_id) ?? null : null;
-  const cinemaThumb = thumbnailOf(cinemaVideo?.thumbnail_path);
-  const backgroundThumb = thumbnailOf(backgrounds.find((b) => b.id === state.current_background?.id)?.thumbnail_path);
-  const kioskThumb = state.state === "background" ? backgroundThumb : state.current_video?.thumbnail_url ? thumbnailOf(state.current_video.thumbnail_url) : null;
+  const cinemaThumb = thumbnailUrl(cinemaVideo?.thumbnail_path);
+  const backgroundThumb = thumbnailUrl(backgrounds.find((b) => b.id === state.current_background?.id)?.thumbnail_path);
+  const kioskThumb = state.state === "background" ? backgroundThumb : state.current_video?.thumbnail_url ? thumbnailUrl(state.current_video.thumbnail_url) : null;
   const backdrop = cinema ? (live ? cinemaThumb : null) : active ? kioskThumb : null;
   return (
     <div className="live-block bento-hero-live">

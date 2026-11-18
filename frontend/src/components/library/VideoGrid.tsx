@@ -3,7 +3,8 @@
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 
-import { formatDuration, programGroups, thumbnailSrc } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
+import { formatDuration, programGroups } from "./media";
 import type { Selection } from "./selection";
 import type { Video } from "./types";
 
@@ -15,7 +16,7 @@ interface Props {
 
 function VideoCard({ video, selected, onToggle, onOpen }: { video: Video; selected: boolean; onToggle: () => void; onOpen: () => void }) {
   const { t } = useAppSettings();
-  const thumb = thumbnailSrc(video);
+  const thumb = thumbnailUrl(video.thumbnail_path);
   return (
     <div className={`video-card program-autre${selected ? " selected" : ""}`} onClick={onOpen}>
       <div className="thumbnail-wrapper">

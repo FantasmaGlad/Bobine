@@ -5,7 +5,7 @@ import React from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 
-import { thumbnailUrl } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
 import type { BackgroundOption } from "./types";
 
 interface Props {

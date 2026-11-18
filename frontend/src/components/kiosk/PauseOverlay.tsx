@@ -6,7 +6,7 @@ import { formatCleanDescription } from "@/lib/formatDescription";
 import { formatTime } from "@/lib/format";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
 import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
-import { getThumbnailSrc } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 interface PauseOverlayProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -29,7 +29,7 @@ export default function PauseOverlay({ t, state, programAccent, onResume }: Paus
                 title={t("kiosk.resume")}
               >
                 {(() => {
-                  const thumbSrc = getThumbnailSrc(state.current_video?.thumbnail_url || state.current_video?.thumbnail_path);
+                  const thumbSrc = thumbnailUrl(state.current_video?.thumbnail_url || state.current_video?.thumbnail_path);
                   return thumbSrc ? (
                     <img
                       src={thumbSrc}

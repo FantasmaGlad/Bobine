@@ -32,7 +32,7 @@ export default function KioskNowCard({ state, livePosition, getApiUrl, chapters,
       {state.current_video ? (
         <CourseCard
           variant="hero"
-          getApiUrl={getApiUrl}
+
           releaseLabel={(release) => t("mobileRemote.releaseShort", { release })}
           fallbackProgram={t("mobileRemote.otherProgram")}
           course={state.current_video}

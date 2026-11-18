@@ -5,7 +5,6 @@ import { useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { getApiUrl } from "@/lib/apiUrl";
 import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
 import { formatMinutes } from "@/lib/format";
 
@@ -56,7 +55,7 @@ export default function LaunchPanel({ isCable, videos, playlists, locked, locked
           options={videos.map((v) => ({
             value: String(v.id), label: v.title,
             sublabel: [v.program, v.release ? `#${v.release}` : null].filter(Boolean).join(" · ") || undefined,
-            thumbnail: courseThumbSrc(getApiUrl, v), meta: v.duration_seconds ? formatClock(v.duration_seconds) : undefined,
+            thumbnail: courseThumbSrc(v), meta: v.duration_seconds ? formatClock(v.duration_seconds) : undefined,
           }))}
         />
         {videos.length === 0 && <p className="live-empty" style={{ marginTop: "12px" }}>{t("dashboard.noVideos")}</p>}
@@ -73,7 +72,7 @@ export default function LaunchPanel({ isCable, videos, playlists, locked, locked
           onLaunch={() => playlistId && sendCommand("load_playlist", { playlist_id: Number(playlistId) })}
           options={playlists.map((p) => ({
             value: String(p.id), label: p.name, sublabel: t("dashboard.playlistCourseCount", { count: p.item_count }),
-            thumbnail: courseThumbSrc(getApiUrl, { thumbnail_path: p.thumbnail_path }), meta: formatMinutes(p.total_duration_seconds, "0 min"),
+            thumbnail: courseThumbSrc({ thumbnail_path: p.thumbnail_path }), meta: formatMinutes(p.total_duration_seconds, "0 min"),
           }))}
         />
         {playlists.length === 0 && <p className="live-empty" style={{ marginTop: "12px" }}>{t("dashboard.noPlaylists")}</p>}

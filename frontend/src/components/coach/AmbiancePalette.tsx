@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
 import Icon from "@/components/Icon";
-import { getApiUrl } from "@/lib/apiUrl";
 import type { BackgroundSummary } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 interface AmbiancePaletteProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -56,9 +56,7 @@ export default function AmbiancePalette({ t, backgrounds, activeBgId, chooseBack
             <div className="coach-ambiance-grid">
               {backgrounds.map((bg) => {
                 const isActive = activeBgId === bg.id;
-                const thumb = bg.thumbnail_path
-                  ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
-                  : null;
+                const thumb = thumbnailUrl(bg.thumbnail_path);
                 return (
                   <div
                     key={bg.id}

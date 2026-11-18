@@ -4,7 +4,7 @@ import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { formatMediaDuration } from "@/lib/format";
 
-import { thumbnailUrl } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
 import type { AudioCourseSummary } from "./types";
 
 function groups(courses: AudioCourseSummary[]) {
