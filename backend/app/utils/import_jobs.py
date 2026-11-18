@@ -161,11 +161,13 @@ def update_job(job_id: str | None, **fields) -> None:
             return
         job.update(fields)
         if fields.get("stage") == "error" and fields.get("error"):
+            from app.api.errors import redact_paths
             from app.utils.ffmpeg_binaries import classify_error
 
             classified = classify_error(str(fields["error"]))
             if classified:
                 job["error_code"], job["error_params"] = classified
+            job["error"] = redact_paths(str(fields["error"]))
         if "stage" in fields:
             job["stage_label"] = _STAGE_LABELS.get(fields["stage"], fields["stage"])
         job["updated_at"] = time.time()

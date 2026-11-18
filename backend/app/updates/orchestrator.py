@@ -13,6 +13,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
+from app.api.errors import redact_paths
 from app.utils import tor_proxy
 from app.utils.deployment import UpdateUnsupported, get_profile_handler
 from app.utils.version import get_build_fingerprint
@@ -311,4 +312,4 @@ async def run_update_pipeline(
             await _set_state(step="failed", message=e.message, error=e.message)
         except Exception as e:
             logger.error(f"Erreur lors de l'application de la mise à jour : {e}")
-            await _set_state(step="failed", message=str(e), error=str(e))
+            await _set_state(step="failed", message=redact_paths(str(e)), error=redact_paths(str(e)))
