@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const VOLUME_STEP = 0.05;
+export const VOLUME_PRESETS = [25, 50, 75, 100] as const;
 export const VOLUME_HUD_MS = 1800;
 
 export interface VolumeState {

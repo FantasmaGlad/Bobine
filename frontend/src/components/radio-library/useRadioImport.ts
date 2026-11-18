@@ -3,13 +3,12 @@
 import React, { useState } from "react";
 
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { hasExtension, isArchiveName, RADIO_AUDIO_EXTENSIONS } from "@/lib/mediaFiles";
+import { isArchiveName, isRadioAudioName } from "@/lib/mediaFiles";
 import { useUploadManager } from "@/lib/UploadManager";
 import type { ShowToast } from "@/lib/useToast";
 
 type Mode = "files" | "folder";
 
-const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
 export function useRadioImport(showToast: ShowToast) {
   const { t } = useAppSettings();
@@ -34,7 +33,7 @@ export function useRadioImport(showToast: ShowToast) {
   const start = (fileList: FileList | null, override?: Mode) => {
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList);
-    const audio = (override ?? mode) === "folder" ? files.filter((f) => isAudioFile(f.name)) : files;
+    const audio = (override ?? mode) === "folder" ? files.filter((f) => isRadioAudioName(f.name)) : files;
     if (audio.length === 0) {
       showToast(t("radioLibrary.noAudioInFolder"), "warning");
       return;

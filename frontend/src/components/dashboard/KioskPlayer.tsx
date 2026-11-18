@@ -10,13 +10,13 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 import { useVideoChapters } from "@/lib/chapters";
 import { formatTime } from "@/lib/format";
+import { VOLUME_PRESETS } from "@/lib/volumeHud";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
 
 import { THUMB_STYLE, type Send } from "./types";
 import { thumbnailUrl } from "@/lib/thumbnail";
 
 const SPEED_OPTIONS = [0.5, 1, 1.25, 1.5, 2];
-const VOLUME_PRESETS = [25, 50, 75, 100];
 
 interface Props {
   state: PlaybackState;

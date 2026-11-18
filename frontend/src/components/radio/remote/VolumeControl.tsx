@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { VOLUME_PRESETS } from "@/lib/volumeHud";
 import type { SendRadioCommand } from "./types";
 
-const PRESETS = [25, 50, 75, 100];
 
 export default function VolumeControl({ volume, sendCommand }: { volume: number; sendCommand: SendRadioCommand }) {
   const { t } = useAppSettings();
@@ -29,7 +29,7 @@ export default function VolumeControl({ volume, sendCommand }: { volume: number;
       />
       <span className="volume-value">{displayVolume}%</span>
       <div className="volume-presets">
-        {PRESETS.map((preset) => (
+        {VOLUME_PRESETS.map((preset) => (
           <button
             key={preset}
             type="button"
