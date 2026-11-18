@@ -68,35 +68,39 @@ def is_same_origin(origin: str, host_header: str, scheme: str) -> bool:
 
 
 class SameOriginGuard:
-    """Refuse (403, ou fermeture 1008 pour un WebSocket) toute requête modifiante portant une origine étrangère."""
+    """Refuse (403, ou fermeture 1008 pour un WebSocket) tout hôte inconnu, et toute écriture ou WebSocket d'une origine étrangère."""
 
     def __init__(self, app: ASGIApp, *, allowed_origins: Iterable[str] = ()) -> None:
         self.app = app
         self.allowed_origins = frozenset(origin.rstrip("/") for origin in allowed_origins)
         self.allowed_names = allowed_host_names()
 
-    def _is_allowed(self, scope: Scope) -> bool:
-        headers = {key.decode("latin-1"): value.decode("latin-1") for key, value in scope.get("headers", ())}
+    def _is_trusted_host(self, headers: dict[str, str]) -> bool:
+        host = headers.get("host")
+        if not host:
+            return True
+        request_hp = _host_port(host, "http")
+        return request_hp is not None and is_trusted_host_name(request_hp[0], self.allowed_names)
+
+    def _is_allowed(self, headers: dict[str, str], scheme: str) -> bool:
         origin = headers.get("origin")
         if origin is None:
             return True
         if origin.rstrip("/") in self.allowed_origins:
             return True
-        host = headers.get("host", "")
-        request_hp = _host_port(host, "http")
-        return (
-            request_hp is not None
-            and is_trusted_host_name(request_hp[0], self.allowed_names)
-            and is_same_origin(origin, host, scope.get("scheme", "http"))
-        )
+        return is_same_origin(origin, headers.get("host", ""), scheme)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "websocket":
-            if not self._is_allowed(scope):
-                await send({"type": "websocket.close", "code": 1008})
-                return
-        elif scope["type"] == "http" and scope.get("method", "GET") not in _SAFE_METHODS:
-            if not self._is_allowed(scope):
-                await send_forbidden(send, "cross_origin", "Requête refusée : elle vient d'une page web d'une autre origine, ou d'un nom d'hôte inconnu (à déclarer dans BOBINE_ALLOWED_HOSTS).")
-                return
-        await self.app(scope, receive, send)
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+        headers = {key.decode("latin-1"): value.decode("latin-1") for key, value in scope.get("headers", ())}
+        allowed = self._is_trusted_host(headers)
+        if allowed and (scope["type"] == "websocket" or scope.get("method", "GET") not in _SAFE_METHODS):
+            allowed = self._is_allowed(headers, scope.get("scheme", "http"))
+        if allowed:
+            await self.app(scope, receive, send)
+        elif scope["type"] == "websocket":
+            await send({"type": "websocket.close", "code": 1008})
+        else:
+            await send_forbidden(send, "cross_origin", "Requête refusée : elle vient d'une page web d'une autre origine, ou d'un nom d'hôte inconnu (à déclarer dans BOBINE_ALLOWED_HOSTS).")
