@@ -22,11 +22,14 @@ class LaptopLidPayload(BaseModel):
     prevent_sleep: bool
 
 
+_COMMAND_TIMEOUT_SECONDS = 10
+
 def _has_laptop_lid() -> bool:
     if sys.platform == "win32":
         try:
             return psutil.sensors_battery() is not None
-        except Exception:
+        except Exception as exc:
+            logger.debug("_has_laptop_lid : %s", exc)
             return False
     lid_proc = Path("/proc/acpi/button/lid")
     if lid_proc.exists():
@@ -37,7 +40,8 @@ def _has_laptop_lid() -> bool:
             logger.debug("_has_laptop_lid : %s", exc)
     try:
         return psutil.sensors_battery() is not None
-    except Exception:
+    except Exception as exc:
+        logger.debug("_has_laptop_lid : %s", exc)
         return False
 
 
@@ -49,6 +53,7 @@ def _get_lid_prevent_sleep() -> bool:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=_COMMAND_TIMEOUT_SECONDS,
             )
             return "0x00000000" in res.stdout or " 0 " in res.stdout
         except Exception as e:
@@ -62,6 +67,7 @@ def _get_lid_prevent_sleep() -> bool:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=_COMMAND_TIMEOUT_SECONDS,
             )
             if res.returncode == 0:
                 return "nothing" in res.stdout
@@ -78,8 +84,9 @@ def _set_lid_prevent_sleep(prevent: bool) -> bool:
             subprocess.run(
                 ["powercfg", "/setacvalueindex", "SCHEME_CURRENT", "SUB_BUTTONS", "LIDACTION", val],
                 check=False,
+                timeout=_COMMAND_TIMEOUT_SECONDS,
             )
-            subprocess.run(["powercfg", "/setactive", "SCHEME_CURRENT"], check=False)
+            subprocess.run(["powercfg", "/setactive", "SCHEME_CURRENT"], check=False, timeout=_COMMAND_TIMEOUT_SECONDS)
             return True
         except Exception as e:
             logger.error(f"Erreur écriture powercfg capot Windows : {e}")
@@ -93,6 +100,7 @@ def _set_lid_prevent_sleep(prevent: bool) -> bool:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=_COMMAND_TIMEOUT_SECONDS,
             )
             return res.returncode == 0
         except Exception as e:

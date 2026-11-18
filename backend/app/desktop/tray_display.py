@@ -37,9 +37,9 @@ def _set_display_always_on(enabled: bool) -> None:
         if shutil.which("xset"):
             try:
                 if enabled:
-                    subprocess.run(["xset", "s", "off", "-dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(["xset", "s", "off", "-dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
                 else:
-                    subprocess.run(["xset", "s", "default", "+dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(["xset", "s", "default", "+dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             except Exception as exc:
                 logger.debug("_set_display_always_on : %s", exc)
 
