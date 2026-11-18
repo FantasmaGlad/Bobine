@@ -97,7 +97,8 @@ def _get_wired_display_mode() -> str:
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("wired_display_mode", "headless")
-    except Exception:
+    except Exception as exc:
+        logger.debug("Mode des écrans filaires illisible, sans écran retenu : %s", exc)
         return "headless"
 
 

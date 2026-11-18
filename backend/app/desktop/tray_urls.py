@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.utils.port import DEFAULT_PORT
+
+logger = logging.getLogger(__name__)
 
 
 def _admin_port() -> int:
     try:
         from app.utils.port import current_port
         return int(current_port())
-    except Exception:
+    except Exception as exc:
+        logger.debug("Port publié illisible, port par défaut %s : %s", DEFAULT_PORT, exc)
         return DEFAULT_PORT
 
 
