@@ -13,7 +13,6 @@ from app.database import SessionLocal, get_db
 from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Setting, Video
 from app.storage import availability as storage_availability
 from app.storage.service import service as storage_service
-from app.utils.android_runtime import is_android
 from app.utils.media_response import build_media_response
 from app.utils.radio_utils import content_type_for
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
@@ -23,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-_IS_ANDROID = is_android()
 
 
 def _storage_unavailable() -> HTTPException:

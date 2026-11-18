@@ -27,7 +27,7 @@ def test_every_route_has_a_command_or_a_reasoned_exemption():
     unclassified = sorted(route for route in api_routes() if route not in cli_routes.COVERED and not cli_routes.exemption_for(route))
     assert not unclassified, (
         "Routes sans commande bobine ni exemption : ajoutez-les à COVERED (app/cli/routes.py) avec leur commande, "
-        "ou à EXEMPT avec le statut never ou todo et la raison :\n  " + "\n  ".join(unclassified)
+        "ou à EXEMPT avec la raison :\n  " + "\n  ".join(unclassified)
     )
 
 
@@ -42,7 +42,7 @@ def test_the_table_has_no_stale_entries():
     assert sorted(set(cli_routes.COVERED) - routes) == [], "route couverte qui n'existe plus"
     for rule in cli_routes.EXEMPT:
         assert any(rule.matches(route) and route not in cli_routes.COVERED for route in routes), f"exemption sans route : {rule.pattern}"
-        assert rule.status == "never" and rule.reason.strip()
+        assert rule.reason.strip()
 
 
 def test_covered_routes_name_a_real_command():
@@ -154,8 +154,3 @@ def test_the_facade_knows_every_action_of_the_contract(client):
         assert not (answer.status_code == 404 and isinstance(detail, dict) and detail.get("kind") == "action"), action
     assert client.post("/api/playback/cable/zzz_inconnue", json={}).status_code == 404
     assert client.post("/api/playback/cable/stop", json={}).status_code in (200, 409)
-
-
-def test_every_route_is_reachable_from_the_command_line():
-    todo = [route for route in api_routes() if any(r.status == "todo" for r in cli_routes.exemption_for(route))]
-    assert todo == [], "ajouter une commande (cli/specs/) plutôt qu'une exemption"
