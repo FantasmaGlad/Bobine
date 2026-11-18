@@ -393,6 +393,47 @@ jobs:
           cargo build --release --locked
           ls target/release/bobine-media* | grep -v '\.d$' | xargs wc -c
 
+  dependency-audit:
+    name: Dependency audit
+    needs: [version]
+    if: needs.version.outputs.code == 'true' || needs.version.outputs.frontend == 'true' || needs.version.outputs.media == 'true' || needs.version.outputs.devices == 'true' || needs.version.outputs.packaging == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARGO_NET_RETRY: "10"
+      PIP_AUDIT_VERSION: "2.10.1"
+      CARGO_AUDIT_VERSION: "0.22.2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Dépendances Python du backend
+        working-directory: backend
+        run: |
+          python -m pip install "pip-audit==$PIP_AUDIT_VERSION"
+          pip-audit -r requirements.txt --progress-spinner off
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Dépendances npm de production du frontend
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=low
+      - name: Cache cargo-audit
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}-${{ env.CARGO_AUDIT_VERSION }}
+      - name: Dépendances Cargo des composants natifs
+        run: |
+          rustup toolchain install
+          command -v cargo-audit >/dev/null || cargo install cargo-audit --version "$CARGO_AUDIT_VERSION" --locked
+          for component in devices media projector; do
+            (cd "$component" && cargo audit)
+          done
+
   media-fuzz:
     name: Media fuzzing
     needs: [version]
@@ -1164,7 +1205,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, media-fuzz, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
+    needs: [version, frontend, firefox-smoke, backend, backend-android-compat, android-startup, devices-sidecar, media-component, media-fuzz, dependency-audit, android-build, install-script, windows-build, windows-build-arm64, linux-deb, macos-build, linux-packages, linux-rpm-aarch64]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -1192,6 +1233,9 @@ jobs:
           controle devices-sidecar "${{ needs.devices-sidecar.result }}" "$DEVICES"
           controle media-component "${{ needs.media-component.result }}" "$MEDIA"
           controle media-fuzz "${{ needs.media-fuzz.result }}" "$MEDIA"
+          AUDIT=false
+          case "$CODE$FRONTEND$MEDIA$DEVICES$PACKAGING" in *true*) AUDIT=true ;; esac
+          controle dependency-audit "${{ needs.dependency-audit.result }}" "$AUDIT"
           controle android-build "${{ needs.android-build.result }}" "$ANDROID"
           controle android-startup "${{ needs.android-startup.result }}" "$ANDROID"
           controle windows-build "${{ needs.windows-build.result }}" "$PACKAGING"
