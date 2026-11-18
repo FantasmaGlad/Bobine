@@ -43,32 +43,40 @@ export default function Explorer({ volumeKey, name, portable, canExtend, registe
   const [kindTouched, setKindTouched] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(
-    async (target: string, offset = 0) => {
-      setLoading(true);
+  const fetchPage = useCallback(
+    (target: string, offset: number) => {
       const query = new URLSearchParams({ path: target, offset: String(offset), limit: String(PAGE), media_only: "true" });
-      const result = await storageRequest<BrowseResult>(`/volumes/${encodeKey(volumeKey)}/browse?${query}`);
-      setLoading(false);
-      if (!result.ok) {
-        notify(storageErrorText(result.error, t, lang), "error");
-        return;
-      }
-      setEntries((prev) => (offset === 0 ? result.data.entries : [...prev, ...result.data.entries]));
-      setMeta({ total: result.data.total, truncated: result.data.truncated, skipped_links: result.data.skipped_links });
+      return storageRequest<BrowseResult>(`/volumes/${encodeKey(volumeKey)}/browse?${query}`).then((result) => {
+        setLoading(false);
+        if (!result.ok) {
+          notify(storageErrorText(result.error, t, lang), "error");
+          return;
+        }
+        setEntries((prev) => (offset === 0 ? result.data.entries : [...prev, ...result.data.entries]));
+        setMeta({ total: result.data.total, truncated: result.data.truncated, skipped_links: result.data.skipped_links });
+      });
     },
     [volumeKey, notify, t, lang],
   );
 
+  const loadMore = () => {
+    setLoading(true);
+    void fetchPage(path, entries.length);
+  };
+
+  const [shownPath, setShownPath] = useState(path);
+  if (shownPath !== path) {
+    setShownPath(path);
+    setLoading(true);
+  }
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement d'un dossier du support (API)
-    void load(path);
-  }, [load, path]);
+    void fetchPage(path, 0);
+  }, [fetchPage, path]);
 
   const chosen = useMemo(() => Object.values(selected), [selected]);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- dérivé de la sélection
-    if (!kindTouched && chosen.length) setKind(suggestKind(chosen));
-  }, [chosen, kindTouched]);
+  const suggested = !kindTouched && chosen.length ? suggestKind(chosen) : null;
+  if (suggested && suggested !== kind) setKind(suggested);
 
   const toggle = (entry: BrowseEntry) =>
     setSelected((prev) => {
@@ -185,7 +193,7 @@ export default function Explorer({ volumeKey, name, portable, canExtend, registe
             );
           })}
           {entries.length < meta.total && (
-            <button type="button" className="btn btn-secondary" disabled={loading} onClick={() => load(path, entries.length)}>{t("storage.explorer.more")}</button>
+            <button type="button" className="btn btn-secondary" disabled={loading} onClick={loadMore}>{t("storage.explorer.more")}</button>
           )}
           {(meta.truncated || meta.skipped_links > 0) && (
             <p className="dv-sub">

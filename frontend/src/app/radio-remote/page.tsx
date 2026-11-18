@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useClientSnapshot } from "@/lib/useClientSnapshot";
+import React, { useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { RadioChannelId } from "@/lib/displayChannel";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
@@ -26,12 +27,9 @@ function readRequestedChannel(): RadioChannelId | null {
 
 export default function RadioRemotePage() {
   const { t } = useAppSettings();
-  const [channel, setChannel] = useState<RadioChannelId | null>(null);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture unique d'une préférence locale après hydratation
-    setChannel(readRequestedChannel() ?? readStoredChannel());
-  }, []);
+  const stored = useClientSnapshot<RadioChannelId | null>(() => readRequestedChannel() ?? readStoredChannel(), null);
+  const [chosen, setChannel] = useState<RadioChannelId | null>(null);
+  const channel = chosen ?? stored;
 
   const selectChannel = (next: RadioChannelId) => {
     setChannel(next);

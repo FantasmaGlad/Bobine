@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
-import { RadioEvent, RadioTrackInfo, selectRadioTarget, useRadioSocket } from "@/lib/useRadioSocket";
+import { RadioEvent, RadioTrackInfo, selectRadioTarget, useRadioSocket, type RadioState } from "@/lib/useRadioSocket";
 import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { radioChannelId } from "@/lib/displayChannel";
 import { createSoundChain, type SoundChain } from "@/lib/radioSoundGraph";
@@ -266,15 +266,14 @@ export default function RadioScreenPage() {
   );
   const soundKey = JSON.stringify(state.sound);
   useEffect(() => {
-    soundRef.current = state.sound;
-    soundChainRef.current?.apply(state.sound);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `soundKey` résume le contenu de state.sound
+    const sound = JSON.parse(soundKey) as RadioState["sound"];
+    soundRef.current = sound;
+    soundChainRef.current?.apply(sound);
   }, [soundKey]);
   const mixKey = JSON.stringify(state.mix);
   useEffect(() => {
-    mixRef.current = clampMix(state.mix);
+    mixRef.current = clampMix(JSON.parse(mixKey) as RadioState["mix"]);
     mixStageRef.current?.apply(mixRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `mixKey` résume le contenu de state.mix
   }, [mixKey]);
   useAudioRoute({ ctxRef: audioCtxRef, stageRef: mixStageRef, route: state.route ?? null, ready: graphReady, connected, sendCommand });
   useLevelMeter(mixStageRef, graphReady, Boolean(state.meter), isPrimary, sendCommand);

@@ -43,9 +43,7 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
   const [job, setJob] = useState<FormatJob | null>(target.resume ?? null);
   const finished = useRef(false);
 
-  const loadPlan = useCallback(async (travels: boolean) => {
-    setStage("loading");
-    const result = await storageRequest<FormatPlan>("/format/plan", { body: { key: target.key, travels: formatTravels(travels) } });
+  const fetchPlan = useCallback((travels: boolean) => storageRequest<FormatPlan>("/format/plan", { body: { key: target.key, travels: formatTravels(travels) } }).then((result) => {
     if (!result.ok) {
       setRefusal(result.error);
       setStage("refused");
@@ -56,14 +54,18 @@ function WizardBody({ target, onClose, onChanged, t, lang, notify }: Props & { t
     setFs(chosen);
     setLabel(result.data.options.find((o) => o.fs === chosen)?.label ?? "BOBINE");
     setStage("choose");
-  }, [target.key]);
+  }), [target.key]);
+
+  const loadPlan = useCallback((travels: boolean) => {
+    setStage("loading");
+    return fetchPlan(travels);
+  }, [fetchPlan]);
 
   useEffect(() => {
     if (!target.resume) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial d'une ressource externe (API)
-      void loadPlan(false);
+      void fetchPlan(false);
     }
-  }, [loadPlan, target.resume]);
+  }, [fetchPlan, target.resume]);
 
   useEffect(() => {
     if (stage !== "confirm") return;

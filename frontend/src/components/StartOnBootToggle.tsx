@@ -1,22 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useClientChoice, useClientSnapshot } from "@/lib/useClientSnapshot";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getNativeBridge } from "@/lib/nativeBridge";
 
 export default function StartOnBootToggle() {
   const { t } = useAppSettings();
-  const [available, setAvailable] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
-    const bridge = getNativeBridge();
-    if (!bridge) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture d'un système externe (application Android) au montage
-    setAvailable(true);
-    setEnabled(bridge.getStartOnBoot());
-  }, []);
+  const available = useClientSnapshot(() => getNativeBridge() !== null, false);
+  const [enabled, setEnabled] = useClientChoice<boolean>(() => getNativeBridge()?.getStartOnBoot() ?? null, false);
 
   if (!available) return null;
 

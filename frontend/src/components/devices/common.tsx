@@ -30,8 +30,7 @@ export function useDevicesResource<T>(path: string, refreshKey: number) {
   const [loading, setLoading] = useState(true);
   const alive = useRef(true);
 
-  const reload = useCallback(async () => {
-    const result = await devicesRequest<T>(path);
+  const reload = useCallback(() => devicesRequest<T>(path).then((result) => {
     if (!alive.current) return;
     if (result.ok) {
       setData(result.data);
@@ -40,11 +39,10 @@ export function useDevicesResource<T>(path: string, refreshKey: number) {
       setError(result.error);
     }
     setLoading(false);
-  }, [path]);
+  }), [path]);
 
   useEffect(() => {
     alive.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement d'une ressource externe (API), pas un calcul dérivable au rendu
     void reload();
     return () => {
       alive.current = false;

@@ -22,28 +22,27 @@ type Row = { ok: boolean; label: string; value: string; hint?: string };
 export default function ImportDiagnosticsPanel() {
   const { t } = useAppSettings();
   const [report, setReport] = useState<ImportDiagnostics | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(getApiUrl("/diagnostics/import"), { cache: "no-store" });
+  const fetchReport = useCallback(() => fetch(getApiUrl("/diagnostics/import"), { cache: "no-store" })
+    .then(async (res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setReport(await res.json());
       setFailed(false);
-    } catch {
-      setFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    })
+    .catch(() => setFailed(true))
+    .finally(() => setLoading(false)), []);
+
+  const load = () => {
+    setLoading(true);
+    void fetchReport();
+  };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture ponctuelle d'une API externe au montage
-    void load();
-  }, [load]);
+    void fetchReport();
+  }, [fetchReport]);
 
   const copy = async () => {
     if (!report) return;
@@ -145,7 +144,7 @@ export default function ImportDiagnosticsPanel() {
       )}
 
       <div style={{ display: "flex", gap: "10px", marginTop: "14px", flexWrap: "wrap", alignItems: "center" }}>
-        <button type="button" className="btn btn-secondary" onClick={() => void load()} disabled={loading}>
+        <button type="button" className="btn btn-secondary" onClick={load} disabled={loading}>
           <Icon name="refresh" size={18} /> {loading ? t("settingsPage.importDiag.refreshing") : t("settingsPage.importDiag.refresh")}
         </button>
         {report && (

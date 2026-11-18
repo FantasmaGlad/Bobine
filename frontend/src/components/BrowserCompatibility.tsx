@@ -1,5 +1,6 @@
 "use client";
 
+import { useClientChoice, useClientSnapshot } from "@/lib/useClientSnapshot";
 import { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -67,18 +68,18 @@ function collect(): Capabilities {
   };
 }
 
+let capabilities: Capabilities | null = null;
+const readCapabilities = () => (capabilities ??= collect());
+
 export default function BrowserCompatibility() {
   const { t } = useAppSettings();
-  const [caps, setCaps] = useState<Capabilities | null>(null);
-  const [preference, setPreference] = useState<VideoProfilePreference>("auto");
+  const caps = useClientSnapshot<Capabilities | null>(readCapabilities, null);
+  const [preference, setPreference] = useClientChoice<VideoProfilePreference>(getVideoProfilePreference, "auto");
   const [autoGenerate, setAutoGenerate] = useState(false);
   const [testState, setTestState] = useState<{ running: boolean; text: string | null }>({ running: false, text: null });
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- détection de fonctionnalités : possible seulement côté navigateur
-    setCaps(collect());
-    setPreference(getVideoProfilePreference());
     fetch(getApiUrl("/settings"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => setAutoGenerate(data?.auto_web_rendition === "true"))

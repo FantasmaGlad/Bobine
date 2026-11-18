@@ -13,20 +13,17 @@ export default function PlaybackTimingSettings() {
   const [draft, setDraft] = useState<Partial<Record<TimingSettingKey, string>>>({});
   const [status, setStatus] = useState<Partial<Record<TimingSettingKey, Status>>>({});
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(getApiUrl("/settings"), { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
+  const load = useCallback(() => fetch(getApiUrl("/settings"), { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (!data) return;
       const values: Partial<Record<TimingSettingKey, number>> = {};
       for (const key of TIMING_SETTING_KEYS) if (typeof data[key] === "number") values[key] = data[key];
       setSaved(values);
-    } catch {
-    }
-  }, []);
+    })
+    .catch(() => {}), []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial des valeurs du serveur
     void load();
   }, [load]);
 

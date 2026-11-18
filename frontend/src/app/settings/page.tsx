@@ -20,11 +20,14 @@ import type { SettingsData } from "@/components/settings/types";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 import { DEFAULT_SETTINGS_CATEGORY, SETTINGS_CATEGORIES, categoryOfSection, matchCategories, type SettingsCategoryId } from "@/lib/settingsCategories";
+import { useClientSnapshot } from "@/lib/useClientSnapshot";
 import { useToast } from "@/lib/useToast";
 
 export default function SettingsPage() {
   const { t } = useAppSettings();
-  const [category, setCategory] = useState<SettingsCategoryId>(DEFAULT_SETTINGS_CATEGORY);
+  const linkedSection = useClientSnapshot(() => window.location.hash.replace(/^#/, ""), "");
+  const [chosenCategory, setCategory] = useState<SettingsCategoryId | null>(null);
+  const category = chosenCategory ?? categoryOfSection(linkedSection) ?? DEFAULT_SETTINGS_CATEGORY;
   const [query, setQuery] = useState("");
   const searching = query.trim().length > 0;
   const matched = useMemo(
@@ -48,33 +51,30 @@ export default function SettingsPage() {
     window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }, []);
   useEffect(() => {
-    const target = window.location.hash.replace(/^#/, "");
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture de l'adresse au montage (lien profond vers une section)
-    if (target && categoryOfSection(target)) openSection(target);
-  }, [openSection]);
+    if (!linkedSection || !categoryOfSection(linkedSection)) return;
+    window.setTimeout(() => document.getElementById(linkedSection)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, [linkedSection]);
   const [data, setData] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshingNetwork, setRefreshingNetwork] = useState(false);
   const { toast, showToast } = useToast(5000);
 
-  const fetchSettings = useCallback((showIndicator = false) => {
-    if (showIndicator) setRefreshingNetwork(true);
-    return fetch(getApiUrl("/settings"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((d) => {
-        if (d) setData(d);
-      })
-      .catch(() => {})
-      .finally(() => {
-        setLoading(false);
-        if (showIndicator) setRefreshingNetwork(false);
-      });
-  }, []);
+  const fetchSettings = useCallback(() => fetch(getApiUrl("/settings"), { cache: "no-store" })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((d) => {
+      if (d) setData(d);
+    })
+    .catch(() => {})
+    .finally(() => setLoading(false)), []);
+
+  const refreshNetwork = () => {
+    setRefreshingNetwork(true);
+    void fetchSettings().finally(() => setRefreshingNetwork(false));
+  };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- chargement initial depuis le backend puis rafraîchissement périodique, pas un calcul dérivable au rendu
-    fetchSettings();
-    const id = setInterval(() => fetchSettings(false), 15000);
+    void fetchSettings();
+    const id = setInterval(() => void fetchSettings(), 15000);
     return () => clearInterval(id);
   }, [fetchSettings]);
 
@@ -143,7 +143,7 @@ export default function SettingsPage() {
       <StartOnBootToggle />
       </div>
 
-      <DocsSection hidden={!shows("section-docs")} data={data} refreshingNetwork={refreshingNetwork} onRefresh={() => void fetchSettings(true)} showToast={showToast} />
+      <DocsSection hidden={!shows("section-docs")} data={data} refreshingNetwork={refreshingNetwork} onRefresh={refreshNetwork} showToast={showToast} />
 
       <DangerSection
         hidden={!shows("section-danger")}

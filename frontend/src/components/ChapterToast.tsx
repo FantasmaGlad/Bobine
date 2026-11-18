@@ -16,10 +16,14 @@ export default function ChapterToast({ chapters, videoRef, label }: ChapterToast
   const lastIndex = useRef(-2);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [shownFor, setShownFor] = useState(chapters);
+  if (shownFor !== chapters) {
+    setShownFor(chapters);
+    setShown(null);
+  }
+
   useEffect(() => {
     lastIndex.current = -2;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- l'annonce en cours ne vaut plus pour un autre cours
-    setShown(null);
     if (chapters.length === 0) return;
     const id = setInterval(() => {
       const video = videoRef.current;
