@@ -5,11 +5,13 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
+import shutil  # noqa: E402
 import subprocess  # noqa: E402
+import sys  # noqa: E402
 
 import pytest  # noqa: E402
 
-from app.api.routes.settings import laptop_lid  # noqa: E402
+from app.hardware import lid  # noqa: E402
 from app.utils import audio_utils, radio_utils  # noqa: E402
 
 
@@ -43,8 +45,8 @@ def test_long_audio_jobs_fail_on_a_hanging_tool(hanging_tool, tmp_path):
 
 @pytest.mark.parametrize("platform", ["win32", "linux"])
 def test_laptop_lid_commands_are_bounded(hanging_tool, monkeypatch, platform):
-    monkeypatch.setattr(laptop_lid.sys, "platform", platform)
-    monkeypatch.setattr(laptop_lid.shutil, "which", lambda name: f"/usr/bin/{name}")
-    assert laptop_lid._get_lid_prevent_sleep() is False
-    assert laptop_lid._set_lid_prevent_sleep(True) is False
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(shutil, "which", lambda name: f"/usr/bin/{name}")
+    assert lid.prevent_sleep() is False
+    assert lid.set_prevent_sleep(True) is False
     assert hanging_tool
