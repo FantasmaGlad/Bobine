@@ -1,4 +1,4 @@
-"""Table de mixage applicative d'une sortie radio (phase 3 des périphériques)."""
+"""Table de mixage applicative d'une sortie radio."""
 import json
 import logging
 import math

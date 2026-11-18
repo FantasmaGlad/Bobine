@@ -241,7 +241,7 @@ impl Platform for Windows {
                     "current": current, "networks": networks, "known": known,
                 }))
             }
-            "wifi.scan" => Ok(Value::Null), // `show networks` déclenche déjà un balayage récent
+            "wifi.scan" => Ok(Value::Null), // `show networks` already triggers a fresh scan
             "wifi.current_connection" => {
                 let iface = self.interface()?;
                 Ok(json!(iface.ssid.filter(|_| iface.connected)))
@@ -296,7 +296,7 @@ impl Platform for Windows {
                             &["wlan", "delete", "profile", &name_arg],
                             SHORT,
                             None,
-                        ); // ne garde pas un mauvais mot de passe
+                        ); // never keep a profile with a wrong password
                     }
                     return Err(RpcError::app(
                         "wifi_auth_failed",

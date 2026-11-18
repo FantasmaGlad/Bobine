@@ -31,7 +31,7 @@ class ArcSpinnerView(context: Context, arcColor: Int, trackColor: Int, sizeDp: I
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = strokePx
-        color = ColorUtils.setAlphaComponent(trackColor, 46) // ≈ 18 %
+        color = ColorUtils.setAlphaComponent(trackColor, 46)
     }
     private val arcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE

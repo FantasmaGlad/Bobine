@@ -16,7 +16,7 @@ files=set(subprocess.check_output(['tar','--zstd','-tf',sys.argv[1]],text=True).
 errors=[]
 for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
     if ' E: ' not in line: continue
-    # Namcap cherche les bibliothèques dans /usr/lib ; PyInstaller les embarque dans son répertoire privé.
+    # namcap looks in /usr/lib; PyInstaller bundles the libraries in its private directory
     match=re.search(r"Dependency [\w.+-]+ detected and not included \(libraries (\[.*?\])",line)
     if match and all('usr/lib/bobine/'+pathlib.PurePosixPath(lib).name in files for lib in ast.literal_eval(match[1])):
         continue

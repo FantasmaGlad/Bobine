@@ -30,7 +30,7 @@ pub fn subnet_cidr(ip: &str, mask: &str) -> Option<String> {
     };
     let prefix = mask_bits.count_ones();
     if mask_bits.leading_ones() != prefix {
-        return None; // masque non contigu
+        return None; // non-contiguous mask
     }
     let ip_bits = u32::from_be_bytes([ip[0], ip[1], ip[2], ip[3]]);
     let net = ip_bits & mask_bits;

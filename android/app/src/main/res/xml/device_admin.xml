@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- aucune politique : le role ne sert qu'a debloquer des capacites systeme -->
+<!-- no policy: the role only unlocks system capabilities -->
 <device-admin xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-policies />
 </device-admin>

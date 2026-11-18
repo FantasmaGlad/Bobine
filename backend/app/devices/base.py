@@ -109,7 +109,7 @@ class DeviceDriver(ABC):
         raise DeviceError("unsupported", "Le changement de profil audio n'est pas possible sur cette plateforme.", 501)
 
     async def audio_route_stream(self, sink_id: str | None) -> dict[str, Any]:
-        """Phase 2 (routage par sortie radio) : amène vers `sink_id` le flux audio du navigateur qui joue la radio sur CETTE machine, ou le rend à la sortie par défaut (`None`)."""
+        """Routage par sortie radio : amène vers `sink_id` le flux audio du navigateur qui joue la radio sur CETTE machine, ou le rend à la sortie par défaut (`None`)."""
         raise DeviceError("unsupported", "Le déplacement du flux audio d'une application n'est pas possible sur cette plateforme.", 501)
 
     @abstractmethod
