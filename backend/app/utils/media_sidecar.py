@@ -15,6 +15,7 @@ import threading
 import time
 from typing import Sequence
 
+from app.process.spawn import executable_name, hidden_console_kwargs
 from app.utils import media_native
 from app.utils.media_protocol import (
     MAX_REQUEST_BYTES,
@@ -59,7 +60,7 @@ def _valid_path(path: os.PathLike | str) -> str | None:
 
 def find_binary() -> list[str] | None:
     """Overrides are single executable paths, never shell command strings."""
-    suffix = ".exe" if os.name == "nt" else ""
+    binary = executable_name("bobine-media")
     candidates: list[Path] = []
     for name in ("BOBINE_MEDIA_SIDECAR", "BOBINE_MEDIA_BIN"):
         override = os.environ.get(name)
@@ -71,9 +72,9 @@ def find_binary() -> list[str] | None:
             return [str(candidate)] if candidate.is_file() and os.access(candidate, os.X_OK) else None
     if getattr(sys, "frozen", False):
         executable_dir = Path(sys.executable).resolve().parent
-        candidates.extend((executable_dir / f"bobine-media{suffix}", executable_dir.parent / "Resources" / f"bobine-media{suffix}"))
+        candidates.extend((executable_dir / binary, executable_dir.parent / "Resources" / binary))
     else:
-        candidates.append(Path(__file__).resolve().parents[3] / "media" / "target" / "release" / f"bobine-media{suffix}")
+        candidates.append(Path(__file__).resolve().parents[3] / "media" / "target" / "release" / binary)
     for candidate in candidates:
         if candidate.is_file() and os.access(candidate, os.X_OK):
             return [str(candidate)]
@@ -152,7 +153,7 @@ class MediaClient:
         proc = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                 stderr=subprocess.DEVNULL, bufsize=0, shell=False,
                                 close_fds=True, env=_child_env(),
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if os.name == "nt" else 0)
+                                **hidden_console_kwargs())
         generation = Generation(proc)
         with self._state:
             closed = self._closed

@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from app.process.spawn import executable_name
+
 from .base import CAPABILITY_KEYS, DeviceDriver, DeviceError, no_capabilities, unsupported
 
 logger = logging.getLogger(__name__)
@@ -29,16 +31,16 @@ _STATUS_BY_CODE = {"unsupported": 501, "tool_missing": 501, "timeout": 504, "wif
 
 def find_binary(profile: str) -> list[str] | None:
     """Emplacements habituels du sidecar : variable d'environnement, à côté de l'exécutable (paquets Windows/macOS), puis dépôt de développement."""
-    suffix = ".exe" if os.name == "nt" else ""
+    binary = executable_name(BINARY_NAME)
     candidates: list[Path] = []
     override = os.environ.get(BINARY_ENV)
     if override:
         candidates.append(Path(override))
     exe_dir = Path(sys.executable).resolve().parent
     if getattr(sys, "frozen", False):
-        candidates += [exe_dir / f"{BINARY_NAME}{suffix}", exe_dir.parent / "Resources" / f"{BINARY_NAME}{suffix}"]
+        candidates += [exe_dir / binary, exe_dir.parent / "Resources" / binary]
     repo_root = Path(__file__).resolve().parents[3]
-    candidates.append(repo_root / "devices" / "target" / "release" / f"{BINARY_NAME}{suffix}")
+    candidates.append(repo_root / "devices" / "target" / "release" / binary)
     for path in candidates:
         if path.is_file():
             return [str(path)]
