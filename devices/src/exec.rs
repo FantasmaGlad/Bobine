@@ -4,6 +4,8 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+const OUTPUT_CAP: u64 = 4 * 1024 * 1024;
+
 pub struct Output {
     pub code: i32,
     pub stdout: String,
@@ -82,7 +84,8 @@ pub fn run_with_env(
 fn read_all<R: Read>(reader: Option<&mut R>) -> String {
     let mut buffer = Vec::new();
     if let Some(r) = reader {
-        let _ = r.take(4 * 1024 * 1024).read_to_end(&mut buffer);
+        let _ = r.take(OUTPUT_CAP).read_to_end(&mut buffer);
+        let _ = std::io::copy(r, &mut std::io::sink());
     }
     String::from_utf8_lossy(&buffer).into_owned()
 }
@@ -125,5 +128,13 @@ mod tests {
             Ok(_) => panic!("attendu : délai dépassé"),
         };
         assert_eq!(err.data.unwrap()["code"], "timeout");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn output_past_the_cap_is_drained_and_truncated() {
+        let script = "head -c 6291456 /dev/zero | tr '\\0' a";
+        let out = run("sh", &["-c", script], Duration::from_secs(10), None).unwrap();
+        assert_eq!((out.code, out.stdout.len()), (0, OUTPUT_CAP as usize));
     }
 }
