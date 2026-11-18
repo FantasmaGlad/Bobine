@@ -94,9 +94,10 @@ pub fn require_success(out: Output, what: &str) -> Result<Output, RpcError> {
     if out.code == 0 {
         Ok(out)
     } else {
-        Err(RpcError::app(
+        Err(RpcError::app_with_detail(
             "tool_failed",
-            format!("{what} : {}", out.stderr.lines().next().unwrap_or("échec")),
+            format!("{what} a échoué."),
+            out.stderr.lines().next().unwrap_or(""),
         ))
     }
 }
@@ -143,15 +144,19 @@ mod tests {
     }
 
     #[test]
-    fn require_success_reports_the_first_stderr_line() {
+    fn require_success_keeps_stderr_out_of_the_message() {
         let err = match require_success(output(2, "premiere\nseconde"), "outil") {
             Err(e) => e,
             Ok(_) => panic!("attendu : erreur"),
         };
-        assert_eq!(err.message, "outil : premiere");
-        assert_eq!(err.data.unwrap()["code"], "tool_failed");
+        assert_eq!(err.message, "outil a échoué.");
+        let data = err.data.unwrap();
+        assert_eq!(
+            (data["code"].as_str(), data["detail"].as_str()),
+            (Some("tool_failed"), Some("premiere"))
+        );
         let silent = require_success(output(1, ""), "outil").err().unwrap();
-        assert_eq!(silent.message, "outil : échec");
+        assert_eq!(silent.message, "outil a échoué.");
     }
 
     #[cfg(unix)]

@@ -141,7 +141,10 @@ class SidecarDriver(DeviceDriver):
             raise DeviceError("sidecar_protocol", "Réponse désynchronisée du composant de périphériques.", 502)
         if "error" in message:
             err = message["error"] or {}
-            code = (err.get("data") or {}).get("code") or ("bad_params" if err.get("code") == -32602 else "sidecar_error")
+            data = err.get("data") or {}
+            if data.get("detail"):
+                logger.warning("Composant de périphériques, %s : %s", data.get("code"), data["detail"])
+            code = data.get("code") or ("bad_params" if err.get("code") == -32602 else "sidecar_error")
             status = 400 if err.get("code") == -32602 else _STATUS_BY_CODE.get(code, 502)
             raise DeviceError(code, str(err.get("message") or "Erreur du composant de périphériques."), status)
         return message.get("result")
