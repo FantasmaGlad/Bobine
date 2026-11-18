@@ -7,6 +7,7 @@ BRANCH = re.compile(r"sys\.platform|platform\.system\(\)|os\.name\s*[!=]=")
 REGISTRIES = {
     "app/hardware/platforms.py",
     "app/hardware/probe.py",
+    "app/paths/registry.py",
     "app/process/priority/registry.py",
     "app/utils/android_runtime.py",
     "app/utils/deployment.py",
@@ -16,7 +17,6 @@ PENDING = {
     "app/api/routes/settings/maintenance.py": 3,
     "app/api/static_files.py": 1,
     "app/cli/entry.py": 1,
-    "app/config.py": 7,
     "app/desktop/display_report.py": 1,
     "app/desktop/monitors.py": 1,
     "app/desktop/projector.py": 2,
