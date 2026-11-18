@@ -26,6 +26,10 @@ export function hasExtension(name: string, extensions: readonly string[]): boole
   return extensions.some((ext) => lower.endsWith(ext));
 }
 
+export function isRadioAudioName(name: string): boolean {
+  return hasExtension(name, RADIO_AUDIO_EXTENSIONS);
+}
+
 export const SUBTITLE_EXTENSIONS = ["srt", "vtt"] as const;
 const SUBTITLE_EXTENSION_SET: ReadonlySet<string> = new Set(SUBTITLE_EXTENSIONS);
 

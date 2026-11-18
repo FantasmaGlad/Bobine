@@ -1,12 +1,11 @@
 import { useState, type RefObject } from "react";
 import { getApiUrl } from "@/lib/apiUrl";
-import { RADIO_AUDIO_EXTENSIONS, hasExtension } from "@/lib/mediaFiles";
+import { isRadioAudioName } from "@/lib/mediaFiles";
 import { useUploadManager } from "@/lib/UploadManager";
 import type { ShowToast } from "@/lib/useToast";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-const isAudioFile = (name: string) => hasExtension(name, RADIO_AUDIO_EXTENSIONS);
 
 function configurePicker(el: HTMLInputElement, folder: boolean) {
   if (folder) {
@@ -65,7 +64,7 @@ export function useAnnouncementImport(fileInputRef: RefObject<HTMLInputElement |
 
   const uploadFolder = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    const files = Array.from(fileList).filter((f) => isAudioFile(f.name));
+    const files = Array.from(fileList).filter((f) => isRadioAudioName(f.name));
     if (files.length === 0) {
       showToast(t("radioAnnouncements.noAudioInFolder"), "warning");
       clearInput();
