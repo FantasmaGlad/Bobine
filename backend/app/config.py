@@ -1,6 +1,5 @@
 import logging
 import os
-import platform
 import sys
 import tomllib
 from pathlib import Path
@@ -11,52 +10,16 @@ except ImportError:
 
     SettingsConfigDict = None
 
+from app.paths import data_root, global_config_path, install_root
 from app.utils.android_runtime import is_android
 
 logger = logging.getLogger(__name__)
 
-if getattr(sys, "frozen", False):
-    if platform.system() == "Darwin":
-        ROOT_DIR = Path(sys.executable).resolve().parent.parent / "Resources"
-    else:
-        ROOT_DIR = Path(sys.executable).resolve().parent
-else:
-    ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = install_root(Path(__file__).resolve().parent.parent)
 
 
 def _data_root() -> Path:
-    if is_android():
-        android_data_dir = os.environ.get("BOBINE_ANDROID_DATA_DIR")
-        if android_data_dir:
-            target = Path(android_data_dir)
-            try:
-                target.mkdir(parents=True, exist_ok=True)
-            except Exception as exc:
-                logger.debug("_data_root : %s", exc)
-            return target
-        return ROOT_DIR
-    if platform.system() == "Windows":
-        program_data = os.environ.get("ProgramData")
-        if program_data:
-            return Path(program_data) / "Bobine"
-    elif platform.system() == "Darwin":
-        target = Path.home() / "Library" / "Application Support" / "Bobine"
-        try:
-            target.mkdir(parents=True, exist_ok=True)
-        except Exception as exc:
-            logger.debug("_data_root : %s", exc)
-        return target
-    elif platform.system() == "Linux":
-        if getattr(sys, "frozen", False) or not os.access(ROOT_DIR, os.W_OK) or os.environ.get("BOBINE_USE_XDG") == "1":
-            xdg_data = os.environ.get("XDG_DATA_HOME")
-            base = Path(xdg_data) if xdg_data else Path.home() / ".local" / "share"
-            target = base / "bobine"
-            try:
-                target.mkdir(parents=True, exist_ok=True)
-            except Exception as exc:
-                logger.debug("_data_root : %s", exc)
-            return target
-    return ROOT_DIR
+    return data_root(ROOT_DIR)
 
 
 DATA_ROOT = _data_root()
@@ -80,18 +43,7 @@ _ANDROID_INTERNAL_ROOT_FIELDS = {"thumbnails_dir", "branding_dir", "logs_dir", "
 
 
 def _global_config_path() -> Path:
-    if platform.system() == "Windows":
-        program_data = os.environ.get("ProgramData")
-        if program_data:
-            return Path(program_data) / "Bobine" / "config.toml"
-    elif platform.system() == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "Bobine" / "config.toml"
-    elif platform.system() == "Linux" and not is_android():
-        xdg_config = os.environ.get("XDG_CONFIG_HOME")
-        user_config = (Path(xdg_config) if xdg_config else Path.home() / ".config") / "bobine" / "config.toml"
-        if user_config.exists():
-            return user_config
-    return Path("/etc/bobine/config.toml")
+    return global_config_path()
 
 
 class Settings(BaseSettings):
