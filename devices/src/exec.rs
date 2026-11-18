@@ -87,6 +87,17 @@ fn read_all<R: Read>(reader: Option<&mut R>) -> String {
     String::from_utf8_lossy(&buffer).into_owned()
 }
 
+pub fn require_success(out: Output, what: &str) -> Result<Output, RpcError> {
+    if out.code == 0 {
+        Ok(out)
+    } else {
+        Err(RpcError::app(
+            "tool_failed",
+            format!("{what} : {}", out.stderr.lines().next().unwrap_or("échec")),
+        ))
+    }
+}
+
 pub fn tool_exists(program: &str) -> bool {
     let Some(path) = std::env::var_os("PATH") else {
         return false;
@@ -113,6 +124,31 @@ mod tests {
             Ok(_) => panic!("attendu : erreur"),
         };
         assert_eq!(err.data.unwrap()["code"], "tool_missing");
+    }
+
+    fn output(code: i32, stderr: &str) -> Output {
+        Output {
+            code,
+            stdout: String::new(),
+            stderr: stderr.to_string(),
+        }
+    }
+
+    #[test]
+    fn require_success_passes_a_zero_exit() {
+        assert!(require_success(output(0, "ignored"), "outil").is_ok());
+    }
+
+    #[test]
+    fn require_success_reports_the_first_stderr_line() {
+        let err = match require_success(output(2, "premiere\nseconde"), "outil") {
+            Err(e) => e,
+            Ok(_) => panic!("attendu : erreur"),
+        };
+        assert_eq!(err.message, "outil : premiere");
+        assert_eq!(err.data.unwrap()["code"], "tool_failed");
+        let silent = require_success(output(1, ""), "outil").err().unwrap();
+        assert_eq!(silent.message, "outil : échec");
     }
 
     #[cfg(unix)]

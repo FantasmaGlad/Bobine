@@ -1,4 +1,4 @@
-use crate::exec::{run, tool_exists, Output};
+use crate::exec::{require_success, run, tool_exists, Output};
 use crate::parse;
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
 use serde_json::{json, Map, Value};
@@ -23,19 +23,8 @@ impl MacOs {
         }
     }
 
-    fn ok(out: Output, what: &str) -> Result<Output, RpcError> {
-        if out.code == 0 {
-            Ok(out)
-        } else {
-            Err(RpcError::app(
-                "tool_failed",
-                format!("{what} : {}", out.stderr.lines().next().unwrap_or("échec")),
-            ))
-        }
-    }
-
     fn wifi_device(&self) -> Result<String, RpcError> {
-        let out = Self::ok(
+        let out = require_success(
             run("networksetup", &["-listallhardwareports"], SHORT, None)?,
             "networksetup",
         )?;
@@ -55,7 +44,7 @@ impl MacOs {
     }
 
     fn audio_list(&self) -> RpcResult {
-        let out = Self::ok(
+        let out = require_success(
             run("system_profiler", &["SPAudioDataType", "-json"], LONG, None)?,
             "system_profiler",
         )?;
@@ -77,7 +66,7 @@ impl MacOs {
     }
 
     fn bluetooth_status(&self) -> RpcResult {
-        let out = Self::ok(
+        let out = require_success(
             run(
                 "system_profiler",
                 &["SPBluetoothDataType", "-json"],
@@ -110,7 +99,7 @@ impl MacOs {
         if !self.has_blueutil {
             return Err(RpcError::unsupported("Installez blueutil (brew install blueutil) pour piloter le Bluetooth depuis Bobine."));
         }
-        Self::ok(run("blueutil", args, timeout, None)?, "blueutil")
+        require_success(run("blueutil", args, timeout, None)?, "blueutil")
     }
 }
 
@@ -153,7 +142,7 @@ impl Platform for MacOs {
                         "SwitchAudioSource n'est pas installé.",
                     ));
                 }
-                Self::ok(
+                require_success(
                     run(
                         "SwitchAudioSource",
                         &["-t", "output", "-s", s("id")],
@@ -170,7 +159,7 @@ impl Platform for MacOs {
                         "set volume output volume {}",
                         (v.clamp(0.0, 1.0) * 100.0).round() as i64
                     );
-                    Self::ok(
+                    require_success(
                         run("osascript", &["-e", &script], SHORT, None)?,
                         "osascript",
                     )?;
@@ -180,7 +169,7 @@ impl Platform for MacOs {
                         "set volume output muted {}",
                         if m { "true" } else { "false" }
                     );
-                    Self::ok(
+                    require_success(
                         run("osascript", &["-e", &script], SHORT, None)?,
                         "osascript",
                     )?;
@@ -258,7 +247,7 @@ impl Platform for MacOs {
             "wifi.scan" => Ok(Value::Null), // la lecture de `wifi.status` déclenche déjà un balayage
             "wifi.set_power" => {
                 let device = self.wifi_device()?;
-                Self::ok(
+                require_success(
                     run(
                         "networksetup",
                         &[
@@ -308,7 +297,7 @@ impl Platform for MacOs {
             }
             "wifi.activate" => {
                 let device = self.wifi_device()?;
-                Self::ok(
+                require_success(
                     run(
                         "networksetup",
                         &["-setairportnetwork", &device, s("connection")],
@@ -321,7 +310,7 @@ impl Platform for MacOs {
             }
             "wifi.forget" => {
                 let device = self.wifi_device()?;
-                Self::ok(
+                require_success(
                     run(
                         "networksetup",
                         &["-removepreferredwirelessnetwork", &device, s("ssid")],

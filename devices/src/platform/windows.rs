@@ -1,4 +1,4 @@
-use crate::exec::{run, run_with_env, Output};
+use crate::exec::{require_success as ok, run, run_with_env, Output};
 use crate::parse;
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
 use serde_json::{json, Map, Value};
@@ -21,17 +21,6 @@ fn powershell(script: &str, arg: Option<&str>, timeout: Duration) -> Result<Outp
         None,
         &[("BOBINE_ARG", arg.unwrap_or(""))],
     )
-}
-
-fn ok(out: Output, what: &str) -> Result<Output, RpcError> {
-    if out.code == 0 {
-        Ok(out)
-    } else {
-        Err(RpcError::app(
-            "tool_failed",
-            format!("{what} : {}", out.stderr.lines().next().unwrap_or("échec")),
-        ))
-    }
 }
 
 fn prefix_to_mask(prefix: u32) -> String {
