@@ -62,7 +62,6 @@ def test_stage_refuses_when_disk_space_is_too_small(tmp_path, monkeypatch):
     work = tmp_path / "w"
     work.mkdir()
     monkeypatch.setattr(settings_router.backup.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
-    monkeypatch.setattr(settings_router.laptop_lid.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
     monkeypatch.setattr(settings_router.maintenance.shutil, "disk_usage", lambda p: type("U", (), {"free": 10})())
     with open(zip_path, "rb") as f, pytest.raises(HTTPException) as e:
         settings_router.backup._stage_backup_archive(f, work)
