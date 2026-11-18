@@ -33,6 +33,10 @@ FAKE = textwrap.dedent(
             continue
         elif method == "wifi.current_connection":
             out = "Maison"
+        elif method == "audio.set_default":
+            err = {"code": -32000, "message": "PowerShell a échoué.", "data": {"code": "tool_failed", "detail": "Acces refuse : refus"}}
+            print(json.dumps({"jsonrpc": "2.0", "id": rid, "error": err}), flush=True)
+            continue
         elif method == "bluetooth.pair":
             print(json.dumps({"jsonrpc": "2.0", "id": rid, "error": {"code": -32602, "message": "adresse invalide"}}), flush=True)
             continue
@@ -110,6 +114,21 @@ def test_rpc_errors_become_device_errors(fake_script):
         await driver.stop()
 
     run(scenario())
+
+
+def test_tool_detail_is_logged_not_returned(fake_script, caplog):
+    driver = SidecarDriver("windows", command=fake_script, experimental=True)
+
+    async def scenario():
+        with pytest.raises(DeviceError) as failed:
+            await driver.audio_set_default("x")
+        await driver.stop()
+        return failed.value
+
+    with caplog.at_level("WARNING", logger="app.devices.sidecar"):
+        error = run(scenario())
+    assert (error.code, error.message) == ("tool_failed", "PowerShell a échoué.")
+    assert "refus" in caplog.text
 
 
 def test_protocol_version_mismatch_is_refused(fake_script, monkeypatch):

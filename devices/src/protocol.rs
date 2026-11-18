@@ -48,6 +48,13 @@ impl RpcError {
             data: Some(json!({ "code": code })),
         }
     }
+    pub fn app_with_detail(code: &str, message: impl Into<String>, detail: &str) -> Self {
+        RpcError {
+            code: ERR_APPLICATION,
+            message: message.into(),
+            data: Some(json!({ "code": code, "detail": detail })),
+        }
+    }
     pub fn unsupported(message: impl Into<String>) -> Self {
         Self::app("unsupported", message)
     }
