@@ -60,7 +60,7 @@ def test_is_same_origin(origin, host, scheme, expected):
     [
         ("192.168.1.20", True), ("fe80::1", True), ("[fe80::1]", True), ("localhost", True), ("wyse", True),
         ("bobine.local", True), ("Bobine.Local.", True), ("abc.onion", True), ("tv.home.arpa", True), ("wyse.lan", True),
-        ("wyse.tail1234.ts.net", True),
+        ("wyse.tail1234.ts.net", True), ("penguin.linux.test", True),
         ("evil.example", False), ("192.168.1.20.nip.io", False), ("bobine.local.evil.example", False),
         ("salle.exemple.fr", False),
     ],
@@ -98,7 +98,7 @@ def test_rebound_host_cannot_read(monkeypatch):
 
 @pytest.mark.parametrize(
     "host",
-    ["192.168.1.20:1903", "[fe80::1]:1903", "localhost:1903", "wyse", "bobine.local", "abcdef.onion"],
+    ["192.168.1.20:1903", "[fe80::1]:1903", "localhost:1903", "wyse", "bobine.local", "abcdef.onion", "penguin.linux.test:1903"],
 )
 def test_trusted_hosts_can_read(host):
     assert TestClient(_guarded_app()).get("/api/state", headers={"Host": host}).status_code == 200
