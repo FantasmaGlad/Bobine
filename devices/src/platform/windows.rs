@@ -1,6 +1,7 @@
 use crate::exec::{require_success as ok, run, run_with_env, Output};
 use crate::parse;
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
+use crate::secret_file::SecretFile;
 use serde_json::{json, Map, Value};
 use std::time::{Duration, Instant};
 
@@ -258,12 +259,15 @@ impl Platform for Windows {
                 let existed = self.profiles().iter().any(|p| p == ssid);
                 let mut created = false;
                 if password.is_some() || !existed {
-                    let path = std::env::temp_dir()
-                        .join(format!("bobine-wifi-{}.xml", std::process::id()));
-                    let path_text = path.to_string_lossy().to_string();
-                    std::fs::write(&path, parse::windows::profile_xml(ssid, password)).map_err(
-                        |e| RpcError::app("tool_failed", format!("Profil Wi-Fi non écrit : {e}")),
-                    )?;
+                    let profile = SecretFile::create(
+                        &std::env::temp_dir(),
+                        "bobine-wifi",
+                        parse::windows::profile_xml(ssid, password).as_bytes(),
+                    )
+                    .map_err(|e| {
+                        RpcError::app("tool_failed", format!("Profil Wi-Fi non écrit : {e}"))
+                    })?;
+                    let path_text = profile.path().to_string_lossy().to_string();
                     let added = run(
                         "netsh",
                         &[
@@ -276,7 +280,7 @@ impl Platform for Windows {
                         SHORT,
                         None,
                     );
-                    let _ = std::fs::remove_file(&path);
+                    drop(profile);
                     ok(added?, "netsh")?;
                     created = !existed;
                 }
