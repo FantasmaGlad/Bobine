@@ -7,12 +7,12 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any
 
+from app.process.spawn import restrict_directory, tied_to_parent_kwargs
 from app.utils.tor_socks import TorUnavailable
 
 logger = logging.getLogger(__name__)
@@ -41,13 +41,6 @@ def _cache_dir() -> Path:
     from app.config import DATA_ROOT
 
     return Path(DATA_ROOT) / "tor"
-
-
-def _linux_parent_death_signal() -> None:
-    import ctypes
-    import signal
-
-    ctypes.CDLL(None).prctl(1, signal.SIGTERM)
 
 
 class _OnDemandTor:
@@ -107,18 +100,13 @@ class _OnDemandTor:
     def _start(self, binary: str) -> None:
         data_dir = _cache_dir()
         data_dir.mkdir(parents=True, exist_ok=True)
-        if os.name != "nt":
-            os.chmod(data_dir, 0o700)
+        restrict_directory(data_dir)
         command = [
             binary, "-f", os.devnull, "--defaults-torrc", os.devnull, "--ignore-missing-torrc",
             "--DataDirectory", str(data_dir), "--SocksPort", "127.0.0.1:auto", "--ControlPort", "0",
             "--ClientOnly", "1", "--AvoidDiskWrites", "1", "--Log", "notice stdout",
         ]
-        options: dict[str, Any] = {}
-        if sys.platform.startswith("linux"):
-            options["preexec_fn"] = _linux_parent_death_signal
-        elif os.name == "nt":
-            options["creationflags"] = subprocess.CREATE_NO_WINDOW
+        options: dict[str, Any] = tied_to_parent_kwargs()
         process = subprocess.Popen(
             command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
             text=True, encoding="utf-8", errors="replace", **options,
