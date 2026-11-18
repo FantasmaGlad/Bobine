@@ -42,11 +42,10 @@ interface LaunchSheetProps {
   videos: VideoSummary[];
   playlists: PlaylistSummary[];
   backgrounds: BackgroundSummary[];
-  getApiUrl: (path: string) => string;
   sendCommand: (command: string, params?: Record<string, unknown>) => void;
 }
 
-export default function LaunchSheet({ t, open, onClose, videos, playlists, backgrounds, getApiUrl, sendCommand }: LaunchSheetProps) {
+export default function LaunchSheet({ t, open, onClose, videos, playlists, backgrounds, sendCommand }: LaunchSheetProps) {
   const [launchSearch, setLaunchSearch] = useState("");
   const [launchTab, setLaunchTab] = useState<"videos" | "playlists" | "backgrounds">("videos");
   const [previewVideoId, setPreviewVideoId] = useState<number | null>(null);
@@ -124,7 +123,7 @@ export default function LaunchSheet({ t, open, onClose, videos, playlists, backg
         <div className="launch-preview">
           <CourseCard
             variant="hero"
-            getApiUrl={getApiUrl}
+
             releaseLabel={releaseLabel}
             fallbackProgram={t("mobileRemote.otherProgram")}
             course={previewVideo}
@@ -144,7 +143,7 @@ export default function LaunchSheet({ t, open, onClose, videos, playlists, backg
             filteredVideos.map((v) => (
               <CourseCard
                 key={`v-${v.id}`}
-                getApiUrl={getApiUrl}
+
                 releaseLabel={releaseLabel}
                 fallbackProgram={t("mobileRemote.otherProgram")}
                 course={v}
@@ -172,7 +171,7 @@ export default function LaunchSheet({ t, open, onClose, videos, playlists, backg
             ))}
           {launchTab === "backgrounds" &&
             filteredBackgrounds.map((b) => {
-              const thumb = courseThumbSrc(getApiUrl, { thumbnail_path: b.thumbnail_path });
+              const thumb = courseThumbSrc({ thumbnail_path: b.thumbnail_path });
               return (
                 <button
                   key={`bg-${b.id}`}

@@ -1,4 +1,3 @@
-import { getApiUrl } from "@/lib/apiUrl";
 
 export interface VideoSummary {
   id: number;
@@ -52,9 +51,6 @@ export interface InterruptedState {
 
 export type Send = (command: string, params?: Record<string, unknown>) => void;
 
-export function thumbnailOf(path: string | null | undefined): string | null {
-  const filename = path?.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
-}
+
 
 export const THUMB_STYLE = { width: "88px", height: "50px", objectFit: "cover", borderRadius: "var(--radius-sm)", flexShrink: 0, background: "var(--bg-surface-elevated)" } as const;

@@ -64,7 +64,7 @@ export default function MobileRemote({
     <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
   ) : channelCinema ? (
     cinemaLive ? (
-      <CinemaNowCard cinemaLive={cinemaLive} videos={videos} getApiUrl={getApiUrl} chapters={cinemaChapters} sendCommand={sendCommand} onPlayPause={onCinemaPlayPause} />
+      <CinemaNowCard cinemaLive={cinemaLive} videos={videos} chapters={cinemaChapters} sendCommand={sendCommand} onPlayPause={onCinemaPlayPause} />
     ) : (
       <div className="mobile-remote-empty olc-anim-in">
         <p>{t("dashboard.cinemaNoPlayback")}</p>
@@ -109,7 +109,7 @@ export default function MobileRemote({
       )}
       <LaunchSheet
         t={t} open={sheet !== "none"} onClose={() => setSheet("none")}
-        videos={videos} playlists={playlists} backgrounds={backgrounds} getApiUrl={getApiUrl} sendCommand={sendCommand}
+        videos={videos} playlists={playlists} backgrounds={backgrounds} sendCommand={sendCommand}
       />
     </div>
   );

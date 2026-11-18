@@ -2,17 +2,13 @@ import React from "react";
 import Icon from "@/components/Icon";
 import StarIcon from "./StarIcon";
 import type { CourseStat } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
-function thumbnailSrc(thumbnailPath: string | null): string | null {
-  if (!thumbnailPath) return null;
-  const filename = thumbnailPath.split("/").pop();
-  return filename ? `/api/thumbnails/${filename}` : null;
-}
 
 const RANK_CLASS = ["", "rank-1", "rank-2", "rank-3"];
 
 export default function CourseRow({ course, rank }: { course: CourseStat; rank: number }) {
-  const thumbSrc = thumbnailSrc(course.thumbnail_path);
+  const thumbSrc = thumbnailUrl(course.thumbnail_path);
   return (
     <tr>
       <td className="metrics-rank-cell">

@@ -3,9 +3,9 @@ import React, { useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
-import { getApiUrl } from "@/lib/apiUrl";
 import { matchesQuery } from "@/lib/searchText";
 import { formatItemDuration, type Sequencer, type Video } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 interface VideoPickerProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -19,12 +19,6 @@ export default function VideoPicker({ t, isMobile, videos, sequencer, handleAddV
   const { handleDragStart, resetDragState } = sequencer;
   const [videoSearch, setVideoSearch] = useState<string>("");
   const [videoProgramFilter, setVideoProgramFilter] = useState<string>("");
-  const getThumbnailSrc = (video: Video) => {
-    if (!video.thumbnail_path) return null;
-    const filename = video.thumbnail_path.split("/").pop();
-    if (!filename) return null;
-    return getApiUrl(`/thumbnails/${filename}`);
-  };
 
   const availablePrograms = React.useMemo(() => {
     const set = new Set<string>();
@@ -76,7 +70,7 @@ export default function VideoPicker({ t, isMobile, videos, sequencer, handleAddV
                     </div>
                   ) : (
                     filteredVideos.map((video) => {
-                      const thumbSrc = getThumbnailSrc(video);
+                      const thumbSrc = thumbnailUrl(video.thumbnail_path);
                       return (
                         <div
                           key={video.id}

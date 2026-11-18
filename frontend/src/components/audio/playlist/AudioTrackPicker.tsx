@@ -3,10 +3,10 @@ import React, { useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
-import { getApiUrl } from "@/lib/apiUrl";
 import { formatMediaDuration } from "@/lib/format";
 import { matchesQuery } from "@/lib/searchText";
 import type { AudioCourseSummary, AudioTrackSummary, Sequencer } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 interface AudioTrackPickerProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -23,12 +23,6 @@ export default function AudioTrackPicker({ t, isMobile, tracks, courses, sequenc
   const [trackSearch, setTrackSearch] = useState<string>("");
   const [trackProgramFilter, setTrackProgramFilter] = useState<string>("");
   const [expandedCourseIds, setExpandedCourseIds] = useState<Set<number>>(new Set());
-  const getCourseThumbSrc = (course: AudioCourseSummary) => {
-    if (!course.background_thumbnail_path) return null;
-    const filename = course.background_thumbnail_path.split("/").pop();
-    if (!filename) return null;
-    return getApiUrl(`/thumbnails/${filename}`);
-  };
 
   const toggleCourseExpanded = (courseId: number) => {
     setExpandedCourseIds((prev) => {
@@ -102,7 +96,7 @@ export default function AudioTrackPicker({ t, isMobile, tracks, courses, sequenc
                     </div>
                   ) : (
                     groupedCourses.map(({ course, tracks: courseTracks }) => {
-                      const thumbSrc = getCourseThumbSrc(course);
+                      const thumbSrc = thumbnailUrl(course.background_thumbnail_path);
                       const expanded = isSearching || expandedCourseIds.has(course.id);
                       return (
                         <div key={course.id} className="picker-course-card">

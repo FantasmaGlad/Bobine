@@ -6,7 +6,6 @@ import { courseThumbSrc, formatClock, type CourseLike } from "@/lib/courseMeta";
 
 interface CourseCardProps {
   course: Pick<CourseLike, "id" | "title" | "program" | "release" | "duration_seconds" | "thumbnail_url" | "thumbnail_path">;
-  getApiUrl: (path: string) => string;
   variant?: "row" | "hero";
   selected?: boolean;
   onClick?: () => void;
@@ -19,7 +18,6 @@ interface CourseCardProps {
 
 export default function CourseCard({
   course,
-  getApiUrl,
   variant = "row",
   selected = false,
   onClick,
@@ -29,7 +27,7 @@ export default function CourseCard({
   trailing,
   className = "",
 }: CourseCardProps) {
-  const thumb = courseThumbSrc(getApiUrl, course);
+  const thumb = courseThumbSrc(course);
   const program = course.program || fallbackProgram;
   const Tag = onClick ? "button" : "div";
   return (

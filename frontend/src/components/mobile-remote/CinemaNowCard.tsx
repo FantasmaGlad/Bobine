@@ -12,13 +12,12 @@ import RemoteSeek from "./RemoteSeek";
 interface CinemaNowCardProps {
   cinemaLive: CinemaRemoteState;
   videos: VideoSummary[];
-  getApiUrl: (path: string) => string;
   chapters: Chapter[];
   sendCommand: (command: string, params?: Record<string, unknown>) => void;
   onPlayPause: () => void;
 }
 
-export default function CinemaNowCard({ cinemaLive, videos, getApiUrl, chapters, sendCommand, onPlayPause }: CinemaNowCardProps) {
+export default function CinemaNowCard({ cinemaLive, videos, chapters, sendCommand, onPlayPause }: CinemaNowCardProps) {
   const { t } = useAppSettings();
   const video = cinemaLive.video_id ? videos.find((v) => v.id === cinemaLive.video_id) ?? null : null;
   const seek = (seconds: number) => sendCommand("cinema_command", { action: "seek", position_seconds: seconds });
@@ -31,7 +30,7 @@ export default function CinemaNowCard({ cinemaLive, videos, getApiUrl, chapters,
         </div>
         <CourseCard
           variant="hero"
-          getApiUrl={getApiUrl}
+
           releaseLabel={(release) => t("mobileRemote.releaseShort", { release })}
           fallbackProgram={t("mobileRemote.otherProgram")}
           course={{

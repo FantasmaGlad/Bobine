@@ -4,6 +4,7 @@ import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 import type { BackgroundItem } from "./types";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 export default function BackgroundCard({
   bg,
@@ -35,9 +36,7 @@ export default function BackgroundCard({
     }
   }, [hovering, bg.is_image]);
 
-  const thumbSrc = bg.thumbnail_path
-    ? getApiUrl(`/thumbnails/${bg.thumbnail_path.split("/").pop()}`)
-    : null;
+  const thumbSrc = thumbnailUrl(bg.thumbnail_path);
 
   return (
     <div

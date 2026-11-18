@@ -1,3 +1,5 @@
+import { thumbnailUrl } from "./thumbnail.ts";
+
 export interface CourseLike {
   id: number;
   title: string;
@@ -13,11 +15,8 @@ export interface CourseLike {
   audio_codec?: string | null;
 }
 
-export function courseThumbSrc(getApiUrl: (path: string) => string, course: Pick<CourseLike, "thumbnail_url" | "thumbnail_path">): string | null {
-  const raw = course.thumbnail_url || course.thumbnail_path;
-  if (!raw) return null;
-  const filename = raw.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
+export function courseThumbSrc(course: Pick<CourseLike, "thumbnail_url" | "thumbnail_path">): string | null {
+  return thumbnailUrl(course.thumbnail_url || course.thumbnail_path);
 }
 
 export function formatClock(seconds: number | null | undefined): string {

@@ -3,7 +3,8 @@
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 
-import { formatDuration, thumbnailSrc } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
+import { formatDuration } from "./media";
 import type { Selection } from "./selection";
 import type { Video } from "./types";
 
@@ -16,7 +17,7 @@ interface Props {
 const CHECKBOX = { width: "18px", height: "18px", cursor: "pointer" } as const;
 
 function Thumb({ video }: { video: Video }) {
-  const thumb = thumbnailSrc(video);
+  const thumb = thumbnailUrl(video.thumbnail_path);
   if (thumb) return <img src={thumb} alt="" className="table-thumb" />;
   return (
     <div className="table-thumb" style={{ background: "var(--bg-surface-elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>

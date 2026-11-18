@@ -9,7 +9,7 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { subtitleSrc } from "@/lib/subtitles";
 
-import { thumbnailSrc } from "./media";
+import { thumbnailUrl } from "@/lib/thumbnail";
 import StudioSpecs from "./StudioSpecs";
 import type { Video } from "./types";
 import type { VideoStudioState } from "./useVideoStudio";
@@ -23,7 +23,7 @@ interface Props {
 function ThumbnailRow({ video, studio }: Omit<Props, "onDelete">) {
   const { t } = useAppSettings();
   const input = useRef<HTMLInputElement>(null);
-  const thumb = thumbnailSrc(video);
+  const thumb = thumbnailUrl(video.thumbnail_path);
   return (
     <div className="course-studio-thumb-row">
       <div className="course-studio-thumb-preview">
@@ -76,7 +76,7 @@ export default function StudioMedia({ video, studio, onDelete }: Props) {
           preload="metadata"
           crossOrigin="anonymous"
           src={videoStreamUrl(getApiUrl, video.id)}
-          poster={thumbnailSrc(video) || undefined}
+          poster={thumbnailUrl(video.thumbnail_path) || undefined}
         >
           {studio.subtitles.map((sub, i) => (
             <track key={sub.id} kind="subtitles" src={subtitleSrc(getApiUrl, sub.vtt_url)} srcLang={sub.language_code} label={sub.language_label} default={i === 0} />

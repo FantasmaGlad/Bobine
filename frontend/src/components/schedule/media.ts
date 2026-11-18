@@ -1,5 +1,6 @@
 import { getApiUrl } from "@/lib/apiUrl";
 import { MIN_BLOCK_MINUTES, type Occurrence, type TargetType } from "@/lib/scheduleTime";
+import { thumbnailUrl } from "@/lib/thumbnail";
 
 export interface DragPayload {
   type: TargetType;
@@ -8,17 +9,14 @@ export interface DragPayload {
   label: string;
 }
 
-export function thumbnailSrc(path: string | null): string | null {
-  const filename = path?.split("/").pop();
-  return filename ? getApiUrl(`/thumbnails/${filename}`) : null;
-}
+
 
 export function coverSrc(trackId: number | null | undefined): string | null {
   return trackId != null ? getApiUrl(`/radio/tracks/${trackId}/cover`) : null;
 }
 
 export function occurrenceThumb(o: Occurrence): string | null {
-  return o.target_type === "radio_playlist" ? coverSrc(o.cover_track_id) : thumbnailSrc(o.thumbnail_path);
+  return o.target_type === "radio_playlist" ? coverSrc(o.cover_track_id) : thumbnailUrl(o.thumbnail_path);
 }
 
 export function blockMinutes(seconds: number | null | undefined): number {
