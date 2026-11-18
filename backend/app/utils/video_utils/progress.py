@@ -10,7 +10,7 @@ from app.utils.ffmpeg_binaries import (
     missing_tool_error,
     with_nostdin,
 )
-from app.utils.video_utils.encoders import background_priority_popen_kwargs, lower_process_priority
+from app.process.priority import background_priority_popen_kwargs, lower_process_priority
 from app.utils.video_utils.limits import FFMPEG_NORMALIZE_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
