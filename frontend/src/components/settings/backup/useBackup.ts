@@ -6,12 +6,8 @@ import { errorMessage } from "@/lib/apiError";
 import { getApiUrl } from "@/lib/apiUrl";
 import type { ShowToast } from "@/lib/useToast";
 
-export function useBackup(showToast: ShowToast) {
-  const { t } = useAppSettings();
+function useBackupExport() {
   const [exportingBackup, setExportingBackup] = useState(false);
-  const [restoringBackup, setRestoringBackup] = useState(false);
-  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
-  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
   const handleExportBackup = () => {
     setExportingBackup(true);
     const url = getApiUrl("/settings/backup/export");
@@ -24,6 +20,15 @@ export function useBackup(showToast: ShowToast) {
     setTimeout(() => setExportingBackup(false), 2000);
   };
 
+  return { exportingBackup, handleExportBackup };
+}
+
+export function useBackup(showToast: ShowToast) {
+  const { t } = useAppSettings();
+  const { exportingBackup, handleExportBackup } = useBackupExport();
+  const [restoringBackup, setRestoringBackup] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
   const handleSelectBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {

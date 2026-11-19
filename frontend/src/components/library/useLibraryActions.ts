@@ -12,12 +12,36 @@ import type { useLibraryData } from "./useLibraryData";
 type Data = ReturnType<typeof useLibraryData>;
 type Selection = ReturnType<typeof useSelection>;
 
+function useAddToPlaylist(selection: Selection, showToast: ShowToast) {
+  const { t } = useAppSettings();
+  const [addOpen, setAddOpen] = useState(false);
+  const [target, setTarget] = useState("");
+
+  const closeAdd = () => {
+    setAddOpen(false);
+    setTarget("");
+  };
+
+  const confirmAdd = async () => {
+    if (!target) return;
+    try {
+      const name = await appendToPlaylist(target, Array.from(selection.selectedIds));
+      showToast(t("library.addedToPlaylist", { count: selection.selectedIds.size, name }));
+      closeAdd();
+      selection.clear();
+    } catch {
+      showToast(t("library.addToPlaylistError"), "error");
+    }
+  };
+
+  return { addOpen, setAddOpen, target, setTarget, closeAdd, confirmAdd };
+}
+
 export function useLibraryActions(data: Data, selection: Selection, showToast: ShowToast, selected: Video | null, setSelected: (video: Video | null) => void) {
   const { t } = useAppSettings();
   const [toDelete, setToDelete] = useState<Video | null>(null);
   const [bulkDelete, setBulkDelete] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [target, setTarget] = useState("");
+  const { addOpen, setAddOpen, target, setTarget, closeAdd, confirmAdd } = useAddToPlaylist(selection, showToast);
 
   const confirmDelete = async () => {
     if (!toDelete) return;
@@ -47,23 +71,6 @@ export function useLibraryActions(data: Data, selection: Selection, showToast: S
     setBulkDelete(false);
     selection.clear();
     data.fetchVideos();
-  };
-
-  const closeAdd = () => {
-    setAddOpen(false);
-    setTarget("");
-  };
-
-  const confirmAdd = async () => {
-    if (!target) return;
-    try {
-      const name = await appendToPlaylist(target, Array.from(selection.selectedIds));
-      showToast(t("library.addedToPlaylist", { count: selection.selectedIds.size, name }));
-      closeAdd();
-      selection.clear();
-    } catch {
-      showToast(t("library.addToPlaylistError"), "error");
-    }
   };
 
   return { toDelete, setToDelete, bulkDelete, setBulkDelete, addOpen, setAddOpen, target, setTarget, confirmDelete, confirmBulkDelete, closeAdd, confirmAdd };
