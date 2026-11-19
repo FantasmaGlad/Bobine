@@ -6,7 +6,6 @@ import logging
 import os
 import signal
 import socket
-import sys
 import tempfile
 import threading
 import time
@@ -14,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from app.api.contract import DEFAULT_PORT
+from app.network import prepare_listen_socket
+from app.process.lifecycle import install_termination_handler, pid_alive
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +52,7 @@ def _can_bind(port: int, host: str = _LISTEN_HOST) -> bool:
 def _bind_error(port: int, host: str = _LISTEN_HOST) -> OSError | None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        if os.name == "posix" and sys.platform != "cygwin":
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        prepare_listen_socket(sock)
         sock.bind((host, port))
         return None
     except OSError as exc:
@@ -106,33 +106,6 @@ def runtime_dir() -> Path:
 
 def runtime_file(directory: Path | str | None = None) -> Path:
     return (Path(directory) if directory is not None else runtime_dir()) / RUNTIME_FILE_NAME
-
-
-def _pid_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    if os.name == "nt":
-        import ctypes
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-        handle = kernel32.OpenProcess(0x1000, False, pid)
-        if not handle:
-            return False
-        try:
-            exit_code = ctypes.c_ulong()
-            if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
-                return True
-            return exit_code.value == 259
-        finally:
-            kernel32.CloseHandle(handle)
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
 
 
 def write_runtime_file(port: int, preferred: int | None = None, directory: Path | str | None = None) -> Path | None:
@@ -202,7 +175,7 @@ def read_runtime(directory: Path | str | None = None, *, require_live: bool = Tr
         return None
     if info is None:
         return None
-    if require_live and not _pid_alive(int(info["pid"])):
+    if require_live and not pid_alive(int(info["pid"])):
         return None
     return info
 
@@ -234,11 +207,8 @@ def _install_cleanup_hooks() -> None:
         return
     _cleanup_hooks_installed = True
     atexit.register(release_port)
-    if os.name == "posix" and threading.current_thread() is threading.main_thread():
-        try:
-            signal.signal(signal.SIGTERM, _terminate_after_cleanup)
-        except (ValueError, OSError):
-            pass
+    if threading.current_thread() is threading.main_thread():
+        install_termination_handler(_terminate_after_cleanup)
 
 
 def acquire_listen_port() -> int:
