@@ -20,68 +20,16 @@ function formOf(track: RadioTrack): TrackForm {
     track_number: text(track.track_number), disc_number: text(track.disc_number), year: text(track.year), genre: text(track.genre),
   };
 }
+function trackPayload(form: TrackForm, tags: string[]) {
+  return {
+    title: form.title.trim(), artist: form.artist, album: form.album, album_artist: form.album_artist, genre: form.genre,
+    track_number: parseIntOrNull(form.track_number), disc_number: parseIntOrNull(form.disc_number), year: parseIntOrNull(form.year), tags,
+  };
+}
 
-export function useTrackEditor(catalog: RadioCatalog, showToast: ShowToast) {
+function useTrackDeletion(catalog: RadioCatalog, showToast: ShowToast, track: RadioTrack | null, setTrack: (track: RadioTrack | null) => void) {
   const { t } = useAppSettings();
-  const [track, setTrack] = useState<RadioTrack | null>(null);
-  const [form, setForm] = useState<TrackForm>(() => formOf({ title: "" } as RadioTrack));
-  const [tags, setTags] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<RadioTrack | null>(null);
-
-  const open = (next: RadioTrack) => {
-    setTrack(next);
-    setForm(formOf(next));
-    setTags([...next.tags]);
-  };
-
-  const toggleTag = (name: string) => setTags((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
-  const addTag = (name: string) => setTags((prev) => (prev.includes(name) ? prev : [...prev, name]));
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!track || !form.title.trim()) {
-      showToast(t("radioLibrary.saveError"), "warning");
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await sendJson(`/radio/tracks/${track.id}`, "PUT", {
-        title: form.title.trim(), artist: form.artist, album: form.album, album_artist: form.album_artist, genre: form.genre,
-        track_number: parseIntOrNull(form.track_number), disc_number: parseIntOrNull(form.disc_number), year: parseIntOrNull(form.year), tags,
-      });
-      if (!res.ok) {
-        showToast(t("radioLibrary.saveError"), "error");
-        return;
-      }
-      const updated: RadioTrack = await res.json();
-      setTrack(updated);
-      setTags([...updated.tags]);
-      showToast(t("radioLibrary.updatedToast"));
-      catalog.refreshAll();
-    } catch {
-      showToast(t("radioLibrary.connectionError"), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const uploadCover = async (file: File) => {
-    if (!track) return;
-    const body = new FormData();
-    body.append("file", file);
-    try {
-      const res = await fetch(getApiUrl(`/radio/tracks/${track.id}/cover`), { method: "POST", body });
-      if (!res.ok) throw new Error();
-      setTrack(await res.json());
-      catalog.bumpCovers();
-      showToast(t("radioLibrary.coverUpdatedToast"));
-      catalog.refreshAll();
-    } catch {
-      showToast(t("radioLibrary.coverError"), "error");
-    }
-  };
-
   const remove = async () => {
     if (!toDelete) return;
     try {
@@ -100,6 +48,73 @@ export function useTrackEditor(catalog: RadioCatalog, showToast: ShowToast) {
     }
   };
 
+  return { toDelete, setToDelete, remove };
+}
+
+function useCoverUpload(catalog: RadioCatalog, showToast: ShowToast, track: RadioTrack | null, setTrack: (track: RadioTrack) => void) {
+  const { t } = useAppSettings();
+  const uploadCover = async (file: File) => {
+    if (!track) return;
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const res = await fetch(getApiUrl(`/radio/tracks/${track.id}/cover`), { method: "POST", body });
+      if (!res.ok) throw new Error();
+      setTrack(await res.json());
+      catalog.bumpCovers();
+      showToast(t("radioLibrary.coverUpdatedToast"));
+      catalog.refreshAll();
+    } catch {
+      showToast(t("radioLibrary.coverError"), "error");
+    }
+  };
+
+  return uploadCover;
+}
+
+export function useTrackEditor(catalog: RadioCatalog, showToast: ShowToast) {
+  const { t } = useAppSettings();
+  const [track, setTrack] = useState<RadioTrack | null>(null);
+  const [form, setForm] = useState<TrackForm>(() => formOf({ title: "" } as RadioTrack));
+  const [tags, setTags] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const { toDelete, setToDelete, remove } = useTrackDeletion(catalog, showToast, track, setTrack);
+
+  const open = (next: RadioTrack) => {
+    setTrack(next);
+    setForm(formOf(next));
+    setTags([...next.tags]);
+  };
+
+  const toggleTag = (name: string) => setTags((prev) => (prev.includes(name) ? prev.filter((x) => x !== name) : [...prev, name]));
+  const addTag = (name: string) => setTags((prev) => (prev.includes(name) ? prev : [...prev, name]));
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!track || !form.title.trim()) {
+      showToast(t("radioLibrary.saveError"), "warning");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await sendJson(`/radio/tracks/${track.id}`, "PUT", trackPayload(form, tags));
+      if (!res.ok) {
+        showToast(t("radioLibrary.saveError"), "error");
+        return;
+      }
+      const updated: RadioTrack = await res.json();
+      setTrack(updated);
+      setTags([...updated.tags]);
+      showToast(t("radioLibrary.updatedToast"));
+      catalog.refreshAll();
+    } catch {
+      showToast(t("radioLibrary.connectionError"), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploadCover = useCoverUpload(catalog, showToast, track, setTrack);
   return { track, close: () => setTrack(null), form, setForm, tags, toggleTag, addTag, saving, save, uploadCover, open, toDelete, setToDelete, remove };
 }
 
