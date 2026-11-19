@@ -17,4 +17,8 @@ export const uploadManager: Dict = {
   doneMany: "{{count}} imports finished",
   cancelImport: "Cancel the import",
   clearDone: "Clear finished",
+  etaRemaining: "{{duration}} left",
+  etaEstimate: "{{duration}} left (estimate)",
+  etaTotal: "{{duration}} in total",
+  queueAhead: "{{count}} ahead",
 };

@@ -60,7 +60,7 @@ export default function UploadTaskRow({ t, task, onCancel }: { t: Translate; tas
         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, whiteSpace: "nowrap" }}>
           {task.status === "uploading" && (
             <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>
-              {task.progress}%{task.uploadEtaSeconds ? ` (${formatEta(task.uploadEtaSeconds)})` : ""}
+              {task.progress}%{task.uploadEtaSeconds ? ` (${formatEta(t, task.uploadEtaSeconds)})` : ""}
             </span>
           )}
           {(task.status === "uploading" || task.status === "pending" || task.status === "processing") && (

@@ -17,9 +17,9 @@ function ProcessingDetail({ t, task }: { t: Translate; task: Task }) {
           <>
             {t("uploadManager.reencoding", { percent: task.progressPercent })}
             {typeof task.etaSeconds === "number" ? (
-              ` — ${formatEta(task.etaSeconds)}`
+              ` — ${formatEta(t, task.etaSeconds)}`
             ) : typeof task.estimatedSeconds === "number" ? (
-              ` — ${formatEta(task.estimatedSeconds)} (estimation)`
+              ` — ${formatEta(t, task.estimatedSeconds, "estimate")}`
             ) : null}
             {task.speed && ` (${task.speed})`}
           </>
@@ -27,10 +27,10 @@ function ProcessingDetail({ t, task }: { t: Translate; task: Task }) {
           <>
             {task.stageLabel ?? t("common.processing")}
             {task.stage === "normalizing" && typeof task.estimatedSeconds === "number" &&
-              ` — ${formatEta(task.estimatedSeconds)} (estimation)`}
+              ` — ${formatEta(t, task.estimatedSeconds, "estimate")}`}
           </>
         )}
-        {formatQueueSuffix(task.queuePosition, task.queueEtaSeconds)}
+        {formatQueueSuffix(t, task.queuePosition, task.queueEtaSeconds)}
       </>
   );
 }

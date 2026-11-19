@@ -22,17 +22,37 @@ export const KIND_LABEL_KEYS: Record<UploadKind, string> = {
   radio_announcement_files: "uploadManager.kindAnnouncements",
 };
 
-export function formatEta(seconds: number | null | undefined): string | null {
-  if (typeof seconds !== "number" || isNaN(seconds) || seconds < 0) return null;
-  if (seconds < 60) return `~${seconds}s restantes`;
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
+const ETA_KEYS = {
+  remaining: "uploadManager.etaRemaining",
+  estimate: "uploadManager.etaEstimate",
+  total: "uploadManager.etaTotal",
+} as const;
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `~${seconds}s`;
   const mins = Math.floor(seconds / 60);
   const remSecs = seconds % 60;
-  return remSecs > 0 ? `~${mins} min ${remSecs}s restantes` : `~${mins} min restantes`;
+  return remSecs > 0 ? `~${mins} min ${remSecs}s` : `~${mins} min`;
 }
 
-export function formatQueueSuffix(queuePosition: number | null | undefined, queueEtaSeconds: number | null | undefined): string {
+export function formatEta(
+  t: Translate,
+  seconds: number | null | undefined,
+  mode: keyof typeof ETA_KEYS = "remaining",
+): string | null {
+  if (typeof seconds !== "number" || isNaN(seconds) || seconds < 0) return null;
+  return t(ETA_KEYS[mode], { duration: formatDuration(seconds) });
+}
+
+export function formatQueueSuffix(
+  t: Translate,
+  queuePosition: number | null | undefined,
+  queueEtaSeconds: number | null | undefined,
+): string {
   if (typeof queuePosition !== "number" || queuePosition <= 0) return "";
-  const eta = formatEta(queueEtaSeconds);
-  const etaSuffix = eta ? `, ${eta.replace("restantes", "au total")}` : "";
-  return ` (${queuePosition} devant${etaSuffix})`;
+  const eta = formatEta(t, queueEtaSeconds, "total");
+  const ahead = t("uploadManager.queueAhead", { count: queuePosition });
+  return eta ? ` (${ahead}, ${eta})` : ` (${ahead})`;
 }
