@@ -8,7 +8,9 @@ REGISTRIES = {
     "app/desktop/system/registry.py",
     "app/hardware/platforms.py",
     "app/hardware/probe.py",
+    "app/network/registry.py",
     "app/paths/registry.py",
+    "app/process/lifecycle/registry.py",
     "app/process/priority/registry.py",
     "app/process/spawn/registry.py",
     "app/utils/android_runtime.py",
@@ -22,7 +24,6 @@ PENDING = {
     "app/utils/ffmpeg_binaries.py": 2,
     "app/utils/firewall.py": 1,
     "app/utils/mdns.py": 1,
-    "app/utils/port.py": 4,
     "app/utils/zip_safety.py": 1,
 }
 
