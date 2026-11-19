@@ -4,19 +4,16 @@ from __future__ import annotations
 
 import json
 import logging
-import platform
-import shutil
-import subprocess
 import threading
 import time
 import urllib.request
 import webbrowser
-from pathlib import Path
 
+from app.desktop import system
 from app.desktop.chromium import OFFLINE_FLAGS
 from app.desktop.displays import REPORT_REFRESH_SECONDS, DisplayOrchestrator, DisplayWatcher
 from app.desktop.monitors import external_monitors, list_monitors
-from app.desktop.projector import ProjectorWindow, find_kiosk_browser
+from app.desktop.projector import ProjectorWindow
 
 from .tray_supervisor import is_backend_running
 from .tray_urls import _admin_url, _display_state_url, _grid_url, _kiosk_url, _projector_url
@@ -24,71 +21,12 @@ from .tray_urls import _admin_url, _display_state_url, _grid_url, _kiosk_url, _p
 logger = logging.getLogger(__name__)
 
 
-def _set_display_always_on(enabled: bool) -> None:
-    system = platform.system()
-    if system == "Windows":
-        import ctypes
-        ES_CONTINUOUS = 0x80000000
-        ES_DISPLAY_REQUIRED = 0x00000002
-        ES_SYSTEM_REQUIRED = 0x00000001
-        flags = ES_CONTINUOUS | (ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED if enabled else 0)
-        ctypes.windll.kernel32.SetThreadExecutionState(flags)  # type: ignore[attr-defined]
-    elif system == "Linux":
-        if shutil.which("xset"):
-            try:
-                if enabled:
-                    subprocess.run(["xset", "s", "off", "-dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-                else:
-                    subprocess.run(["xset", "s", "default", "+dpms"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-            except Exception as exc:
-                logger.debug("_set_display_always_on : %s", exc)
-
-
-def _caffeinate_after_launch(process_name: str, timeout_seconds: float = 5.0) -> None:
-    import psutil
-
-    deadline = time.time() + timeout_seconds
-    while time.time() < deadline:
-        for proc in psutil.process_iter(["pid", "name"]):
-            if proc.info.get("name") == process_name:
-                subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(proc.info["pid"])])
-                return
-        time.sleep(0.3)
-    logger.warning(f"caffeinate non attaché : process '{process_name}' introuvable après {timeout_seconds}s")
-
-
 def launch_kiosk_browser(url: str | None = None) -> None:
     """Lance le navigateur en mode kiosque optionnel."""
     target_url = url or _kiosk_url()
-    system = platform.system()
     kiosk_args = ["--kiosk", "--autoplay-policy=no-user-gesture-required", *OFFLINE_FLAGS, target_url]
-
-    if system in ("Windows", "Linux"):
-        browser = find_kiosk_browser(system)
-        if browser:
-            _set_display_always_on(True)
-            subprocess.Popen([browser, *kiosk_args])
-            return
-        firefox = shutil.which("firefox") if system == "Linux" else None
-        if firefox:
-            _set_display_always_on(True)
-            subprocess.Popen([firefox, "--kiosk", target_url])
-            return
-
-    elif system == "Darwin":
-        for app_name, process_name in (
-            ("Google Chrome", "Google Chrome"),
-            ("Chromium", "Chromium"),
-        ):
-            app_path = Path("/Applications") / f"{app_name}.app"
-            if app_path.exists():
-                subprocess.Popen(["open", "-na", str(app_path), "--args", *kiosk_args])
-                threading.Thread(
-                    target=_caffeinate_after_launch, args=(process_name,), daemon=True,
-                ).start()
-                return
-
-    webbrowser.open(target_url)
+    if not system.current().launch_kiosk(target_url, kiosk_args):
+        webbrowser.open(target_url)
 
 
 def _get_wired_display_mode() -> str:
@@ -127,10 +65,7 @@ def _open_initial_displays(timeout_seconds: float = 20.0) -> None:
 
 
 def _keep_awake_while_projecting(process) -> None:
-    if platform.system() == "Darwin" and shutil.which("caffeinate"):
-        subprocess.Popen(["caffeinate", "-d", "-i", "-w", str(process.pid)])
-    elif platform.system() in ("Windows", "Linux"):
-        _set_display_always_on(True)
+    system.current().keep_awake_while(process)
 
 
 def _start_displays() -> tuple[DisplayOrchestrator, DisplayWatcher]:
