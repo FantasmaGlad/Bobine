@@ -10,8 +10,8 @@ import RulesPanel from "@/components/radio-announcements/RulesPanel";
 import type { RuleTarget } from "@/components/radio-announcements/types";
 import { useAnnouncementImport } from "@/components/radio-announcements/useAnnouncementImport";
 import { useAnnouncements } from "@/components/radio-announcements/useAnnouncements";
+import { usePlayNow } from "@/components/radio-announcements/usePlayNow";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { getApiUrl } from "@/lib/apiUrl";
 import { useToast } from "@/lib/useToast";
 
 export default function RadioAnnouncementsPage() {
@@ -21,21 +21,7 @@ export default function RadioAnnouncementsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const io = useAnnouncementImport(fileInputRef, t, showToast, list.fetchAll);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  const [playNowTarget, setPlayNowTarget] = useState<RuleTarget>("radio_network");
-
-  const handlePlayNow = async (announcementId?: number) => {
-    const res = await fetch(getApiUrl("/radio/announcements/play-now"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ announcement_id: announcementId ?? null, target: playNowTarget }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      showToast(t("radioAnnouncements.playNowToast", { description: data.description }));
-    } else {
-      showToast(t("radioAnnouncements.playNowError"), "error");
-    }
-  };
+  const { playNowTarget, setPlayNowTarget, handlePlayNow } = usePlayNow(t, showToast);
 
   const targetOptions = [
     { value: "radio_network", label: t("radioAnnouncements.targetNetwork") },
