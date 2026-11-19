@@ -3,26 +3,13 @@ import { errorMessage } from "@/lib/apiError";
 import { getApiUrl } from "@/lib/apiUrl";
 import type { ShowToast } from "@/lib/useToast";
 import type { UpdateInfo } from "../types";
+import { announceUpdate } from "./announceUpdate";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
 export function useUpdateCheck(t: Translate, showToast: ShowToast, openSection: (sectionId: string) => void) {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [storeBusy, setStoreBusy] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(true);
-
-  const announce = (info: UpdateInfo, silent: boolean) => {
-    const openUpdates = () => openSection("updates-section");
-    if (info.store_managed) {
-      const state = info.store?.state;
-      if (state === "available") showToast(t("settingsPage.storeAvailable"), "warning", openUpdates);
-      else if (!silent) showToast(state === "none" ? t("settingsPage.storeUpToDate") : t("settingsPage.storeUnavailable"), state === "none" ? "success" : "warning");
-      return;
-    }
-    if (info.has_update && info.is_downgrade && silent) return;
-    if (info.has_update) showToast(`${t("settingsPage.updateAvailable")} (${info.latest_version})`, "warning", openUpdates);
-    else if (!silent) showToast(info.online ? t("settingsPage.upToDate") : info.message || t("settingsPage.updateError"), info.online ? "success" : "warning");
-  };
 
   const fetchUpdateInfo = (silent: boolean) => fetch(getApiUrl(`/updates/check${silent ? "" : "?refresh=1"}`), { cache: "no-store" })
     .then(async (res) => {
@@ -32,13 +19,38 @@ export function useUpdateCheck(t: Translate, showToast: ShowToast, openSection: 
       }
       const info: UpdateInfo = await res.json();
       setUpdateInfo(info);
-      announce(info, silent);
+      announceUpdate(info, silent, t, showToast, () => openSection("updates-section"));
     })
     .catch(() => {
       if (!silent) showToast(t("settingsPage.updateError"), "error");
     })
     .finally(() => setCheckingUpdate(false));
 
+  const checkForUpdates = (silent = false) => {
+    setCheckingUpdate(true);
+    return fetchUpdateInfo(silent);
+  };
+
+  const { storeBusy, handleStoreAction } = useStoreAction(t, showToast, checkForUpdates);
+
+  const refreshSilently = useEffectEvent(() => fetchUpdateInfo(true));
+
+  const storeDownloading = updateInfo?.store?.state === "downloading";
+  useEffect(() => {
+    if (!storeDownloading) return;
+    const timer = setInterval(refreshSilently, 5000);
+    return () => clearInterval(timer);
+  }, [storeDownloading]);
+
+  useEffect(() => {
+    void refreshSilently();
+  }, []);
+
+  return { updateInfo, storeBusy, checkingUpdate, checkForUpdates, handleStoreAction };
+}
+
+function useStoreAction(t: Translate, showToast: ShowToast, checkForUpdates: (silent?: boolean) => Promise<void>) {
+  const [storeBusy, setStoreBusy] = useState(false);
   const handleStoreAction = async (action: "start" | "complete" | "open") => {
     setStoreBusy(true);
     try {
@@ -57,23 +69,5 @@ export function useUpdateCheck(t: Translate, showToast: ShowToast, openSection: 
     }
   };
 
-  const checkForUpdates = (silent = false) => {
-    setCheckingUpdate(true);
-    return fetchUpdateInfo(silent);
-  };
-
-  const refreshSilently = useEffectEvent(() => fetchUpdateInfo(true));
-
-  const storeDownloading = updateInfo?.store?.state === "downloading";
-  useEffect(() => {
-    if (!storeDownloading) return;
-    const timer = setInterval(refreshSilently, 5000);
-    return () => clearInterval(timer);
-  }, [storeDownloading]);
-
-  useEffect(() => {
-    void refreshSilently();
-  }, []);
-
-  return { updateInfo, storeBusy, checkingUpdate, checkForUpdates, handleStoreAction };
+  return { storeBusy, handleStoreAction };
 }
