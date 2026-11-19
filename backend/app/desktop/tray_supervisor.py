@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import platform
 import socket
 import subprocess
 import sys
@@ -11,6 +10,8 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
+
+from app.desktop import system
 
 from .tray_urls import HEALTH_FAILURES_BEFORE_RESTART, HEALTH_POLL_INTERVAL_SECONDS, _health_url
 
@@ -57,9 +58,7 @@ class BackendSupervisor:
 
     def _supervise_loop(self) -> None:
         while not self._stop_requested:
-            creationflags = 0
-            if platform.system() == "Windows":
-                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            creationflags = system.current().BACKEND_CREATIONFLAGS
             with self._lock:
                 self._process = subprocess.Popen(
                     self._backend_command,

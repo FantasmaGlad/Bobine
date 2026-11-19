@@ -5,6 +5,7 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parents[1]
 BRANCH = re.compile(r"sys\.platform|platform\.system\(\)|os\.name\s*[!=]=")
 REGISTRIES = {
+    "app/desktop/system/registry.py",
     "app/hardware/platforms.py",
     "app/hardware/probe.py",
     "app/network/registry.py",
@@ -20,13 +21,6 @@ PENDING = {
     "app/api/routes/settings/maintenance.py": 3,
     "app/api/static_files.py": 1,
     "app/cli/entry.py": 1,
-    "app/desktop/display_report.py": 1,
-    "app/desktop/monitors.py": 1,
-    "app/desktop/projector.py": 2,
-    "app/desktop/tray_display.py": 4,
-    "app/desktop/tray_install.py": 2,
-    "app/desktop/tray_supervisor.py": 1,
-    "app/desktop/tray_updates.py": 1,
     "app/utils/ffmpeg_binaries.py": 2,
     "app/utils/firewall.py": 1,
     "app/utils/mdns.py": 1,

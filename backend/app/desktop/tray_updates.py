@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import platform
 import threading
 import time
 import urllib.request
@@ -13,7 +12,7 @@ from urllib.parse import urlsplit
 
 import pystray
 
-from app.desktop import tray_actions
+from app.desktop import system, tray_actions
 from app.utils.port import DEFAULT_PORT, read_runtime
 
 from .tray_icon import _detect_current_channel, _load_icon_image
@@ -73,7 +72,7 @@ def _port_fallback_notice(icon: "pystray.Icon", wait_seconds: float = 120.0) -> 
                     "Bobine — port de repli",
                     f"Le port {preferred} est occupé : Bobine écoute sur le port {port}. "
                     f"Autres appareils : http://<adresse>:{port}."
-                    + ("" if platform.system() == "Windows" else f" Si un pare-feu est actif, ouvrez ce port (firewalld : {DEFAULT_PORT} seulement)."),
+                    + ("" if not system.current().FIREWALL_HINT else f" Si un pare-feu est actif, ouvrez ce port (firewalld : {DEFAULT_PORT} seulement)."),
                 )
             return
         time.sleep(1.0)
