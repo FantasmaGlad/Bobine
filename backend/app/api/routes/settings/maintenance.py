@@ -4,8 +4,6 @@ import asyncio
 import logging
 import os
 import shutil
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +20,7 @@ from app.config import (
     settings as runtime_settings,
 )
 from app.database import get_db
+from app import host
 from app.hardware.disk import get_storage_model
 from app.hardware.telemetry import get_system_telemetry_payload, purge_expired_logs_and_metrics
 from app.models import Setting
@@ -225,12 +224,7 @@ def open_path(payload: OpenPathRequest):
         }
 
     try:
-        if sys.platform.startswith("linux"):
-            subprocess.Popen(["xdg-open", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", str(target)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif sys.platform == "win32":
-            os.startfile(str(target))
+        host.open_folder(str(target))
         return {"status": "ok", "path": str(target)}
     except Exception as e:
         logger.warning("Échec de l'ouverture du dossier %s : %s", target, e)
