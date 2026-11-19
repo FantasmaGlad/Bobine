@@ -13,6 +13,34 @@ interface Props extends StorageCtx {
   open: boolean;
   onClose: () => void;
 }
+function AdviceResult({ t, advice, osLabel }: { t: StorageCtx["t"]; advice: FormatAdvice; osLabel: (os: string) => string }) {
+  return (
+    <>
+      <div className="dv-note dv-note--strong" role="status">
+        <Icon name="check_circle" size={20} />
+        <span>
+          <strong>{t("storage.advisor.result", { fs: fsLabel(advice.fstype) })}</strong>
+          <br />
+          {tr(t, `storage.fsReasons.${advice.reason}`)}
+          {visibleNotes(advice).length > 0 && (
+            <>
+              <br />
+              <span className="dv-sub">{visibleNotes(advice).map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>
+            </>
+          )}
+        </span>
+      </div>
+    {[advice.host_os, ...advice.other_oses].filter((os) => advice.procedures[os]).map((os) => (
+      <div key={os} className="dv-detail-block">
+        <h4>{t("storage.advisor.steps", { os: osLabel(os) })}</h4>
+        <ul className="st-steps">
+          {advice.procedures[os].map((step) => <li key={step}><code>{step}</code></li>)}
+        </ul>
+      </div>
+    ))}
+    </>
+  );
+}
 
 export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props) {
   const [host, setHost] = useState<OsChoice>("linux");
@@ -69,30 +97,7 @@ export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props)
           />
         </div>
 
-        {advice && (
-          <div className="dv-note dv-note--strong" role="status">
-            <Icon name="check_circle" size={20} />
-            <span>
-              <strong>{t("storage.advisor.result", { fs: fsLabel(advice.fstype) })}</strong>
-              <br />
-              {tr(t, `storage.fsReasons.${advice.reason}`)}
-              {visibleNotes(advice).length > 0 && (
-                <>
-                  <br />
-                  <span className="dv-sub">{visibleNotes(advice).map((n) => tr(t, `storage.fsNotes.${n}`)).filter(Boolean).join(" · ")}</span>
-                </>
-              )}
-            </span>
-          </div>
-        )}
-        {advice && [advice.host_os, ...advice.other_oses].filter((os) => advice.procedures[os]).map((os) => (
-          <div key={os} className="dv-detail-block">
-            <h4>{t("storage.advisor.steps", { os: osLabel(os) })}</h4>
-            <ul className="st-steps">
-              {advice.procedures[os].map((step) => <li key={step}><code>{step}</code></li>)}
-            </ul>
-          </div>
-        ))}
+        {advice && <AdviceResult t={t} advice={advice} osLabel={osLabel} />}
         <p className="dv-sub"><Icon name="info" size={14} /> {t("storage.advisor.erases")}</p>
       </div>
     </Sheet>
