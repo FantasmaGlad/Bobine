@@ -1,12 +1,12 @@
 """Extraction sûre d'archives ZIP et tar — un membre nommé `../../etc/x`."""
 
 import logging
-import os
 import re
 import shutil
 import tarfile
 import zipfile
 from pathlib import Path
+from app import host
 from app.utils import media_formats
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ def _check_archive_budget(dest_dir: Path, total_bytes: int) -> None:
 
 
 _WINDOWS_DEVICE = re.compile(r"^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\..*)?$", re.IGNORECASE)
-_WINDOWS = os.name == "nt"
+_WINDOWS = host.rejects_windows_names()
 
 
 def _windows_unsafe(name: str) -> bool:

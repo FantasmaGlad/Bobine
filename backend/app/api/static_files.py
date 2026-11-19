@@ -2,7 +2,6 @@
 
 import hashlib
 import logging
-import platform
 import sys
 from pathlib import Path
 
@@ -12,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers
 from starlette.staticfiles import NotModifiedResponse
 
+from app import host
 from app.config import settings
 from app.utils import ui_language
 from app.utils.android_runtime import is_android
@@ -56,10 +56,7 @@ class _EnsuredDirStaticFiles(StaticFiles):
 if _IS_ANDROID:
     frontend_out = Path(__file__).resolve().parent.parent.parent / "frontend_out"
 elif getattr(sys, "frozen", False):
-    if platform.system() == "Darwin":
-        frontend_out = Path(sys.executable).resolve().parent.parent / "Resources" / "frontend" / "out"
-    else:
-        frontend_out = Path(sys.executable).resolve().parent / "frontend" / "out"
+    frontend_out = host.bundle_resources(Path(sys.executable).resolve()) / "frontend" / "out"
 else:
     frontend_out = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "out"
 

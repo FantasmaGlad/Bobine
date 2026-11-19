@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app import host
 from app.process.spawn import hidden_console_kwargs
-from app.utils.android_runtime import is_android
 
 
 def _resolve_binary(env_var: str, binary_name: str) -> str:
@@ -44,13 +44,7 @@ FFPROBE_BIN = _resolve_binary("BOBINE_FFPROBE_BIN", "ffprobe")
 
 def os_key() -> str:
     """Système courant sous l'une des quatre clés utilisées par les messages d'aide : « macos », « windows », « linux », « android »."""
-    if is_android():
-        return "android"
-    if sys.platform == "darwin":
-        return "macos"
-    if sys.platform.startswith("win"):
-        return "windows"
-    return "linux"
+    return host.os_key()
 
 
 def with_nostdin(cmd: list[str]) -> list[str]:

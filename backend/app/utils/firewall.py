@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app import host
 from app.utils.local_networks import FIREWALL_NETWORKS
 
 SOCKETFILTERFW = "/usr/libexec/ApplicationFirewall/socketfilterfw"
@@ -27,31 +28,41 @@ def _windows_rule_is_usable(output: str, executable: str) -> bool:
     return not (remote and remote.lower() in {"any", "tout"})
 
 
+def _macos_status(executable: str) -> dict:
+    if not Path(SOCKETFILTERFW).exists():
+        return {"state": "not_checked", "reason": "socketfilterfw absent"}
+    if "State = 0" in _run([SOCKETFILTERFW, "--getglobalstate"]).stdout:
+        return {"state": "allowed", "reason": "pare-feu macOS désactivé"}
+    block_all = "enabled" in _run([SOCKETFILTERFW, "--getblockall"]).stdout.lower()
+    app = _run([SOCKETFILTERFW, "--getappblocked", executable]).stdout.lower()
+    if block_all or "blocked" in app or "not part of the firewall" in app:
+        remedy = (f'sudo {SOCKETFILTERFW} --add "{executable}" && sudo {SOCKETFILTERFW} --unblockapp "{executable}"'
+                  + (f" && sudo {SOCKETFILTERFW} --setblockall off" if block_all else ""))
+        return {"state": "blocked", "remedy": remedy}
+    return {"state": "allowed"}
+
+
+def _windows_status(executable: str) -> dict:
+    rule = _run(["netsh", "advfirewall", "firewall", "show", "rule", "name=Bobine", "verbose"])
+    if rule.returncode == 0 and _windows_rule_is_usable(rule.stdout, executable):
+        return {"state": "allowed"}
+    remedy = ('netsh advfirewall firewall add rule name="Bobine" dir=in action=allow '
+              f'program="{executable}" enable=yes profile=any remoteip={LOCAL_NETWORKS} '
+              "(invite de commandes en administrateur), ou réinstaller Bobine")
+    return {"state": "rule_missing", "remedy": remedy}
+
+
+_CHECKS = {"darwin": _macos_status, "win32": _windows_status}
+
+
 def status(platform: str | None = None, executable: str | None = None) -> dict:
     """`state` : `allowed`, `blocked`, `rule_missing` ou `not_checked` ; `remedy` quand il faut agir."""
-    platform = platform or sys.platform
+    platform = platform or host.platform_id()
     executable = executable or sys.executable
     frozen = getattr(sys, "frozen", False) or executable.endswith(("BobineBackend", "BobineBackend.exe"))
     if not frozen:
         return {"state": "not_checked", "reason": "installation de développement"}
-    if platform == "darwin":
-        if not Path(SOCKETFILTERFW).exists():
-            return {"state": "not_checked", "reason": "socketfilterfw absent"}
-        if "State = 0" in _run([SOCKETFILTERFW, "--getglobalstate"]).stdout:
-            return {"state": "allowed", "reason": "pare-feu macOS désactivé"}
-        block_all = "enabled" in _run([SOCKETFILTERFW, "--getblockall"]).stdout.lower()
-        app = _run([SOCKETFILTERFW, "--getappblocked", executable]).stdout.lower()
-        if block_all or "blocked" in app or "not part of the firewall" in app:
-            remedy = (f'sudo {SOCKETFILTERFW} --add "{executable}" && sudo {SOCKETFILTERFW} --unblockapp "{executable}"'
-                      + (f" && sudo {SOCKETFILTERFW} --setblockall off" if block_all else ""))
-            return {"state": "blocked", "remedy": remedy}
-        return {"state": "allowed"}
-    if platform == "win32":
-        rule = _run(["netsh", "advfirewall", "firewall", "show", "rule", "name=Bobine", "verbose"])
-        if rule.returncode == 0 and _windows_rule_is_usable(rule.stdout, executable):
-            return {"state": "allowed"}
-        remedy = ('netsh advfirewall firewall add rule name="Bobine" dir=in action=allow '
-                  f'program="{executable}" enable=yes profile=any remoteip={LOCAL_NETWORKS} '
-                  "(invite de commandes en administrateur), ou réinstaller Bobine")
-        return {"state": "rule_missing", "remedy": remedy}
-    return {"state": "not_checked", "reason": "état lisible seulement en administrateur sur ce système"}
+    check = _CHECKS.get(platform)
+    if check is None:
+        return {"state": "not_checked", "reason": "état lisible seulement en administrateur sur ce système"}
+    return check(executable)

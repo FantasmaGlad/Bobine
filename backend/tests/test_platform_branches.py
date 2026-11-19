@@ -8,6 +8,7 @@ REGISTRIES = {
     "app/desktop/system/registry.py",
     "app/hardware/platforms.py",
     "app/hardware/probe.py",
+    "app/host/registry.py",
     "app/network/registry.py",
     "app/paths/registry.py",
     "app/process/lifecycle/registry.py",
@@ -17,15 +18,7 @@ REGISTRIES = {
     "app/utils/deployment.py",
     "app/videos/encoding/registry.py",
 }
-PENDING = {
-    "app/api/routes/settings/maintenance.py": 3,
-    "app/api/static_files.py": 1,
-    "app/cli/entry.py": 1,
-    "app/utils/ffmpeg_binaries.py": 2,
-    "app/utils/firewall.py": 1,
-    "app/utils/mdns.py": 1,
-    "app/utils/zip_safety.py": 1,
-}
+PENDING: dict[str, int] = {}
 
 
 def _branches() -> dict[str, int]:

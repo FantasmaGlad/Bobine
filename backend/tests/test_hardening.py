@@ -1,3 +1,4 @@
+import subprocess
 import os
 import sys
 from pathlib import Path
@@ -56,7 +57,7 @@ def test_open_path_does_not_create_missing_directories(tmp_path):
 def test_open_path_opens_a_data_directory(monkeypatch):
     opened = []
     monkeypatch.setattr(settings_router.maintenance, "is_android", lambda: False)
-    monkeypatch.setattr(settings_router.maintenance.subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kw: opened.append(cmd))
     target = Path(settings.media_dir).resolve()
     target.mkdir(parents=True, exist_ok=True)
     result = settings_router.maintenance.open_path(settings_router.maintenance.OpenPathRequest(path=str(target)))

@@ -6,23 +6,15 @@ import json
 import os
 import sys
 
+from app import host as host_system
+
 from .client import Client, _default_port, _timeout
 from .core import EXIT_ERROR, EXIT_USAGE, CliError, Output
 from .parser import build_parser
 
 
-def _prepare_windows_output() -> None:
-    if sys.platform != "win32":
-        return
-    for stream in (sys.stdout, sys.stderr):
-        try:
-            stream.reconfigure(errors="backslashreplace")
-        except (AttributeError, OSError, ValueError):
-            pass
-
-
 def main(argv: list[str] | None = None) -> int:
-    _prepare_windows_output()
+    host_system.prepare_console()
     parser = build_parser()
     if argv is None:
         argv = sys.argv[1:]

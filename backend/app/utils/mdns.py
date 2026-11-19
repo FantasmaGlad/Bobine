@@ -2,13 +2,12 @@
 
 import logging
 import os
-import platform
 import socket
 import threading
 from pathlib import Path
 from typing import Any
 
-from app.utils.android_runtime import is_android
+from app import host as host_system
 from app.utils.network import primary_lan_ip
 
 logger = logging.getLogger(__name__)
@@ -155,7 +154,7 @@ def _run_loop(port: int) -> None:
                 with _state_lock:
                     _zeroconf = zc
             announced_ip = _register_or_update(zc, port)
-            platform_label = "Android" if is_android() else platform.system()
+            platform_label = host_system.display_name()
             if _status.get("state") != "ok":
                 logger.info(f"mDNS : '{_hostname}.local' publié ({announced_ip}:{port}, profil {platform_label}).")
             _set_status("ok")
