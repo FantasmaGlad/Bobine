@@ -1,9 +1,9 @@
 use tao::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    window::{Fullscreen, WindowBuilder},
+    window::{Fullscreen, Window, WindowBuilder},
 };
-use wry::WebViewBuilder;
+use wry::{WebView, WebViewBuilder};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum MonitorChoice {
@@ -64,16 +64,18 @@ fn select_monitor<T: Clone + PartialEq>(
     }
 }
 
-fn main() -> wry::Result<()> {
+fn parsed_or_exit() -> Args {
     let args: Vec<String> = std::env::args().collect();
-    let parsed = match parse_args(&args) {
+    match parse_args(&args) {
         Ok(parsed) => parsed,
         Err(message) => {
             eprintln!("bobine-projector : {message}");
             std::process::exit(2);
         }
-    };
+    }
+}
 
+fn new_event_loop() -> EventLoop<()> {
     #[allow(unused_mut)]
     let mut event_loop = EventLoop::new();
     #[cfg(target_os = "macos")]
@@ -81,43 +83,54 @@ fn main() -> wry::Result<()> {
         use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
         event_loop.set_activation_policy(ActivationPolicy::Accessory);
     }
+    event_loop
+}
 
+fn fullscreen_window(event_loop: &EventLoop<()>, choice: &MonitorChoice) -> Window {
     let window = WindowBuilder::new()
         .with_title("Bobine")
         .with_decorations(false)
-        .build(&event_loop)
+        .build(event_loop)
         .expect("creation de la fenetre impossible");
-
     let monitors: Vec<_> = window.available_monitors().collect();
     let primary = window.primary_monitor();
-    let target = select_monitor(&monitors, primary.as_ref(), &parsed.monitor);
+    let target = select_monitor(&monitors, primary.as_ref(), choice);
     window.set_fullscreen(Some(Fullscreen::Borderless(target)));
     window.set_cursor_visible(false);
+    window
+}
 
+#[cfg(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+))]
+fn attach_webview(builder: WebViewBuilder, window: &Window) -> wry::Result<WebView> {
+    builder.build(window)
+}
+
+#[cfg(not(any(
+    target_os = "windows",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "android"
+)))]
+fn attach_webview(builder: WebViewBuilder, window: &Window) -> wry::Result<WebView> {
+    use tao::platform::unix::WindowExtUnix;
+    use wry::WebViewBuilderExtUnix;
+    let vbox = window.default_vbox().expect("conteneur GTK indisponible");
+    builder.build_gtk(vbox)
+}
+
+fn main() -> wry::Result<()> {
+    let parsed = parsed_or_exit();
+    let event_loop = new_event_loop();
+    let window = fullscreen_window(&event_loop, &parsed.monitor);
     let builder = WebViewBuilder::new()
         .with_url(&parsed.url)
         .with_autoplay(true);
-
-    #[cfg(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-    ))]
-    let _webview = builder.build(&window)?;
-    #[cfg(not(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-    )))]
-    let _webview = {
-        use tao::platform::unix::WindowExtUnix;
-        use wry::WebViewBuilderExtUnix;
-        let vbox = window.default_vbox().expect("conteneur GTK indisponible");
-        builder.build_gtk(vbox)?
-    };
-
+    let _webview = attach_webview(builder, &window)?;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         if let Event::WindowEvent {
