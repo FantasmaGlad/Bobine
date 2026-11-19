@@ -14,8 +14,8 @@ from app.utils.importer.background import import_background
 from app.utils.importer.staging import wait_for_file_to_copy
 from app.utils.importer.formats import SUPPORTED_EXTENSIONS, BACKGROUND_SUPPORTED_EXTENSIONS
 from app.utils.audio_importer import import_audio_course_from_watched_folder, wait_for_folder_to_stabilize
-from app.utils.radio_importer import import_radio_track_from_watched_file
-from app.utils.radio_utils import AUDIO_EXTENSIONS as RADIO_AUDIO_EXTENSIONS
+from app.radio.importer import import_radio_track_from_watched_file
+from app.radio.track_files import AUDIO_EXTENSIONS as RADIO_AUDIO_EXTENSIONS
 from app.utils.executors import ffmpeg_executor as _ffmpeg_executor, io_executor as _io_executor
 from app.utils.import_jobs import create_job, update_job
 from app.utils.ws_manager import manager as ws_manager

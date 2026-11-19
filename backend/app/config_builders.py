@@ -138,8 +138,8 @@ def build_display_outputs(db: Session) -> dict[str, Any]:
 def build_radio_outputs(db: Session) -> dict[str, Any]:
     from app.api.contract import RADIO_CHANNELS
     from app.scheduling.radio import get_radio_default_playlist_override
-    from app.utils.radio_mix import load_mix
-    from app.utils.radio_sound import load_sound
+    from app.radio.mix import load_mix
+    from app.radio.sound import load_sound
 
     outputs = {}
     for channel in RADIO_CHANNELS:

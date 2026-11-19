@@ -14,7 +14,7 @@ from app.models import AudioTrack, Background, RadioAnnouncement, RadioTrack, Se
 from app.storage import availability as storage_availability
 from app.storage.service import service as storage_service
 from app.utils.media_response import build_media_response
-from app.utils.radio_utils import content_type_for
+from app.radio.track_files import content_type_for
 from app.utils.web_profile import choose_rendition, client_can_decode, parse_accept
 from app.utils.web_rendition import request_web_rendition
 

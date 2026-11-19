@@ -38,11 +38,12 @@ def worker(spec):
     import resource
     sys.path.insert(0, str(ROOT / "backend"))
     from app.database import SessionLocal, init_db
-    from app.utils import media_metadata, media_sidecar, radio_utils
+    from app.utils import media_metadata, media_sidecar
+    from app.radio import track_files
 
     counts = Counter()
-    original_probe, original_reference = media_metadata._probe, radio_utils.extract_radio_metadata
-    original_cover = radio_utils.extract_embedded_cover
+    original_probe, original_reference = media_metadata._probe, track_files.extract_radio_metadata
+    original_cover = track_files.extract_embedded_cover
 
     def probe(file_path, profile):
         value = original_probe(file_path, profile)
@@ -58,8 +59,8 @@ def worker(spec):
         return original_cover(*args)
 
     media_metadata._probe = probe
-    media_metadata.radio_utils.extract_radio_metadata = reference_metadata
-    media_metadata.radio_utils.extract_embedded_cover = reference_cover
+    media_metadata.track_files.extract_radio_metadata = reference_metadata
+    media_metadata.track_files.extract_embedded_cover = reference_cover
 
     init_db()
     paths = [str(Path(spec["staging"]) / name) for name in spec["names"]]
@@ -67,7 +68,7 @@ def worker(spec):
     before_self = resource.getrusage(resource.RUSAGE_SELF)
     started = time.perf_counter()
     if spec["kind"] == "radio":
-        from app.utils.radio_importer import import_radio_tracks_from_files
+        from app.radio.importer import import_radio_tracks_from_files
         imported = import_radio_tracks_from_files(paths)
     else:
         from app.utils.audio_importer import import_audio_course_from_files

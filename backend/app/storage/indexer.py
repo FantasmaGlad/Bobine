@@ -144,7 +144,7 @@ def _index_radio(db, lib_id: int, root: str, unit: Unit):
     from app.config import settings
     from app.models import ImportSource, RadioCoverSource, RadioTrack
     from app.utils.media_metadata import extract_embedded_cover, extract_radio_metadata
-    from app.utils.radio_utils import needs_transcode
+    from app.radio.track_files import needs_transcode
 
     f = unit.files[0]
     if db.query(RadioTrack.id).filter(RadioTrack.storage_id == lib_id, RadioTrack.rel_path == f.rel).first():

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import RadioAnnouncement
 from app.utils.activity_log import log_activity
-from app.utils.radio_sound import sanitize_sound, save_sound
+from app.radio.sound import sanitize_sound, save_sound
 
 
 async def apply_sound(db: Session, manager, raw, client_ts: float | None = None) -> dict:

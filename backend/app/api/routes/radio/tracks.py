@@ -17,7 +17,7 @@ from app.config import settings
 from app.database import get_db
 from app.models import RadioTag, RadioTrack
 from app.utils._pydantic_compat import fields_set
-from app.utils.radio_utils import save_cover_image
+from app.radio.track_files import save_cover_image
 
 from .schemas import RadioTrackResponse, RadioTrackUpdate, track_response
 

@@ -14,7 +14,7 @@ from app import config_mirror
 from app.database import SessionLocal, init_db
 from app.main import app
 from app.models import RadioAnnouncement
-from app.utils import radio_commands
+from app.radio import commands as radio_commands
 
 
 class FakeManager:
@@ -73,7 +73,7 @@ def test_rest_routes_use_the_shared_code():
 
 def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
     from app.radio.manager import get_radio_manager
-    from app.utils.radio_sound import load_sound
+    from app.radio.sound import load_sound
 
     init_db()
     with TestClient(app) as client:

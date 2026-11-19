@@ -12,7 +12,8 @@ import sys  # noqa: E402
 import pytest  # noqa: E402
 
 from app.hardware import lid  # noqa: E402
-from app.utils import audio_utils, radio_utils  # noqa: E402
+from app.utils import audio_utils  # noqa: E402
+from app.radio import track_files
 
 
 @pytest.fixture
@@ -30,17 +31,17 @@ def hanging_tool(monkeypatch):
 
 def test_probes_give_up_on_a_hanging_tool(hanging_tool, tmp_path):
     assert audio_utils.extract_audio_duration("a.mp3") is None
-    assert radio_utils.extract_radio_metadata("a.mp3")["duration_seconds"] is None
-    assert radio_utils.extract_embedded_cover("a.mp3", str(tmp_path), "1") is None
-    assert radio_utils._measure_loudnorm("a.mp3", -10.0) is None
+    assert track_files.extract_radio_metadata("a.mp3")["duration_seconds"] is None
+    assert track_files.extract_embedded_cover("a.mp3", str(tmp_path), "1") is None
+    assert track_files._measure_loudnorm("a.mp3", -10.0) is None
     assert len(hanging_tool) == 4
 
 
 def test_long_audio_jobs_fail_on_a_hanging_tool(hanging_tool, tmp_path):
     with pytest.raises(subprocess.TimeoutExpired):
-        radio_utils.transcode_to_web("a.flac", str(tmp_path / "a.m4a"))
+        track_files.transcode_to_web("a.flac", str(tmp_path / "a.m4a"))
     with pytest.raises(subprocess.TimeoutExpired):
-        radio_utils.normalize_announcement_loudness("a.mp3", str(tmp_path / "b.m4a"))
+        track_files.normalize_announcement_loudness("a.mp3", str(tmp_path / "b.m4a"))
 
 
 @pytest.mark.parametrize("platform", ["win32", "linux"])

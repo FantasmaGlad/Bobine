@@ -23,7 +23,7 @@ from app.api.contract import LEGACY_RADIO_CHANNEL
 from app.radio.channels import RULE_TARGETS, normalize_rule_target
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
-from app.utils.radio_importer import import_radio_announcement, import_radio_announcements_from_files
+from app.radio.importer import import_radio_announcement, import_radio_announcements_from_files
 
 logger = logging.getLogger(__name__)
 
@@ -217,7 +217,7 @@ async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get
     from app.api.contract import RADIO_CHANNELS
     from app.radio.channels import RULE_TARGET_BOTH, normalize_rule_target
     from app.radio.manager import get_radio_manager
-    from app.utils.radio_commands import play_announcement_now as play_now, resolve_announcement
+    from app.radio.commands import play_announcement_now as play_now, resolve_announcement
 
     announcement = resolve_announcement(db, payload.announcement_id)
     if not announcement:

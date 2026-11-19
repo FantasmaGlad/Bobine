@@ -91,7 +91,7 @@ def test_setting_alone_activates_the_native_path_and_a_failure_falls_back(monkey
     reference = Mock(return_value=4.25)
     cover = Mock(return_value="covers/cover.jpg")
     monkeypatch.setattr(media_metadata.audio_utils, "extract_audio_duration", reference)
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", cover)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", cover)
     assert media_metadata.extract_audio_duration("a.flac") == 4.25
     assert media_metadata.extract_embedded_cover("a.flac", "covers", "id") == "covers/cover.jpg"
     failing.probe_audio.assert_called_once()
@@ -173,7 +173,7 @@ def _picture():
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not installed")
 @pytest.mark.parametrize("fmt", ["JPEG", "PNG"])
 def test_native_cover_is_equivalent_to_the_reference_pipeline(tmp_path, equivalence, fmt):
-    from app.utils import radio_utils
+    from app.radio import track_files
 
     picture = tmp_path / ("cover." + fmt.lower())
     _picture().save(picture, fmt)
@@ -181,7 +181,7 @@ def test_native_cover_is_equivalent_to_the_reference_pipeline(tmp_path, equivale
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=duration=0.5",
                     "-i", str(picture), "-map", "0:a", "-map", "1:v", "-c:a", "libmp3lame", "-c:v", "copy",
                     "-disposition:v", "attached_pic", str(audio)], check=True)
-    reference = radio_utils.extract_embedded_cover(str(audio), str(tmp_path / "ref"), "r")
+    reference = track_files.extract_embedded_cover(str(audio), str(tmp_path / "ref"), "r")
     native = media_metadata._write_native_cover(picture.read_bytes(), str(tmp_path / "nat"), "n")
     assert reference and native and Path(native).name == "cover_n.jpg"
     measure = equivalence.measure(Path(reference).read_bytes(), Path(native).read_bytes())
@@ -195,7 +195,7 @@ def test_unreadable_raw_cover_falls_back_without_partial_file(tmp_path, monkeypa
     client.extract_cover.return_value = CoverResult(available=True, data=b"\xff\xd8\xff not an image", mime="image/jpeg")
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=client))
     reference = Mock(return_value="covers/from-ffmpeg.jpg")
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", reference)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", reference)
     assert media_metadata.extract_embedded_cover("a.mp3", str(tmp_path / "covers"), "x") == "covers/from-ffmpeg.jpg"
     reference.assert_called_once()
     assert not list((tmp_path / "covers").glob("*"))
@@ -207,7 +207,7 @@ def test_proven_absence_skips_the_reference(monkeypatch):
     client.extract_cover.return_value = CoverResult(available=True)
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=client))
     reference = Mock(side_effect=AssertionError("ffmpeg must not run"))
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", reference)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", reference)
     assert media_metadata.extract_embedded_cover("a.mp3", "covers", "x") is None
 
 

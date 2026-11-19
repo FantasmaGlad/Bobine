@@ -13,7 +13,7 @@ from app.utils.activity_log import log_activity
 from app.utils.import_jobs import update_job
 from app.utils.zip_safety import InvalidArchiveError, UnsafeZipError, safe_extract_archive
 from app.utils.media_metadata import extract_embedded_cover, extract_radio_metadata
-from app.utils.radio_utils import (
+from app.radio.track_files import (
     AUDIO_EXTENSIONS,
     clean_filename_label,
     needs_transcode,

@@ -15,7 +15,7 @@ from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
 from app.radio.constants import METER_LEASE_SECONDS  # noqa: E402
 from app.radio.manager import RadioPlaybackManager, get_radio_manager  # noqa: E402
-from app.utils.radio_mix import (  # noqa: E402
+from app.radio.mix import (  # noqa: E402
     GAIN_MAX_DB,
     GAIN_MIN_DB,
     default_mix,
@@ -26,7 +26,7 @@ from app.utils.radio_mix import (  # noqa: E402
     sanitize_mix,
     save_mix,
 )
-from app.utils.radio_sound import default_sound  # noqa: E402
+from app.radio.sound import default_sound  # noqa: E402
 
 KEYS = ("radio_mix_radio_cable", "radio_mix_radio_network", "radio_sound_radio_cable", "radio_sound_radio_network")
 

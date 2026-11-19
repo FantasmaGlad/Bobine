@@ -13,8 +13,9 @@ os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
 from app.utils import (  # noqa: E402
-    audio_utils, chapters, ffmpeg_binaries, import_jobs, radio_utils, staged_uploads as staged,
+    audio_utils, chapters, ffmpeg_binaries, import_jobs, staged_uploads as staged,
 )
+from app.radio import track_files  # noqa: E402
 from app.utils.video_utils import probe, progress, thumbnails  # noqa: E402
 
 
@@ -108,7 +109,7 @@ def test_ffprobe_calls_get_devnull_stdin_but_no_nostdin(monkeypatch, tmp_path):
     monkeypatch.setattr(subprocess, "run", rec.run)
     probe.get_video_info("/tmp/x.mp4")
     audio_utils.extract_audio_duration("/tmp/x.mp3")
-    radio_utils.extract_radio_metadata("/tmp/x.mp3")
+    track_files.extract_radio_metadata("/tmp/x.mp3")
     chapters.read_embedded("/tmp/x.mkv")
     assert len(rec.calls) == 4
     for cmd, kwargs in rec.calls:
@@ -128,8 +129,8 @@ def test_ffmpeg_calls_get_nostdin_and_devnull_stdin(monkeypatch, tmp_path):
     monkeypatch.setattr(thumbnails.subprocess, "run", fake_run_thumb)
     thumbnails.generate_thumbnail("/tmp/x.mp4", str(tmp_path), 10.0)
     monkeypatch.setattr(subprocess, "run", rec.run)
-    radio_utils.transcode_to_web("/tmp/a.wma", str(tmp_path / "a.m4a"))
-    radio_utils._measure_loudnorm("/tmp/a.mp3", -16.0)
+    track_files.transcode_to_web("/tmp/a.wma", str(tmp_path / "a.m4a"))
+    track_files._measure_loudnorm("/tmp/a.mp3", -16.0)
     for cmd, kwargs in rec.calls:
         if cmd[0] != ffmpeg_binaries.FFMPEG_BIN:
             continue

@@ -31,9 +31,9 @@ def test_default_off_preserves_reference_and_never_creates_client(monkeypatch, f
     radio = Mock(return_value=metadata(title="Reference"))
     duration = Mock(return_value=2.5)
     cover = Mock(return_value="covers/reference.jpg")
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_radio_metadata", radio)
+    monkeypatch.setattr(media_metadata.track_files, "extract_radio_metadata", radio)
     monkeypatch.setattr(media_metadata.audio_utils, "extract_audio_duration", duration)
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", cover)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", cover)
     assert media_metadata.extract_radio_metadata("track.mp3") == radio.return_value
     assert media_metadata.extract_audio_duration("track.mp3") == 2.5
     assert media_metadata.extract_embedded_cover("track.mp3", "covers", "id") == "covers/reference.jpg"
@@ -50,7 +50,7 @@ def test_native_radio_preserves_filename_fallback_without_mutating_client_result
     client.probe_audio.return_value = original
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=client))
     reference = Mock(side_effect=AssertionError("successful native probe must not run ffprobe"))
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_radio_metadata", reference)
+    monkeypatch.setattr(media_metadata.track_files, "extract_radio_metadata", reference)
     result = media_metadata.extract_radio_metadata("01 - Warm_Up.mp3")
     assert result == metadata(title="01 - Warm Up")
     assert original["title"] is None
@@ -76,7 +76,7 @@ def test_probe_failure_executes_each_historical_path_in_same_call(monkeypatch):
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=client))
     radio = Mock(return_value=metadata(title="Reference", duration_seconds=None))
     course = Mock(return_value=None)
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_radio_metadata", radio)
+    monkeypatch.setattr(media_metadata.track_files, "extract_radio_metadata", radio)
     monkeypatch.setattr(media_metadata.audio_utils, "extract_audio_duration", course)
     assert media_metadata.extract_radio_metadata("unsupported.wma") == radio.return_value
     assert media_metadata.extract_audio_duration("unsupported.wma") is None
@@ -95,7 +95,7 @@ def test_only_proven_cover_absence_skips_reference(monkeypatch, result, expected
     client.extract_cover.return_value = result
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=client))
     reference = Mock(return_value="covers/cover_id.jpg")
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", reference)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", reference)
     actual = media_metadata.extract_embedded_cover("track.mp3", "covers", "id")
     assert actual == ("covers/cover_id.jpg" if expected_calls else None)
     assert reference.call_count == expected_calls
@@ -106,7 +106,7 @@ def test_only_proven_cover_absence_skips_reference(monkeypatch, result, expected
 @pytest.mark.parametrize("native_success", [True, False])
 def test_radio_ingest_reads_source_before_move_and_keeps_existing_model_contract(tmp_path, monkeypatch, native_success):
     monkeypatch.setenv("BOBINE_MEDIA_NATIVE", "1")
-    importer = importlib.import_module("app.utils.radio_importer")
+    importer = importlib.import_module("app.radio.importer")
     from app.models import ImportSource
 
     source = tmp_path / "03_Music.mp3"
@@ -130,8 +130,8 @@ def test_radio_ingest_reads_source_before_move_and_keeps_existing_model_contract
     monkeypatch.setattr(media_metadata, "get_media_client", Mock(return_value=client))
     reference = Mock(return_value=metadata(title="Reference"))
     reference_cover = Mock(return_value=None)
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_radio_metadata", reference)
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", reference_cover)
+    monkeypatch.setattr(media_metadata.track_files, "extract_radio_metadata", reference)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", reference_cover)
     db = Mock()
     track = importer._ingest_one(db, source, ImportSource.upload)
     assert track.title == ("03 Music" if native_success else "Reference")
@@ -190,9 +190,9 @@ def test_real_component_new_import_wrappers_and_corrupt_fallback(tmp_path, monke
     client = MediaClient(command=[str(binary)], timeout=5)
     monkeypatch.setattr(media_metadata, "get_media_client", lambda: client)
     radio_ref, audio_ref, cover_ref = Mock(), Mock(), Mock()
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_radio_metadata", radio_ref)
+    monkeypatch.setattr(media_metadata.track_files, "extract_radio_metadata", radio_ref)
     monkeypatch.setattr(media_metadata.audio_utils, "extract_audio_duration", audio_ref)
-    monkeypatch.setattr(media_metadata.radio_utils, "extract_embedded_cover", cover_ref)
+    monkeypatch.setattr(media_metadata.track_files, "extract_embedded_cover", cover_ref)
     try:
         assert media_metadata.extract_radio_metadata(str(source))["title"] == "01 Native WAV"
         assert media_metadata.extract_audio_duration(str(source)) == pytest.approx(1.0,abs=0.001)

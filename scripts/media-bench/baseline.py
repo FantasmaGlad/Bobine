@@ -31,11 +31,11 @@ def capture(corpus, output, repeats):
                            "BOBINE_DATABASE_URL": f"sqlite:///{isolated / 'unused.db'}"})
         sys.path.insert(0, str(ROOT / "backend"))
         from app.utils.audio_utils import extract_audio_duration
-        from app.utils.radio_utils import extract_radio_metadata, extract_embedded_cover
+        from app.radio.track_files import extract_radio_metadata, extract_embedded_cover
         from app.utils.ffmpeg_binaries import FFPROBE_BIN, FFMPEG_BIN
         from PIL import Image
         logging.getLogger("app.utils.audio_utils").setLevel(logging.CRITICAL)
-        logging.getLogger("app.utils.radio_utils").setLevel(logging.CRITICAL)
+        logging.getLogger("app.radio.track_files").setLevel(logging.CRITICAL)
         results = []
         reference_covers = output.parent / "reference-covers"
         reference_covers.mkdir(exist_ok=True)

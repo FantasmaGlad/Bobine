@@ -31,7 +31,7 @@ def get_radio_sound(channel: str | None = None):
 async def set_radio_sound(payload: dict = Body(...), channel: str | None = None, db: Session = Depends(get_db)):
     """Modifie les réglages de son d'UNE sortie radio."""
     from app.radio.manager import get_radio_manager
-    from app.utils.radio_commands import apply_sound
+    from app.radio.commands import apply_sound
 
     return await apply_sound(db, get_radio_manager(channel), payload)
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
-from app.utils.radio_importer import import_radio_tracks_from_files, import_radio_tracks_from_zip
+from app.radio.importer import import_radio_tracks_from_files, import_radio_tracks_from_zip
 from app.utils.staged_uploads import receive_single_upload
 
 from .schemas import ImportJobAccepted
