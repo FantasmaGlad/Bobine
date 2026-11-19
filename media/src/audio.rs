@@ -153,8 +153,11 @@ impl Kind {
 
 pub(crate) const FORMATS: [&str; 8] = ["mp3", "flac", "wav", "m4a", "ogg", "opus", "aiff", "aif"];
 
-pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Value> {
-    let path = Path::new(path);
+fn changed() -> MediaError {
+    MediaError::new("unreadable", "Media changed during inspection")
+}
+
+fn checked_metadata(path: &Path) -> Result<std::fs::Metadata> {
     if !path.is_absolute()
         || path.as_os_str().to_str().is_none()
         || path.to_string_lossy().contains('\0')
@@ -174,12 +177,10 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
     if info.len() > MAX_FILE_BYTES {
         return Err(limit());
     }
-    let format = path
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .map(str::to_ascii_lowercase)
-        .ok_or_else(unsupported)?;
-    let kind = Kind::of(&format).ok_or_else(unsupported)?;
+    Ok(info)
+}
+
+fn open_unchanged(path: &Path, info: &std::fs::Metadata) -> Result<(File, std::fs::Metadata)> {
     let file =
         File::open(path).map_err(|_| MediaError::new("unreadable", "Media file cannot be read"))?;
     let opened = file.metadata().map_err(|_| corrupt())?;
@@ -187,11 +188,59 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
         || opened.len() != info.len()
         || opened.modified().ok() != info.modified().ok()
     {
-        return Err(MediaError::new(
-            "unreadable",
-            "Media changed during inspection",
-        ));
+        return Err(changed());
     }
+    Ok((file, opened))
+}
+
+fn scan_layout<R: Read + Seek>(
+    reader: &mut R,
+    kind: Kind,
+    length: u64,
+    cover_only: bool,
+) -> Result<Layout> {
+    match kind {
+        Kind::Mp3 => mp3::scan(reader, length, cover_only),
+        Kind::Flac => flac::scan(reader, length, cover_only),
+        Kind::Wav => wav::scan(reader, length),
+        Kind::Mp4 => mp4::scan(reader, length, cover_only),
+        Kind::Ogg => ogg::scan(reader, length, cover_only),
+        Kind::Aiff => aiff::scan(reader, length),
+    }
+}
+
+fn resolve_duration(
+    reader: &mut BufReader<BudgetReader<File>>,
+    layout: &Layout,
+    kind: Kind,
+) -> Result<f64> {
+    match (layout.duration, kind.lofty()) {
+        (Duration::Exact(seconds), _) => positive(seconds),
+        (Duration::Checked(reference), Some(file_type)) => {
+            let parsed = lofty_duration(reader, file_type)?;
+            if !reference.is_finite() || reference <= 0.0 {
+                return Err(corrupt());
+            }
+            if parsed - reference < -0.001 || parsed - reference > MAX_GAPLESS_TRIM_SECONDS {
+                return Err(ambiguous());
+            }
+            Ok(reference)
+        }
+        (Duration::Lofty, Some(file_type)) => lofty_duration(reader, file_type),
+        _ => Err(unsupported()),
+    }
+}
+
+pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Value> {
+    let path = Path::new(path);
+    let info = checked_metadata(path)?;
+    let format = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(unsupported)?;
+    let kind = Kind::of(&format).ok_or_else(unsupported)?;
+    let (file, opened) = open_unchanged(path, &info)?;
     let chain = if kind == Kind::Mp3 && opened.len() <= MAX_CHAIN_BYTES {
         opened.len() as usize
     } else {
@@ -201,36 +250,11 @@ pub(crate) fn inspect(path: &str, profile: &str, cover_only: bool) -> Result<Val
         inner: file,
         remaining: MAX_READ_BYTES + chain,
     });
-    let length = opened.len();
-    let layout = match kind {
-        Kind::Mp3 => mp3::scan(&mut reader, length, cover_only)?,
-        Kind::Flac => flac::scan(&mut reader, length, cover_only)?,
-        Kind::Wav => wav::scan(&mut reader, length)?,
-        Kind::Mp4 => mp4::scan(&mut reader, length, cover_only)?,
-        Kind::Ogg => ogg::scan(&mut reader, length, cover_only)?,
-        Kind::Aiff => aiff::scan(&mut reader, length)?,
-    };
-    let duration = match (layout.duration, kind.lofty()) {
-        (Duration::Exact(seconds), _) => positive(seconds)?,
-        (Duration::Checked(reference), Some(file_type)) => {
-            let parsed = lofty_duration(&mut reader, file_type)?;
-            if !reference.is_finite() || reference <= 0.0 {
-                return Err(corrupt());
-            }
-            if parsed - reference < -0.001 || parsed - reference > MAX_GAPLESS_TRIM_SECONDS {
-                return Err(ambiguous());
-            }
-            reference
-        }
-        (Duration::Lofty, Some(file_type)) => lofty_duration(&mut reader, file_type)?,
-        _ => return Err(unsupported()),
-    };
+    let layout = scan_layout(&mut reader, kind, opened.len(), cover_only)?;
+    let duration = resolve_duration(&mut reader, &layout, kind)?;
     let after = reader.get_ref().inner.metadata().map_err(|_| corrupt())?;
     if after.len() != opened.len() || after.modified().ok() != opened.modified().ok() {
-        return Err(MediaError::new(
-            "unreadable",
-            "Media changed during inspection",
-        ));
+        return Err(changed());
     }
     if cover_only {
         return Ok(json!({"status":"ok","cover":cover(&layout)?}));

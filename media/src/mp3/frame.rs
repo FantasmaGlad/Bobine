@@ -78,16 +78,61 @@ impl Frame {
     }
 }
 
+#[derive(Default)]
+struct Chain {
+    frames: u64,
+    position: u64,
+    header: [u8; 4],
+    have: usize,
+    skip: u64,
+}
+
+impl Chain {
+    fn feed(&mut self, bytes: &[u8], total: u64, first: &Frame) -> Result<()> {
+        let mut at = 0;
+        while at < bytes.len() {
+            if self.skip > 0 {
+                let take = (self.skip as usize).min(bytes.len() - at);
+                self.skip -= take as u64;
+                at += take;
+                self.position += take as u64;
+                continue;
+            }
+            if self.position == total {
+                return Err(unsupported());
+            }
+            self.header[self.have] = bytes[at];
+            self.have += 1;
+            at += 1;
+            self.position += 1;
+            if self.have == 4 {
+                self.complete_header(total, first)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn complete_header(&mut self, total: u64, first: &Frame) -> Result<()> {
+        let frame = parse_frame(self.header).ok_or_else(unsupported)?;
+        if !frame.same_stream(first) {
+            return Err(unsupported());
+        }
+        self.skip = frame.length - 4;
+        self.frames += 1;
+        self.have = 0;
+        if self.position + self.skip > total {
+            return Err(unsupported());
+        }
+        Ok(())
+    }
+}
+
 pub(super) fn chain<R: Read>(reader: &mut R, total: u64, first: &Frame) -> Result<u64> {
-    let mut frames = 0;
-    let mut position = 0_u64;
-    let mut header = [0_u8; 4];
-    let mut have = 0;
-    let mut skip = 0_u64;
+    let mut state = Chain::default();
     let mut buffer = vec![0_u8; 64 * 1024];
     loop {
-        if position == total && have == 0 && skip == 0 {
-            return Ok(frames);
+        if state.position == total && state.have == 0 && state.skip == 0 {
+            return Ok(state.frames);
         }
         let count = reader.read(&mut buffer).map_err(|error| {
             if error.kind() == std::io::ErrorKind::Other {
@@ -99,35 +144,7 @@ pub(super) fn chain<R: Read>(reader: &mut R, total: u64, first: &Frame) -> Resul
         if count == 0 {
             return Err(corrupt());
         }
-        let mut at = 0;
-        while at < count {
-            if skip > 0 {
-                let take = (skip as usize).min(count - at);
-                skip -= take as u64;
-                at += take;
-                position += take as u64;
-                continue;
-            }
-            if position == total {
-                return Err(unsupported());
-            }
-            header[have] = buffer[at];
-            have += 1;
-            at += 1;
-            position += 1;
-            if have == 4 {
-                let frame = parse_frame(header).ok_or_else(unsupported)?;
-                if !frame.same_stream(first) {
-                    return Err(unsupported());
-                }
-                skip = frame.length - 4;
-                frames += 1;
-                have = 0;
-                if position + skip > total {
-                    return Err(unsupported());
-                }
-            }
-        }
+        state.feed(&buffer[..count], total, first)?;
     }
 }
 

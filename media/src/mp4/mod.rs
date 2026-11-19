@@ -59,6 +59,58 @@ fn read_moov(moov: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
     Ok(())
 }
 
+fn box_header<R: Read>(
+    reader: &mut R,
+    position: u64,
+    file_len: u64,
+) -> Result<([u8; 4], u64, u64)> {
+    if file_len - position < 8 {
+        return Err(corrupt());
+    }
+    let mut head = [0; 8];
+    read_exact(reader, &mut head)?;
+    let kind = [head[4], head[5], head[6], head[7]];
+    let mut header = 8_u64;
+    let mut size = u64::from(u32::from_be_bytes([head[0], head[1], head[2], head[3]]));
+    if size == 1 {
+        let mut wide = [0; 8];
+        read_exact(reader, &mut wide)?;
+        size = u64::from_be_bytes(wide);
+        header = 16;
+    } else if size == 0 {
+        size = file_len - position;
+    }
+    if size < header || size > file_len - position {
+        return Err(corrupt());
+    }
+    Ok((kind, size, size - header))
+}
+
+fn read_brand<R: Read>(reader: &mut R, position: u64, body: u64) -> Result<()> {
+    if position != 0 || !(8..=256).contains(&body) {
+        return Err(unsupported());
+    }
+    let mut data = vec![0; body as usize];
+    read_exact(reader, &mut data)?;
+    if !matches!(&data[..4], b"M4A " | b"isom" | b"mp42") {
+        return Err(unsupported());
+    }
+    Ok(())
+}
+
+fn read_moov_box<R: Read>(reader: &mut R, body: u64, moov: &mut Option<Vec<u8>>) -> Result<()> {
+    if moov.is_some() {
+        return Err(ambiguous());
+    }
+    if body > MAX_MOOV_BYTES {
+        return Err(limit());
+    }
+    let mut data = vec![0; body as usize];
+    read_exact(reader, &mut data)?;
+    *moov = Some(data);
+    Ok(())
+}
+
 pub(crate) fn scan<R: Read + Seek>(
     reader: &mut R,
     file_len: u64,
@@ -68,50 +120,14 @@ pub(crate) fn scan<R: Read + Seek>(
     let mut brand_seen = false;
     let mut moov: Option<Vec<u8>> = None;
     while position < file_len {
-        if file_len - position < 8 {
-            return Err(corrupt());
-        }
-        let mut head = [0; 8];
-        read_exact(reader, &mut head)?;
-        let kind = [head[4], head[5], head[6], head[7]];
-        let mut header = 8_u64;
-        let mut size = u64::from(u32::from_be_bytes([head[0], head[1], head[2], head[3]]));
-        if size == 1 {
-            let mut wide = [0; 8];
-            read_exact(reader, &mut wide)?;
-            size = u64::from_be_bytes(wide);
-            header = 16;
-        } else if size == 0 {
-            size = file_len - position;
-        }
-        if size < header || size > file_len - position {
-            return Err(corrupt());
-        }
-        let body = size - header;
+        let (kind, size, body) = box_header(reader, position, file_len)?;
         match &kind {
             b"ftyp" => {
-                if position != 0 || !(8..=256).contains(&body) {
-                    return Err(unsupported());
-                }
-                let mut data = vec![0; body as usize];
-                read_exact(reader, &mut data)?;
-                if !matches!(&data[..4], b"M4A " | b"isom" | b"mp42") {
-                    return Err(unsupported());
-                }
+                read_brand(reader, position, body)?;
                 brand_seen = true;
             }
             _ if !brand_seen => return Err(unsupported()),
-            b"moov" => {
-                if moov.is_some() {
-                    return Err(ambiguous());
-                }
-                if body > MAX_MOOV_BYTES {
-                    return Err(limit());
-                }
-                let mut data = vec![0; body as usize];
-                read_exact(reader, &mut data)?;
-                moov = Some(data);
-            }
+            b"moov" => read_moov_box(reader, body, &mut moov)?,
             b"mdat" | b"free" | b"skip" | b"wide" => {
                 reader
                     .seek(SeekFrom::Current(body as i64))

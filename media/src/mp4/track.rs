@@ -45,6 +45,54 @@ pub(super) struct Track {
     pub(super) creation: u64,
 }
 
+fn edit_seconds(edits: &[u8], movie_scale: u64) -> Result<f64> {
+    let list = boxes(edits)?;
+    let [(kind, elst)] = list.as_slice() else {
+        return Err(unsupported());
+    };
+    if kind != b"elst" {
+        return Err(unsupported());
+    }
+    let wide = match elst.first() {
+        Some(0) => false,
+        Some(1) => true,
+        _ => return Err(unsupported()),
+    };
+    if be32(elst, 4)? != 1 {
+        return Err(unsupported());
+    }
+    let (segment, start, rate) = if wide {
+        (be64(elst, 8)?, be64(elst, 16)? as i64, be32(elst, 24)?)
+    } else {
+        (
+            be32(elst, 8)?,
+            i64::from(be32(elst, 12)? as u32 as i32),
+            be32(elst, 16)?,
+        )
+    };
+    if start < 0 || rate != 0x0001_0000 {
+        return Err(unsupported());
+    }
+    Ok(segment as f64 / movie_scale as f64)
+}
+
+fn media_boxes(media: &[u8]) -> Result<(&[u8], &[u8], &[u8])> {
+    let (mut mdhd, mut hdlr, mut minf) = (None, None, None);
+    for (kind, inner) in boxes(media)? {
+        match &kind {
+            b"mdhd" => once(&mut mdhd, inner)?,
+            b"hdlr" => once(&mut hdlr, inner)?,
+            b"minf" => once(&mut minf, inner)?,
+            _ => return Err(unsupported()),
+        }
+    }
+    Ok((
+        mdhd.ok_or_else(corrupt)?,
+        hdlr.ok_or_else(corrupt)?,
+        minf.ok_or_else(corrupt)?,
+    ))
+}
+
 pub(super) fn track(body: &[u8], movie_scale: u64) -> Result<Track> {
     let mut edits = None;
     let mut media = None;
@@ -56,21 +104,7 @@ pub(super) fn track(body: &[u8], movie_scale: u64) -> Result<Track> {
             _ => return Err(unsupported()),
         }
     }
-    let media = media.ok_or_else(corrupt)?;
-    let (mut mdhd, mut hdlr, mut minf) = (None, None, None);
-    for (kind, inner) in boxes(media)? {
-        match &kind {
-            b"mdhd" => once(&mut mdhd, inner)?,
-            b"hdlr" => once(&mut hdlr, inner)?,
-            b"minf" => once(&mut minf, inner)?,
-            _ => return Err(unsupported()),
-        }
-    }
-    let (mdhd, hdlr, minf) = (
-        mdhd.ok_or_else(corrupt)?,
-        hdlr.ok_or_else(corrupt)?,
-        minf.ok_or_else(corrupt)?,
-    );
+    let (mdhd, hdlr, minf) = media_boxes(media.ok_or_else(corrupt)?)?;
     if hdlr.get(8..12) != Some(b"soun") {
         return Err(unsupported());
     }
@@ -80,36 +114,7 @@ pub(super) fn track(body: &[u8], movie_scale: u64) -> Result<Track> {
         return Err(corrupt());
     }
     let seconds = match edits {
-        Some(edits) => {
-            let list = boxes(edits)?;
-            let [(kind, elst)] = list.as_slice() else {
-                return Err(unsupported());
-            };
-            if kind != b"elst" {
-                return Err(unsupported());
-            }
-            let wide = match elst.first() {
-                Some(0) => false,
-                Some(1) => true,
-                _ => return Err(unsupported()),
-            };
-            if be32(elst, 4)? != 1 {
-                return Err(unsupported());
-            }
-            let (segment, start, rate) = if wide {
-                (be64(elst, 8)?, be64(elst, 16)? as i64, be32(elst, 24)?)
-            } else {
-                (
-                    be32(elst, 8)?,
-                    i64::from(be32(elst, 12)? as u32 as i32),
-                    be32(elst, 16)?,
-                )
-            };
-            if start < 0 || rate != 0x0001_0000 {
-                return Err(unsupported());
-            }
-            segment as f64 / movie_scale as f64
-        }
+        Some(edits) => edit_seconds(edits, movie_scale)?,
         None => duration as f64 / scale as f64,
     };
     Ok(Track { seconds, creation })

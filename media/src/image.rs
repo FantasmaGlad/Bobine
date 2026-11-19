@@ -125,6 +125,38 @@ fn exif_upright(tiff: &[u8]) -> Result<()> {
     Ok(())
 }
 
+fn png_header(body: &[u8]) -> Result<bool> {
+    let width = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
+    let height = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
+    pixels(width, height)?;
+    let (depth, color, compression, filter, interlace) =
+        (body[8], body[9], body[10], body[11], body[12]);
+    if depth != 8
+        || !matches!(color, 0 | 2 | 3 | 4 | 6)
+        || compression != 0
+        || filter != 0
+        || interlace != 0
+    {
+        return Err(refuse());
+    }
+    Ok(color == 3)
+}
+
+fn png_chunk(data: &[u8], position: usize) -> Result<(&[u8], &[u8], usize)> {
+    let head = data.get(position..position + 8).ok_or_else(refuse)?;
+    let length = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
+    let body = data
+        .get(position + 8..position + 8 + length)
+        .ok_or_else(refuse)?;
+    if data
+        .get(position + 8 + length..position + 12 + length)
+        .is_none()
+    {
+        return Err(refuse());
+    }
+    Ok((&head[4..8], body, length))
+}
+
 fn png(data: &[u8]) -> Result<()> {
     let mut position = 8;
     let mut header = false;
@@ -132,38 +164,14 @@ fn png(data: &[u8]) -> Result<()> {
     let mut palette = false;
     let mut image_data = false;
     loop {
-        let head = data.get(position..position + 8).ok_or_else(refuse)?;
-        let length = u32::from_be_bytes([head[0], head[1], head[2], head[3]]) as usize;
-        let kind = &head[4..8];
-        let body = data
-            .get(position + 8..position + 8 + length)
-            .ok_or_else(refuse)?;
-        if data
-            .get(position + 8 + length..position + 12 + length)
-            .is_none()
-        {
-            return Err(refuse());
-        }
+        let (kind, body, length) = png_chunk(data, position)?;
         match kind {
             b"IHDR" => {
                 if header || length != 13 {
                     return Err(refuse());
                 }
                 header = true;
-                let width = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
-                let height = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
-                pixels(width, height)?;
-                let (depth, color, compression, filter, interlace) =
-                    (body[8], body[9], body[10], body[11], body[12]);
-                if depth != 8
-                    || !matches!(color, 0 | 2 | 3 | 4 | 6)
-                    || compression != 0
-                    || filter != 0
-                    || interlace != 0
-                {
-                    return Err(refuse());
-                }
-                palette_needed = color == 3;
+                palette_needed = png_header(body)?;
             }
             _ if !header => return Err(refuse()),
             b"PLTE" => palette = true,
