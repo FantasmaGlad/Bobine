@@ -1,8 +1,7 @@
 "use client";
 import React from "react";
-import Icon from "@/components/Icon";
-import type { BackgroundSummary } from "./types";
-import { thumbnailUrl } from "@/lib/thumbnail";
+import type { BackgroundSummary } from "./types";import AmbianceThumb from "./AmbianceThumb";
+import SoberScreenButton from "./SoberScreenButton";
 
 interface AmbiancePaletteProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -28,100 +27,12 @@ export default function AmbiancePalette({ t, backgrounds, activeBgId, chooseBack
               </span>
             </div>
 
-            <button
-              type="button"
-              className={`olc-press ${!activeBgId ? "active" : ""}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                width: "100%",
-                minHeight: "40px",
-                borderRadius: "var(--radius-md)",
-                background: !activeBgId ? "color-mix(in srgb, var(--accent-primary) 15%, var(--bg-surface-elevated))" : "var(--bg-surface-elevated)",
-                border: `1.5px solid ${!activeBgId ? "var(--accent-text)" : "var(--border-color)"}`,
-                color: !activeBgId ? "var(--accent-text)" : "var(--text-main)",
-                fontWeight: 700,
-                fontSize: "0.82rem",
-                cursor: "pointer",
-              }}
-              onClick={() => chooseBackground(null)}
-            >
-              <Icon name="hide_image" size={18} />
-              {t("coach.soberScreenBtn")}
-              {!activeBgId && <Icon name="check_circle" size={16} filled />}
-            </button>
+            <SoberScreenButton label={t("coach.soberScreenBtn")} active={!activeBgId} onChoose={() => chooseBackground(null)} />
 
             <div className="coach-ambiance-grid">
-              {backgrounds.map((bg) => {
-                const isActive = activeBgId === bg.id;
-                const thumb = thumbnailUrl(bg.thumbnail_path);
-                return (
-                  <div
-                    key={bg.id}
-                    className={`coach-ambiance-thumb-card olc-press ${isActive ? "active" : ""}`}
-                    onClick={() => chooseBackground(bg.id)}
-                    title={bg.title}
-                  >
-                    <div className="coach-ambiance-thumb-media">
-                      {thumb ? (
-                        <img src={thumb} alt={bg.title} />
-                      ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Icon name={bg.is_image ? "image" : "videocam"} size={22} style={{ opacity: 0.4 }} />
-                        </div>
-                      )}
-                      {isActive && (
-                        <span
-                          style={{
-                            position: "absolute",
-                            top: 4,
-                            right: 4,
-                            background: "var(--accent-primary)",
-                            color: "var(--accent-primary-fg)",
-                            borderRadius: "4px",
-                            padding: "1px 5px",
-                            fontSize: "0.68rem",
-                            fontWeight: 800,
-                            boxShadow: "0 2px 6px color-mix(in srgb, var(--ink) 50%, transparent)",
-                          }}
-                        >
-                          {t("common.active")}
-                        </span>
-                      )}
-                      <span
-                        style={{
-                          position: "absolute",
-                          bottom: 3,
-                          right: 3,
-                          background: "color-mix(in srgb, var(--ink) 70%, transparent)",
-                          color: "var(--specular)",
-                          borderRadius: "3px",
-                          padding: "1px 4px",
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {bg.is_image ? t("common.image") : bg.duration_seconds ? `${Math.round(bg.duration_seconds)}s` : t("common.loop")}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        padding: "6px 8px",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color: isActive ? "var(--accent-text)" : "var(--text-main)",
-                      }}
-                    >
-                      {bg.title}
-                    </div>
-                  </div>
-                );
-              })}
+              {backgrounds.map((bg) => (
+                <AmbianceThumb key={bg.id} t={t} bg={bg} isActive={activeBgId === bg.id} onChoose={() => chooseBackground(bg.id)} />
+              ))}
             </div>
           </div>
   );
