@@ -21,8 +21,36 @@ pub(crate) fn scan<R: Read + Seek>(
     if first.flags != 0x02 {
         return Err(unsupported());
     }
+    let serial = first.serial;
     let mut packets = Packets::default();
-    let ident = packets.feed(&first)?;
+    let (codec, headers) = read_headers(reader, &mut packets, &first)?;
+    let mut layout = Layout::default();
+    vorbis::read(
+        comment_body(&codec, &headers[1])?,
+        &mut layout,
+        Pictures::Base64Comment,
+        want_cover,
+    )?;
+    let (rate, first_granule) = first_audio_page(reader, &mut packets, &codec, &headers, serial)?;
+    let (flags, granule, last_serial) = last_page(reader, file_len)?;
+    if last_serial != serial
+        || flags & 0x04 == 0
+        || granule == NO_GRANULE
+        || granule < first_granule
+        || granule == 0
+    {
+        return Err(unsupported());
+    }
+    layout.duration = Duration::Exact(granule as f64 / rate as f64);
+    Ok(layout)
+}
+
+fn read_headers<R: Read>(
+    reader: &mut R,
+    packets: &mut Packets,
+    first: &Page,
+) -> Result<(Codec, Vec<Vec<u8>>)> {
+    let ident = packets.feed(first)?;
     let [ident] = ident.as_slice() else {
         return Err(unsupported());
     };
@@ -35,11 +63,10 @@ pub(crate) fn scan<R: Read + Seek>(
     } else {
         2
     };
-    let serial = first.serial;
     let mut headers = vec![ident.clone()];
     while headers.len() < needed {
         let page = read_page(reader)?;
-        if page.serial != serial || page.flags & 0x06 != 0 {
+        if page.serial != first.serial || page.flags & 0x06 != 0 {
             return Err(unsupported());
         }
         headers.extend(packets.feed(&page)?);
@@ -47,9 +74,11 @@ pub(crate) fn scan<R: Read + Seek>(
             return Err(unsupported());
         }
     }
-    let mut layout = Layout::default();
-    let comment = &headers[1];
-    let content = match codec {
+    Ok((codec, headers))
+}
+
+fn comment_body<'a>(codec: &Codec, comment: &'a [u8]) -> Result<&'a [u8]> {
+    match codec {
         Codec::Vorbis { .. } => {
             if !comment.starts_with(b"\x03vorbis")
                 || comment.last() != Some(&1)
@@ -57,23 +86,30 @@ pub(crate) fn scan<R: Read + Seek>(
             {
                 return Err(unsupported());
             }
-            &comment[7..comment.len() - 1]
+            Ok(&comment[7..comment.len() - 1])
         }
         Codec::Opus => {
             if !comment.starts_with(b"OpusTags") {
                 return Err(unsupported());
             }
-            &comment[8..]
+            Ok(&comment[8..])
         }
-    };
-    vorbis::read(content, &mut layout, Pictures::Base64Comment, want_cover)?;
+    }
+}
 
+fn first_audio_page<R: Read>(
+    reader: &mut R,
+    packets: &mut Packets,
+    codec: &Codec,
+    headers: &[Vec<u8>],
+    serial: u32,
+) -> Result<(u64, u64)> {
     let data = read_page(reader)?;
     if data.serial != serial || data.flags & 0x02 != 0 || data.granule == NO_GRANULE {
         return Err(unsupported());
     }
     let completed = packets.feed(&data)?;
-    let (rate, expected) = match &codec {
+    let (rate, expected) = match codec {
         Codec::Vorbis { rate, short, long } => {
             let table = modes(&headers[2])?;
             (*rate, vorbis_total(&completed, &table, *short, *long)?)
@@ -88,15 +124,5 @@ pub(crate) fn scan<R: Read + Seek>(
     if data.granule != expected {
         return Err(unsupported());
     }
-    let (flags, granule, last_serial) = last_page(reader, file_len)?;
-    if last_serial != serial
-        || flags & 0x04 == 0
-        || granule == NO_GRANULE
-        || granule < data.granule
-        || granule == 0
-    {
-        return Err(unsupported());
-    }
-    layout.duration = Duration::Exact(granule as f64 / rate as f64);
-    Ok(layout)
+    Ok((rate, data.granule))
 }

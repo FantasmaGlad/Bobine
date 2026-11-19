@@ -6,6 +6,53 @@ use crate::vorbis::{self, Pictures};
 use crate::COVER_BYTES;
 use std::io::{Read, Seek, SeekFrom};
 
+fn skip<R: Seek>(reader: &mut R, size: usize) -> Result<()> {
+    reader
+        .seek(SeekFrom::Current(size as i64))
+        .map(|_| ())
+        .map_err(|_| corrupt())
+}
+
+fn read_comments<R: Read>(
+    reader: &mut R,
+    size: usize,
+    comments_seen: &mut bool,
+    layout: &mut Layout,
+) -> Result<()> {
+    if *comments_seen {
+        return Err(ambiguous());
+    }
+    *comments_seen = true;
+    if size > MAX_TEXT_BYTES {
+        return Err(limit());
+    }
+    let mut content = vec![0; size];
+    read_exact(reader, &mut content)?;
+    vorbis::read(&content, layout, Pictures::Refuse, false)
+}
+
+fn read_picture<R: Read + Seek>(
+    reader: &mut R,
+    size: usize,
+    want_cover: bool,
+    layout: &mut Layout,
+) -> Result<()> {
+    if size > COVER_BYTES + MAX_TEXT_BYTES {
+        return Err(limit());
+    }
+    let mut read = false;
+    layout.add_picture(want_cover, || {
+        read = true;
+        let mut content = vec![0; size];
+        read_exact(reader, &mut content).map_err(cover_error)?;
+        vorbis::flac_picture(&content).map_err(cover_error)
+    })?;
+    if !read {
+        skip(reader, size)?;
+    }
+    Ok(())
+}
+
 pub(crate) fn scan<R: Read + Seek>(
     reader: &mut R,
     file_len: u64,
@@ -37,42 +84,11 @@ pub(crate) fn scan<R: Read + Seek>(
         if block_index == 0 && (kind != 0 || size != 34) {
             return Err(corrupt());
         }
-        let skip = |reader: &mut R| {
-            reader
-                .seek(SeekFrom::Current(size as i64))
-                .map(|_| ())
-                .map_err(|_| corrupt())
-        };
         match kind {
-            0 if block_index == 0 => skip(reader)?,
-            1 | 3 => skip(reader)?,
-            4 => {
-                if comments_seen {
-                    return Err(ambiguous());
-                }
-                comments_seen = true;
-                if size > MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let mut content = vec![0; size];
-                read_exact(reader, &mut content)?;
-                vorbis::read(&content, &mut layout, Pictures::Refuse, false)?;
-            }
-            6 => {
-                if size > COVER_BYTES + MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let mut read = false;
-                layout.add_picture(want_cover, || {
-                    read = true;
-                    let mut content = vec![0; size];
-                    read_exact(reader, &mut content).map_err(cover_error)?;
-                    vorbis::flac_picture(&content).map_err(cover_error)
-                })?;
-                if !read {
-                    skip(reader)?;
-                }
-            }
+            0 if block_index == 0 => skip(reader, size)?,
+            1 | 3 => skip(reader, size)?,
+            4 => read_comments(reader, size, &mut comments_seen, &mut layout)?,
+            6 => read_picture(reader, size, want_cover, &mut layout)?,
             _ => return Err(unsupported()),
         }
         if header[0] & 0x80 != 0 {

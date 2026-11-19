@@ -52,7 +52,15 @@ fn read_info(content: &[u8], layout: &mut Layout) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
+#[derive(Default)]
+struct Chunks {
+    format_seen: bool,
+    data_seen: bool,
+    list_seen: bool,
+    metadata_bytes: usize,
+}
+
+fn check_header<R: Read>(reader: &mut R, file_len: u64) -> Result<()> {
     let mut header = [0; 12];
     read_exact(reader, &mut header)?;
     if &header[..4] != b"RIFF" || &header[8..12] != b"WAVE" {
@@ -64,15 +72,67 @@ pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layo
     if declared != file_len {
         return Err(unsupported());
     }
+    Ok(())
+}
+
+fn read_fmt<R: Read>(reader: &mut R, size: usize, chunks: &mut Chunks) -> Result<()> {
+    if chunks.format_seen || !matches!(size, 16 | 18) {
+        return Err(unsupported());
+    }
+    chunks.format_seen = true;
+    let mut format = vec![0; size];
+    read_exact(reader, &mut format)?;
+    if format[..2] != [1, 0] {
+        return Err(unsupported());
+    }
+    if size == 18 && format[16..18] != [0, 0] {
+        return Err(unsupported());
+    }
+    Ok(())
+}
+
+fn skip<R: Seek>(reader: &mut R, size: usize) -> Result<()> {
+    reader
+        .seek(SeekFrom::Current(size as i64))
+        .map_err(|_| corrupt())?;
+    Ok(())
+}
+
+fn read_data<R: Seek>(reader: &mut R, size: usize, chunks: &mut Chunks) -> Result<()> {
+    if chunks.data_seen || !chunks.format_seen || size == 0 {
+        return Err(corrupt());
+    }
+    chunks.data_seen = true;
+    skip(reader, size)
+}
+
+fn read_list<R: Read>(
+    reader: &mut R,
+    size: usize,
+    chunks: &mut Chunks,
+    layout: &mut Layout,
+) -> Result<()> {
+    if chunks.list_seen {
+        return Err(ambiguous());
+    }
+    chunks.list_seen = true;
+    chunks.metadata_bytes += size;
+    if chunks.metadata_bytes > MAX_TEXT_BYTES {
+        return Err(limit());
+    }
+    let mut content = vec![0; size];
+    read_exact(reader, &mut content)?;
+    read_info(&content, layout)
+}
+
+pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
+    check_header(reader, file_len)?;
     let mut layout = Layout::default();
     let mut position = 12;
-    let mut format_seen = false;
-    let mut data_seen = false;
-    let mut list_seen = false;
-    let mut metadata_bytes = 0;
+    let mut chunks = Chunks::default();
     for _ in 0..128 {
         if position == file_len {
-            return if format_seen && data_seen {
+            return if chunks.format_seen && chunks.data_seen {
                 Ok(layout)
             } else {
                 Err(corrupt())
@@ -86,47 +146,10 @@ pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layo
             return Err(corrupt());
         }
         match &chunk[..4] {
-            b"fmt " => {
-                if format_seen || !matches!(size, 16 | 18) {
-                    return Err(unsupported());
-                }
-                format_seen = true;
-                let mut format = vec![0; size];
-                read_exact(reader, &mut format)?;
-                if format[..2] != [1, 0] {
-                    return Err(unsupported());
-                }
-                if size == 18 && format[16..18] != [0, 0] {
-                    return Err(unsupported());
-                }
-            }
-            b"data" => {
-                if data_seen || !format_seen || size == 0 {
-                    return Err(corrupt());
-                }
-                data_seen = true;
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
-            b"LIST" => {
-                if list_seen {
-                    return Err(ambiguous());
-                }
-                list_seen = true;
-                metadata_bytes += size;
-                if metadata_bytes > MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let mut content = vec![0; size];
-                read_exact(reader, &mut content)?;
-                read_info(&content, &mut layout)?;
-            }
-            b"JUNK" | b"PAD " => {
-                reader
-                    .seek(SeekFrom::Current(size as i64))
-                    .map_err(|_| corrupt())?;
-            }
+            b"fmt " => read_fmt(reader, size, &mut chunks)?,
+            b"data" => read_data(reader, size, &mut chunks)?,
+            b"LIST" => read_list(reader, size, &mut chunks, &mut layout)?,
+            b"JUNK" | b"PAD " => skip(reader, size)?,
             _ => return Err(unsupported()),
         }
         if !size.is_multiple_of(2) {

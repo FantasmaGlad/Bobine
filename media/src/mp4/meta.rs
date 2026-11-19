@@ -36,6 +36,53 @@ pub(super) fn number_item(item: &[u8]) -> Result<String> {
     })
 }
 
+fn read_covers(item: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
+    for (name, data) in boxes(item)? {
+        if &name != b"data" || data.len() < 8 {
+            return Err(unsupported());
+        }
+        if data.len() - 8 > COVER_BYTES {
+            return Err(limit());
+        }
+        layout.add_picture(want_cover, || {
+            let mime = match be32(data, 0).map_err(cover_error)? {
+                13 => "image/jpeg",
+                14 => "image/png",
+                _ => return Err(cover_error(unsupported())),
+            };
+            Ok(Picture {
+                declared: Some(mime.to_owned()),
+                data: data[8..].to_vec(),
+            })
+        })?;
+    }
+    Ok(())
+}
+
+fn read_item(kind: &[u8; 4], item: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
+    let key = match kind {
+        b"\xa9nam" => "title",
+        b"\xa9ART" => "artist",
+        b"\xa9alb" => "album",
+        b"aART" => "album_artist",
+        b"\xa9day" => "date",
+        b"\xa9gen" => "genre",
+        b"trkn" => return insert(&mut layout.tags, "track", number_item(item)?),
+        b"disk" => return insert(&mut layout.tags, "disc", number_item(item)?),
+        b"covr" => return read_covers(item, layout, want_cover),
+        b"\xa9too" | b"\xa9cmt" | b"\xa9wrt" | b"\xa9grp" | b"\xa9lyr" | b"cprt" | b"desc"
+        | b"ldes" | b"cpil" | b"pgap" | b"tmpo" | b"stik" | b"rtng" | b"hdvd" => {
+            let list = boxes(item)?;
+            if !matches!(list.as_slice(), [(name, _)] if name == b"data") {
+                return Err(unsupported());
+            }
+            return Ok(());
+        }
+        _ => return Err(unsupported()),
+    };
+    insert(&mut layout.tags, key, text_item(item)?)
+}
+
 pub(super) fn read_meta(meta: &[u8], layout: &mut Layout, want_cover: bool) -> Result<()> {
     let body = meta.get(4..).ok_or_else(corrupt)?;
     let (mut handler, mut items) = (None, None);
@@ -51,54 +98,7 @@ pub(super) fn read_meta(meta: &[u8], layout: &mut Layout, want_cover: bool) -> R
         return Err(unsupported());
     }
     for (kind, item) in boxes(items.ok_or_else(corrupt)?)? {
-        let key = match &kind {
-            b"\xa9nam" => "title",
-            b"\xa9ART" => "artist",
-            b"\xa9alb" => "album",
-            b"aART" => "album_artist",
-            b"\xa9day" => "date",
-            b"\xa9gen" => "genre",
-            b"trkn" => {
-                insert(&mut layout.tags, "track", number_item(item)?)?;
-                continue;
-            }
-            b"disk" => {
-                insert(&mut layout.tags, "disc", number_item(item)?)?;
-                continue;
-            }
-            b"covr" => {
-                for (name, data) in boxes(item)? {
-                    if &name != b"data" || data.len() < 8 {
-                        return Err(unsupported());
-                    }
-                    if data.len() - 8 > COVER_BYTES {
-                        return Err(limit());
-                    }
-                    layout.add_picture(want_cover, || {
-                        let mime = match be32(data, 0).map_err(cover_error)? {
-                            13 => "image/jpeg",
-                            14 => "image/png",
-                            _ => return Err(cover_error(unsupported())),
-                        };
-                        Ok(Picture {
-                            declared: Some(mime.to_owned()),
-                            data: data[8..].to_vec(),
-                        })
-                    })?;
-                }
-                continue;
-            }
-            b"\xa9too" | b"\xa9cmt" | b"\xa9wrt" | b"\xa9grp" | b"\xa9lyr" | b"cprt" | b"desc"
-            | b"ldes" | b"cpil" | b"pgap" | b"tmpo" | b"stik" | b"rtng" | b"hdvd" => {
-                let list = boxes(item)?;
-                if !matches!(list.as_slice(), [(name, _)] if name == b"data") {
-                    return Err(unsupported());
-                }
-                continue;
-            }
-            _ => return Err(unsupported()),
-        };
-        insert(&mut layout.tags, key, text_item(item)?)?;
+        read_item(&kind, item, layout, want_cover)?;
     }
     Ok(())
 }

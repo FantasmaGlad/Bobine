@@ -30,7 +30,13 @@ fn extended_rate(bytes: &[u8; 10]) -> Result<u64> {
     Ok(value)
 }
 
-pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
+#[derive(Default)]
+struct Chunks {
+    format: Option<(u64, u64, u64)>,
+    sound: Option<u64>,
+}
+
+fn check_header<R: Read>(reader: &mut R, file_len: u64) -> Result<()> {
     let mut header = [0; 12];
     read_exact(reader, &mut header)?;
     if &header[..4] != b"FORM" || &header[8..12] != b"AIFF" {
@@ -42,24 +48,78 @@ pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layo
     if declared != file_len {
         return Err(unsupported());
     }
+    Ok(())
+}
+
+fn read_comm<R: Read>(reader: &mut R, size: usize, chunks: &mut Chunks) -> Result<()> {
+    if chunks.format.is_some() || size != 18 {
+        return Err(unsupported());
+    }
+    let mut body = [0; 18];
+    read_exact(reader, &mut body)?;
+    let channels = u64::from(u16::from_be_bytes([body[0], body[1]]));
+    let frames = u64::from(u32::from_be_bytes([body[2], body[3], body[4], body[5]]));
+    let bits = u64::from(u16::from_be_bytes([body[6], body[7]]));
+    if channels == 0 || channels > 8 || !matches!(bits, 8 | 16 | 24 | 32) {
+        return Err(unsupported());
+    }
+    let rate = extended_rate(body[8..18].try_into().map_err(|_| corrupt())?)?;
+    chunks.format = Some((frames, rate, channels * bits / 8));
+    Ok(())
+}
+
+fn read_ssnd<R: Read + Seek>(reader: &mut R, size: usize, chunks: &mut Chunks) -> Result<()> {
+    if chunks.sound.is_some() || chunks.format.is_none() || size < 8 {
+        return Err(unsupported());
+    }
+    let mut head = [0; 8];
+    read_exact(reader, &mut head)?;
+    let offset = u64::from(u32::from_be_bytes([head[0], head[1], head[2], head[3]]));
+    let data = (size as u64 - 8).checked_sub(offset).ok_or_else(corrupt)?;
+    chunks.sound = Some(data);
+    reader
+        .seek(SeekFrom::Current(size as i64 - 8))
+        .map_err(|_| corrupt())?;
+    Ok(())
+}
+
+fn read_text<R: Read>(reader: &mut R, id: &[u8], size: usize, layout: &mut Layout) -> Result<()> {
+    if size > MAX_TEXT_BYTES {
+        return Err(limit());
+    }
+    let mut body = vec![0; size];
+    read_exact(reader, &mut body)?;
+    let text = info_text(&body)?;
+    match id {
+        b"NAME" => insert(&mut layout.tags, "title", text),
+        b"AUTH" => insert(&mut layout.tags, "author", text),
+        _ => Ok(()),
+    }
+}
+
+fn finish(chunks: &Chunks, mut layout: Layout) -> Result<Layout> {
+    let ((frames, rate, frame_bytes), sound) = match (chunks.format, chunks.sound) {
+        (Some(format), Some(sound)) => (format, sound),
+        _ => return Err(corrupt()),
+    };
+    if frames == 0 {
+        return Err(corrupt());
+    }
+    if frames.checked_mul(frame_bytes) != Some(sound) {
+        return Err(ambiguous());
+    }
+    layout.duration = Duration::Exact(frames as f64 / rate as f64);
+    Ok(layout)
+}
+
+pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layout> {
+    check_header(reader, file_len)?;
     let mut layout = Layout::default();
     let mut position = 12_u64;
-    let mut format: Option<(u64, u64, u64)> = None;
-    let mut sound: Option<u64> = None;
+    let mut chunks = Chunks::default();
     for _ in 0..128 {
         if position == file_len {
-            let ((frames, rate, frame_bytes), sound) = match (format, sound) {
-                (Some(format), Some(sound)) => (format, sound),
-                _ => return Err(corrupt()),
-            };
-            if frames == 0 {
-                return Err(corrupt());
-            }
-            if frames.checked_mul(frame_bytes) != Some(sound) {
-                return Err(ambiguous());
-            }
-            layout.duration = Duration::Exact(frames as f64 / rate as f64);
-            return Ok(layout);
+            return finish(&chunks, layout);
         }
         let mut chunk = [0; 8];
         read_exact(reader, &mut chunk)?;
@@ -69,46 +129,10 @@ pub(crate) fn scan<R: Read + Seek>(reader: &mut R, file_len: u64) -> Result<Layo
             return Err(corrupt());
         }
         match &chunk[..4] {
-            b"COMM" => {
-                if format.is_some() || size != 18 {
-                    return Err(unsupported());
-                }
-                let mut body = [0; 18];
-                read_exact(reader, &mut body)?;
-                let channels = u64::from(u16::from_be_bytes([body[0], body[1]]));
-                let frames = u64::from(u32::from_be_bytes([body[2], body[3], body[4], body[5]]));
-                let bits = u64::from(u16::from_be_bytes([body[6], body[7]]));
-                if channels == 0 || channels > 8 || !matches!(bits, 8 | 16 | 24 | 32) {
-                    return Err(unsupported());
-                }
-                let rate = extended_rate(body[8..18].try_into().map_err(|_| corrupt())?)?;
-                format = Some((frames, rate, channels * bits / 8));
-            }
-            b"SSND" => {
-                if sound.is_some() || format.is_none() || size < 8 {
-                    return Err(unsupported());
-                }
-                let mut head = [0; 8];
-                read_exact(reader, &mut head)?;
-                let offset = u64::from(u32::from_be_bytes([head[0], head[1], head[2], head[3]]));
-                let data = (size as u64 - 8).checked_sub(offset).ok_or_else(corrupt)?;
-                sound = Some(data);
-                reader
-                    .seek(SeekFrom::Current(size as i64 - 8))
-                    .map_err(|_| corrupt())?;
-            }
-            b"NAME" | b"AUTH" | b"(c) " | b"ANNO" => {
-                if size > MAX_TEXT_BYTES {
-                    return Err(limit());
-                }
-                let mut body = vec![0; size];
-                read_exact(reader, &mut body)?;
-                let text = info_text(&body)?;
-                match &chunk[..4] {
-                    b"NAME" => insert(&mut layout.tags, "title", text)?,
-                    b"AUTH" => insert(&mut layout.tags, "author", text)?,
-                    _ => {}
-                }
+            b"COMM" => read_comm(reader, size, &mut chunks)?,
+            b"SSND" => read_ssnd(reader, size, &mut chunks)?,
+            id @ (b"NAME" | b"AUTH" | b"(c) " | b"ANNO") => {
+                read_text(reader, id, size, &mut layout)?
             }
             _ => return Err(unsupported()),
         }

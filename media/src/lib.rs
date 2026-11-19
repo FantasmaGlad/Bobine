@@ -60,128 +60,163 @@ fn error(id: Value, code: i32, reason: &str, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message,"data":{"reason":reason}}})
 }
 
-pub fn dispatch(raw: &[u8]) -> Value {
+fn parse_request(raw: &[u8]) -> std::result::Result<Request, Value> {
     if raw.len() > REQUEST_BYTES {
-        return error(
+        return Err(error(
             Value::Null,
             -32001,
             "limit_exceeded",
             "Request exceeds byte limit",
-        );
+        ));
     }
-    let request: Request = match serde_json::from_slice(raw) {
-        Ok(request) => request,
-        Err(_) => {
-            let (code, reason, message) = if serde_json::from_slice::<Value>(raw).is_err() {
-                (-32700, "parse_error", "Invalid JSON")
-            } else {
-                (-32600, "invalid_request", "Invalid request envelope")
-            };
-            return error(Value::Null, code, reason, message);
-        }
-    };
+    let request: Request = serde_json::from_slice(raw).map_err(|_| {
+        let (code, reason, message) = if serde_json::from_slice::<Value>(raw).is_err() {
+            (-32700, "parse_error", "Invalid JSON")
+        } else {
+            (-32600, "invalid_request", "Invalid request envelope")
+        };
+        error(Value::Null, code, reason, message)
+    })?;
     if request.jsonrpc != "2.0" || request.id == 0 || request.id > MAX_ID {
-        return error(
+        return Err(error(
             Value::Null,
             -32600,
             "invalid_request",
             "Invalid request envelope",
-        );
+        ));
     }
+    Ok(request)
+}
+
+fn hello(id: &Value, params: &str) -> std::result::Result<Value, Value> {
+    if serde_json::from_str::<Empty>(params).is_err() {
+        return Err(error(
+            id.clone(),
+            -32602,
+            "invalid_params",
+            "Invalid hello parameters",
+        ));
+    }
+    Ok(json!({
+        "protocol_version":1,
+        "binary_version":env!("CARGO_PKG_VERSION"),
+        "profiles":["radio-v1","course-duration-v1"],
+        "formats":audio::FORMATS,
+        "capabilities":{"probe_audio":true,"extract_cover":true,"experimental":true},
+        "limits":{"request_bytes":REQUEST_BYTES,"response_bytes":RESPONSE_BYTES,"cover_bytes":COVER_BYTES}
+    }))
+}
+
+fn audio_call(id: &Value, params: &str, cover_only: bool) -> std::result::Result<Value, Value> {
+    let params: AudioParams = serde_json::from_str(params).map_err(|_| {
+        error(
+            id.clone(),
+            -32602,
+            "invalid_params",
+            "Invalid audio parameters",
+        )
+    })?;
+    if !matches!(params.profile.as_str(), "radio-v1" | "course-duration-v1") {
+        return Err(error(
+            id.clone(),
+            -32602,
+            "invalid_params",
+            "Unknown audio profile",
+        ));
+    }
+    audio::inspect(&params.path, &params.profile, cover_only)
+        .map_err(|failure| error(id.clone(), -32001, failure.reason, failure.message))
+}
+
+pub fn dispatch(raw: &[u8]) -> Value {
+    let request = match parse_request(raw) {
+        Ok(request) => request,
+        Err(response) => return response,
+    };
     let id = json!(request.id);
     let params = request.params.get();
     let result = match request.method.as_str() {
-        "hello" => {
-            if serde_json::from_str::<Empty>(params).is_err() {
-                return error(id, -32602, "invalid_params", "Invalid hello parameters");
-            }
-            Ok(json!({
-                "protocol_version":1,
-                "binary_version":env!("CARGO_PKG_VERSION"),
-                "profiles":["radio-v1","course-duration-v1"],
-                "formats":audio::FORMATS,
-                "capabilities":{"probe_audio":true,"extract_cover":true,"experimental":true},
-                "limits":{"request_bytes":REQUEST_BYTES,"response_bytes":RESPONSE_BYTES,"cover_bytes":COVER_BYTES}
-            }))
-        }
-        "probe_audio" | "extract_cover" => {
-            let params: AudioParams = match serde_json::from_str(params) {
-                Ok(params) => params,
-                Err(_) => return error(id, -32602, "invalid_params", "Invalid audio parameters"),
-            };
-            if !matches!(params.profile.as_str(), "radio-v1" | "course-duration-v1") {
-                return error(id, -32602, "invalid_params", "Unknown audio profile");
-            }
-            audio::inspect(
-                &params.path,
-                &params.profile,
-                request.method == "extract_cover",
-            )
-        }
-        _ => return error(id, -32601, "method_not_found", "Unknown method"),
+        "hello" => hello(&id, params),
+        "probe_audio" => audio_call(&id, params, false),
+        "extract_cover" => audio_call(&id, params, true),
+        _ => Err(error(
+            id.clone(),
+            -32601,
+            "method_not_found",
+            "Unknown method",
+        )),
     };
     match result {
         Ok(result) => json!({"jsonrpc":"2.0","id":id,"result":result}),
-        Err(failure) => error(id, -32001, failure.reason, failure.message),
+        Err(response) => response,
     }
 }
 
-pub fn serve<R: BufRead, W: Write>(mut reader: R, mut writer: W) -> io::Result<()> {
+fn read_request<R: BufRead>(reader: &mut R) -> io::Result<Option<(Vec<u8>, bool)>> {
+    let mut line = Vec::with_capacity(1024);
+    let mut oversized = false;
+    let mut received = false;
     loop {
-        let mut line = Vec::with_capacity(1024);
-        let mut oversized = false;
-        let mut received = false;
-        loop {
-            let chunk = reader.fill_buf()?;
-            if chunk.is_empty() {
-                break;
-            }
-            received = true;
-            let newline = chunk.iter().position(|&byte| byte == b'\n');
-            let used = newline.map_or(chunk.len(), |pos| pos + 1);
-            let payload = if newline.is_some() { used - 1 } else { used };
-            if !oversized {
-                if line.len().saturating_add(payload) <= REQUEST_BYTES + 1 {
-                    line.extend_from_slice(&chunk[..payload]);
-                } else {
-                    oversized = true;
-                    line.clear();
-                }
-            }
-            reader.consume(used);
-            if newline.is_some() {
-                break;
+        let chunk = reader.fill_buf()?;
+        if chunk.is_empty() {
+            break;
+        }
+        received = true;
+        let newline = chunk.iter().position(|&byte| byte == b'\n');
+        let used = newline.map_or(chunk.len(), |pos| pos + 1);
+        let payload = if newline.is_some() { used - 1 } else { used };
+        if !oversized {
+            if line.len().saturating_add(payload) <= REQUEST_BYTES + 1 {
+                line.extend_from_slice(&chunk[..payload]);
+            } else {
+                oversized = true;
+                line.clear();
             }
         }
-        if !received {
-            return Ok(());
+        reader.consume(used);
+        if newline.is_some() {
+            break;
         }
-        if line.last() == Some(&b'\r') {
-            line.pop();
-        }
-        let response = if oversized || line.len() > REQUEST_BYTES {
-            error(
-                Value::Null,
-                -32001,
-                "limit_exceeded",
-                "Request exceeds byte limit",
-            )
-        } else {
-            dispatch(&line)
-        };
-        let mut encoded = serde_json::to_vec(&response)?;
-        if encoded.len() > RESPONSE_BYTES {
-            encoded = serde_json::to_vec(&error(
-                response["id"].clone(),
-                -32001,
-                "limit_exceeded",
-                "Response exceeds byte limit",
-            ))?;
-        }
-        writer.write_all(&encoded)?;
+    }
+    if !received {
+        return Ok(None);
+    }
+    if line.last() == Some(&b'\r') {
+        line.pop();
+    }
+    Ok(Some((line, oversized)))
+}
+
+fn encode_response(line: &[u8], oversized: bool) -> io::Result<Vec<u8>> {
+    let response = if oversized || line.len() > REQUEST_BYTES {
+        error(
+            Value::Null,
+            -32001,
+            "limit_exceeded",
+            "Request exceeds byte limit",
+        )
+    } else {
+        dispatch(line)
+    };
+    let encoded = serde_json::to_vec(&response)?;
+    if encoded.len() <= RESPONSE_BYTES {
+        return Ok(encoded);
+    }
+    Ok(serde_json::to_vec(&error(
+        response["id"].clone(),
+        -32001,
+        "limit_exceeded",
+        "Response exceeds byte limit",
+    ))?)
+}
+
+pub fn serve<R: BufRead, W: Write>(mut reader: R, mut writer: W) -> io::Result<()> {
+    while let Some((line, oversized)) = read_request(&mut reader)? {
+        writer.write_all(&encode_response(&line, oversized)?)?;
         writer.write_all(b"\n")?;
         writer.flush()?;
     }
+    Ok(())
 }
 
 #[cfg(test)]
