@@ -1,4 +1,5 @@
 import os
+import shlex
 import socket
 import stat
 import subprocess
@@ -44,8 +45,10 @@ def port_1903_is_free() -> bool:
 class SmokeInstalledBackendTests(unittest.TestCase):
     def run_smoke(self, body: str, attempts: int = 8) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "backend.py"
+            script.write_text(textwrap.dedent(body))
             backend = Path(tmp) / "BobineBackend"
-            backend.write_text(f"#!{sys.executable}\n" + textwrap.dedent(body))
+            backend.write_text(f"#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(script))} \"$@\"\n")
             backend.chmod(backend.stat().st_mode | stat.S_IXUSR)
             env = dict(os.environ, BOBINE_SMOKE_ATTEMPTS=str(attempts))
             return subprocess.run(["bash", str(SMOKE), str(backend)], env=env, capture_output=True, text=True, timeout=120)
