@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Icon from "@/components/Icon";
 import SearchBox from "@/components/SearchBox";
 import { matchesQuery } from "@/lib/searchText";
+import PickerItem from "./PickerItem";
 import type { AudioCourseSummary, AudioPlaylistSummary } from "./types";
 
 interface CoachPickerProps {
@@ -16,6 +17,34 @@ interface CoachPickerProps {
   launchCourse: (id: number) => void;
   launchAudioPlaylist: (id: number) => void;
   children?: React.ReactNode;
+}
+type Translate = CoachPickerProps["t"];
+
+function PickerList({ t, tab, loading, courses, audioPlaylists, launchCourse, launchAudioPlaylist }: {
+  t: Translate; tab: "courses" | "playlists"; loading: boolean; courses: AudioCourseSummary[]; audioPlaylists: AudioPlaylistSummary[];
+  launchCourse: (id: number) => void; launchAudioPlaylist: (id: number) => void;
+}) {
+  if (tab === "courses") {
+    if (loading) return <p className="live-empty">{t("coach.loadingCourses")}</p>;
+    if (courses.length === 0) return <p className="live-empty">{t("coach.noCoursesAvailable")}</p>;
+    return (
+      <>
+        {courses.map((c, i) => (
+          <PickerItem key={c.id} index={i} title={c.title} onLaunch={() => launchCourse(c.id)}
+            meta={<>{c.program || t("coach.otherProgram")} · {t("coach.tracksCount", { count: c.track_count })}</>} />
+        ))}
+      </>
+    );
+  }
+  if (audioPlaylists.length === 0) return <p className="live-empty">{t("coach.noPlaylistsAvailable")}</p>;
+  return (
+    <>
+      {audioPlaylists.map((p, i) => (
+        <PickerItem key={p.id} index={i} title={p.name} onLaunch={() => launchAudioPlaylist(p.id)}
+          meta={t("coach.tracksInPlaylist", { count: p.item_count })} />
+      ))}
+    </>
+  );
 }
 
 export default function CoachPicker({
@@ -71,51 +100,8 @@ export default function CoachPicker({
           </div>
         </div>
         <div className="coach-picker-list">
-          {pickerTab === "courses" ? (
-            loading ? (
-              <p className="live-empty">{t("coach.loadingCourses")}</p>
-            ) : filteredCourses.length === 0 ? (
-              <p className="live-empty">{t("coach.noCoursesAvailable")}</p>
-            ) : (
-              filteredCourses.map((c, i) => (
-                <button
-                  key={c.id}
-                  className="coach-course-item olc-press olc-card-hover olc-anim-in"
-                  style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
-                  onClick={() => launchCourse(c.id)}
-                >
-                  <span className="coach-course-item-accent" style={{ background: "var(--accent-primary)" }} />
-                  <span className="coach-course-item-body">
-                    <span className="coach-course-item-title">{c.title}</span>
-                    <span className="coach-course-item-meta">
-                      {c.program || t("coach.otherProgram")} · {t("coach.tracksCount", { count: c.track_count })}
-                    </span>
-                  </span>
-                  <Icon name="play_circle" size={22} />
-                </button>
-              ))
-            )
-          ) : filteredAudioPlaylists.length === 0 ? (
-            <p className="live-empty">{t("coach.noPlaylistsAvailable")}</p>
-          ) : (
-            filteredAudioPlaylists.map((p, i) => (
-              <button
-                key={p.id}
-                className="coach-course-item olc-press olc-card-hover olc-anim-in"
-                style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
-                onClick={() => launchAudioPlaylist(p.id)}
-              >
-                <span className="coach-course-item-accent" style={{ background: "var(--accent-primary)" }} />
-                <span className="coach-course-item-body">
-                  <span className="coach-course-item-title">{p.name}</span>
-                  <span className="coach-course-item-meta">
-                    {t("coach.tracksInPlaylist", { count: p.item_count })}
-                  </span>
-                </span>
-                <Icon name="play_circle" size={22} />
-              </button>
-            ))
-          )}
+          <PickerList t={t} tab={pickerTab} loading={loading} courses={filteredCourses} audioPlaylists={filteredAudioPlaylists}
+            launchCourse={launchCourse} launchAudioPlaylist={launchAudioPlaylist} />
         </div>
         {children}
       </div>
