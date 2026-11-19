@@ -10,16 +10,22 @@ import type { ShowToast } from "@/lib/useToast";
 
 import type { Video, VideoSubtitleItem } from "./types";
 
-export function useVideoStudio(video: Video, showToast: ShowToast, onUpdated: (video: Video) => void) {
+type Translate = ReturnType<typeof useAppSettings>["t"];
+
+async function normalizeVideo(base: string, t: Translate, showToast: ShowToast) {
+  try {
+    const res = await fetch(getApiUrl(`${base}/normalize`), { method: "POST" });
+    const data = await res.json();
+    if (res.ok) showToast(data.message, "success");
+    else showToast(errorMessage(data, t("library.normalizeError")), "error");
+  } catch {
+    showToast(t("library.normalizeNetworkError"), "error");
+  }
+}
+
+function useVideoSubtitles(base: string, showToast: ShowToast) {
   const { t } = useAppSettings();
-  const [title, setTitle] = useState(video.title);
-  const [program, setProgram] = useState(video.program || "");
-  const [release, setRelease] = useState(video.release || "");
-  const [description, setDescription] = useState(video.description || "");
-  const [saving, setSaving] = useState(false);
-  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [subtitles, setSubtitles] = useState<VideoSubtitleItem[]>([]);
-  const base = `/videos/${video.id}`;
 
   const fetchSubtitles = useCallback(() => fetch(getApiUrl(`${base}/subtitles`))
     .then((res) => (res.ok ? res.json() : null))
@@ -31,11 +37,6 @@ export function useVideoStudio(video: Video, showToast: ShowToast, onUpdated: (v
   useEffect(() => {
     void fetchSubtitles();
   }, [fetchSubtitles]);
-
-  const saveFailed = async (res: Response) => {
-    const errData = await res.json();
-    showToast(t("library.saveErrorDetail", { detail: errorMessage(errData, t("library.saveErrorFallback")) }), "error");
-  };
 
   const uploadSubtitle = async (file: File) => {
     try {
@@ -68,44 +69,12 @@ export function useVideoStudio(video: Video, showToast: ShowToast, onUpdated: (v
     }
   };
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch(getApiUrl(base), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          program: program.trim() || null,
-          release: release || null,
-          description: formatCleanDescription(description) || null,
-        }),
-      });
-      if (res.ok) {
-        showToast(t("library.metadataSaved"));
-        onUpdated(await res.json());
-      } else {
-        await saveFailed(res);
-      }
-    } catch {
-      showToast(t("library.saveConnectionError"), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
+  return { subtitles, uploadSubtitle, deleteSubtitle };
+}
 
-  const normalize = async () => {
-    try {
-      const res = await fetch(getApiUrl(`${base}/normalize`), { method: "POST" });
-      const data = await res.json();
-      if (res.ok) showToast(data.message, "success");
-      else showToast(errorMessage(data, t("library.normalizeError")), "error");
-    } catch {
-      showToast(t("library.normalizeNetworkError"), "error");
-    }
-  };
-
+function useThumbnailUpload(base: string, showToast: ShowToast, onUpdated: (video: Video) => void, saveFailed: (res: Response) => Promise<void>) {
+  const { t } = useAppSettings();
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const uploadThumbnail = async (file: File) => {
     setUploadingThumbnail(true);
     try {
@@ -124,6 +93,50 @@ export function useVideoStudio(video: Video, showToast: ShowToast, onUpdated: (v
       setUploadingThumbnail(false);
     }
   };
+
+  return { uploadingThumbnail, uploadThumbnail };
+}
+
+export function useVideoStudio(video: Video, showToast: ShowToast, onUpdated: (video: Video) => void) {
+  const { t } = useAppSettings();
+  const [title, setTitle] = useState(video.title);
+  const [program, setProgram] = useState(video.program || "");
+  const [release, setRelease] = useState(video.release || "");
+  const [description, setDescription] = useState(video.description || "");
+  const [saving, setSaving] = useState(false);
+  const base = `/videos/${video.id}`;
+  const { subtitles, uploadSubtitle, deleteSubtitle } = useVideoSubtitles(base, showToast);
+
+  const saveFailed = async (res: Response) => {
+    const errData = await res.json();
+    showToast(t("library.saveErrorDetail", { detail: errorMessage(errData, t("library.saveErrorFallback")) }), "error");
+  };
+
+  const { uploadingThumbnail, uploadThumbnail } = useThumbnailUpload(base, showToast, onUpdated, saveFailed);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch(getApiUrl(base), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, program: program.trim() || null, release: release || null, description: formatCleanDescription(description) || null }),
+      });
+      if (res.ok) {
+        showToast(t("library.metadataSaved"));
+        onUpdated(await res.json());
+      } else {
+        await saveFailed(res);
+      }
+    } catch {
+      showToast(t("library.saveConnectionError"), "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const normalize = () => normalizeVideo(base, t, showToast);
 
   return {
     fields: { title, program, release, description },

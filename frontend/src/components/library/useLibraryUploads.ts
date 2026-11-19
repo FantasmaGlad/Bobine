@@ -21,11 +21,27 @@ function specsFor(files: File[], subtitles: File[], programs: string[]): Pending
   });
 }
 
+function useVideoDropZone(accept: (files: File[]) => void) {
+  const [dragActive, setDragActive] = useState(false);
+  const onDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    accept(Array.from(e.dataTransfer.files));
+  };
+  return { dragActive, onDrag, onDrop };
+}
+
 export function useLibraryUploads(programs: () => string[], showToast: ShowToast) {
   const { t } = useAppSettings();
   const { addUploads } = useUploadManager();
   const [specs, setSpecs] = useState<PendingSpec[]>([]);
-  const [dragActive, setDragActive] = useState(false);
 
   const attachSubtitles = (subtitles: File[]) => {
     setSpecs((prev) => {
@@ -51,19 +67,7 @@ export function useLibraryUploads(programs: () => string[], showToast: ShowToast
     }
   };
 
-  const onDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
-    else if (e.type === "dragleave") setDragActive(false);
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    accept(Array.from(e.dataTransfer.files));
-  };
+  const { dragActive, onDrag, onDrop } = useVideoDropZone(accept);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
