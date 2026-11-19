@@ -280,59 +280,29 @@ class TestMetricsFlow(unittest.TestCase):
         self.assertIsInstance(wh, float)
 
     def test_power_watts_multi_os_profiles(self):
-        from unittest.mock import patch
         from collections import namedtuple
+        from contextlib import ExitStack
+        from unittest.mock import patch
 
-        BatteryMock = namedtuple("BatteryMock", ["percent", "secsleft", "power_plugged"])
-
-        with patch("sys.platform", "darwin"), \
-             patch("psutil.sensors_battery", return_value=None), \
-             patch("subprocess.check_output", side_effect=Exception("no battery")):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 5.0)
-            self.assertLessEqual(w, 100.0)
-
-        with patch("sys.platform", "darwin"), \
-             patch("psutil.sensors_battery", return_value=BatteryMock(100.0, -2, True)), \
-             patch("subprocess.check_output", side_effect=Exception("skip ioreg")):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 7.0)
-            self.assertLessEqual(w, 65.0)
-
-        with patch("sys.platform", "darwin"), \
-             patch("psutil.sensors_battery", return_value=BatteryMock(80.0, 12000, False)), \
-             patch("subprocess.check_output", side_effect=Exception("skip ioreg")):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 3.0)
-            self.assertLessEqual(w, 65.0)
-
-        with patch("sys.platform", "win32"), \
-             patch("psutil.sensors_battery", return_value=None):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 20.0)
-            self.assertLessEqual(w, 450.0)
-
-        with patch("sys.platform", "win32"), \
-             patch("psutil.sensors_battery", return_value=BatteryMock(95.0, -2, True)):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 7.0)
-            self.assertLessEqual(w, 65.0)
-
-        with patch("sys.platform", "win32"), \
-             patch("psutil.sensors_battery", return_value=BatteryMock(50.0, -2, True)):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 30.0)
-
-        with patch("sys.platform", "linux"), \
-             patch("psutil.sensors_battery", return_value=None), \
-             patch("glob.glob", return_value=[]):
-            w = get_power_watts()
-            self.assertIsNotNone(w)
-            self.assertGreaterEqual(w, 3.5)
-            self.assertLessEqual(w, 90.0)
+        battery = namedtuple("BatteryMock", ["percent", "secsleft", "power_plugged"])
+        no_ioreg = {"subprocess.check_output": {"side_effect": Exception("skip ioreg")}}
+        cases = [
+            ("darwin", None, {"subprocess.check_output": {"side_effect": Exception("no battery")}}, 5.0, 100.0),
+            ("darwin", battery(100.0, -2, True), no_ioreg, 7.0, 65.0),
+            ("darwin", battery(80.0, 12000, False), no_ioreg, 3.0, 65.0),
+            ("win32", None, {}, 20.0, 450.0),
+            ("win32", battery(95.0, -2, True), {}, 7.0, 65.0),
+            ("win32", battery(50.0, -2, True), {}, 30.0, None),
+            ("linux", None, {"glob.glob": {"return_value": []}}, 3.5, 90.0),
+        ]
+        for platform, sensors, extra, low, high in cases:
+            with ExitStack() as stack:
+                stack.enter_context(patch("sys.platform", platform))
+                stack.enter_context(patch("psutil.sensors_battery", return_value=sensors))
+                for target, kwargs in extra.items():
+                    stack.enter_context(patch(target, **kwargs))
+                w = get_power_watts()
+            self.assertIsNotNone(w, platform)
+            self.assertGreaterEqual(w, low, platform)
+            if high is not None:
+                self.assertLessEqual(w, high, platform)

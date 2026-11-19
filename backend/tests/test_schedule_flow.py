@@ -99,136 +99,70 @@ class TestScheduleFlow(unittest.IsolatedAsyncioTestCase):
         self.db.commit()
         self.db.close()
 
+    def _video_input(self, **fields):
+        return ScheduleInput(target_type=ScheduleTargetType.video, target_id=self.video1.id, **fields)
+
+    def _recurring_input(self, days, time_of_day):
+        return ScheduleInput(
+            target_type=ScheduleTargetType.playlist,
+            target_id=self.playlist.id,
+            schedule_type=ScheduleType.recurring,
+            days_of_week=days,
+            time_of_day=time_of_day,
+        )
+
+    async def _assert_invalid_inputs_rejected(self, future):
+        invalid = [
+            self._video_input(schedule_type=ScheduleType.once, run_at=None),
+            self._video_input(schedule_type=ScheduleType.once, run_at=datetime.now(timezone.utc) - timedelta(hours=1)),
+            self._video_input(schedule_type=ScheduleType.recurring, days_of_week=None, time_of_day="10:00"),
+            self._video_input(schedule_type=ScheduleType.recurring, days_of_week=[7], time_of_day="10:00"),
+            self._video_input(schedule_type=ScheduleType.recurring, days_of_week=[1], time_of_day="9:00"),
+            ScheduleInput(
+                target_type=ScheduleTargetType.video, target_id=999999, schedule_type=ScheduleType.once, run_at=future,
+            ),
+        ]
+        for payload in invalid:
+            with self.assertRaises(HTTPException):
+                await create_schedule(payload, self.db)
+
+    async def _assert_recurring_lifecycle(self):
+        recurring = await create_schedule(self._recurring_input([1, 3], "18:30"), self.db)
+        self.assertEqual(recurring["days_of_week"], [1, 3])
+        self.assertEqual(recurring["time_of_day"], "18:30")
+        self.assertEqual(recurring["target_title"], "Enchainement test")
+        self.assertEqual(len(list_schedules(db=self.db, page=whole())), 2)
+        self.assertEqual(get_schedule(recurring["id"], self.db)["id"], recurring["id"])
+        updated = await update_schedule(recurring["id"], self._recurring_input([2], "09:00"), self.db)
+        self.assertEqual(updated["days_of_week"], [2])
+        self.assertEqual(updated["time_of_day"], "09:00")
+        return recurring
+
     async def test_schedule_crud_and_validation(self):
         future = datetime.now(timezone.utc) + timedelta(days=3)
-        once = await create_schedule(
-            ScheduleInput(
-                target_type=ScheduleTargetType.video,
-                target_id=self.video1.id,
-                schedule_type=ScheduleType.once,
-                run_at=future,
-            ),
-            self.db,
-        )
+        once = await create_schedule(self._video_input(schedule_type=ScheduleType.once, run_at=future), self.db)
         self.assertIsNotNone(once["id"])
         self.assertEqual(once["target_title"], "RPM 98")
         self.assertTrue(once["active"])
-
         with self.assertRaises(HTTPException):
             create_override(
                 once["id"],
                 OverrideInput(occurrence_date="2026-08-04", action=OverrideAction.cancelled),
                 self.db,
             )
-
-        recurring = await create_schedule(
-            ScheduleInput(
-                target_type=ScheduleTargetType.playlist,
-                target_id=self.playlist.id,
-                schedule_type=ScheduleType.recurring,
-                days_of_week=[1, 3],
-                time_of_day="18:30",
-            ),
-            self.db,
-        )
-        self.assertEqual(recurring["days_of_week"], [1, 3])
-        self.assertEqual(recurring["time_of_day"], "18:30")
-        self.assertEqual(recurring["target_title"], "Enchainement test")
-
-        self.assertEqual(len(list_schedules(db=self.db, page=whole())), 2)
-        self.assertEqual(get_schedule(recurring["id"], self.db)["id"], recurring["id"])
-
-        updated = await update_schedule(
-            recurring["id"],
-            ScheduleInput(
-                target_type=ScheduleTargetType.playlist,
-                target_id=self.playlist.id,
-                schedule_type=ScheduleType.recurring,
-                days_of_week=[2],
-                time_of_day="09:00",
-            ),
-            self.db,
-        )
-        self.assertEqual(updated["days_of_week"], [2])
-        self.assertEqual(updated["time_of_day"], "09:00")
-
-        with self.assertRaises(HTTPException):
-            await create_schedule(
-                ScheduleInput(
-                    target_type=ScheduleTargetType.video,
-                    target_id=self.video1.id,
-                    schedule_type=ScheduleType.once,
-                    run_at=None,
-                ),
-                self.db,
-            )
-        with self.assertRaises(HTTPException):
-            await create_schedule(
-                ScheduleInput(
-                    target_type=ScheduleTargetType.video,
-                    target_id=self.video1.id,
-                    schedule_type=ScheduleType.once,
-                    run_at=datetime.now(timezone.utc) - timedelta(hours=1),
-                ),
-                self.db,
-            )
-        with self.assertRaises(HTTPException):
-            await create_schedule(
-                ScheduleInput(
-                    target_type=ScheduleTargetType.video,
-                    target_id=self.video1.id,
-                    schedule_type=ScheduleType.recurring,
-                    days_of_week=None,
-                    time_of_day="10:00",
-                ),
-                self.db,
-            )
-        with self.assertRaises(HTTPException):
-            await create_schedule(
-                ScheduleInput(
-                    target_type=ScheduleTargetType.video,
-                    target_id=self.video1.id,
-                    schedule_type=ScheduleType.recurring,
-                    days_of_week=[7],
-                    time_of_day="10:00",
-                ),
-                self.db,
-            )
-        with self.assertRaises(HTTPException):
-            await create_schedule(
-                ScheduleInput(
-                    target_type=ScheduleTargetType.video,
-                    target_id=self.video1.id,
-                    schedule_type=ScheduleType.recurring,
-                    days_of_week=[1],
-                    time_of_day="9:00",
-                ),
-                self.db,
-            )
-        with self.assertRaises(HTTPException):
-            await create_schedule(
-                ScheduleInput(
-                    target_type=ScheduleTargetType.video,
-                    target_id=999999,
-                    schedule_type=ScheduleType.once,
-                    run_at=future,
-                ),
-                self.db,
-            )
-
+        recurring = await self._assert_recurring_lifecycle()
+        await self._assert_invalid_inputs_rejected(future)
         override = create_override(
             recurring["id"],
             OverrideInput(occurrence_date="2026-08-04", action=OverrideAction.cancelled),
             self.db,
         )
         self.assertEqual(override["action"], OverrideAction.cancelled)
-
         await delete_schedule(recurring["id"], self.db)
         self.assertIsNone(self.db.query(Schedule).filter_by(id=recurring["id"]).first())
         self.assertEqual(
             self.db.query(ScheduleOverride).filter_by(schedule_id=recurring["id"]).count(), 0
         )
-
         await delete_schedule(once["id"], self.db)
 
     async def test_expand_occurrences_with_overrides(self):

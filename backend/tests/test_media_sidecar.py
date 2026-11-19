@@ -11,10 +11,7 @@ from app.utils import media_protocol
 from app.utils import media_sidecar as media
 
 
-@pytest.fixture
-def child_factory(tmp_path, monkeypatch):
-    script = tmp_path / "fake media worker.py"
-    script.write_text(textwrap.dedent('''
+FAKE_WORKER = textwrap.dedent('''
         import base64, json, os, sys, time
         mode = sys.argv[1]
         for line in sys.stdin:
@@ -82,7 +79,13 @@ def child_factory(tmp_path, monkeypatch):
                 sys.stdout.write(json.dumps(reply) + chr(13) + chr(10)); sys.stdout.flush()
             else: print(json.dumps(reply), flush=True)
             if method == 'hello' and mode == 'blocked_stdin': time.sleep(5)
-    '''))
+''')
+
+
+@pytest.fixture
+def child_factory(tmp_path, monkeypatch):
+    script = tmp_path / "fake media worker.py"
+    script.write_text(FAKE_WORKER)
     clients = []
     children = []
     original = subprocess.Popen

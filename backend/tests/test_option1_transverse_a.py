@@ -75,76 +75,50 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
             self.assertIn("can_auto_apply", res)
             self.assertIsNone(res["download_url"])
 
-    async def test_check_updates_profile_asset_matching(self):
-        mock_release = {
-            "tag_name": "V9.9.9",
-            "name": "Bobine V9.9.9",
-            "body": "Release notes test",
-            "published_at": "2026-09-06T12:00:00Z",
-            "html_url": "https://github.com/FantasmaGlad/Bobine/releases/tag/V9.9.9",
-            "assets": [
-                {
-                    "name": "Bobine-Setup-9.9.9.exe",
-                    "browser_download_url": "https://github.com/FantasmaGlad/Bobine/releases/download/V9.9.9/Bobine-Setup-9.9.9.exe",
-                    "size": 65000000,
-                },
-                {
-                    "name": "bobine_9.9.9_amd64.deb",
-                    "browser_download_url": "https://github.com/FantasmaGlad/Bobine/releases/download/V9.9.9/bobine_9.9.9_amd64.deb",
-                    "size": 48000000,
-                },
-                {
-                    "name": "Bobine-9.9.9.dmg",
-                    "browser_download_url": "https://github.com/FantasmaGlad/Bobine/releases/download/V9.9.9/Bobine-9.9.9.dmg",
-                    "size": 55000000,
-                },
-            ],
-        }
+    _RELEASE = {
+        "tag_name": "V9.9.9",
+        "name": "Bobine V9.9.9",
+        "body": "Release notes test",
+        "published_at": "2026-09-06T12:00:00Z",
+        "html_url": "https://github.com/FantasmaGlad/Bobine/releases/tag/V9.9.9",
+        "assets": [
+            {"name": name, "size": size,
+             "browser_download_url": f"https://github.com/FantasmaGlad/Bobine/releases/download/V9.9.9/{name}"}
+            for name, size in (
+                ("Bobine-Setup-9.9.9.exe", 65000000),
+                ("bobine_9.9.9_amd64.deb", 48000000),
+                ("Bobine-9.9.9.dmg", 55000000),
+            )
+        ],
+    }
+    _PROFILE_CASES = (
+        ("windows", True, "Bobine-Setup-9.9.9.exe"),
+        ("linux-desktop", True, "bobine_9.9.9_amd64.deb"),
+        ("macos", False, "Bobine-9.9.9.dmg"),
+        ("linux-headless", True, None),
+    )
 
+    async def _check_updates_as(self, profile, auto_apply):
         mock_resp = MagicMock()
         mock_resp.status = 200
-        mock_resp.read.return_value = json.dumps(mock_release).encode("utf-8")
+        mock_resp.read.return_value = json.dumps(self._RELEASE).encode("utf-8")
         mock_resp.__enter__.return_value = mock_resp
-
         with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.api.routes.updates.get_deployment_profile", return_value="windows"), \
+             patch("app.api.routes.updates.get_deployment_profile", return_value=profile), \
              patch("app.api.routes.updates.get_profile_handler") as mock_handler:
-            mock_handler.return_value.can_auto_apply.return_value = True
+            mock_handler.return_value.can_auto_apply.return_value = auto_apply
             mock_handler.return_value.is_store_managed.return_value = False
-            res = await check_updates(db=SessionLocal())
-            self.assertTrue(res["online"])
-            self.assertTrue(res["has_update"])
-            self.assertTrue(res["can_auto_apply"])
-            self.assertEqual(res["asset_name"], "Bobine-Setup-9.9.9.exe")
-            self.assertTrue(res["download_url"].endswith(".exe"))
+            return await check_updates(db=SessionLocal())
 
-        with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.api.routes.updates.get_deployment_profile", return_value="linux-desktop"), \
-             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
-            mock_handler.return_value.can_auto_apply.return_value = True
-            mock_handler.return_value.is_store_managed.return_value = False
-            res = await check_updates(db=SessionLocal())
-            self.assertEqual(res["asset_name"], "bobine_9.9.9_amd64.deb")
-            self.assertTrue(res["download_url"].endswith(".deb"))
-
-        with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.api.routes.updates.get_deployment_profile", return_value="macos"), \
-             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
-            mock_handler.return_value.can_auto_apply.return_value = False
-            mock_handler.return_value.is_store_managed.return_value = False
-            res = await check_updates(db=SessionLocal())
-            self.assertFalse(res["can_auto_apply"])
-            self.assertEqual(res["asset_name"], "Bobine-9.9.9.dmg")
-            self.assertTrue(res["download_url"].endswith(".dmg"))
-
-        with patch("urllib.request.urlopen", return_value=mock_resp), \
-             patch("app.api.routes.updates.get_deployment_profile", return_value="linux-headless"), \
-             patch("app.api.routes.updates.get_profile_handler") as mock_handler:
-            mock_handler.return_value.can_auto_apply.return_value = True
-            mock_handler.return_value.is_store_managed.return_value = False
-            res = await check_updates(db=SessionLocal())
-            self.assertTrue(res["can_auto_apply"])
-
+    async def test_check_updates_profile_asset_matching(self):
+        for profile, auto_apply, asset in self._PROFILE_CASES:
+            res = await self._check_updates_as(profile, auto_apply)
+            self.assertTrue(res["online"], profile)
+            self.assertTrue(res["has_update"], profile)
+            self.assertEqual(bool(res["can_auto_apply"]), auto_apply, profile)
+            if asset is not None:
+                self.assertEqual(res["asset_name"], asset)
+                self.assertTrue(res["download_url"].endswith(asset.rsplit(".", 1)[1]))
 
     def test_export_backup(self):
         response = export_backup()

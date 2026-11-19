@@ -85,10 +85,7 @@ def test_is_compressible_media_type(content_type, expected):
     assert is_compressible_media_type(content_type) is expected
 
 
-def _api_app() -> FastAPI:
-    api = FastAPI()
-    api.add_middleware(ApiCompressionMiddleware)
-
+def _add_json_routes(api: FastAPI) -> None:
     @api.get("/api/tracks")
     def tracks():
         return BIG_ROWS
@@ -105,6 +102,9 @@ def _api_app() -> FastAPI:
     def stream_json():
         return JSONResponse(BIG_ROWS)
 
+
+
+def _add_raw_routes(api: FastAPI) -> None:
     @api.get("/api/thumbnails/a.svg")
     def thumbnail():
         return Response("<svg>" + "x" * 5000 + "</svg>", media_type="image/svg+xml")
@@ -125,6 +125,9 @@ def _api_app() -> FastAPI:
     def download():
         return JSONResponse(BIG_ROWS, headers={"Content-Disposition": 'attachment; filename="x.json"'})
 
+
+
+def _add_streaming_routes(api: FastAPI) -> None:
     @api.get("/api/partial")
     def partial():
         return Response(json.dumps(BIG_ROWS), status_code=206, media_type="application/json")
@@ -147,6 +150,13 @@ def _api_app() -> FastAPI:
         await websocket.send_text("z" * 5000)
         await websocket.close()
 
+
+def _api_app() -> FastAPI:
+    api = FastAPI()
+    api.add_middleware(ApiCompressionMiddleware)
+    _add_json_routes(api)
+    _add_raw_routes(api)
+    _add_streaming_routes(api)
     return api
 
 
