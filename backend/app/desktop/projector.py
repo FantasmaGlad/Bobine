@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import logging
 import os
-import platform
 import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path, PureWindowsPath
 from typing import Callable
+from app.desktop import system as desktop_system
 from app.desktop.chromium import OFFLINE_FLAGS
 from .display_report import _resolve_url
 from .monitors import Monitor
@@ -25,30 +24,8 @@ def find_kiosk_browser(
     environ: dict | None = None,
 ) -> str | None:
     """Navigateur Chromium utilisable en kiosque (pur, testable)."""
-    system = system or platform.system()
     environ = os.environ if environ is None else environ
-    if system == "Windows":
-        found = which("msedge")
-        if found:
-            return found
-        for base_var in ("ProgramFiles(x86)", "ProgramFiles", "LocalAppData"):
-            base = environ.get(base_var)
-            if not base:
-                continue
-            for relative in (
-                r"Microsoft\Edge\Application\msedge.exe",
-                r"Google\Chrome\Application\chrome.exe",
-            ):
-                candidate = str(Path(base) / relative)
-                if exists(candidate):
-                    return candidate
-        return which("chrome")
-    if system == "Linux":
-        for candidate in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser", "msedge"):
-            found = which(candidate)
-            if found:
-                return found
-    return None
+    return desktop_system.for_name(system or desktop_system.system_name()).find_kiosk_browser(which, exists, environ)
 
 
 def find_native_projector(
@@ -58,34 +35,12 @@ def find_native_projector(
     exists: Callable[[str], bool] = os.path.exists,
 ) -> str | None:
     """Fenêtre native `bobine-projector` : Remplace le navigateur piloté (WKWebView sur macOS, WebView2 sur Windows, WebKitGTK sur Linux) pour éliminer les conflits de positionnement multi-écrans."""
-    system = system or platform.system()
     environ = os.environ if environ is None else environ
     override = environ.get("BOBINE_PROJECTOR_BIN")
     if override and exists(override):
         return override
-
-    executable = executable or sys.executable
-    path_cls = PureWindowsPath if system == "Windows" else Path
-    exe_path = path_cls(executable)
-    exe_dir = exe_path.parent
-
-    bin_name = "bobine-projector.exe" if system == "Windows" else "bobine-projector"
-
-    if system == "Darwin":
-        for candidate in (exe_dir / "bobine-projector", exe_dir.parent / "Resources" / "bobine-projector"):
-            if exists(str(candidate)):
-                return str(candidate)
-    else:
-        candidates = [
-            exe_dir / bin_name,
-            exe_dir / "projector" / "target" / "release" / bin_name,
-            exe_dir.parent / "projector" / "target" / "release" / bin_name,
-        ]
-        for candidate in candidates:
-            if exists(str(candidate)):
-                return str(candidate)
-
-    return None
+    implementation = desktop_system.for_name(system or desktop_system.system_name())
+    return implementation.find_native_projector(executable or sys.executable, exists)
 
 
 def build_native_projector_command(binary: str, url: str, monitor: str = "external") -> list[str]:

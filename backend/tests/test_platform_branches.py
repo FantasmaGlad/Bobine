@@ -5,9 +5,10 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parents[1]
 BRANCH = re.compile(r"sys\.platform|platform\.system\(\)|os\.name\s*[!=]=")
 REGISTRIES = {
+    "app/desktop/system/registry.py",
     "app/hardware/platforms.py",
-    "app/host/registry.py",
     "app/hardware/probe.py",
+    "app/host/registry.py",
     "app/network/registry.py",
     "app/paths/registry.py",
     "app/process/lifecycle/registry.py",
@@ -17,15 +18,7 @@ REGISTRIES = {
     "app/utils/deployment.py",
     "app/videos/encoding/registry.py",
 }
-PENDING = {
-    "app/desktop/display_report.py": 1,
-    "app/desktop/monitors.py": 1,
-    "app/desktop/projector.py": 2,
-    "app/desktop/tray_display.py": 4,
-    "app/desktop/tray_install.py": 2,
-    "app/desktop/tray_supervisor.py": 1,
-    "app/desktop/tray_updates.py": 1,
-}
+PENDING: dict[str, int] = {}
 
 
 def _branches() -> dict[str, int]:

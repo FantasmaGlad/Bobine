@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-import platform
 import threading
 import time
 import urllib.request
 from typing import Callable
+
+from app.desktop import system
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ _report_lock = threading.Lock()
 
 
 def _source_label() -> str:
-    return {"Linux": "linux", "Windows": "windows", "Darwin": "macos"}.get(platform.system(), "linux")
+    return system.current().SOURCE_LABEL
 
 
 def _resolve_url(url: "str | Callable[[], str]") -> str:
