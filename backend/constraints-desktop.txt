@@ -24,7 +24,7 @@ pyobjc-framework-cocoa==13.0
 pyobjc-framework-quartz==13.0
 pystray==0.19.5
 python-dotenv==1.2.4
-python-multipart==0.0.33
+python-multipart==0.0.34
 python-xlib==0.33
 pyyaml==6.0.3
 six==1.17.0
