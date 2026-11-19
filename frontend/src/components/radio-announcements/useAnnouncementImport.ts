@@ -19,23 +19,14 @@ function configurePicker(el: HTMLInputElement, folder: boolean) {
   el.click();
 }
 
-export function useAnnouncementImport(fileInputRef: RefObject<HTMLInputElement | null>, t: Translate, showToast: ShowToast, fetchAll: () => void) {
-  const { addUploads } = useUploadManager();
+const clearInput = (fileInputRef: RefObject<HTMLInputElement | null>) => {
+  if (fileInputRef.current) fileInputRef.current.value = "";
+};
+
+function useFileUpload(fileInputRef: RefObject<HTMLInputElement | null>, t: Translate, showToast: ShowToast, fetchAll: () => void) {
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [uploadMode, setUploadMode] = useState<"file" | "folder">("file");
-  const [dragActive, setDragActive] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState("");
-  const [showImportCard, setShowImportCard] = useState(false);
-
-  const clearInput = () => {
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const openPicker = (folder: boolean) => {
-    setUploadMode(folder ? "folder" : "file");
-    if (fileInputRef.current) configurePicker(fileInputRef.current, folder);
-  };
 
   const uploadFile = async () => {
     const file = fileInputRef.current?.files?.[0];
@@ -50,7 +41,7 @@ export function useAnnouncementImport(fileInputRef: RefObject<HTMLInputElement |
         showToast(t("radioAnnouncements.importedToast"));
         setDescription("");
         setSelectedFileName("");
-        clearInput();
+        clearInput(fileInputRef);
         fetchAll();
       } else {
         showToast(t("radioAnnouncements.importError"), "error");
@@ -62,23 +53,40 @@ export function useAnnouncementImport(fileInputRef: RefObject<HTMLInputElement |
     }
   };
 
+  return { description, setDescription, uploading, selectedFileName, setSelectedFileName, uploadFile };
+}
+
+const dragHandler = (setDragActive: (active: boolean) => void) => (e: React.DragEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setDragActive(e.type === "dragenter" || e.type === "dragover");
+};
+
+export function useAnnouncementImport(fileInputRef: RefObject<HTMLInputElement | null>, t: Translate, showToast: ShowToast, fetchAll: () => void) {
+  const { addUploads } = useUploadManager();
+  const upload = useFileUpload(fileInputRef, t, showToast, fetchAll);
+  const { setSelectedFileName } = upload;
+  const [uploadMode, setUploadMode] = useState<"file" | "folder">("file");
+  const [dragActive, setDragActive] = useState(false);
+  const handleDrag = dragHandler(setDragActive);
+  const [showImportCard, setShowImportCard] = useState(false);
+
+  const openPicker = (folder: boolean) => {
+    setUploadMode(folder ? "folder" : "file");
+    if (fileInputRef.current) configurePicker(fileInputRef.current, folder);
+  };
+
   const uploadFolder = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList).filter((f) => isRadioAudioName(f.name));
     if (files.length === 0) {
       showToast(t("radioAnnouncements.noAudioInFolder"), "warning");
-      clearInput();
+      clearInput(fileInputRef);
       return;
     }
     addUploads(files.map((f) => ({ kind: "radio_announcement_files" as const, files: [f], title: f.name })));
     showToast(t("radioAnnouncements.importStarted"));
-    clearInput();
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(e.type === "dragenter" || e.type === "dragover");
+    clearInput(fileInputRef);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -98,12 +106,11 @@ export function useAnnouncementImport(fileInputRef: RefObject<HTMLInputElement |
   const close = () => {
     setShowImportCard(false);
     setSelectedFileName("");
-    clearInput();
+    clearInput(fileInputRef);
   };
 
   return {
-    description, setDescription, uploading, uploadMode, dragActive, selectedFileName, setSelectedFileName,
-    showImportCard, setShowImportCard, openPicker, uploadFile, uploadFolder, handleDrag, handleDrop, close,
+    ...upload, uploadMode, dragActive, showImportCard, setShowImportCard, openPicker, uploadFolder, handleDrag, handleDrop, close,
   };
 }
 
