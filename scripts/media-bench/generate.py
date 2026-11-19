@@ -91,13 +91,48 @@ def patch_mp4_creation_time(data, seconds_1904):
     return bytes(data)
 
 
-def cover_gallery(output):
-    """Image varieties that exercise the cover equivalence."""
-    try:
-        from PIL import Image, ImageDraw, ImageFilter
-    except ImportError:
-        return {}
-    import io
+FAMILIES = [
+    ("mp3-cbr-xing", "mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "1"]),
+    ("mp3-vbr-xing", "mp3", ["-c:a", "libmp3lame", "-q:a", "3", "-write_xing", "1"]),
+    ("mp3-cbr-no-xing", "mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "0"]),
+    ("mp3-vbr-no-xing", "mp3", ["-c:a", "libmp3lame", "-q:a", "3", "-write_xing", "0"]),
+    ("flac", "flac", ["-c:a", "flac"]),
+    ("wav", "wav", ["-c:a", "pcm_s16le"]),
+    ("aac-adts", "aac", ["-c:a", "aac", "-b:a", "96k"]),
+    ("aac-m4a", "m4a", ["-c:a", "aac", "-b:a", "96k"]),
+    ("ogg-vorbis", "ogg", ["-c:a", "libvorbis", "-q:a", "3"]),
+    ("ogg-opus", "opus", ["-c:a", "libopus", "-b:a", "96k"]),
+    ("wma", "wma", ["-c:a", "wmav2", "-b:a", "128k"]),
+    ("aiff", "aiff", ["-c:a", "pcm_s16be"]),
+]
+SCALE_FAMILIES = [family for family in FAMILIES if family[0] not in ("aac-adts", "wma")] + [
+    ("mp3-cbr-no-xing-48k-192", "mp3", ["-c:a", "libmp3lame", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-write_xing", "0"]),
+    ("mp3-cbr-no-xing-22k-64", "mp3", ["-c:a", "libmp3lame", "-b:a", "64k", "-ar", "22050", "-write_xing", "0"]),
+    ("mp3-cbr-xing-32k-96", "mp3", ["-c:a", "libmp3lame", "-b:a", "96k", "-ar", "32000", "-write_xing", "1"]),
+]
+VARIANTS = [
+    ("absent", {}, "01 - No_tags"),
+    ("unicode", {"title": "Été 東京 Ω", "artist": "Björk synthétique", "album": "À demain"}, "éspace 東京"),
+    ("numbers", {"title": "Numbers", "track": "03/12", "disc": "02/04", "date": "2024-06-17",
+                 "album_artist": "Ensemble", "genre": "Synthetic"}, "03_numbers"),
+    ("atypical", {"title": "  Padded title  ", "artist": "", "date": "recorded in 1999"}, "-leading [brackets] & quote's"),
+    ("plain-numbers", {"title": "Plain", "track": "5", "disc": "1", "date": "1987"}, "plain numbers"),
+    ("zero-numbers", {"title": "Zero", "track": "0/9", "disc": "0", "year": "2001"}, "zero numbers"),
+]
+LAYOUTS = [
+    ("mp3-cbr-xing-id3v24", "mp3", "mp3-cbr-xing", ["-id3v2_version", "4"], "numbers"),
+    ("mp3-cbr-xing-id3v1", "mp3", "mp3-cbr-xing", ["-write_id3v1", "1"], "numbers"),
+    ("mp3-cbr-no-xing-id3v24", "mp3", "mp3-cbr-no-xing", ["-id3v2_version", "4"], "numbers"),
+]
+SINE = "sine=frequency=440:sample_rate=44100:duration=1.37"
+LIMITATIONS = ["VBRI fixtures are synthesized by build_vbri_mp3 (ffmpeg writes Xing/Info only)",
+               "No path with non-UTF-8 bytes: JSON reports cannot carry it; the transport tests cover it",
+               "Requested tags may not survive every container; baseline captures actual behavior",
+               "Encoded bytes can vary between ffmpeg versions; hashes bind this generated corpus"]
+
+
+def _gallery_base():
+    from PIL import Image, ImageDraw, ImageFilter
     import random
     random.seed(7)
     base = Image.effect_mandelbrot((800, 600), (-2.2, -1.5, 0.8, 1.5), 80).convert("RGB").filter(ImageFilter.GaussianBlur(1))
@@ -106,12 +141,17 @@ def cover_gallery(output):
         x0, y0 = random.randint(0, 600), random.randint(0, 400)
         draw.ellipse([x0, y0, x0 + random.randint(20, 190), y0 + random.randint(20, 190)],
                      outline=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)), width=3)
+    return base
+
+
+def _gallery_variants(base):
+    from PIL import Image
     exif = Image.Exif()
     exif[0x0112] = 6
     exif_flat = Image.Exif()
     exif_flat[0x0112] = 1
     gradient = Image.linear_gradient("L").resize((800, 600))
-    variants = {
+    return {
         "jpg-baseline": (base, "JPEG", {"quality": 90}),
         "jpg-progressive": (base, "JPEG", {"quality": 85, "progressive": True}),
         "jpg-gray": (base.convert("L"), "JPEG", {"quality": 90}),
@@ -131,10 +171,19 @@ def cover_gallery(output):
         "png-interlaced": (base, "PNG", {"interlace": 1}),
         "png-small-rgba": (Image.merge("RGBA", (*base.resize((96, 64)).split(), Image.new("L", (96, 64), 128))), "PNG", {}),
     }
+
+
+def cover_gallery(output):
+    """Image varieties that exercise the cover equivalence."""
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        return {}
+    import io
     gallery = {}
     folder = output / "gallery"
     folder.mkdir()
-    for name, (image, fmt, options) in variants.items():
+    for name, (image, fmt, options) in _gallery_variants(_gallery_base()).items():
         buffer = io.BytesIO()
         try:
             image.save(buffer, fmt, **options)
@@ -147,233 +196,219 @@ def cover_gallery(output):
     return gallery
 
 
+def _failure_reason(exc):
+    return str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"
+
+
+class _Draw:
+    def __init__(self):
+        self.state = 12345
+
+    def __call__(self):
+        self.state = (self.state * 1103515245 + 12345) & 0x7FFFFFFF
+        return self.state / 0x7FFFFFFF
+
+
+def _scale_command(output, ffmpeg, index, family, codec, duration, tags, cover):
+    command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+               f"sine=frequency={220 + index % 440}:sample_rate=44100:duration={duration}"]
+    ogg_family = family.startswith("ogg")
+    if cover and not ogg_family:
+        command += ["-i", str(output / f"cover.{cover}"), "-map", "0:a", "-map", "1:v",
+                    "-c:v", "copy", "-disposition:v", "attached_pic"]
+    command += ["-map_metadata", "-1", *codec]
+    for key, value in tags.items():
+        command += ["-metadata", f"{key}={value}"]
+    if cover and ogg_family:
+        command += ["-metadata", ogg_picture_comment(output / f"cover.{cover}", cover)]
+    return command
+
+
+def _scale_tags(index):
+    return {"title": f"Titre synthétique {index:04d}", "artist": f"Artiste {index % 37}", "album": f"Album {index % 53}",
+            "track": f"{index % 14 + 1}/14", "date": str(1990 + index % 35), "genre": ("Synthetic", "Test", "Démo")[index % 3]}
+
+
 def generate_scale(output, media, ffmpeg, count, cover_ratio, failures):
     """Extra unique tracks with varied durations, for large-library measurements."""
     scale_dir = media / "scale"
     scale_dir.mkdir()
-    families = [
-        ("mp3-cbr-xing", "mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "1"]),
-        ("mp3-vbr-xing", "mp3", ["-c:a", "libmp3lame", "-q:a", "3", "-write_xing", "1"]),
-        ("mp3-cbr-no-xing", "mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "0"]),
-        ("mp3-vbr-no-xing", "mp3", ["-c:a", "libmp3lame", "-q:a", "3", "-write_xing", "0"]),
-        ("flac", "flac", ["-c:a", "flac"]),
-        ("wav", "wav", ["-c:a", "pcm_s16le"]),
-        ("aac-m4a", "m4a", ["-c:a", "aac", "-b:a", "96k"]),
-        ("ogg-vorbis", "ogg", ["-c:a", "libvorbis", "-q:a", "3"]),
-        ("ogg-opus", "opus", ["-c:a", "libopus", "-b:a", "96k"]),
-        ("aiff", "aiff", ["-c:a", "pcm_s16be"]),
-        ("mp3-cbr-no-xing-48k-192", "mp3", ["-c:a", "libmp3lame", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-write_xing", "0"]),
-        ("mp3-cbr-no-xing-22k-64", "mp3", ["-c:a", "libmp3lame", "-b:a", "64k", "-ar", "22050", "-write_xing", "0"]),
-        ("mp3-cbr-xing-32k-96", "mp3", ["-c:a", "libmp3lame", "-b:a", "96k", "-ar", "32000", "-write_xing", "1"]),
-    ]
-    state, produced = 12345, []
-
-    def draw():
-        nonlocal state
-        state = (state * 1103515245 + 12345) & 0x7FFFFFFF
-        return state / 0x7FFFFFFF
-
+    draw, produced = _Draw(), []
     for index in range(count):
-        family, extension, codec = families[index % len(families)]
+        family, extension, codec = SCALE_FAMILIES[index % len(SCALE_FAMILIES)]
         duration = round(0.5 + draw() * 11.5, 2)
         with_cover = family.startswith(("mp3", "flac", "aac-m4a", "ogg")) and draw() < cover_ratio
         image = "jpg" if draw() < 0.7 else "png"
-        title = f"Titre synthétique {index:04d}"
-        tags = {"title": title, "artist": f"Artiste {index % 37}", "album": f"Album {index % 53}",
-                "track": f"{index % 14 + 1}/14", "date": str(1990 + index % 35), "genre": ("Synthetic", "Test", "Démo")[index % 3]}
+        tags = _scale_tags(index)
         identity = f"scale-{index:04d}-{family}"
-        path = scale_dir / f"{index:04d} - {title}.{extension}"
-        command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
-                   f"sine=frequency={220 + index % 440}:sample_rate=44100:duration={duration}"]
-        ogg_family = family.startswith("ogg")
-        if with_cover and not ogg_family:
-            command += ["-i", str(output / f"cover.{image}"), "-map", "0:a", "-map", "1:v",
-                        "-c:v", "copy", "-disposition:v", "attached_pic"]
-        command += ["-map_metadata", "-1", *codec]
-        for key, value in tags.items():
-            command += ["-metadata", f"{key}={value}"]
-        if with_cover and ogg_family:
-            command += ["-metadata", ogg_picture_comment(output / f"cover.{image}", image)]
+        path = scale_dir / f"{index:04d} - {tags['title']}.{extension}"
         try:
-            run([*command, str(path)])
+            run([*_scale_command(output, ffmpeg, index, family, codec, duration, tags, image if with_cover else None), str(path)])
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
-            failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
+            failures.append({"id": identity, "reason": _failure_reason(exc)})
             continue
         produced.append((identity, family, path, {"source_seconds": duration, "requested_tags": tags,
                                                    "cover": image if with_cover else None, "scale": True}))
     return produced
 
 
-def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
-    if output == ROOT or ROOT in output.parents:
-        raise ValueError("Choose an output directory outside the checkout")
-    output.mkdir(parents=True, exist_ok=False)
-    media = output / "media"
-    media.mkdir()
-    png(output / "cover.png")
-    run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / "cover.png"),
-         "-frames:v", "1", "-threads", "1", str(output / "cover.jpg")])
-    families = [
-        ("mp3-cbr-xing", "mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "1"]),
-        ("mp3-vbr-xing", "mp3", ["-c:a", "libmp3lame", "-q:a", "3", "-write_xing", "1"]),
-        ("mp3-cbr-no-xing", "mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "0"]),
-        ("mp3-vbr-no-xing", "mp3", ["-c:a", "libmp3lame", "-q:a", "3", "-write_xing", "0"]),
-        ("flac", "flac", ["-c:a", "flac"]),
-        ("wav", "wav", ["-c:a", "pcm_s16le"]),
-        ("aac-adts", "aac", ["-c:a", "aac", "-b:a", "96k"]),
-        ("aac-m4a", "m4a", ["-c:a", "aac", "-b:a", "96k"]),
-        ("ogg-vorbis", "ogg", ["-c:a", "libvorbis", "-q:a", "3"]),
-        ("ogg-opus", "opus", ["-c:a", "libopus", "-b:a", "96k"]),
-        ("wma", "wma", ["-c:a", "wmav2", "-b:a", "128k"]),
-        ("aiff", "aiff", ["-c:a", "pcm_s16be"]),
-    ]
-    variants = [
-        ("absent", {}, "01 - No_tags"),
-        ("unicode", {"title": "Été 東京 Ω", "artist": "Björk synthétique", "album": "À demain"}, "éspace 東京"),
-        ("numbers", {"title": "Numbers", "track": "03/12", "disc": "02/04", "date": "2024-06-17",
-                     "album_artist": "Ensemble", "genre": "Synthetic"}, "03_numbers"),
-        ("atypical", {"title": "  Padded title  ", "artist": "", "date": "recorded in 1999"}, "-leading [brackets] & quote's"),
-        ("plain-numbers", {"title": "Plain", "track": "5", "disc": "1", "date": "1987"}, "plain numbers"),
-        ("zero-numbers", {"title": "Zero", "track": "0/9", "disc": "0", "year": "2001"}, "zero numbers"),
-    ]
-    entries, failures = [], []
+class Corpus:
+    def __init__(self, output, ffmpeg):
+        self.output, self.media, self.ffmpeg = output, output / "media", ffmpeg
+        self.entries, self.failures = [], []
 
-    def record(identity, kind, path, expected):
-        entries.append({"id": identity, "type": kind, "path": path.relative_to(output).as_posix(),
-                        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "expected": expected})
+    def record(self, identity, kind, path, expected):
+        self.entries.append({"id": identity, "type": kind, "path": path.relative_to(self.output).as_posix(),
+                             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "expected": expected})
 
-    for family, extension, codec in families:
-        for variant, tags, filename in variants:
+    def source(self, identity):
+        return next((entry for entry in self.entries if entry["id"] == identity), None)
+
+    def source_path(self, entry):
+        return str(self.output / entry["path"])
+
+    def encode(self, identity, arguments, echo=True):
+        try:
+            run([self.ffmpeg, "-hide_banner", "-loglevel", "error", *arguments])
+            return True
+        except (RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.failures.append({"id": identity, "reason": _failure_reason(exc)})
+            if echo:
+                print(f"FAILED {identity}: {self.failures[-1]['reason']}", file=sys.stderr)
+            return False
+
+
+def _encode_families(corpus):
+    for family, extension, codec in FAMILIES:
+        for variant, tags, filename in VARIANTS:
             identity = f"{family}-{variant}"
-            path = media / f"{identity} {filename}.{extension}"
-            command = [ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
-                       "sine=frequency=440:sample_rate=44100:duration=1.37", "-map_metadata", "-1", *codec]
-            for key, value in tags.items():
-                command += ["-metadata", f"{key}={value}"]
-            try:
-                run([*command, str(path)])
-            except (RuntimeError, subprocess.TimeoutExpired) as exc:
-                failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
-                print(f"FAILED {identity}: {failures[-1]['reason']}", file=sys.stderr)
-                continue
-            record(identity, family, path, {"source_seconds": 1.37, "requested_tags": tags, "cover": None})
+            path = corpus.media / f"{identity} {filename}.{extension}"
+            metadata = [argument for key, value in tags.items() for argument in ("-metadata", f"{key}={value}")]
+            if corpus.encode(identity, ["-f", "lavfi", "-i", SINE, "-map_metadata", "-1", *codec, *metadata, str(path)]):
+                corpus.record(identity, family, path, {"source_seconds": 1.37, "requested_tags": tags, "cover": None})
 
+
+def _attach_covers(corpus):
     for family, extension in [("mp3-cbr-xing", "mp3"), ("flac", "flac"), ("aac-m4a", "m4a"), ("ogg-vorbis", "ogg"), ("ogg-opus", "opus")]:
-        source = next((entry for entry in entries if entry["id"] == f"{family}-numbers"), None)
+        source = corpus.source(f"{family}-numbers")
         if source is None:
-            failures.append({"id": f"{family}-covers", "reason": "source encoder unavailable"})
+            corpus.failures.append({"id": f"{family}-covers", "reason": "source encoder unavailable"})
             continue
         for image_format in ("jpg", "png"):
             identity = f"{family}-cover-{image_format}"
-            path = media / f"{identity}.{extension}"
-            try:
-                if extension in ("ogg", "opus"):
-                    run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / source["path"]), "-c", "copy",
-                         "-metadata", ogg_picture_comment(output / f"cover.{image_format}", image_format), str(path)])
-                else:
-                    run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / source["path"]),
-                         "-i", str(output / f"cover.{image_format}"), "-map", "0:a", "-map", "1:v",
-                         "-c", "copy", "-disposition:v", "attached_pic", str(path)])
-            except (RuntimeError, subprocess.TimeoutExpired) as exc:
-                failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
-                print(f"FAILED {identity}: {failures[-1]['reason']}", file=sys.stderr)
-                continue
-            record(identity, family, path, {"source_seconds": 1.37, "cover": image_format})
+            path = corpus.media / f"{identity}.{extension}"
+            cover = corpus.output / f"cover.{image_format}"
+            if extension in ("ogg", "opus"):
+                arguments = ["-i", corpus.source_path(source), "-c", "copy",
+                             "-metadata", ogg_picture_comment(cover, image_format), str(path)]
+            else:
+                arguments = ["-i", corpus.source_path(source), "-i", str(cover), "-map", "0:a", "-map", "1:v",
+                             "-c", "copy", "-disposition:v", "attached_pic", str(path)]
+            if corpus.encode(identity, arguments):
+                corpus.record(identity, family, path, {"source_seconds": 1.37, "cover": image_format})
 
+
+def _synthesize_vbri(corpus):
     for variant in ("absent", "unicode"):
-        source = next((entry for entry in entries if entry["id"] == f"mp3-cbr-no-xing-{variant}"), None)
+        source = corpus.source(f"mp3-cbr-no-xing-{variant}")
         if source is None:
-            failures.append({"id": f"mp3-vbri-{variant}", "reason": "source encoder unavailable"})
+            corpus.failures.append({"id": f"mp3-vbri-{variant}", "reason": "source encoder unavailable"})
             continue
-        path = media / f"mp3-vbri-{variant}.mp3"
-        path.write_bytes(build_vbri_mp3((output / source["path"]).read_bytes()))
-        record(f"mp3-vbri-{variant}", "mp3-vbri", path, {"source_seconds": 1.37, "requested_tags": source["expected"]["requested_tags"], "cover": None})
-    source = next((entry for entry in entries if entry["id"] == "mp3-cbr-xing-numbers"), None)
+        path = corpus.media / f"mp3-vbri-{variant}.mp3"
+        path.write_bytes(build_vbri_mp3((corpus.output / source["path"]).read_bytes()))
+        corpus.record(f"mp3-vbri-{variant}", "mp3-vbri", path,
+                      {"source_seconds": 1.37, "requested_tags": source["expected"]["requested_tags"], "cover": None})
+
+
+def _double_cover_and_gallery(corpus):
+    source = corpus.source("mp3-cbr-xing-numbers")
     if source is not None:
         identity = "mp3-cbr-xing-cover-double"
-        path = media / f"{identity}.mp3"
-        try:
-            run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / source["path"]),
-                 "-i", str(output / "cover.jpg"), "-i", str(output / "cover.png"),
-                 "-map", "0:a", "-map", "1:v", "-map", "2:v", "-c", "copy",
-                 "-disposition:v", "attached_pic", str(path)])
-            record(identity, "mp3-cbr-xing", path, {"source_seconds": 1.37, "cover": "jpg+png"})
-        except (RuntimeError, subprocess.TimeoutExpired) as exc:
-            failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
-            print(f"FAILED {identity}: {failures[-1]['reason']}", file=sys.stderr)
-    gallery = cover_gallery(output)
+        path = corpus.media / f"{identity}.mp3"
+        if corpus.encode(identity, ["-i", corpus.source_path(source), "-i", str(corpus.output / "cover.jpg"),
+                                    "-i", str(corpus.output / "cover.png"), "-map", "0:a", "-map", "1:v", "-map", "2:v",
+                                    "-c", "copy", "-disposition:v", "attached_pic", str(path)]):
+            corpus.record(identity, "mp3-cbr-xing", path, {"source_seconds": 1.37, "cover": "jpg+png"})
+    gallery = cover_gallery(corpus.output)
     if not gallery:
-        failures.append({"id": "cover-gallery", "reason": "Pillow unavailable"})
-    source = next((entry for entry in entries if entry["id"] == "mp3-cbr-xing-numbers"), None)
+        corpus.failures.append({"id": "cover-gallery", "reason": "Pillow unavailable"})
     for name, (image_path, extension) in gallery.items():
         identity = f"mp3-cbr-xing-gallery-{name}"
-        path = media / f"{identity}.mp3"
-        try:
-            run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / source["path"]), "-i", str(image_path),
-                 "-map", "0:a", "-map", "1:v", "-c", "copy", "-disposition:v", "attached_pic", str(path)])
-            record(identity, "mp3-cbr-xing", path, {"source_seconds": 1.37, "cover": name})
-        except (RuntimeError, subprocess.TimeoutExpired) as exc:
-            failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
-    layouts = [
-        ("mp3-cbr-xing-id3v24", "mp3", "mp3-cbr-xing", ["-id3v2_version", "4"], "numbers"),
-        ("mp3-cbr-xing-id3v1", "mp3", "mp3-cbr-xing", ["-write_id3v1", "1"], "numbers"),
-        ("mp3-cbr-no-xing-id3v24", "mp3", "mp3-cbr-no-xing", ["-id3v2_version", "4"], "numbers"),
-    ]
-    for identity, extension, family, arguments, variant in layouts:
-        source = next((entry for entry in entries if entry["id"] == f"{family}-{variant}"), None)
+        path = corpus.media / f"{identity}.mp3"
+        if corpus.encode(identity, ["-i", corpus.source_path(source), "-i", str(image_path), "-map", "0:a", "-map", "1:v",
+                                    "-c", "copy", "-disposition:v", "attached_pic", str(path)], echo=False):
+            corpus.record(identity, "mp3-cbr-xing", path, {"source_seconds": 1.37, "cover": name})
+
+
+def _rewrite_layouts(corpus):
+    for identity, extension, family, arguments, variant in LAYOUTS:
+        source = corpus.source(f"{family}-{variant}")
         if source is None:
             continue
-        path = media / f"{identity}.{extension}"
-        try:
-            run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / source["path"]), "-c", "copy", *arguments, str(path)])
-            record(identity, family, path, {"source_seconds": 1.37, "requested_tags": source["expected"].get("requested_tags", {}), "cover": None})
-        except (RuntimeError, subprocess.TimeoutExpired) as exc:
-            failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
+        path = corpus.media / f"{identity}.{extension}"
+        if corpus.encode(identity, ["-i", corpus.source_path(source), "-c", "copy", *arguments, str(path)], echo=False):
+            corpus.record(identity, family, path, {"source_seconds": 1.37,
+                                                   "requested_tags": source["expected"].get("requested_tags", {}), "cover": None})
     for variant, seconds in (("absent", 3786912000), ("numbers", 3786912000), ("unicode", 100)):
-        source = next((entry for entry in entries if entry["id"] == f"aac-m4a-{variant}"), None)
+        source = corpus.source(f"aac-m4a-{variant}")
         if source is None:
             continue
-        path = media / f"aac-m4a-creation-{variant}.m4a"
-        path.write_bytes(patch_mp4_creation_time((output / source["path"]).read_bytes(), seconds))
-        record(f"aac-m4a-creation-{variant}", "aac-m4a", path, {"source_seconds": 1.37, "requested_tags": source["expected"].get("requested_tags", {}), "cover": None})
-    nested = media / "dossier été [x] 東京" / "sous dossier & 'quote'"
+        path = corpus.media / f"aac-m4a-creation-{variant}.m4a"
+        path.write_bytes(patch_mp4_creation_time((corpus.output / source["path"]).read_bytes(), seconds))
+        corpus.record(f"aac-m4a-creation-{variant}", "aac-m4a", path,
+                      {"source_seconds": 1.37, "requested_tags": source["expected"].get("requested_tags", {}), "cover": None})
+
+
+def _atypical_paths(corpus):
+    nested = corpus.media / "dossier été [x] 東京" / "sous dossier & 'quote'"
     nested.mkdir(parents=True)
     atypical = [("mp3-cbr-xing-nested", nested / "01 - Été.mp3", ["-c:a", "libmp3lame", "-b:a", "128k", "-write_xing", "1"]),
                 ("flac-nested", nested / "02 東京.flac", ["-c:a", "flac"]),
                 ("wav-nested", nested / "03 spaces  double.wav", ["-c:a", "pcm_s16le"]),
-                ("wav-long-name", media / (("très long nom " * 14).strip() + ".wav"), ["-c:a", "pcm_s16le"])]
+                ("wav-long-name", corpus.media / (("très long nom " * 14).strip() + ".wav"), ["-c:a", "pcm_s16le"])]
     for identity, path, codec in atypical:
-        tags = [] if identity.startswith("wav") else ["-metadata", "title=Chemin atypique"]
-        try:
-            run([ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
-                 "sine=frequency=440:sample_rate=44100:duration=1.37", "-map_metadata", "-1", *codec,
-                 *tags, str(path)])
-        except (RuntimeError, subprocess.TimeoutExpired) as exc:
-            failures.append({"id": identity, "reason": str(exc) if not isinstance(exc, subprocess.TimeoutExpired) else "ffmpeg timeout"})
-            print(f"FAILED {identity}: {failures[-1]['reason']}", file=sys.stderr)
+        plain = identity.startswith("wav")
+        tags = [] if plain else ["-metadata", "title=Chemin atypique"]
+        if not corpus.encode(identity, ["-f", "lavfi", "-i", SINE, "-map_metadata", "-1", *codec, *tags, str(path)]):
             continue
-        record(identity, identity.rsplit("-", 1)[0] if identity.endswith("nested") else "wav", path,
-               {"source_seconds": 1.37, "requested_tags": {} if identity.startswith("wav") else {"title": "Chemin atypique"}, "cover": None})
-
+        corpus.record(identity, identity.rsplit("-", 1)[0] if identity.endswith("nested") else "wav", path,
+                      {"source_seconds": 1.37, "requested_tags": {} if plain else {"title": "Chemin atypique"}, "cover": None})
     for identity, data in [("empty", b""), ("garbage", b"not an audio file\0" * 8),
                            ("truncated-id3", b"ID3\x04\0\0\0\0\x7f\x7fbroken")]:
-        path = media / f"corrupt-{identity}.mp3"
+        path = corpus.media / f"corrupt-{identity}.mp3"
         path.write_bytes(data)
-        record(f"corrupt-{identity}", "corrupt", path, {"readable": False, "cover": None})
-    if scale:
-        entries_scale = generate_scale(output, media, ffmpeg, scale, cover_ratio, failures)
-        for identity, kind, path, expected in entries_scale:
-            record(identity, kind, path, expected)
-    manifest = {"schema_version": 1, "generator": "synthetic-sine-v1", "scale": scale, "ffmpeg_version": run([ffmpeg, "-version"]).splitlines()[0],
-                "entries": entries, "failures": failures,
-                "limitations": ["VBRI fixtures are synthesized by build_vbri_mp3 (ffmpeg writes Xing/Info only)",
-                                "No path with non-UTF-8 bytes: JSON reports cannot carry it; the transport tests cover it",
-                                "Requested tags may not survive every container; baseline captures actual behavior",
-                                "Encoded bytes can vary between ffmpeg versions; hashes bind this generated corpus"]}
-    (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"files": len(entries), "failures": len(failures)}))
-    if len(entries) < 40:
+        corpus.record(f"corrupt-{identity}", "corrupt", path, {"readable": False, "cover": None})
+
+
+def _write_manifest(corpus, scale):
+    manifest = {"schema_version": 1, "generator": "synthetic-sine-v1", "scale": scale,
+                "ffmpeg_version": run([corpus.ffmpeg, "-version"]).splitlines()[0],
+                "entries": corpus.entries, "failures": corpus.failures, "limitations": LIMITATIONS}
+    (corpus.output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"files": len(corpus.entries), "failures": len(corpus.failures)}))
+    if len(corpus.entries) < 40:
         raise RuntimeError("Corpus has fewer than 40 files; consult manifest failures")
+
+
+def generate(output, ffmpeg, scale=0, cover_ratio=0.25):
+    if output == ROOT or ROOT in output.parents:
+        raise ValueError("Choose an output directory outside the checkout")
+    output.mkdir(parents=True, exist_ok=False)
+    corpus = Corpus(output, ffmpeg)
+    corpus.media.mkdir()
+    png(output / "cover.png")
+    run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(output / "cover.png"),
+         "-frames:v", "1", "-threads", "1", str(output / "cover.jpg")])
+    _encode_families(corpus)
+    _attach_covers(corpus)
+    _synthesize_vbri(corpus)
+    _double_cover_and_gallery(corpus)
+    _rewrite_layouts(corpus)
+    _atypical_paths(corpus)
+    if scale:
+        for identity, kind, path, expected in generate_scale(output, corpus.media, ffmpeg, scale, cover_ratio, corpus.failures):
+            corpus.record(identity, kind, path, expected)
+    _write_manifest(corpus, scale)
 
 
 def main():

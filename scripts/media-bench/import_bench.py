@@ -33,15 +33,9 @@ def _peak_kb(usage):
     return usage.ru_maxrss / 1024 if sys.platform == "darwin" else usage.ru_maxrss
 
 
-def worker(spec):
-    """Runs inside the child: import the staged files and print one JSON object."""
-    import resource
-    sys.path.insert(0, str(ROOT / "backend"))
-    from app.database import SessionLocal, init_db
-    from app.utils import media_metadata, media_sidecar
+def _instrument(counts):
+    from app.utils import media_metadata
     from app.radio import track_files
-
-    counts = Counter()
     original_probe, original_reference = media_metadata._probe, track_files.extract_radio_metadata
     original_cover = track_files.extract_embedded_cover
 
@@ -62,37 +56,56 @@ def worker(spec):
     media_metadata.track_files.extract_radio_metadata = reference_metadata
     media_metadata.track_files.extract_embedded_cover = reference_cover
 
+
+def _import(kind, paths):
+    if kind == "radio":
+        from app.radio.importer import import_radio_tracks_from_files
+        return import_radio_tracks_from_files(paths)
+    from app.utils.audio_importer import import_audio_course_from_files
+    import_audio_course_from_files(paths, "Benchmark course")
+    return []
+
+
+def _radio_rows(imported):
+    rows, covers = [], []
+    for position, track in enumerate(sorted(imported, key=lambda item: item.id)):
+        row = {key: getattr(track, key) for key in ("title", "artist", "album", "album_artist", "track_number",
+                                                    "disc_number", "year", "genre", "duration_seconds")}
+        row["position"] = position
+        rows.append(row)
+        if track.cover_path:
+            covers.append({"file": str(position), "data": base64.b64encode(Path(track.cover_path).read_bytes()).decode("ascii")})
+    return rows, covers
+
+
+def _course_rows():
+    from app.database import SessionLocal
+    from app.models import AudioTrack
+    db = SessionLocal()
+    try:
+        return [{"title": track.title, "number": track.number, "duration_seconds": track.duration_seconds}
+                for track in db.query(AudioTrack).all()]
+    finally:
+        db.close()
+
+
+def worker(spec):
+    """Runs inside the child: import the staged files and print one JSON object."""
+    import resource
+    sys.path.insert(0, str(ROOT / "backend"))
+    from app.database import init_db
+    from app.utils import media_sidecar
+
+    counts = Counter()
+    _instrument(counts)
     init_db()
     paths = [str(Path(spec["staging"]) / name) for name in spec["names"]]
     before_children = resource.getrusage(resource.RUSAGE_CHILDREN)
     before_self = resource.getrusage(resource.RUSAGE_SELF)
     started = time.perf_counter()
-    if spec["kind"] == "radio":
-        from app.radio.importer import import_radio_tracks_from_files
-        imported = import_radio_tracks_from_files(paths)
-    else:
-        from app.utils.audio_importer import import_audio_course_from_files
-        import_audio_course_from_files(paths, "Benchmark course")
-        imported = []
+    imported = _import(spec["kind"], paths)
     wall = time.perf_counter() - started
-    rows = []
-    covers = []
-    if spec["kind"] == "radio":
-        for position, track in enumerate(sorted(imported, key=lambda item: item.id)):
-            row = {key: getattr(track, key) for key in ("title", "artist", "album", "album_artist", "track_number",
-                                                        "disc_number", "year", "genre", "duration_seconds")}
-            row["position"] = position
-            rows.append(row)
-            if track.cover_path:
-                covers.append({"file": str(position), "data": base64.b64encode(Path(track.cover_path).read_bytes()).decode("ascii")})
-    else:
-        db = SessionLocal()
-        try:
-            from app.models import AudioTrack
-            for track in db.query(AudioTrack).all():
-                rows.append({"title": track.title, "number": track.number, "duration_seconds": track.duration_seconds})
-        finally:
-            db.close()
+    rows, covers = _radio_rows(imported) if spec["kind"] == "radio" else (_course_rows(), [])
     media_sidecar.close_current_media_client()
     after_children = resource.getrusage(resource.RUSAGE_CHILDREN)
     after_self = resource.getrusage(resource.RUSAGE_SELF)
@@ -280,10 +293,16 @@ def med_max(group, key):
     return max(values) / 1024 if values else None
 
 
-def main():
-    if len(sys.argv) == 3 and sys.argv[1] == "--worker":
-        worker(json.loads(sys.argv[2]))
-        return
+LIMITATIONS = [
+    "Measured on the machine that ran the script; not a device validation",
+    "Cold cache: `cache_drop_attempted` is `system` when the page cache was emptied through sudo, otherwise a best-effort fadvise on the staged files",
+    "Peak PSS needs Linux smaps; elsewhere only RSS is available (shared pages counted per process)",
+    "Cancellation and simultaneous playback are not exercised by this script",
+    "Files that the native component declines run the reference path and cost both",
+]
+
+
+def _parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("corpus", type=Path, help="corpus made by generate.py (use --scale for 500+ tracks)")
     parser.add_argument("--binary", type=Path, required=True, help="bobine-media executable under test")
@@ -296,6 +315,10 @@ def main():
     parser.add_argument("--cache", choices=("warm", "cold", "both"), default="both")
     parser.add_argument("--workdir", type=Path, default=Path("/var/tmp") if os.name != "nt" else Path(tempfile.gettempdir()),
                         help="disk-backed scratch directory (never a RAM-backed tmpfs for a fair disk measurement)")
+    return parser
+
+
+def _checked_args(parser):
     args = parser.parse_args()
     corpus, output = args.corpus.resolve(), args.output.resolve()
     if output.exists():
@@ -307,13 +330,10 @@ def main():
     binary = args.binary.resolve()
     if not binary.is_file() or not os.access(binary, os.X_OK):
         parser.error("--binary is not an executable file")
-    manifest = json.loads((corpus / "manifest.json").read_bytes())
-    entries = manifest["entries"][:args.count] if args.count else manifest["entries"]
-    if len(entries) < 500:
-        print(f"warning: {len(entries)} files; the B1.5 exit criterion asks for 500 or more", file=sys.stderr)
-    caches = ("warm", "cold") if args.cache == "both" else (args.cache,)
-    global DROP_SYSTEM_CACHE
-    DROP_SYSTEM_CACHE = args.drop_system_cache
+    return args, corpus, output, binary
+
+
+def _run_all(args, corpus, entries, caches, binary):
     runs = []
     for repeat in range(args.repeats):
         for mode in (MODES if repeat % 2 == 0 else tuple(reversed(MODES))):
@@ -322,30 +342,49 @@ def main():
                 runs.append(run)
                 print(f"{mode:9} {cache:4} #{repeat + 1}: {run['wall_s']:.2f} s, imported {run['imported']}/{run['files']}, "
                       f"processes<= {run['tree'].get('processes')}", file=sys.stderr)
+    return runs
+
+
+def _differences(runs, caches):
     differences = []
     for cache in caches:
         reference = [run for run in runs if run["mode"] == "reference" and run["cache"] == cache]
         native = [run for run in runs if run["mode"] == "native" and run["cache"] == cache]
         for left, right in zip(reference, native):
             differences.extend(f"[{cache}] {item}" for item in compare_rows(left, right))
+    return differences
+
+
+def _report(args, corpus, entries, binary, runs, differences):
     for run in runs:
         run.pop("rows")
         run["cover_count"] = len(run.pop("covers"))
-    report = {
+    return {
         "schema_version": 1, "kind": args.kind, "files": len(entries), "repeats": args.repeats,
         "platform": sys.platform, "python": sys.version.split()[0], "cpu_count": os.cpu_count(),
         "ffmpeg_version": subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True).stdout.splitlines()[:1],
         "binary": {"bytes": binary.stat().st_size, "sha256": hashlib.sha256(binary.read_bytes()).hexdigest()},
         "manifest_sha256": hashlib.sha256((corpus / "manifest.json").read_bytes()).hexdigest(),
         "summary": summarize(runs), "differences": differences, "passed": not differences, "runs": runs,
-        "limitations": [
-            "Measured on the machine that ran the script; not a device validation",
-            "Cold cache: `cache_drop_attempted` is `system` when the page cache was emptied through sudo, otherwise a best-effort fadvise on the staged files",
-            "Peak PSS needs Linux smaps; elsewhere only RSS is available (shared pages counted per process)",
-            "Cancellation and simultaneous playback are not exercised by this script",
-            "Files that the native component declines run the reference path and cost both",
-        ],
+        "limitations": LIMITATIONS,
     }
+
+
+def main():
+    if len(sys.argv) == 3 and sys.argv[1] == "--worker":
+        worker(json.loads(sys.argv[2]))
+        return
+    args, corpus, output, binary = _checked_args(_parser())
+    manifest = json.loads((corpus / "manifest.json").read_bytes())
+    entries = manifest["entries"][:args.count] if args.count else manifest["entries"]
+    if len(entries) < 500:
+        print(f"warning: {len(entries)} files; the B1.5 exit criterion asks for 500 or more", file=sys.stderr)
+    caches = ("warm", "cold") if args.cache == "both" else (args.cache,)
+    global DROP_SYSTEM_CACHE
+    DROP_SYSTEM_CACHE = args.drop_system_cache
+    runs = _run_all(args, corpus, entries, caches, binary)
+    differences = _differences(runs, caches)
+    report = _report(args, corpus, entries, binary, runs, differences)
     with output.open("x", encoding="utf-8") as handle:
         handle.write(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
     print(json.dumps({"passed": report["passed"], "differences": len(differences), "summary": report["summary"]}, indent=2))

@@ -47,32 +47,14 @@ def _move_contents(src: Path, dst: Path, dry: bool, log) -> int:
     return moved
 
 
-def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Path, dry: bool, log=print) -> int:
-    """Cœur testable de la migration."""
-    legacy_root = (repo_dir / "backend" / "data").resolve()
-    target_root = (repo_dir / "data").resolve()
+def _remove_if_empty(path: Path) -> None:
+    try:
+        path.rmdir()
+    except OSError:
+        pass
 
-    if legacy_root == target_root:
-        log("Aucune migration nécessaire (source et cible identiques).")
-        return 0
 
-    expected_audio = (target_root / "audio").resolve()
-    if configured_audio_dir.resolve() != expected_audio:
-        log(f"ERREUR : config.audio_dir = {configured_audio_dir} (attendu {expected_audio}).")
-        log("Lance d'abord ./install.sh (il met à jour config.toml), puis relance cette migration.")
-        return 1
-
-    if not legacy_root.exists():
-        log(f"Aucun dossier hérité à migrer ({legacy_root} absent). Rien à faire.")
-        return 0
-
-    log(f"Migration des données héritées : {legacy_root} -> {target_root}")
-    if dry:
-        log("[DRY-RUN] aucune modification ne sera écrite.")
-
-    if db_path and db_path.exists():
-        _backup_database(db_path, dry, log)
-
+def _move_legacy_dirs(legacy_root: Path, target_root: Path, dry: bool, log) -> int:
     total = 0
     for sub in _LEGACY_SUBDIRS:
         src = legacy_root / sub
@@ -81,37 +63,65 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
         log(f"  Dossier {sub} :")
         total += _move_contents(src, target_root / sub, dry, log)
         if not dry:
-            try:
-                src.rmdir()
-            except OSError:
-                pass
+            _remove_if_empty(src)
     if not dry:
-        try:
-            legacy_root.rmdir()
-        except OSError:
-            pass
+        _remove_if_empty(legacy_root)
+    return total
 
-    if db_path and db_path.exists():
-        legacy_prefix = str(legacy_root) + os.sep
-        target_prefix = str(target_root) + os.sep
-        log(f"  Réécriture des chemins en base : {legacy_prefix} -> {target_prefix}")
-        if not dry:
-            conn = sqlite3.connect(str(db_path))
+
+def _rewrite_database_paths(db_path: Path, legacy_root: Path, target_root: Path, dry: bool, log) -> None:
+    legacy_prefix = str(legacy_root) + os.sep
+    target_prefix = str(target_root) + os.sep
+    log(f"  Réécriture des chemins en base : {legacy_prefix} -> {target_prefix}")
+    if dry:
+        return
+    conn = sqlite3.connect(str(db_path))
+    try:
+        cur = conn.cursor()
+        for table, col in _PATH_COLUMNS:
             try:
-                cur = conn.cursor()
-                for table, col in _PATH_COLUMNS:
-                    try:
-                        n = cur.execute(
-                            f"UPDATE {table} SET {col} = REPLACE({col}, ?, ?) WHERE {col} LIKE ?",
-                            (legacy_prefix, target_prefix, legacy_prefix + "%"),
-                        ).rowcount
-                        log(f"    {table}.{col} : {n} ligne(s) réécrite(s)")
-                    except sqlite3.OperationalError as e:
-                        log(f"    {table} : ignoré ({e})")
-                conn.commit()
-            finally:
-                conn.close()
+                n = cur.execute(
+                    f"UPDATE {table} SET {col} = REPLACE({col}, ?, ?) WHERE {col} LIKE ?",
+                    (legacy_prefix, target_prefix, legacy_prefix + "%"),
+                ).rowcount
+                log(f"    {table}.{col} : {n} ligne(s) réécrite(s)")
+            except sqlite3.OperationalError as e:
+                log(f"    {table} : ignoré ({e})")
+        conn.commit()
+    finally:
+        conn.close()
 
+
+def _blocking_reason(legacy_root: Path, target_root: Path, configured_audio_dir: Path) -> tuple[int, list[str]] | None:
+    if legacy_root == target_root:
+        return 0, ["Aucune migration nécessaire (source et cible identiques)."]
+    expected_audio = (target_root / "audio").resolve()
+    if configured_audio_dir.resolve() != expected_audio:
+        return 1, [f"ERREUR : config.audio_dir = {configured_audio_dir} (attendu {expected_audio}).",
+                   "Lance d'abord ./install.sh (il met à jour config.toml), puis relance cette migration."]
+    if not legacy_root.exists():
+        return 0, [f"Aucun dossier hérité à migrer ({legacy_root} absent). Rien à faire."]
+    return None
+
+
+def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Path, dry: bool, log=print) -> int:
+    """Cœur testable de la migration."""
+    legacy_root = (repo_dir / "backend" / "data").resolve()
+    target_root = (repo_dir / "data").resolve()
+    blocked = _blocking_reason(legacy_root, target_root, configured_audio_dir)
+    if blocked is not None:
+        code, messages = blocked
+        for message in messages:
+            log(message)
+        return code
+    log(f"Migration des données héritées : {legacy_root} -> {target_root}")
+    if dry:
+        log("[DRY-RUN] aucune modification ne sera écrite.")
+    if db_path and db_path.exists():
+        _backup_database(db_path, dry, log)
+    total = _move_legacy_dirs(legacy_root, target_root, dry, log)
+    if db_path and db_path.exists():
+        _rewrite_database_paths(db_path, legacy_root, target_root, dry, log)
     log(f"Migration terminée : {total} élément(s) déplacé(s).")
     return 0
 

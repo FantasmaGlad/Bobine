@@ -99,92 +99,115 @@ def resume_after_network_cut(workdir: Path) -> None:
         proxy.kill()
 
 
+def check_pages() -> None:
+    for route in ("/library/", "/radio/", "/kiosk/?channel=network", "/coach/", "/settings/", "/cinema/"):
+        wd.navigate(BASE + route)
+        time.sleep(2.5)
+        body = wd.execute("return document.body.innerText || ''")
+        overlay = wd.execute("return !!document.querySelector('nextjs-portal')")
+        check(f"page {route} se charge", len(body) > 20 and not overlay and "Application error" not in body)
+
+
+def fetch_status(script: str):
+    return wd.execute_async("const done=arguments[arguments.length-1];" + script)
+
+
+def check_api_not_found() -> None:
+    wd.navigate(BASE + "/library/")
+    time.sleep(1.5)
+    head = fetch_status("fetch('/api/videos/999999/stream',{method:'HEAD'}).then(r=>done([r.status,r.headers.get('content-type')]))")
+    check("HEAD sur une ressource absente -> 404 non HTML", head[0] == 404 and "html" not in (head[1] or ""), str(head))
+    unknown = fetch_status("fetch('/api/inexistant').then(r=>done([r.status,r.headers.get('content-type')]))")
+    check("chemin /api inconnu -> 404 non HTML", unknown[0] == 404 and "html" not in (unknown[1] or ""), str(unknown))
+
+
+def check_chunked_import(workdir: Path) -> None:
+    small = workdir / "e2e_h264.mp4"
+    mkv = workdir / "e2e_h264.mkv"
+    ffmpeg_clip(small, "libx264", extra=["-pix_fmt", "yuv420p"])
+    ffmpeg_clip(mkv, "libx264", extra=["-pix_fmt", "yuv420p"])
+    before = len(api("/videos"))
+    ok = import_through_ui([small, mkv])
+    lag = wd.execute("return window.__mon && window.__mon.lagMax")
+    check("import MP4 + MKV via le sélecteur (transfert par morceaux)", ok and len(api("/videos")) == before + 2,
+          f"{len(api('/videos')) - before} vidéo(s) ajoutée(s)")
+    check("réactivité pendant l'import (retard boucle < 200 ms)", lag is not None and lag < 200, f"max {lag} ms")
+    chunked = wd.execute(
+        "return performance.getEntriesByType('resource').filter(e=>e.name.includes('/api/uploads')).length")
+    check("le transfert par morceaux (/api/uploads) a bien été utilisé", chunked and chunked >= 2, f"{chunked} requête(s)")
+
+
+def check_web_rendition(vid) -> None:
+    api(f"/videos/{vid}/web-rendition", "POST")
+    ready = wait_for(lambda: api(f"/videos/{vid}")["web_status"] == "ready", 120, 1)
+    check("version web produite", bool(ready))
+    probe = fetch_status(f"fetch('/api/videos/{vid}/stream?accept=h264',{{method:'HEAD'}}).then(r=>done(r.headers.get('x-bobine-rendition')))")
+    check("client sans HEVC -> version web négociée", probe == "web", str(probe))
+    played = fetch_status(
+        "const v=document.createElement('video');v.muted=true;"
+        f"v.src='/api/videos/{vid}/stream?accept=h264';document.body.appendChild(v);"
+        "v.play().then(()=>setTimeout(()=>done({t:v.currentTime,err:v.error&&v.error.code,w:v.videoWidth}),2500)).catch(e=>done({err:e.name}))")
+    check("la version web se lit dans Firefox", played.get("err") in (None, 0) and played.get("t", 0) > 0.5, str(played))
+
+
+def check_hevc(workdir: Path) -> None:
+    hevc = workdir / "e2e_hevc10.mkv"
+    ffmpeg_clip(hevc, "libx265", extra=["-preset", "ultrafast", "-x265-params", "log-level=error", "-pix_fmt", "yuv420p10le"])
+    before_ids = {v["id"] for v in api("/videos")}
+    import_through_ui([hevc])
+    new = [v for v in api("/videos") if v["id"] not in before_ids]
+    check("vidéo HEVC 10 bits importée et marquée non lisible partout", bool(new) and not new[0]["web_safe"],
+          str(new[0]["web_issues"]) if new else "")
+    if new:
+        check_web_rendition(new[0]["id"])
+
+
+def check_compatibility_section() -> None:
+    wd.navigate(BASE + "/settings/#section-playback")
+    time.sleep(2.5)
+    text = wd.execute("return document.body.innerText")
+    check("section « Compatibilité navigateur » affichée", "H.264" in text and "WebSocket" in text)
+
+
+def start_geckodriver():
+    try:
+        urllib.request.urlopen(wd.BASE + "/status", timeout=2)
+        return None
+    except Exception:
+        gecko = subprocess.Popen(["geckodriver", "--port", "4444"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(2)
+        return gecko
+
+
+def stop(gecko, workdir: Path) -> None:
+    try:
+        wd.quit_session()
+    except Exception:
+        pass
+    if gecko:
+        try:
+            gecko.terminate()
+        except PermissionError:
+            pass
+    shutil.rmtree(workdir, ignore_errors=True)
+
+
 def main() -> int:
     workdir = Path(tempfile.mkdtemp(prefix="bobine-e2e-", dir=Path.home()))
     gecko = None
     try:
-        try:
-            urllib.request.urlopen(wd.BASE + "/status", timeout=2)
-        except Exception:
-            gecko = subprocess.Popen(["geckodriver", "--port", "4444"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(2)
+        gecko = start_geckodriver()
         version = wd.start(headless=True)
         print(f"Firefox {version} — {BASE}")
-
-        for route in ("/library/", "/radio/", "/kiosk/?channel=network", "/coach/", "/settings/", "/cinema/"):
-            wd.navigate(BASE + route)
-            time.sleep(2.5)
-            body = wd.execute("return document.body.innerText || ''")
-            overlay = wd.execute("return !!document.querySelector('nextjs-portal')")
-            check(f"page {route} se charge", len(body) > 20 and not overlay and "Application error" not in body)
-
-        wd.navigate(BASE + "/library/")
-        time.sleep(1.5)
-        head = wd.execute_async(
-            "const done=arguments[arguments.length-1];"
-            "fetch('/api/videos/999999/stream',{method:'HEAD'}).then(r=>done([r.status,r.headers.get('content-type')]))")
-        check("HEAD sur une ressource absente -> 404 non HTML", head[0] == 404 and "html" not in (head[1] or ""), str(head))
-        unknown = wd.execute_async(
-            "const done=arguments[arguments.length-1];"
-            "fetch('/api/inexistant').then(r=>done([r.status,r.headers.get('content-type')]))")
-        check("chemin /api inconnu -> 404 non HTML", unknown[0] == 404 and "html" not in (unknown[1] or ""), str(unknown))
-
-        small = workdir / "e2e_h264.mp4"
-        mkv = workdir / "e2e_h264.mkv"
-        ffmpeg_clip(small, "libx264", extra=["-pix_fmt", "yuv420p"])
-        ffmpeg_clip(mkv, "libx264", extra=["-pix_fmt", "yuv420p"])
-        before = len(api("/videos"))
-        ok = import_through_ui([small, mkv])
-        lag = wd.execute("return window.__mon && window.__mon.lagMax")
-        check("import MP4 + MKV via le sélecteur (transfert par morceaux)", ok and len(api("/videos")) == before + 2,
-              f"{len(api('/videos')) - before} vidéo(s) ajoutée(s)")
-        check("réactivité pendant l'import (retard boucle < 200 ms)", lag is not None and lag < 200, f"max {lag} ms")
-        chunked = wd.execute(
-            "return performance.getEntriesByType('resource').filter(e=>e.name.includes('/api/uploads')).length")
-        check("le transfert par morceaux (/api/uploads) a bien été utilisé", chunked and chunked >= 2, f"{chunked} requête(s)")
-
-        hevc = workdir / "e2e_hevc10.mkv"
-        ffmpeg_clip(hevc, "libx265", extra=["-preset", "ultrafast", "-x265-params", "log-level=error", "-pix_fmt", "yuv420p10le"])
-        before_ids = {v["id"] for v in api("/videos")}
-        import_through_ui([hevc])
-        new = [v for v in api("/videos") if v["id"] not in before_ids]
-        check("vidéo HEVC 10 bits importée et marquée non lisible partout", bool(new) and not new[0]["web_safe"],
-              str(new[0]["web_issues"]) if new else "")
-        if new:
-            vid = new[0]["id"]
-            api(f"/videos/{vid}/web-rendition", "POST")
-            ready = wait_for(lambda: api(f"/videos/{vid}")["web_status"] == "ready", 120, 1)
-            check("version web produite", bool(ready))
-            probe = wd.execute_async(
-                "const done=arguments[arguments.length-1];"
-                f"fetch('/api/videos/{vid}/stream?accept=h264',{{method:'HEAD'}}).then(r=>done(r.headers.get('x-bobine-rendition')))")
-            check("client sans HEVC -> version web négociée", probe == "web", str(probe))
-            played = wd.execute_async(
-                "const done=arguments[arguments.length-1];"
-                "const v=document.createElement('video');v.muted=true;"
-                f"v.src='/api/videos/{vid}/stream?accept=h264';document.body.appendChild(v);"
-                "v.play().then(()=>setTimeout(()=>done({t:v.currentTime,err:v.error&&v.error.code,w:v.videoWidth}),2500)).catch(e=>done({err:e.name}))")
-            check("la version web se lit dans Firefox", played.get("err") in (None, 0) and played.get("t", 0) > 0.5, str(played))
-
+        check_pages()
+        check_api_not_found()
+        check_chunked_import(workdir)
+        check_hevc(workdir)
         if "--resume" in sys.argv:
             resume_after_network_cut(workdir)
-
-        wd.navigate(BASE + "/settings/#section-playback")
-        time.sleep(2.5)
-        text = wd.execute("return document.body.innerText")
-        check("section « Compatibilité navigateur » affichée", "H.264" in text and "WebSocket" in text)
+        check_compatibility_section()
     finally:
-        try:
-            wd.quit_session()
-        except Exception:
-            pass
-        if gecko:
-            try:
-                gecko.terminate()
-            except PermissionError:
-                pass
-        shutil.rmtree(workdir, ignore_errors=True)
-
+        stop(gecko, workdir)
     failed = [r for r in results if not r[1]]
     print(f"\n{len(results) - len(failed)}/{len(results)} vérifications réussies")
     return 1 if failed else 0
