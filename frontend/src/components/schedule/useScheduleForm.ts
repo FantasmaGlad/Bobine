@@ -69,61 +69,28 @@ function missingField(form: ScheduleForm): string | null {
   return null;
 }
 
-export function useScheduleForm(channel: ChannelValue, showToast: ShowToast, onChanged: () => void) {
+function presetForm(channel: ChannelValue, presetDate?: Date, preset?: { type: TargetType; id: number }, exactTime = false): ScheduleForm {
+  const next = blankForm(channel);
+  if (presetDate) {
+    const withTime = new Date(presetDate);
+    if (!exactTime) withTime.setHours(withTime.getHours() + 1, 0, 0, 0);
+    next.dateTime = toDatetimeLocalValue(withTime);
+  }
+  if (preset) {
+    next.targetType = preset.type;
+    next.targetId = String(preset.id);
+  }
+  return next;
+}
+
+export function toggledDays(days: number[], day: number): number[] {
+  return days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort((a, b) => a - b);
+}
+
+function useScheduleWrite(form: ScheduleForm, channel: ChannelValue, editingId: number | null, close: () => void, showToast: ShowToast, onChanged: () => void) {
   const { t } = useAppSettings();
-  const [form, setForm] = useState<ScheduleForm>(() => blankForm(channel));
-  const [open, setOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [overrideCount, setOverrideCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const patch = (changes: Partial<ScheduleForm>) => setForm((prev) => ({ ...prev, ...changes }));
-
-  const openCreate = (presetDate?: Date, preset?: { type: TargetType; id: number }, exactTime = false) => {
-    const next = blankForm(channel);
-    if (presetDate) {
-      const withTime = new Date(presetDate);
-      if (!exactTime) withTime.setHours(withTime.getHours() + 1, 0, 0, 0);
-      next.dateTime = toDatetimeLocalValue(withTime);
-    }
-    if (preset) {
-      next.targetType = preset.type;
-      next.targetId = String(preset.id);
-    }
-    setForm(next);
-    setOverrideCount(0);
-    setEditingId(null);
-    setOpen(true);
-  };
-
-  const openEdit = async (scheduleId: number) => {
-    try {
-      const res = await fetch(getApiUrl(`/schedule/${scheduleId}`), { cache: "no-store" });
-      if (!res.ok) {
-        showToast(t("schedule.loadScheduleError"), "error");
-        return;
-      }
-      const data: ScheduleDetail = await res.json();
-      setEditingId(data.id);
-      setForm(formFrom(data));
-      setOverrideCount(data.override_count);
-      setOpen(true);
-    } catch {
-      showToast(t("schedule.networkError"), "error");
-    }
-  };
-
-  const close = () => {
-    setOpen(false);
-    setEditingId(null);
-  };
-
-  const toggleDay = (day: number) =>
-    setForm((prev) => ({
-      ...prev,
-      daysOfWeek: prev.daysOfWeek.includes(day) ? prev.daysOfWeek.filter((d) => d !== day) : [...prev.daysOfWeek, day].sort((a, b) => a - b),
-    }));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,6 +138,50 @@ export function useScheduleForm(channel: ChannelValue, showToast: ShowToast, onC
       setConfirmDelete(false);
     }
   };
+
+  return { saving, confirmDelete, setConfirmDelete, save, remove };
+}
+
+export function useScheduleForm(channel: ChannelValue, showToast: ShowToast, onChanged: () => void) {
+  const { t } = useAppSettings();
+  const [form, setForm] = useState<ScheduleForm>(() => blankForm(channel));
+  const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [overrideCount, setOverrideCount] = useState(0);
+
+  const patch = (changes: Partial<ScheduleForm>) => setForm((prev) => ({ ...prev, ...changes }));
+
+  const openCreate = (presetDate?: Date, preset?: { type: TargetType; id: number }, exactTime = false) => {
+    setForm(presetForm(channel, presetDate, preset, exactTime));
+    setOverrideCount(0);
+    setEditingId(null);
+    setOpen(true);
+  };
+
+  const openEdit = async (scheduleId: number) => {
+    try {
+      const res = await fetch(getApiUrl(`/schedule/${scheduleId}`), { cache: "no-store" });
+      if (!res.ok) {
+        showToast(t("schedule.loadScheduleError"), "error");
+        return;
+      }
+      const data: ScheduleDetail = await res.json();
+      setEditingId(data.id);
+      setForm(formFrom(data));
+      setOverrideCount(data.override_count);
+      setOpen(true);
+    } catch {
+      showToast(t("schedule.networkError"), "error");
+    }
+  };
+
+  const close = () => {
+    setOpen(false);
+    setEditingId(null);
+  };
+
+  const toggleDay = (day: number) => setForm((prev) => ({ ...prev, daysOfWeek: toggledDays(prev.daysOfWeek, day) }));
+  const { saving, confirmDelete, setConfirmDelete, save, remove } = useScheduleWrite(form, channel, editingId, close, showToast, onChanged);
 
   return { form, patch, open, editingId, overrideCount, saving, confirmDelete, setConfirmDelete, openCreate, openEdit, close, toggleDay, save, remove };
 }

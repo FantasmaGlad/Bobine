@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import PageNav from "@/components/PageNav";
 import QuickLibrary from "@/components/schedule/QuickLibrary";
@@ -37,11 +37,29 @@ function initialChannel(): ChannelValue {
   return parseScheduleChannel(new URLSearchParams(window.location.search).get("channel"));
 }
 
+function useLibraryPanel(isMobile: boolean) {
+  const [libraryOpen, setLibraryOpen] = useState(true);
+  const [wasMobile, setWasMobile] = useState(isMobile);
+  if (wasMobile !== isMobile) {
+    setWasMobile(isMobile);
+    if (isMobile) setLibraryOpen(false);
+  }
+  return [libraryOpen, setLibraryOpen] as const;
+}
+
+function ScheduleBody({ loading, label, view, day, scroll, viewProps }: {
+  loading: boolean; label: string; view: string; day: Date; scroll: React.RefObject<HTMLDivElement | null>; viewProps: ViewProps;
+}) {
+  if (loading) return <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>{label}</div>;
+  if (view === "week") return <WeekView ref={scroll} {...viewProps} />;
+  if (view === "day") return <DayView ref={scroll} {...viewProps} day={day} />;
+  return <ListView {...viewProps} />;
+}
+
 export default function SchedulePage() {
   const isMobile = useIsMobile();
   const { t } = useAppSettings();
   const [channel, setChannel] = useState<ChannelValue>(initialChannel);
-  const [libraryOpen, setLibraryOpen] = useState(true);
   const scroll = useRef<HTMLDivElement | null>(null);
   const { toast, showToast } = useToast();
   const nav = useScheduleNavigation(isMobile);
@@ -53,11 +71,7 @@ export default function SchedulePage() {
   const drag = useScheduleDrag();
   const radio = isRadioLane(channel);
 
-  const [wasMobile, setWasMobile] = useState(isMobile);
-  if (wasMobile !== isMobile) {
-    setWasMobile(isMobile);
-    if (isMobile) setLibraryOpen(false);
-  }
+  const [libraryOpen, setLibraryOpen] = useLibraryPanel(isMobile);
 
   useEffect(() => {
     if ((nav.view === "week" || nav.view === "day") && scroll.current) scroll.current.scrollTop = Math.max(0, 450 * nav.pxPerMinute - 20);
@@ -77,16 +91,6 @@ export default function SchedulePage() {
     weekDays: data.weekDays, byDay: data.byDay, pxPerMinute: nav.pxPerMinute, drag, controls, catalog,
     onCreate: (day) => form.openCreate(day), onDrop: dropOnDay,
   };
-
-  const body = data.loading ? (
-    <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>{t("schedule.loadingSchedule")}</div>
-  ) : nav.view === "week" ? (
-    <WeekView ref={scroll} {...viewProps} />
-  ) : nav.view === "day" ? (
-    <DayView ref={scroll} {...viewProps} day={nav.day} />
-  ) : (
-    <ListView {...viewProps} />
-  );
 
   return (
     <div className="schedule-page">
@@ -122,7 +126,7 @@ export default function SchedulePage() {
         </div>
       )}
       <div className="schedule-body" style={{ flexDirection: isMobile ? "column" : "row", gap: "20px" }}>
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>{body}</div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0 }}><ScheduleBody loading={data.loading} label={t("schedule.loadingSchedule")} view={nav.view} day={nav.day} scroll={scroll} viewProps={viewProps} /></div>
         {libraryOpen && (
           <QuickLibrary radio={radio} catalog={catalog} drag={drag} isMobile={isMobile} onClose={() => setLibraryOpen(false)} onPick={(preset) => form.openCreate(undefined, preset)} />
         )}
