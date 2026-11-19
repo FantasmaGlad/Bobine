@@ -76,48 +76,58 @@ fn security(value: &str) -> Option<String> {
     }
 }
 
-pub fn networks(text: &str, current: Option<&str>, known: &[String]) -> Vec<Value> {
-    struct Net {
-        ssid: String,
-        security: Option<String>,
-        signal: u8,
-        band: String,
+struct Net {
+    ssid: String,
+    security: Option<String>,
+    signal: u8,
+    band: String,
+}
+
+fn ssid_header(line: &str) -> Option<String> {
+    let (idx, name) = line.strip_prefix("SSID ")?.split_once(':')?;
+    let idx = idx.trim();
+    (!idx.is_empty() && idx.chars().all(|c| c.is_ascii_digit())).then(|| name.trim().to_string())
+}
+
+fn apply_field(net: &mut Net, key: &str, value: &str) {
+    if net.security.is_none() {
+        if let Some(sec) = security(value) {
+            net.security = Some(sec);
+            return;
+        }
     }
+    if key_matches(key, &["signal"]) {
+        let s: u8 = value.trim_end_matches('%').trim().parse().unwrap_or(0);
+        net.signal = net.signal.max(s);
+    } else if key_matches(key, &["band", "bande"]) && net.band.is_empty() {
+        net.band = value.to_string();
+    }
+}
+
+fn parse_networks(text: &str) -> Vec<Net> {
     let mut nets: Vec<Net> = Vec::new();
     for line in text.lines() {
         let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("SSID ") {
-            if let Some((idx, name)) = rest.split_once(':') {
-                if idx.trim().chars().all(|c| c.is_ascii_digit()) && !idx.trim().is_empty() {
-                    nets.push(Net {
-                        ssid: name.trim().to_string(),
-                        security: None,
-                        signal: 0,
-                        band: String::new(),
-                    });
-                    continue;
-                }
-            }
+        if let Some(ssid) = ssid_header(trimmed) {
+            nets.push(Net {
+                ssid,
+                security: None,
+                signal: 0,
+                band: String::new(),
+            });
+            continue;
         }
         let Some(net) = nets.last_mut() else { continue };
-        let Some((key, value)) = split_kv(trimmed) else {
-            continue;
-        };
-        if net.security.is_none() {
-            if let Some(sec) = security(value) {
-                net.security = Some(sec);
-                continue;
-            }
-        }
-        if key_matches(key, &["signal"]) {
-            let s: u8 = value.trim_end_matches('%').trim().parse().unwrap_or(0);
-            net.signal = net.signal.max(s);
-        } else if key_matches(key, &["band", "bande"]) && net.band.is_empty() {
-            net.band = value.to_string();
+        if let Some((key, value)) = split_kv(trimmed) {
+            apply_field(net, key, value);
         }
     }
+    nets
+}
+
+pub fn networks(text: &str, current: Option<&str>, known: &[String]) -> Vec<Value> {
     let mut best: Vec<Value> = Vec::new();
-    for n in nets.into_iter().filter(|n| !n.ssid.is_empty()) {
+    for n in parse_networks(text).into_iter().filter(|n| !n.ssid.is_empty()) {
         if best.iter().any(|b| b["ssid"] == n.ssid.as_str()) {
             continue;
         }
