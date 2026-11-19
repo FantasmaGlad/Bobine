@@ -90,89 +90,64 @@ pub fn handle_line(platform: &dyn Platform, line: &str) -> String {
     response.to_string()
 }
 
+fn invalid_request(message: &str) -> RpcError {
+    RpcError {
+        code: ERR_INVALID_REQUEST,
+        message: message.into(),
+        data: None,
+    }
+}
+
 fn handle_value(platform: &dyn Platform, value: Value) -> Value {
-    let obj = match value.as_object() {
-        Some(obj) => obj,
-        None => {
-            return error_response(
-                Value::Null,
-                RpcError {
-                    code: ERR_INVALID_REQUEST,
-                    message: "Requête invalide".into(),
-                    data: None,
-                },
-            )
-        }
+    let Some(obj) = value.as_object() else {
+        return error_response(Value::Null, invalid_request("Requête invalide"));
     };
     let id = obj.get("id").cloned().unwrap_or(Value::Null);
     if !(id.is_null() || id.is_u64() || id.is_i64() || id.is_string()) {
-        return error_response(
-            Value::Null,
-            RpcError {
-                code: ERR_INVALID_REQUEST,
-                message: "Identifiant invalide".into(),
-                data: None,
-            },
-        );
+        return error_response(Value::Null, invalid_request("Identifiant invalide"));
     }
+    match dispatch(platform, obj) {
+        Ok(value) => json!({ "jsonrpc": "2.0", "id": id, "result": value }),
+        Err(err) => error_response(id, err),
+    }
+}
+
+fn request_method(obj: &Map<String, Value>) -> Result<&str, RpcError> {
     if obj.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
-        return error_response(
-            id,
-            RpcError {
-                code: ERR_INVALID_REQUEST,
-                message: "jsonrpc doit valoir 2.0".into(),
-                data: None,
-            },
-        );
+        return Err(invalid_request("jsonrpc doit valoir 2.0"));
     }
-    let method = match obj.get("method").and_then(Value::as_str) {
-        Some(m) => m,
-        None => {
-            return error_response(
-                id,
-                RpcError {
-                    code: ERR_INVALID_REQUEST,
-                    message: "Méthode manquante".into(),
-                    data: None,
-                },
-            )
-        }
-    };
+    let method = obj
+        .get("method")
+        .and_then(Value::as_str)
+        .ok_or_else(|| invalid_request("Méthode manquante"))?;
     if !METHODS.contains(&method) {
-        return error_response(
-            id,
-            RpcError {
-                code: ERR_METHOD_NOT_FOUND,
-                message: format!("Méthode introuvable : {method}"),
-                data: None,
-            },
-        );
+        return Err(RpcError {
+            code: ERR_METHOD_NOT_FOUND,
+            message: format!("Méthode introuvable : {method}"),
+            data: None,
+        });
     }
+    Ok(method)
+}
+
+fn dispatch(platform: &dyn Platform, obj: &Map<String, Value>) -> RpcResult {
+    let method = request_method(obj)?;
     let empty = Map::new();
     let params = match obj.get("params") {
         None | Some(Value::Null) => &empty,
         Some(Value::Object(map)) => map,
-        Some(_) => {
-            return error_response(id, RpcError::invalid_params("params doit être un objet"))
-        }
+        Some(_) => return Err(RpcError::invalid_params("params doit être un objet")),
     };
-    if let Err(e) = validate_params(method, params) {
-        return error_response(id, e);
-    }
-    let result = if method == "hello" {
-        Ok(json!({
+    validate_params(method, params)?;
+    if method == "hello" {
+        return Ok(json!({
             "protocol_version": PROTOCOL_VERSION,
             "version": env!("CARGO_PKG_VERSION"),
             "platform": platform.name(),
             "capabilities": platform.capabilities(),
-        }))
-    } else {
-        platform.call(method, params)
-    };
-    match result {
-        Ok(value) => json!({ "jsonrpc": "2.0", "id": id, "result": value }),
-        Err(err) => error_response(id, err),
+        }));
     }
+    platform.call(method, params)
 }
 
 fn error_response(id: Value, err: RpcError) -> Value {
@@ -205,63 +180,54 @@ pub fn is_valid_mac(text: &str) -> bool {
             .all(|p| p.len() == 2 && p.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
+fn validate_volume(params: &Map<String, Value>) -> Result<(), RpcError> {
+    check_text(params, "id", 256)?;
+    if let Some(v) = params.get("volume").filter(|v| !v.is_null()) {
+        let n = v
+            .as_f64()
+            .ok_or_else(|| RpcError::invalid_params("volume doit être un nombre"))?;
+        if !(0.0..=1.5).contains(&n) {
+            return Err(RpcError::invalid_params("volume hors de [0, 1,5]"));
+        }
+    }
+    if let Some(m) = params.get("muted") {
+        if !m.is_null() && !m.is_boolean() {
+            return Err(RpcError::invalid_params("muted doit être un booléen"));
+        }
+    }
+    Ok(())
+}
+
+fn validate_wifi_connect(params: &Map<String, Value>) -> Result<(), RpcError> {
+    check_text(params, "ssid", 64)?;
+    if let Some(p) = params.get("password").filter(|p| !p.is_null()) {
+        let text = p
+            .as_str()
+            .ok_or_else(|| RpcError::invalid_params("password doit être un texte"))?;
+        if text.len() > 128 || text.chars().any(|c| c == '\n' || c == '\r' || c == '\0') {
+            return Err(RpcError::invalid_params("mot de passe invalide"));
+        }
+    }
+    Ok(())
+}
+
 fn validate_params(method: &str, params: &Map<String, Value>) -> Result<(), RpcError> {
     match method {
         "audio.set_default" => check_text(params, "id", 256),
-        "audio.set_volume" => {
-            check_text(params, "id", 256)?;
-            if let Some(v) = params.get("volume") {
-                if !v.is_null() {
-                    let n = v
-                        .as_f64()
-                        .ok_or_else(|| RpcError::invalid_params("volume doit être un nombre"))?;
-                    if !(0.0..=1.5).contains(&n) {
-                        return Err(RpcError::invalid_params("volume hors de [0, 1,5]"));
-                    }
-                }
-            }
-            if let Some(m) = params.get("muted") {
-                if !m.is_null() && !m.is_boolean() {
-                    return Err(RpcError::invalid_params("muted doit être un booléen"));
-                }
-            }
-            Ok(())
-        }
+        "audio.set_volume" => validate_volume(params),
         "bluetooth.set_power" | "bluetooth.scan" | "wifi.set_power" => {
             get_bool(params, "on").map(|_| ())
         }
         "bluetooth.pair" | "bluetooth.connect" | "bluetooth.disconnect" | "bluetooth.forget" => {
-            let address = get_str(params, "address")?;
-            if is_valid_mac(address) {
+            if is_valid_mac(get_str(params, "address")?) {
                 Ok(())
             } else {
                 Err(RpcError::invalid_params("adresse Bluetooth invalide"))
             }
         }
-        "wifi.connect" => {
-            check_text(params, "ssid", 64)?;
-            if let Some(p) = params.get("password") {
-                if !p.is_null() {
-                    let text = p
-                        .as_str()
-                        .ok_or_else(|| RpcError::invalid_params("password doit être un texte"))?;
-                    if text.len() > 128 || text.chars().any(|c| c == '\n' || c == '\r' || c == '\0')
-                    {
-                        return Err(RpcError::invalid_params("mot de passe invalide"));
-                    }
-                }
-            }
-            Ok(())
-        }
-        "wifi.activate" | "wifi.forget" => check_text(
-            params,
-            if method == "wifi.forget" {
-                "ssid"
-            } else {
-                "connection"
-            },
-            64,
-        ),
+        "wifi.connect" => validate_wifi_connect(params),
+        "wifi.activate" => check_text(params, "connection", 64),
+        "wifi.forget" => check_text(params, "ssid", 64),
         _ => Ok(()),
     }
 }

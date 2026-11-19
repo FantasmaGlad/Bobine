@@ -1,6 +1,6 @@
 use crate::protocol::RpcError;
 use std::io::{Read, Write};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -21,17 +21,16 @@ pub fn run(
     run_with_env(program, args, timeout, stdin, &[])
 }
 
-pub fn run_with_env(
+fn spawn(
     program: &str,
     args: &[&str],
-    timeout: Duration,
-    stdin: Option<&str>,
+    piped_stdin: bool,
     envs: &[(&str, &str)],
-) -> Result<Output, RpcError> {
-    let mut child = Command::new(program)
+) -> Result<Child, RpcError> {
+    Command::new(program)
         .args(args)
         .envs(envs.iter().copied())
-        .stdin(if stdin.is_some() {
+        .stdin(if piped_stdin {
             Stdio::piped()
         } else {
             Stdio::null()
@@ -48,20 +47,14 @@ pub fn run_with_env(
                 "tool_failed",
                 format!("Impossible de lancer {program} : {e}"),
             ),
-        })?;
+        })
+}
 
-    if let (Some(text), Some(mut pipe)) = (stdin, child.stdin.take()) {
-        let _ = pipe.write_all(text.as_bytes());
-    }
-    let mut stdout = child.stdout.take();
-    let mut stderr = child.stderr.take();
-    let out_reader = thread::spawn(move || read_all(stdout.as_mut()));
-    let err_reader = thread::spawn(move || read_all(stderr.as_mut()));
-
+fn wait_within(child: &mut Child, program: &str, timeout: Duration) -> Result<ExitStatus, RpcError> {
     let started = Instant::now();
-    let status = loop {
+    loop {
         match child.try_wait() {
-            Ok(Some(status)) => break status,
+            Ok(Some(status)) => return Ok(status),
             Ok(None) if started.elapsed() >= timeout => {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -73,7 +66,25 @@ pub fn run_with_env(
             Ok(None) => thread::sleep(Duration::from_millis(20)),
             Err(e) => return Err(RpcError::app("tool_failed", format!("{program} : {e}"))),
         }
-    };
+    }
+}
+
+pub fn run_with_env(
+    program: &str,
+    args: &[&str],
+    timeout: Duration,
+    stdin: Option<&str>,
+    envs: &[(&str, &str)],
+) -> Result<Output, RpcError> {
+    let mut child = spawn(program, args, stdin.is_some(), envs)?;
+    if let (Some(text), Some(mut pipe)) = (stdin, child.stdin.take()) {
+        let _ = pipe.write_all(text.as_bytes());
+    }
+    let mut stdout = child.stdout.take();
+    let mut stderr = child.stderr.take();
+    let out_reader = thread::spawn(move || read_all(stdout.as_mut()));
+    let err_reader = thread::spawn(move || read_all(stderr.as_mut()));
+    let status = wait_within(&mut child, program, timeout)?;
     Ok(Output {
         code: status.code().unwrap_or(-1),
         stdout: out_reader.join().unwrap_or_default(),
