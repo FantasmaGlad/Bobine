@@ -5,16 +5,15 @@ import React, { useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import Toast from "@/components/Toast";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { getApiUrl } from "@/lib/apiUrl";
 import type { ShowToast, ToastState } from "@/lib/useToast";
 
-import { appendToPlaylist, deleteVideos } from "./bulk";
 import { AddToPlaylistDialog, BulkDeleteDialog, DeleteVideoDialog } from "./LibraryDialogs";
 import LibraryToolbar, { type LibraryFilters } from "./LibraryToolbar";
 import SelectionBar from "./SelectionBar";
 import { useSelection } from "./selection";
 import { PROGRAMS_LIST_ID, type Video } from "./types";
 import UploadZone from "./UploadZone";
+import { useLibraryActions } from "./useLibraryActions";
 import { useLibraryData } from "./useLibraryData";
 import type { useLibraryUploads } from "./useLibraryUploads";
 import VideoGrid from "./VideoGrid";
@@ -46,13 +45,10 @@ export default function LibraryMedia({ uploads, onPick, toast, showToast, progra
   const { t } = useAppSettings();
   const [filters, setFilters] = useState<LibraryFilters>({ search: "", program: "", release: "", sortBy: "imported_at" });
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [selected, setSelected] = useState<Video | null>(null);
-  const [toDelete, setToDelete] = useState<Video | null>(null);
-  const [bulkDelete, setBulkDelete] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
-  const [target, setTarget] = useState("");
-  const data = useLibraryData(filters, showToast);
+  const [selected, setSelected] = useState<Video | null>(null);  const data = useLibraryData(filters, showToast);
   const selection = useSelection(data.videos);
+  const { toDelete, setToDelete, bulkDelete, setBulkDelete, addOpen, setAddOpen, target, setTarget, confirmDelete, confirmBulkDelete, closeAdd, confirmAdd } =
+    useLibraryActions(data, selection, showToast, selected, setSelected);
   useEffect(() => {
     programsRef.current = data.availablePrograms;
   }, [programsRef, data.availablePrograms]);
@@ -61,53 +57,6 @@ export default function LibraryMedia({ uploads, onPick, toast, showToast, progra
     data.setVideos((prev) => prev.map((v) => (v.id === video.id ? video : v)));
     setSelected(video);
     data.fetchPrograms();
-  };
-
-  const confirmDelete = async () => {
-    if (!toDelete) return;
-    try {
-      const res = await fetch(getApiUrl(`/videos/${toDelete.id}`), { method: "DELETE" });
-      if (!res.ok) {
-        showToast(t("library.deleteError"), "error");
-        return;
-      }
-      showToast(t("library.deletedSuccess"));
-      data.setVideos((prev) => prev.filter((v) => v.id !== toDelete.id));
-      if (selected?.id === toDelete.id) setSelected(null);
-    } catch {
-      showToast(t("library.deleteGenericError"), "error");
-    } finally {
-      setToDelete(null);
-    }
-  };
-
-  const confirmBulkDelete = async () => {
-    const ids = Array.from(selection.selectedIds);
-    const failed = await deleteVideos(ids);
-    showToast(
-      failed > 0 ? t("library.bulkDeletedPartial", { ok: ids.length - failed, total: ids.length }) : t("library.bulkDeletedAll", { count: ids.length }),
-      failed > 0 ? "warning" : "success"
-    );
-    setBulkDelete(false);
-    selection.clear();
-    data.fetchVideos();
-  };
-
-  const closeAdd = () => {
-    setAddOpen(false);
-    setTarget("");
-  };
-
-  const confirmAdd = async () => {
-    if (!target) return;
-    try {
-      const name = await appendToPlaylist(target, Array.from(selection.selectedIds));
-      showToast(t("library.addedToPlaylist", { count: selection.selectedIds.size, name }));
-      closeAdd();
-      selection.clear();
-    } catch {
-      showToast(t("library.addToPlaylistError"), "error");
-    }
   };
 
   const content = data.loading ? (

@@ -30,18 +30,10 @@ function sortedPrograms(programs: string[], videos: Video[]): string[] {
   return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
 }
 
-export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
+function useVideoFetch(query: string, cacheable: boolean, showToast: ShowToast) {
   const { t } = useAppSettings();
   const [videos, setVideos] = useState<Video[]>(() => recallCatalog<Video>(CACHE_KEY) ?? []);
   const [loading, setLoading] = useState<boolean>(() => recallCatalog<Video>(CACHE_KEY) === undefined);
-  const [programs, setPrograms] = useState<string[]>([]);
-  const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>([]);
-  const { uploads } = useUploadManager();
-  const { libraryVersion } = usePlaybackSocket();
-  const seenDoneIds = useRef<Set<string>>(new Set());
-
-  const query = videosQuery(filters);
-  const cacheable = !filters.search && !filters.program && !filters.release;
 
   const fetchVideos = useCallback(() => Promise.resolve()
     .then(() => {
@@ -59,6 +51,29 @@ export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
     })
     .catch(() => showToast(t("library.connectionError"), "error"))
     .finally(() => setLoading(false)), [query, cacheable, showToast, t]);
+
+  return { videos, setVideos, loading, fetchVideos };
+}
+
+function usePlaylistNames() {
+  const [playlists, setPlaylists] = useState<{ id: number; name: string }[]>([]);
+  useEffect(() => {
+    fetch(getApiUrl("/playlists"), { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setPlaylists)
+      .catch(() => setPlaylists([]));
+  }, []);
+  return playlists;
+}
+
+export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
+  const query = videosQuery(filters);
+  const cacheable = !filters.search && !filters.program && !filters.release;
+  const { videos, setVideos, loading, fetchVideos } = useVideoFetch(query, cacheable, showToast);
+  const [programs, setPrograms] = useState<string[]>([]);
+  const { uploads } = useUploadManager();
+  const { libraryVersion } = usePlaybackSocket();
+  const seenDoneIds = useRef<Set<string>>(new Set());
 
   const fetchPrograms = useCallback(() => fetch(getApiUrl("/videos/programs"), { cache: "no-store" })
     .then((res) => (res.ok ? res.json() : []))
@@ -78,12 +93,7 @@ export function useLibraryData(filters: LibraryFilters, showToast: ShowToast) {
     void fetchVideos();
   }, [fetchVideos]);
 
-  useEffect(() => {
-    fetch(getApiUrl("/playlists"), { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then(setPlaylists)
-      .catch(() => setPlaylists([]));
-  }, []);
+  const playlists = usePlaylistNames();
 
   useEffect(() => {
     void fetchPrograms();

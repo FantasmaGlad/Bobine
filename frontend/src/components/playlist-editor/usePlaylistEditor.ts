@@ -27,12 +27,44 @@ async function reselectAfterSave<Item>(endpoint: string, name: string, draft: Pl
   else draft.cancel();
 }
 
+type PlaylistList = ReturnType<typeof usePlaylistList>;
+
+function usePlaylistDeletion<Item, Detail>({ endpoint, prefix, t, showToast }: PlaylistEditorConfig<Item, Detail>, list: PlaylistList, draft: PlaylistDraft<Item>) {
+  const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
+
+  const confirmDelete = async () => {
+    const target = playlistToDelete;
+    if (!target) return;
+    try {
+      const res = await fetch(getApiUrl(`${endpoint}/${target.id}`), { method: "DELETE" });
+      if (res.ok) {
+        showToast(t(`${prefix}.deletedToast`));
+        list.setPlaylists((prev) => prev.filter((p) => p.id !== target.id));
+        if (draft.selectedPlaylistId === target.id) draft.cancel();
+      } else {
+        showToast(t(`${prefix}.deleteError`), "error");
+      }
+    } catch {
+      showToast(t(`${prefix}.deleteNetworkError`), "error");
+    } finally {
+      setPlaylistToDelete(null);
+    }
+  };
+
+  const askDelete = (e: React.MouseEvent, playlist: PlaylistSummary) => {
+    e.stopPropagation();
+    setPlaylistToDelete(playlist);
+  };
+
+  return { playlistToDelete, askDelete, confirmDelete, cancelDelete: () => setPlaylistToDelete(null) };
+}
+
 export function usePlaylistEditor<Item, Detail>(config: PlaylistEditorConfig<Item, Detail>) {
   const { endpoint, prefix, payload, t, showToast } = config;
   const list = usePlaylistList(config);
   const draft = usePlaylistDraft(config);
   const [isSaving, setIsSaving] = useState(false);
-  const [playlistToDelete, setPlaylistToDelete] = useState<PlaylistSummary | null>(null);
+  const deletion = usePlaylistDeletion(config, list, draft as PlaylistDraft<Item>);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,34 +110,7 @@ export function usePlaylistEditor<Item, Detail>(config: PlaylistEditorConfig<Ite
     }
   };
 
-  const confirmDelete = async () => {
-    const target = playlistToDelete;
-    if (!target) return;
-    try {
-      const res = await fetch(getApiUrl(`${endpoint}/${target.id}`), { method: "DELETE" });
-      if (res.ok) {
-        showToast(t(`${prefix}.deletedToast`));
-        list.setPlaylists((prev) => prev.filter((p) => p.id !== target.id));
-        if (draft.selectedPlaylistId === target.id) draft.cancel();
-      } else {
-        showToast(t(`${prefix}.deleteError`), "error");
-      }
-    } catch {
-      showToast(t(`${prefix}.deleteNetworkError`), "error");
-    } finally {
-      setPlaylistToDelete(null);
-    }
-  };
-
-  const askDelete = (e: React.MouseEvent, playlist: PlaylistSummary) => {
-    e.stopPropagation();
-    setPlaylistToDelete(playlist);
-  };
-
-  return {
-    ...list, draft, isSaving, save, duplicate, playlistToDelete, askDelete, confirmDelete,
-    cancelDelete: () => setPlaylistToDelete(null),
-  };
+  return { ...list, draft, isSaving, save, duplicate, ...deletion };
 }
 
 export type PlaylistEditor<Item> = ReturnType<typeof usePlaylistEditor<Item, unknown>>;
