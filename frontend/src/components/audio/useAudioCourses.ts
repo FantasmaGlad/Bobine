@@ -19,13 +19,24 @@ function loadJson<T>(path: string, apply: (data: T) => void) {
     .catch(() => {});
 }
 
+function useCourseBackgrounds() {
+  const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
+  const [defaultBackgroundId, setDefaultBackgroundId] = useState<number | null>(null);
+  useEffect(() => {
+    loadJson<BackgroundOption[]>("/backgrounds", setBackgrounds);
+    loadJson<{ default_coach_background_id?: unknown }>("/settings", (data) => {
+      if (typeof data.default_coach_background_id === "number") setDefaultBackgroundId(data.default_coach_background_id);
+    });
+  }, []);
+  const defaultBackground = defaultBackgroundId ? backgrounds.find((b) => b.id === defaultBackgroundId) ?? null : null;
+  return { backgrounds, defaultBackground };
+}
+
 export function useAudioCourses(showToast: ShowToast) {
   const { t } = useAppSettings();
   const [courses, setCourses] = useState<AudioCourseSummary[]>(() => recallCatalog<AudioCourseSummary>(CACHE_KEY) ?? []);
   const [loading, setLoading] = useState(() => recallCatalog<AudioCourseSummary>(CACHE_KEY) === undefined);
-  const [backgrounds, setBackgrounds] = useState<BackgroundOption[]>([]);
   const [programs, setPrograms] = useState<string[]>([]);
-  const [defaultBackgroundId, setDefaultBackgroundId] = useState<number | null>(null);
   const { uploads } = useUploadManager();
   const seenDoneIds = useRef<Set<string>>(new Set());
 
@@ -53,12 +64,7 @@ export function useAudioCourses(showToast: ShowToast) {
     fetchPrograms();
   }, [fetchCourses, fetchPrograms]);
 
-  useEffect(() => {
-    loadJson<BackgroundOption[]>("/backgrounds", setBackgrounds);
-    loadJson<{ default_coach_background_id?: unknown }>("/settings", (data) => {
-      if (typeof data.default_coach_background_id === "number") setDefaultBackgroundId(data.default_coach_background_id);
-    });
-  }, []);
+  const { backgrounds, defaultBackground } = useCourseBackgrounds();
 
   useEffect(() => {
     const newlyDone = uploads.filter((u) => (u.kind === "audio_files" || u.kind === "audio_zip") && u.status === "done" && !seenDoneIds.current.has(u.id));
@@ -67,8 +73,6 @@ export function useAudioCourses(showToast: ShowToast) {
     void fetchCourses();
     fetchPrograms();
   }, [uploads, fetchCourses, fetchPrograms]);
-
-  const defaultBackground = defaultBackgroundId ? backgrounds.find((b) => b.id === defaultBackgroundId) ?? null : null;
 
   const refresh = () => {
     void fetchCourses();
