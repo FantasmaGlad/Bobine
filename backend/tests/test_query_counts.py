@@ -32,54 +32,61 @@ PREFIX = "qcount-"
 MAX_QUERIES = 6
 
 
+def _seed_library(db):
+    bg = Background(file_path=f"{PREFIX}bg.mp4", title=f"{PREFIX}bg")
+    tags = [RadioTag(name=f"{PREFIX}tag{i}") for i in range(3)]
+    videos = [
+        Video(file_path=f"{PREFIX}v{i}.mp4", title=f"{PREFIX}v{i}", duration_seconds=60.0,
+              thumbnail_path=f"{PREFIX}v{i}.jpg", source=ImportSource.upload)
+        for i in range(ROWS)
+    ]
+    db.add_all([bg, *tags, *videos])
+    db.flush()
+    radio_tracks = []
+    for i in range(ROWS):
+        t = RadioTrack(file_path=f"{PREFIX}r{i}.mp3", title=f"{PREFIX}r{i}", duration_seconds=100.0,
+                       cover_path=f"{PREFIX}r{i}.jpg", source=ImportSource.upload)
+        t.tags = [tags[i % 3], tags[(i + 1) % 3]]
+        radio_tracks.append(t)
+    db.add_all(radio_tracks)
+    courses = []
+    for c in range(ROWS):
+        course = AudioCourse(title=f"{PREFIX}c{c}", program="P", background_id=bg.id)
+        course.tracks = [
+            AudioTrack(number=k, title=f"{PREFIX}c{c}t{k}", file_path=f"{PREFIX}a{c}-{k}.mp3",
+                       duration_seconds=10.0, position=k, background_id=bg.id)
+            for k in range(3)
+        ]
+        courses.append(course)
+    db.add_all(courses)
+    db.flush()
+    return bg, videos, radio_tracks, courses
+
+
+def _seed_playlists(db, bg, videos, radio_tracks, courses):
+    playlist = Playlist(name=f"{PREFIX}pl")
+    playlist.items = [PlaylistItem(video_id=v.id, position=i) for i, v in enumerate(videos)]
+    radio_playlist = RadioPlaylist(name=f"{PREFIX}rpl")
+    radio_playlist.items = [
+        RadioPlaylistItem(radio_track_id=t.id, position=i) for i, t in enumerate(radio_tracks)
+    ]
+    audio_playlist = AudioPlaylist(name=f"{PREFIX}apl")
+    audio_playlist.items = [
+        AudioPlaylistItem(audio_track_id=course.tracks[0].id, position=i, background_id=bg.id)
+        for i, course in enumerate(courses)
+    ]
+    db.add_all([playlist, radio_playlist, audio_playlist])
+    db.commit()
+    return playlist, radio_playlist, audio_playlist
+
+
 @pytest.fixture(scope="module")
 def seeded():
     database.init_db()
     db = database.SessionLocal()
     try:
-        bg = Background(file_path=f"{PREFIX}bg.mp4", title=f"{PREFIX}bg")
-        tags = [RadioTag(name=f"{PREFIX}tag{i}") for i in range(3)]
-        videos = [
-            Video(file_path=f"{PREFIX}v{i}.mp4", title=f"{PREFIX}v{i}", duration_seconds=60.0,
-                  thumbnail_path=f"{PREFIX}v{i}.jpg", source=ImportSource.upload)
-            for i in range(ROWS)
-        ]
-        db.add_all([bg, *tags, *videos])
-        db.flush()
-
-        radio_tracks = []
-        for i in range(ROWS):
-            t = RadioTrack(file_path=f"{PREFIX}r{i}.mp3", title=f"{PREFIX}r{i}", duration_seconds=100.0,
-                           cover_path=f"{PREFIX}r{i}.jpg", source=ImportSource.upload)
-            t.tags = [tags[i % 3], tags[(i + 1) % 3]]
-            radio_tracks.append(t)
-        db.add_all(radio_tracks)
-
-        courses = []
-        for c in range(ROWS):
-            course = AudioCourse(title=f"{PREFIX}c{c}", program="P", background_id=bg.id)
-            course.tracks = [
-                AudioTrack(number=k, title=f"{PREFIX}c{c}t{k}", file_path=f"{PREFIX}a{c}-{k}.mp3",
-                           duration_seconds=10.0, position=k, background_id=bg.id)
-                for k in range(3)
-            ]
-            courses.append(course)
-        db.add_all(courses)
-        db.flush()
-
-        playlist = Playlist(name=f"{PREFIX}pl")
-        playlist.items = [PlaylistItem(video_id=v.id, position=i) for i, v in enumerate(videos)]
-        radio_playlist = RadioPlaylist(name=f"{PREFIX}rpl")
-        radio_playlist.items = [
-            RadioPlaylistItem(radio_track_id=t.id, position=i) for i, t in enumerate(radio_tracks)
-        ]
-        audio_playlist = AudioPlaylist(name=f"{PREFIX}apl")
-        audio_playlist.items = [
-            AudioPlaylistItem(audio_track_id=course.tracks[0].id, position=i, background_id=bg.id)
-            for i, course in enumerate(courses)
-        ]
-        db.add_all([playlist, radio_playlist, audio_playlist])
-        db.commit()
+        bg, videos, radio_tracks, courses = _seed_library(db)
+        playlist, radio_playlist, audio_playlist = _seed_playlists(db, bg, videos, radio_tracks, courses)
         yield {
             "playlist": playlist.id,
             "radio_playlist": radio_playlist.id,

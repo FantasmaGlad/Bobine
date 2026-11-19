@@ -26,8 +26,7 @@ from storage_fakes import FakeStorageDriver  # noqa: E402
 from storage_flow_support import needs_ffmpeg, get_volumes, vol_view, wait_job, codes, _register  # noqa: E402
 
 
-@needs_ffmpeg
-def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
+def _register_mounted(env, media):
     vol = env.driver.plug("sda", "BBBB-0001", {"Cours/Rpm 101 test.mp4": media.video.read_bytes()}, label="CLUB", mounted_rw=True)
     env.refresh()
     assert vol_view(env, vol.key)["mounted_read_only"] is False
@@ -35,7 +34,10 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     _register(env, vol.key)
     assert env.driver.mount_calls[-1][1][0] == "ro" and vol_view(env, vol.key)["mounted_read_only"] is True
     first_mount = env.driver.volumes[vol.key].mountpoint
+    return vol, first_mount
 
+
+def _index_course(env, vol, first_mount):
     started = env.client.post(f"/api/storage/volumes/{vol.key}/index", json={"entries": [{"path": "Cours"}], "kind": "video"}).json()
     job = wait_job(env.client, started["job_id"])
     assert job["stage"] == "done" and job["details"]["indexed"] == 1
@@ -48,7 +50,10 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
         assert video.program == "RPM"
     again = env.client.post(f"/api/storage/volumes/{vol.key}/index", json={"entries": [{"path": "Cours"}], "kind": "video"}).json()
     assert wait_job(env.client, again["job_id"])["details"]["skipped"][0]["reason"] == "already_indexed"
+    return video_id
 
+
+def _assert_online(env, media, video_id):
     api = env.client.get(f"/api/videos/{video_id}").json()
     assert api["available"] is True and api["external"] is True
     stream = env.client.get(f"/api/videos/{video_id}/stream", headers={"Range": "bytes=0-9"})
@@ -58,6 +63,8 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     listing = env.client.get("/api/storage/volumes").json()["volumes"][0]
     assert listing["library"]["registered"] and listing["library"]["online"] and listing["library"]["stats"]["videos"] == 1
 
+
+def _assert_offline(env, vol, video_id):
     env.driver.unplug(vol.key)
     env.refresh()
     assert env.client.get(f"/api/videos/{video_id}").json()["available"] is False
@@ -72,6 +79,8 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
         assert row is not None and row.file_path.startswith("external:") and row.rel_path == "Cours/Rpm 101 test.mp4"
     assert any(not v["available"] for v in env.client.get("/api/videos").json() if v["id"] == video_id)
 
+
+def _assert_replugged_elsewhere(env, video_id, first_mount):
     env.driver.plug("sdz", "BBBB-0001", None, label="CLUB")
     env.refresh()
     new_mount = env.driver.volumes[next(iter(env.driver.volumes))].mountpoint
@@ -81,6 +90,8 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     assert env.client.get(f"/api/videos/{video_id}").json()["available"] is True
     assert env.client.get(f"/api/videos/{video_id}/stream", headers={"Range": "bytes=0-4"}).status_code == 206
 
+
+def _assert_read_only_library(env, media, video_id):
     on_disk = env.driver.disk_dir(next(iter(env.driver.volumes))) / "Cours" / "Rpm 101 test.mp4"
     assert env.client.put(f"/api/videos/{video_id}", json={"title": "Nouveau titre"}).status_code == 200
     assert on_disk.exists()
@@ -88,6 +99,16 @@ def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
     assert normalize.status_code == 409 and normalize.json()["detail"]["code"] == "external_read_only"
     assert env.client.delete(f"/api/videos/{video_id}").status_code == 200
     assert on_disk.exists() and on_disk.read_bytes() == media.video.read_bytes()
+
+
+@needs_ffmpeg
+def test_library_lifecycle_unplug_replug_other_mount_point(env, media):
+    vol, first_mount = _register_mounted(env, media)
+    video_id = _index_course(env, vol, first_mount)
+    _assert_online(env, media, video_id)
+    _assert_offline(env, vol, video_id)
+    _assert_replugged_elsewhere(env, video_id, first_mount)
+    _assert_read_only_library(env, media, video_id)
 
 
 def test_disk_images_are_never_remounted_automatically(env):

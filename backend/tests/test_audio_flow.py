@@ -133,6 +133,38 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(course.tracks), 2)
         self.assertFalse(course_dir.exists())
 
+    async def _check_track_navigation(self, manager):
+        await manager.audio_next_track()
+        self.assertEqual(manager.state["audio_track_index"], 1)
+        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)
+        await manager.audio_previous_track()
+        self.assertEqual(manager.state["audio_track_index"], 0)
+
+        manager.state["audio_position_seconds"] = 120.0
+        await manager.audio_restart_track()
+        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)
+        self.assertTrue(manager.state["audio_playing"])
+
+        await manager.audio_jump_to_track(2)
+        self.assertEqual(manager.state["audio_track_index"], 2)
+
+    async def _check_chain_modes(self, manager):
+        await manager.audio_set_chain_mode("manual")
+        await manager.audio_track_ended()
+        self.assertFalse(manager.state["audio_playing"])
+        self.assertEqual(manager.state["audio_track_index"], 2)
+
+        await manager.audio_jump_to_track(0)
+        await manager.audio_set_chain_mode("auto")
+        await manager.audio_track_ended()
+        self.assertEqual(manager.state["audio_track_index"], 1)
+        self.assertTrue(manager.state["audio_playing"])
+
+        await manager.audio_jump_to_track(2)
+        await manager.audio_track_ended()
+        self.assertFalse(manager.state["audio_playing"])
+        self.assertIsNotNone(manager.state["current_audio_course"])
+
     async def test_05_coach_mode_playback_manager_flow(self):
         broadcast_payloads = []
 
@@ -158,35 +190,8 @@ class TestAudioFlow(unittest.IsolatedAsyncioTestCase):
         await manager.play()
         self.assertTrue(manager.state["audio_playing"])
 
-        await manager.audio_next_track()
-        self.assertEqual(manager.state["audio_track_index"], 1)
-        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)
-        await manager.audio_previous_track()
-        self.assertEqual(manager.state["audio_track_index"], 0)
-
-        manager.state["audio_position_seconds"] = 120.0
-        await manager.audio_restart_track()
-        self.assertAlmostEqual(manager.state["audio_position_seconds"], 0.0, delta=0.5)
-        self.assertTrue(manager.state["audio_playing"])
-
-        await manager.audio_jump_to_track(2)
-        self.assertEqual(manager.state["audio_track_index"], 2)
-
-        await manager.audio_set_chain_mode("manual")
-        await manager.audio_track_ended()
-        self.assertFalse(manager.state["audio_playing"])
-        self.assertEqual(manager.state["audio_track_index"], 2)
-
-        await manager.audio_jump_to_track(0)
-        await manager.audio_set_chain_mode("auto")
-        await manager.audio_track_ended()
-        self.assertEqual(manager.state["audio_track_index"], 1)
-        self.assertTrue(manager.state["audio_playing"])
-
-        await manager.audio_jump_to_track(2)
-        await manager.audio_track_ended()
-        self.assertFalse(manager.state["audio_playing"])
-        self.assertIsNotNone(manager.state["current_audio_course"])
+        await self._check_track_navigation(manager)
+        await self._check_chain_modes(manager)
 
         await manager.load(video_id=99, title="RPM 100", duration_seconds=2700.0)
         self.assertIsNone(manager.state["current_audio_course"])
