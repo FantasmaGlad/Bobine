@@ -55,85 +55,106 @@ from .wired_mode import get_display_mode_setting, get_effective_wired_display_mo
 logger = logging.getLogger(__name__)
 
 
-@router.get("")
-def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
+def _int_setting(db: Session, key: str, fallback: int) -> int:
+    try:
+        return int(_get_db_value(db, key) or _DEFAULTS[key])
+    except ValueError:
+        return fallback
+
+
+def _flag(db: Session, key: str) -> str:
+    return "true" if _get_db_value(db, key) == "true" else "false"
+
+
+def _playback_settings(db: Session) -> dict[str, Any]:
+    default_bg_str = _get_db_value(db, "default_coach_background_id")
+    return {
+        "wait_time_between_courses": runtime_settings.wait_time_between_courses,
+        "volume_default": runtime_settings.volume_default,
+        "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
+        "logs_retention_days": _int_setting(db, "logs_retention_days", 7),
+        "default_coach_background_id": int(default_bg_str) if default_bg_str and default_bg_str.isdigit() else None,
+    }
+
+
+def _profile_settings(db: Session) -> dict[str, Any]:
+    profile = get_profile_handler()
+    return {
+        "deployment_profile": get_deployment_profile(),
+        "store_managed": profile.is_store_managed(),
+        "auto_update_supported": profile.can_schedule_auto_apply(),
+        "update_tor_supported": profile.supports_update_over_tor(),
+        "update_tor": _flag(db, "update_tor"),
+        "update_tor_proxy": _get_db_value(db, "update_tor_proxy") or _DEFAULTS["update_tor_proxy"],
+    }
+
+
+def _appearance_settings(db: Session) -> dict[str, Any]:
     theme, theme_mode = themes.resolve(_get_db_value(db, "theme"), _get_db_value(db, "theme_mode"))
     language = _get_db_value(db, "language") or _DEFAULTS["language"]
     has_custom = _logo_path().exists()
     active_logo = _get_db_value(db, "active_logo") or _DEFAULTS["active_logo"]
     if active_logo == "custom" and not has_custom:
         active_logo = "default"
-    channel_choice = resolve_update_channel(_get_db_value(db, "update_channel"))
-    display_mode_setting = get_display_mode_setting(db)
-    wired_display_mode = get_effective_wired_display_mode(db)
-    auto_update_enabled = _get_db_value(db, "auto_update_enabled") or _DEFAULTS["auto_update_enabled"]
-    auto_update_time = _get_db_value(db, "auto_update_time") or _DEFAULTS["auto_update_time"]
-    logs_retention_str = _get_db_value(db, "logs_retention_days") or _DEFAULTS["logs_retention_days"]
-    try:
-        logs_retention_days = int(logs_retention_str)
-    except ValueError:
-        logs_retention_days = 7
-    default_bg_str = _get_db_value(db, "default_coach_background_id")
-    default_coach_background_id = int(default_bg_str) if default_bg_str and default_bg_str.isdigit() else None
     return {
-        "wait_time_between_courses": runtime_settings.wait_time_between_courses,
-        "volume_default": runtime_settings.volume_default,
-        "audio_chain_timer_seconds": runtime_settings.audio_chain_timer_seconds,
-        "logs_retention_days": logs_retention_days,
-        "default_coach_background_id": default_coach_background_id,
-        "deployment_profile": get_deployment_profile(),
-        "store_managed": get_profile_handler().is_store_managed(),
-        "auto_update_supported": get_profile_handler().can_schedule_auto_apply(),
-        "update_tor_supported": get_profile_handler().supports_update_over_tor(),
-        "update_tor": "true" if _get_db_value(db, "update_tor") == "true" else "false",
-        "update_tor_proxy": _get_db_value(db, "update_tor_proxy") or _DEFAULTS["update_tor_proxy"],
         "theme": theme,
         "theme_mode": theme_mode,
         "language": language,
         "ui_language": ui_language.served(),
         "language_restart_required": language != ui_language.served(),
         "restart_guaranteed": get_profile_handler().restart_is_guaranteed(),
-        "simplified_ui": "true" if _get_db_value(db, "simplified_ui") == "true" else "false",
+        "simplified_ui": _flag(db, "simplified_ui"),
         "has_custom_logo": has_custom,
         "active_logo": active_logo,
+    }
+
+
+def _channel_and_display_settings(db: Session) -> dict[str, Any]:
+    channel_choice = resolve_update_channel(_get_db_value(db, "update_channel"))
+    return {
         "update_channel": channel_choice.effective,
         "update_channel_source": channel_choice.source,
         "install_channel": channel_choice.install,
-        "wired_display_mode": wired_display_mode,
-        "display_mode_setting": display_mode_setting,
+        "wired_display_mode": get_effective_wired_display_mode(db),
+        "display_mode_setting": get_display_mode_setting(db),
         "display_external_count": get_hardware_state().external_count,
-        "auto_update_enabled": auto_update_enabled,
-        "auto_update_time": auto_update_time,
+        "auto_update_enabled": _get_db_value(db, "auto_update_enabled") or _DEFAULTS["auto_update_enabled"],
+        "auto_update_time": _get_db_value(db, "auto_update_time") or _DEFAULTS["auto_update_time"],
         "auto_web_rendition": _get_db_value(db, "auto_web_rendition") or _DEFAULTS["auto_web_rendition"],
         "media_native": "true" if media_native.parse_setting(_get_db_value(db, "media_native")) else "false",
-        "network": {
-            "local_ip": _get_local_ip(),
-            "local_ips": [{"ip": a.ip, "interface": a.interface} for a in lan_addresses()],
-            "port": active_port(),
-            "mdns_url": _mdns_url(),
-            "port80_redirect": _port80_redirect(),
-            "access": _access_links(),
-            "mdns_status": get_mdns_status().get("state"),
-        },
+    }
+
+
+def _network_settings() -> dict[str, Any]:
+    return {
+        "local_ip": _get_local_ip(),
+        "local_ips": [{"ip": a.ip, "interface": a.interface} for a in lan_addresses()],
+        "port": active_port(),
+        "mdns_url": _mdns_url(),
+        "port80_redirect": _port80_redirect(),
+        "access": _access_links(),
+        "mdns_status": get_mdns_status().get("state"),
+    }
+
+
+_PATH_SETTINGS = (
+    "database_url", "media_dir", "watch_dir", "thumbnails_dir", "backgrounds_dir", "backgrounds_watch_dir", "audio_dir",
+    "audio_watch_dir", "radio_dir", "radio_watch_dir", "radio_covers_dir", "radio_announcements_dir", "branding_dir",
+    "logs_dir", "subtitles_dir",
+)
+
+
+@router.get("")
+def get_settings(db: Session = Depends(get_db)) -> dict[str, Any]:
+    return {
+        **_playback_settings(db),
+        **_profile_settings(db),
+        **_appearance_settings(db),
+        **_channel_and_display_settings(db),
+        "network": _network_settings(),
         "radio_announcement_duck_level": runtime_settings.radio_announcement_duck_level,
         "radio_announcement_fade_ms": runtime_settings.radio_announcement_fade_ms,
-        "paths": {
-            "database_url": runtime_settings.database_url,
-            "media_dir": runtime_settings.media_dir,
-            "watch_dir": runtime_settings.watch_dir,
-            "thumbnails_dir": runtime_settings.thumbnails_dir,
-            "backgrounds_dir": runtime_settings.backgrounds_dir,
-            "backgrounds_watch_dir": runtime_settings.backgrounds_watch_dir,
-            "audio_dir": runtime_settings.audio_dir,
-            "audio_watch_dir": runtime_settings.audio_watch_dir,
-            "radio_dir": runtime_settings.radio_dir,
-            "radio_watch_dir": runtime_settings.radio_watch_dir,
-            "radio_covers_dir": runtime_settings.radio_covers_dir,
-            "radio_announcements_dir": runtime_settings.radio_announcements_dir,
-            "branding_dir": runtime_settings.branding_dir,
-            "logs_dir": runtime_settings.logs_dir,
-            "subtitles_dir": runtime_settings.subtitles_dir,
-        },
+        "paths": {key: getattr(runtime_settings, key) for key in _PATH_SETTINGS},
     }
 
 
@@ -257,6 +278,16 @@ def stage_settings(updates: dict[str, Any], db: Session) -> None:
             db.add(Setting(key=key, value=stored))
 
 
+_BROADCAST_KEYS = frozenset({
+    "theme", "theme_mode", "language", "active_logo", "wired_display_mode", "display_mode_setting", "update_channel",
+    "simplified_ui",
+})
+_BROADCAST_FIELDS = (
+    "theme", "theme_mode", "language", "ui_language", "simplified_ui", "has_custom_logo", "active_logo",
+    "wired_display_mode", "update_channel",
+)
+
+
 async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[str, Any]:
     """Effets à chaud de réglages déjà enregistrés ; renvoie les réglages effectifs."""
     for key, value in updates.items():
@@ -278,28 +309,8 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
             time_str=result["auto_update_time"],
         )
 
-    if (
-        "theme" in updates
-        or "theme_mode" in updates
-        or "language" in updates
-        or "active_logo" in updates
-        or "wired_display_mode" in updates
-        or "display_mode_setting" in updates
-        or "update_channel" in updates
-        or "simplified_ui" in updates
-    ):
-        await ws_manager.broadcast({
-            "event": "settings_change",
-            "theme": result["theme"],
-            "theme_mode": result["theme_mode"],
-            "language": result["language"],
-            "ui_language": result["ui_language"],
-            "simplified_ui": result["simplified_ui"],
-            "has_custom_logo": result["has_custom_logo"],
-            "active_logo": result["active_logo"],
-            "wired_display_mode": result["wired_display_mode"],
-            "update_channel": result["update_channel"],
-        })
+    if _BROADCAST_KEYS.intersection(updates):
+        await ws_manager.broadcast({"event": "settings_change", **{key: result[key] for key in _BROADCAST_FIELDS}})
 
     if "wired_display_mode" in updates or "display_mode_setting" in updates:
         await ws_manager.broadcast({
