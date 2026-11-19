@@ -12,6 +12,30 @@ import { collectDroppedAudioFiles, folderOf, guessCourseName, isAudioFile, type 
 
 export type UploadMode = "files" | "zip";
 
+function missingField(title: string, mode: UploadMode, files: File[], zip: File | null): string | null {
+  if (!title.trim()) return "audio.titleRequiredWarning";
+  if (mode === "files" && files.length === 0) return "audio.selectMp3Warning";
+  if (mode === "zip" && !zip) return "audio.selectZipWarning";
+  return null;
+}
+
+function useAudioDropZone(mode: UploadMode, select: (list: FileList | File[] | null, folderHint?: string | null) => void) {
+  const [dragActive, setDragActive] = useState(false);
+  const onDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (mode === "zip") return select(e.dataTransfer.files);
+    collectDroppedAudioFiles(e.dataTransfer).then(({ files: dropped, folderName }) => select(dropped, folderName));
+  };
+  return { dragActive, onDrag, onDrop };
+}
+
 export function useAudioUpload(programs: string[], showToast: ShowToast) {
   const { t } = useAppSettings();
   const { addUploads } = useUploadManager();
@@ -21,7 +45,6 @@ export function useAudioUpload(programs: string[], showToast: ShowToast) {
   const [title, setTitle] = useState("");
   const [program, setProgram] = useState("");
   const [release, setRelease] = useState("");
-  const [dragActive, setDragActive] = useState(false);
   const [open, setOpen] = useState(false);
 
   const adopt = (name: CourseName) => {
@@ -44,19 +67,7 @@ export function useAudioUpload(programs: string[], showToast: ShowToast) {
     if (audio.length && !title) adopt(guessCourseName(audio, folderHint || folderOf(audio[0]), programs, t("audio.newCourseFallback")));
   };
 
-  const onDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(e.type === "dragenter" || e.type === "dragover");
-  };
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (mode === "zip") return select(e.dataTransfer.files);
-    collectDroppedAudioFiles(e.dataTransfer).then(({ files: dropped, folderName }) => select(dropped, folderName));
-  };
+  const { dragActive, onDrag, onDrop } = useAudioDropZone(mode, select);
 
   const reset = () => {
     setFiles([]);
@@ -65,15 +76,8 @@ export function useAudioUpload(programs: string[], showToast: ShowToast) {
     setRelease("");
   };
 
-  const missing = (): string | null => {
-    if (!title.trim()) return "audio.titleRequiredWarning";
-    if (mode === "files" && files.length === 0) return "audio.selectMp3Warning";
-    if (mode === "zip" && !zip) return "audio.selectZipWarning";
-    return null;
-  };
-
   const submit = () => {
-    const warning = missing();
+    const warning = missingField(title, mode, files, zip);
     if (warning) return showToast(t(warning), "warning");
     const common = { title: title.trim(), program, release };
     if (mode === "zip" && zip) addUploads([{ kind: "audio_zip", file: zip, ...common }]);

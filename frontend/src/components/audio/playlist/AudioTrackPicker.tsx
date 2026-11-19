@@ -1,12 +1,10 @@
 "use client";
-import React, { useState } from "react";
-import Icon from "@/components/Icon";
+import React from "react";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import SearchBox from "@/components/SearchBox";
-import { formatMediaDuration } from "@/lib/format";
-import { matchesQuery } from "@/lib/searchText";
+import PickerCourseCard from "./PickerCourseCard";
 import type { AudioCourseSummary, AudioTrackSummary, Sequencer } from "./types";
-import { thumbnailUrl } from "@/lib/thumbnail";
+import { useTrackFilter } from "./useTrackFilter";
 
 interface AudioTrackPickerProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
@@ -19,46 +17,7 @@ interface AudioTrackPickerProps {
 }
 
 export default function AudioTrackPicker({ t, isMobile, tracks, courses, sequencer, handleAddTrack, handleAddWholeCourse }: AudioTrackPickerProps) {
-  const { handleDragStart, resetDragState } = sequencer;
-  const [trackSearch, setTrackSearch] = useState<string>("");
-  const [trackProgramFilter, setTrackProgramFilter] = useState<string>("");
-  const [expandedCourseIds, setExpandedCourseIds] = useState<Set<number>>(new Set());
-
-  const toggleCourseExpanded = (courseId: number) => {
-    setExpandedCourseIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(courseId)) next.delete(courseId);
-      else next.add(courseId);
-      return next;
-    });
-  };
-
-  const availablePrograms = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const c of courses) if (c.program) set.add(c.program);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
-  }, [courses]);
-
-  const filteredTracks = tracks.filter((tr) => {
-    const matchesSearch =
-      matchesQuery(tr.title, trackSearch) || matchesQuery(tr.course_title, trackSearch);
-    const matchesProgram = !trackProgramFilter || tr.course_program === trackProgramFilter;
-    return matchesSearch && matchesProgram;
-  });
-
-  const groupedCourses = React.useMemo(() => {
-    const byId = new Map<number, AudioTrackSummary[]>();
-    for (const tr of filteredTracks) {
-      const list = byId.get(tr.course_id);
-      if (list) list.push(tr);
-      else byId.set(tr.course_id, [tr]);
-    }
-    return courses
-      .filter((c) => byId.has(c.id))
-      .map((c) => ({ course: c, tracks: byId.get(c.id)! }));
-  }, [courses, filteredTracks]);
-
-  const isSearching = trackSearch.trim().length > 0;
+  const { trackSearch, setTrackSearch, trackProgramFilter, setTrackProgramFilter, expandedCourseIds, toggleCourseExpanded, availablePrograms, groupedCourses, isSearching } = useTrackFilter(tracks, courses);
 
   return (
               <div className="library-picker" style={{ height: isMobile ? "auto" : "340px", maxHeight: isMobile ? "380px" : undefined }}>
@@ -95,82 +54,11 @@ export default function AudioTrackPicker({ t, isMobile, tracks, courses, sequenc
                       {t("audioPlaylists.noMatchingCourses")}
                     </div>
                   ) : (
-                    groupedCourses.map(({ course, tracks: courseTracks }) => {
-                      const thumbSrc = thumbnailUrl(course.background_thumbnail_path);
-                      const expanded = isSearching || expandedCourseIds.has(course.id);
-                      return (
-                        <div key={course.id} className="picker-course-card">
-                          <div className="picker-course-header" onClick={() => toggleCourseExpanded(course.id)}>
-                            <div className="picker-course-thumb">
-                              {thumbSrc ? (
-                                <img src={thumbSrc} alt="" />
-                              ) : (
-                                <Icon name="library_music" size={18} style={{ opacity: 0.3 }} />
-                              )}
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {course.title}
-                              </div>
-                              <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "1px" }}>
-                                {course.program && (
-                                  <span className="program-badge autre" style={{ fontSize: "0.55rem", padding: "1px 4px" }}>
-                                    {course.program}
-                                  </span>
-                                )}
-                                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
-                                  {t("audioPlaylists.tracksInCourse", { count: courseTracks.length })}
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ height: "26px", padding: "0 8px", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddWholeCourse(course.id);
-                              }}
-                              title={t("audioPlaylists.addWholeCourse")}
-                            >
-                              <Icon name="playlist_add" size={14} />
-                              {t("audioPlaylists.addWholeCourse")}
-                            </button>
-                            <Icon name={expanded ? "expand_less" : "expand_more"} size={18} color="var(--text-muted)" />
-                          </div>
-
-                          {expanded && (
-                            <div className="picker-course-tracks">
-                              {courseTracks.map((track) => (
-                                <div
-                                  key={track.id}
-                                  className="picker-track-row"
-                                  draggable={!isMobile}
-                                  onDragStart={(e) => handleDragStart(e, track.id, "library")}
-                                  onDragEnd={resetDragState}
-                                >
-                                  {!isMobile && <div className="drag-handle" style={{ padding: 0 }}><Icon name="drag_indicator" size={14} /></div>}
-                                  <span style={{ flex: 1, minWidth: 0, fontSize: "0.78rem", fontWeight: 600, color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {track.number ? `${track.number}. ` : ""}{track.title}
-                                  </span>
-                                  <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", flexShrink: 0 }}>
-                                    {formatMediaDuration(track.duration_seconds)}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary"
-                                    style={{ height: "22px", padding: "0 6px", fontSize: "0.68rem", fontWeight: 700, flexShrink: 0 }}
-                                    onClick={() => handleAddTrack(track)}
-                                  >
-                                    {t("audioPlaylists.addShort")}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
+                    groupedCourses.map(({ course, tracks: courseTracks }) => (
+                      <PickerCourseCard key={course.id} t={t} isMobile={isMobile} course={course} courseTracks={courseTracks}
+                        expanded={isSearching || expandedCourseIds.has(course.id)} onToggle={() => toggleCourseExpanded(course.id)}
+                        sequencer={sequencer} handleAddTrack={handleAddTrack} handleAddWholeCourse={handleAddWholeCourse} />
+                    ))
                   )}
                 </div>
               </div>

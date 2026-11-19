@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
 import Icon from "@/components/Icon";
-import ResponsiveSelect from "@/components/ResponsiveSelect";
-import { formatMediaDuration } from "@/lib/format";
+import SequenceItemActions from "@/components/playlist-editor/SequenceItemActions";
+import SequencerTrackInfo from "./SequencerTrackInfo";
 import type { BackgroundSummary, PlaylistDraftItem, Sequencer } from "./types";
 
 interface AudioSequencerProps {
@@ -55,62 +55,10 @@ export default function AudioSequencer({ t, isMobile, playlistItems, backgrounds
                           <span style={{ fontWeight: 800, color: "var(--text-muted)", fontSize: "0.85rem", width: "16px" }}>
                             {index + 1}
                           </span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-main)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                              {item.track.title}
-                            </div>
-                            <div style={{ display: "flex", gap: "6px", alignItems: "center", marginTop: "1px" }}>
-                              {item.track.course_program && (
-                                <span className="program-badge autre" style={{ fontSize: "0.55rem", padding: "1px 4px" }}>
-                                  {item.track.course_program}
-                                </span>
-                              )}
-                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                {item.track.course_title} · {formatMediaDuration(item.track.duration_seconds)}
-                              </span>
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <ResponsiveSelect
-                                value={item.backgroundId != null ? String(item.backgroundId) : ""}
-                                onChange={(value) => handleSetTrackBackground(index, value ? Number(value) : null)}
-                                placeholder={t("audioPlaylists.trackBackgroundNone")}
-                                title={t("audioPlaylists.trackBackgroundLabel")}
-                                style={{ minHeight: "22px", fontSize: "0.68rem", padding: "0 4px", marginTop: "3px", maxWidth: "180px" }}
-                                options={backgrounds.map((bg) => ({ value: String(bg.id), label: bg.title }))}
-                              />
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ width: "24px", height: "24px", padding: 0, borderRadius: "50%", fontSize: "0.8rem" }}
-                              onClick={() => handleMoveUp(index)}
-                              disabled={index === 0}
-                              title={t("audioPlaylists.moveUp")}
-                            >
-                              <Icon name="arrow_upward" size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ width: "24px", height: "24px", padding: 0, borderRadius: "50%", fontSize: "0.8rem" }}
-                              onClick={() => handleMoveDown(index)}
-                              disabled={index === playlistItems.length - 1}
-                              title={t("audioPlaylists.moveDown")}
-                            >
-                              <Icon name="arrow_downward" size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-danger"
-                              style={{ width: "24px", height: "24px", padding: 0, borderRadius: "50%", fontSize: "0.8rem" }}
-                              onClick={() => handleRemoveTrack(index)}
-                              title={t("audioPlaylists.remove")}
-                            >
-                              <Icon name="close" size={14} />
-                            </button>
-                          </div>
+                          <SequencerTrackInfo t={t} item={item} backgrounds={backgrounds} onBackground={(id) => handleSetTrackBackground(index, id)} />
+                          <SequenceItemActions index={index} count={playlistItems.length} style={{ display: "flex", gap: "4px", flexShrink: 0 }}
+                            labels={{ up: t("audioPlaylists.moveUp"), down: t("audioPlaylists.moveDown"), remove: t("audioPlaylists.remove") }}
+                            onMoveUp={handleMoveUp} onMoveDown={handleMoveDown} onRemove={handleRemoveTrack} />
                         </div>
                       );
                     })

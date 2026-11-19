@@ -11,45 +11,44 @@ import type { AudioCourses } from "./useAudioCourses";
 
 const json = (method: string, body: unknown): RequestInit => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
-export function useCourseEditor(courses: AudioCourses, showToast: ShowToast) {
-  const { t } = useAppSettings();
-  const [course, setCourse] = useState<AudioCourseDetail | null>(null);
+function useCourseFields() {
   const [title, setTitle] = useState("");
   const [program, setProgram] = useState("");
   const [release, setRelease] = useState("");
   const [backgroundId, setBackgroundId] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [toDelete, setToDelete] = useState<AudioCourseSummary | null>(null);
-
-  const open = async (courseId: number) => {
-    const res = await fetch(getApiUrl(`/audio/${courseId}`), { cache: "no-store" });
-    if (!res.ok) return showToast(t("audio.loadCourseError"), "error");
-    const detail: AudioCourseDetail = await res.json();
-    setCourse(detail);
+  const fill = (detail: AudioCourseDetail) => {
     setTitle(detail.title);
     setProgram(detail.program || "");
     setRelease(detail.release || "");
     setBackgroundId(detail.background_id ? String(detail.background_id) : "");
   };
+  return { fill, fields: { title, program, release, backgroundId }, setters: { setTitle, setProgram, setRelease, setBackgroundId } };
+}
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!course) return;
-    setSaving(true);
+function useCourseDeletion(courses: AudioCourses, showToast: ShowToast, onDeleted: (id: number) => void) {
+  const { t } = useAppSettings();
+  const [toDelete, setToDelete] = useState<AudioCourseSummary | null>(null);
+  const remove = async () => {
+    if (!toDelete) return;
     try {
-      const res = await fetch(getApiUrl(`/audio/${course.id}`), json("PUT", {
-        title, program: program || null, release: release || null,
-        background_id: backgroundId ? Number(backgroundId) : null, clear_background: !backgroundId,
-      }));
-      if (!res.ok) return showToast(t("audio.saveError"), "error");
-      setCourse(await res.json());
-      showToast(t("audio.updatedToast"));
-      courses.refresh();
+      const res = await fetch(getApiUrl(`/audio/${toDelete.id}`), { method: "DELETE" });
+      if (!res.ok) return showToast(t("audio.deleteError"), "error");
+      showToast(t("audio.deletedToast"));
+      courses.setCourses((prev) => prev.filter((c) => c.id !== toDelete.id));
+      onDeleted(toDelete.id);
     } finally {
-      setSaving(false);
+      setToDelete(null);
     }
   };
+  return { toDelete, setToDelete, remove };
+}
 
+function useTrackEdits(
+  course: AudioCourseDetail | null,
+  setCourse: (course: AudioCourseDetail) => void,
+  showToast: ShowToast,
+) {
+  const { t } = useAppSettings();
   const reorder = (from: number, to: number) => {
     if (!course || from === to) return;
     const tracks = [...course.tracks];
@@ -72,22 +71,50 @@ export function useCourseEditor(courses: AudioCourses, showToast: ShowToast) {
     }
   };
 
-  const remove = async () => {
-    if (!toDelete) return;
+  return { reorder, assignTrackBackground };
+}
+
+export function useCourseEditor(courses: AudioCourses, showToast: ShowToast) {
+  const { t } = useAppSettings();
+  const [course, setCourse] = useState<AudioCourseDetail | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { fill, fields, setters } = useCourseFields();
+  const { title, program, release, backgroundId } = fields;
+  const { toDelete, setToDelete, remove } = useCourseDeletion(courses, showToast, (id) => {
+    if (course?.id === id) setCourse(null);
+  });
+
+  const open = async (courseId: number) => {
+    const res = await fetch(getApiUrl(`/audio/${courseId}`), { cache: "no-store" });
+    if (!res.ok) return showToast(t("audio.loadCourseError"), "error");
+    const detail: AudioCourseDetail = await res.json();
+    setCourse(detail);
+    fill(detail);
+  };
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!course) return;
+    setSaving(true);
     try {
-      const res = await fetch(getApiUrl(`/audio/${toDelete.id}`), { method: "DELETE" });
-      if (!res.ok) return showToast(t("audio.deleteError"), "error");
-      showToast(t("audio.deletedToast"));
-      courses.setCourses((prev) => prev.filter((c) => c.id !== toDelete.id));
-      if (course?.id === toDelete.id) setCourse(null);
+      const res = await fetch(getApiUrl(`/audio/${course.id}`), json("PUT", {
+        title, program: program || null, release: release || null,
+        background_id: backgroundId ? Number(backgroundId) : null, clear_background: !backgroundId,
+      }));
+      if (!res.ok) return showToast(t("audio.saveError"), "error");
+      setCourse(await res.json());
+      showToast(t("audio.updatedToast"));
+      courses.refresh();
     } finally {
-      setToDelete(null);
+      setSaving(false);
     }
   };
 
+  const { reorder, assignTrackBackground } = useTrackEdits(course, setCourse, showToast);
+
   return {
     course, close: () => setCourse(null), open, save, saving, reorder, assignTrackBackground, toDelete, setToDelete, remove,
-    fields: { title, program, release, backgroundId }, setters: { setTitle, setProgram, setRelease, setBackgroundId },
+    fields, setters,
   };
 }
 

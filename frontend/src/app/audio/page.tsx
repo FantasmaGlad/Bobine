@@ -6,17 +6,15 @@ import AudioPlaylistManager from "@/components/audio/AudioPlaylistManager";
 import BackgroundPicker from "@/components/audio/BackgroundPicker";
 import CourseDrawer from "@/components/audio/CourseDrawer";
 import CourseGrid from "@/components/audio/CourseGrid";
-import { AUDIO_ACCEPT, folderOf } from "@/components/audio/files";
+import AudioImportControls from "@/components/audio/AudioImportControls";
 import { PROGRAMS_LIST_ID } from "@/components/audio/types";
 import UploadPanel from "@/components/audio/UploadPanel";
 import { useAudioCourses } from "@/components/audio/useAudioCourses";
 import { useAudioUpload } from "@/components/audio/useAudioUpload";
 import { useCourseEditor } from "@/components/audio/useCourseEditor";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import Icon from "@/components/Icon";
 import PageNav from "@/components/PageNav";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { ARCHIVE_ACCEPT } from "@/lib/mediaFiles";
 import { useToast } from "@/lib/useToast";
 
 type Picker = { trackId: number | null } | null;
@@ -32,6 +30,11 @@ export default function AudioLibraryPage() {
   const upload = useAudioUpload(courses.programs, showToast);
   const editor = useCourseEditor(courses, showToast);
   const isCourses = mode === "courses";
+  const bindFolderInput = (el: HTMLInputElement | null) => {
+    folderInput.current = el;
+    el?.setAttribute("webkitdirectory", "");
+    el?.setAttribute("directory", "");
+  };
   const course = editor.course;
 
   const pickerSelected = picker?.trackId
@@ -57,29 +60,7 @@ export default function AudioLibraryPage() {
         value={mode}
         onChange={(id) => setMode(id as typeof mode)}
         ariaLabel={t("audio.coursesTab")}
-        actions={<>{isCourses && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <input ref={fileInput} type="file" accept={upload.mode === "zip" ? ARCHIVE_ACCEPT : AUDIO_ACCEPT} multiple={upload.mode === "files"} style={{ display: "none" }}
-              onChange={(e) => { upload.select(e.target.files); e.target.value = ""; }} />
-            <input
-              ref={(el) => {
-                folderInput.current = el;
-                el?.setAttribute("webkitdirectory", "");
-                el?.setAttribute("directory", "");
-              }}
-              type="file" multiple style={{ display: "none" }}
-              onChange={(e) => {
-                const files = Array.from(e.target.files ?? []);
-                upload.select(files, folderOf(files[0]));
-                e.target.value = "";
-              }}
-            />
-            <button type="button" className="btn btn-primary" style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }} onClick={upload.toggle}>
-              <Icon name="cloud_upload" size={18} />
-              <span>{t("common.import")}</span>
-            </button>
-          </div>
-        )}</>}
+        actions={<>{isCourses && <AudioImportControls t={t} upload={upload} fileInput={fileInput} bindFolderInput={bindFolderInput} />}</>}
       />
       {!isCourses ? <AudioPlaylistManager /> : (
         <>
