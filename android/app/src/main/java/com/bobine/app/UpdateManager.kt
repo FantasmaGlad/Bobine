@@ -34,8 +34,6 @@ private const val MAX_DOWNLOAD_ATTEMPTS = 3
 private const val CONNECT_TIMEOUT_MS = 15_000
 private const val READ_TIMEOUT_MS = 30_000
 
-private class UpdateRejected(message: String) : IllegalStateException(message)
-
 object UpdateManager {
 
     fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String, socksProxy: String?) {
@@ -59,7 +57,7 @@ object UpdateManager {
                 Handler(Looper.getMainLooper()).post { offerInstall(appContext, apk) }
             } catch (e: Exception) {
                 Log.e(TAG, "Erreur téléchargement ou vérification de l'APK : ${e.message}", e)
-                reportCallback(appContext, "error", e.message ?: "Échec du téléchargement de l'APK.")
+                reportCallback(appContext, "error", userFacingError(e))
             }
         }, "bobine-update").start()
     }
@@ -116,6 +114,9 @@ object UpdateManager {
                 }
                 if (!part.renameTo(target)) throw IOException("Impossible de finaliser le fichier téléchargé.")
                 return target
+            } catch (e: UpdateRejected) {
+                part.delete()
+                throw e
             } catch (e: IOException) {
                 lastError = e
                 part.delete()
@@ -137,25 +138,20 @@ object UpdateManager {
                 throw IOException("Serveur de téléchargement : HTTP ${connection.responseCode}")
             }
             val total = connection.contentLengthLong
+            rejectOversized(total)
             val free = part.parentFile?.usableSpace ?: Long.MAX_VALUE
             if (total > 0 && free < total + total / 5) {
                 throw UpdateRejected(
                     "Espace de stockage insuffisant pour la mise à jour (${free / 1_048_576} Mo libres, ${total / 1_048_576} Mo requis).",
                 )
             }
-            var read = 0L
             var lastPercent = -1
             var lastReportAt = 0L
-            connection.inputStream.use { input ->
+            val read = connection.inputStream.use { input ->
                 part.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        val n = input.read(buffer)
-                        if (n < 0) break
-                        output.write(buffer, 0, n)
-                        read += n
+                    copyBounded(input, output) { received ->
                         if (total > 0) {
-                            val percent = minOf(99, (read * 100 / total).toInt())
+                            val percent = minOf(99, (received * 100 / total).toInt())
                             val now = System.currentTimeMillis()
                             if (percent != lastPercent && now - lastReportAt >= 1000) {
                                 lastPercent = percent

@@ -675,7 +675,7 @@ jobs:
           ANDROID_VERSION_NAME: ${{ needs.version.outputs.display_version }}
         run: |
           if [ "${{ matrix.flavor }}" = "mobile" ]; then
-            ./gradlew :app:assembleMobileDebug -PbobineEmulator=true --no-daemon
+            ./gradlew :app:assembleMobileDebug :app:testMobileDebugUnitTest -PbobineEmulator=true --no-daemon
           else
             ./gradlew :app:assembleTvDebug -PbobineEmulator=true --no-daemon
           fi
