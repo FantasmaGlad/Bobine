@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"

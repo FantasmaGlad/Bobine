@@ -1,4 +1,3 @@
-import asyncio
 import copy
 import os
 from datetime import datetime, timezone
@@ -10,17 +9,14 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 import pytest  # noqa: E402
 
-from app import config_files  # noqa: E402
 from app import config_library  # noqa: E402
 from app.config_apply.context import ConfigErrors  # noqa: E402
-from app.config_apply.runner import apply as apply_configuration  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.models import (  # noqa: E402
-    AudioCourse, Playlist, RadioAnnouncement, RadioAnnouncementRule, RadioPlaylist, RadioTag, RadioTrack, Schedule,
+    AudioCourse, Playlist, RadioAnnouncement, RadioAnnouncementRule, RadioTag, RadioTrack, Schedule,
     ScheduleOverride, ScheduleTargetType, ScheduleType, Video,
 )
-from test_config_apply import _apply, _export, _quiet_effects, single_names  # noqa: E402,F401
-from test_config_files import library  # noqa: E402,F401
+from test_config_apply import _apply, _export, _quiet_effects  # noqa: E402,F401
 
 
 def _expect_errors(files, *needles):

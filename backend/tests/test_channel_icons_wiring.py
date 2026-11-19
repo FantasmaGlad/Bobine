@@ -1,5 +1,4 @@
 import importlib.util
-import re
 import shutil
 import subprocess
 import sys

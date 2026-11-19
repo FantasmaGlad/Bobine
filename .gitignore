@@ -60,7 +60,7 @@ Thumbs.db
 docs/patch.md
 
 
-# Composant natif du projecteur (macOS)
+# Composants natifs Rust
 projector/target/
 devices/target/
 

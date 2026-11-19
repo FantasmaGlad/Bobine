@@ -35,7 +35,9 @@ updates:
           - "*"
 
   - package-ecosystem: "cargo"
-    directory: "/media"
+    directories:
+      - "/media"
+      - "/media/fuzz"
     schedule:
       interval: "weekly"
     groups:

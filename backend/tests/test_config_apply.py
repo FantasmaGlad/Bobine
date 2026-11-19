@@ -10,7 +10,6 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import config_files  # noqa: E402
 from app import config_mirror  # noqa: E402
 from app import config_builders  # noqa: E402
 from app.config_apply.context import ConfigErrors  # noqa: E402
@@ -18,15 +17,6 @@ from app.config_apply.runner import apply as apply_configuration  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Playlist, RadioAnnouncement, Schedule, Setting  # noqa: E402
-from test_config_files import library  # noqa: E402,F401
-
-
-@pytest.fixture()
-def single_names(library):  # noqa: F811
-    with SessionLocal() as db:
-        twins = db.query(Playlist).filter(Playlist.name == "Lundi soir").order_by(Playlist.id).all()
-        db.delete(twins[-1])
-        db.commit()
 
 
 @pytest.fixture(autouse=True)

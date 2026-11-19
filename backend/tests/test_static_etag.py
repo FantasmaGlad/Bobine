@@ -9,7 +9,6 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-from starlette.datastructures import Headers  # noqa: E402
 from starlette.staticfiles import NotModifiedResponse  # noqa: E402
 
 from app.api.static_files import RevalidateStaticFiles  # noqa: E402

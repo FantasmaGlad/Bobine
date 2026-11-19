@@ -9,7 +9,6 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config_files
 from app import config_mirror
 from app.database import SessionLocal, init_db
 from app.main import app

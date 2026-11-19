@@ -1,11 +1,8 @@
-import asyncio
 import io
 import json
 import os
 import shutil
-import sqlite3
 import sys
-import tempfile
 import unittest
 import zipfile
 from pathlib import Path
@@ -27,7 +24,7 @@ os.environ["BOBINE_LOGS_DIR"] = str(TEST_DIR / "logs")
 from fastapi import HTTPException, UploadFile
 from app.config import settings
 from app.database import engine, init_db, SessionLocal
-from app.models import Video, Setting, ImportSource
+from app.models import Video, ImportSource
 from app.api.routes.settings.backup import ResetDataRequest, export_backup, restore_backup, reset_data_system
 from app.api.routes.settings.maintenance import get_system_usage
 from app.api.routes.updates import check_updates

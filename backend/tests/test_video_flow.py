@@ -16,7 +16,7 @@ os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 from app.config import settings
-from app.database import init_db, SessionLocal, get_db
+from app.database import init_db, SessionLocal
 from app.models import Video, ImportSource
 from app.utils.video_utils.probe import extract_metadata
 from app.utils.video_utils.compatibility import check_compatibility

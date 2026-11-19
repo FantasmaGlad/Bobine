@@ -344,7 +344,6 @@ def test_runtime_file_is_removed_when_the_process_receives_sigterm(tmp_path):
     import signal
     import subprocess
     import sys
-    import time
 
     script = (
         "import time\n"

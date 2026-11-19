@@ -2,6 +2,8 @@ import os
 import tempfile
 from pathlib import Path
 
+import pytest
+
 os.environ.setdefault("BOBINE_MDNS", "0")
 
 
@@ -22,14 +24,10 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip)
 
 
-import pytest
-
-
 @pytest.fixture(autouse=True)
 def _no_pending_config_mirror():
 
     def cancel() -> None:
-        from app import config_files
         from app import config_mirror
 
         with config_mirror._mirror_lock:
@@ -60,3 +58,19 @@ def recorder(monkeypatch):
     monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: rec(self, method, path, **kw))
     monkeypatch.setenv("BOBINE_PORT", "1903")
     return rec
+
+
+@pytest.fixture()
+def library():
+    from config_seed import clean, seed
+
+    seed()
+    yield
+    clean()
+
+
+@pytest.fixture()
+def single_names(library):
+    from config_seed import drop_twin
+
+    drop_twin()

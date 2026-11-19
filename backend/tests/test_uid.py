@@ -5,10 +5,9 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest
 from sqlalchemy import text
 
-from app import database, migrations
+from app import migrations
 from app.database import SessionLocal, init_db
 from app.models import Playlist, UidMixin, Base
 from app.utils.uid import PREFIXES, is_uid, new_uid
