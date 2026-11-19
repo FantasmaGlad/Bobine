@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models import Setting
-from app.utils.radio_sound import default_sound, sanitize_sound
+from app.radio.sound import default_sound, sanitize_sound
 
 logger = logging.getLogger(__name__)
 

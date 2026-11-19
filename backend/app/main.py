@@ -40,13 +40,13 @@ from app.scheduling.radio import autostart_default_radio_playlist
 from app.scheduling.resume import cancel_pending_resume, resume_running_schedules
 from app.utils.importer.reconcile import reconcile_orphaned_media
 from app.utils.mdns import start_mdns_responder, stop_mdns_responder
-from app.utils.radio_announcement_scheduler import (
+from app.radio.announcement_scheduler import (
     start_radio_announcement_scheduler,
     stop_radio_announcement_scheduler,
 )
-from app.utils.radio_sound import load_all_sounds_into_managers
+from app.radio.sound import load_all_sounds_into_managers
 from app.utils.video_sound import load_all_video_sounds_into_managers
-from app.utils.radio_mix import load_all_mixes_into_managers
+from app.radio.mix import load_all_mixes_into_managers
 from app.devices.routing import load_routes_into_managers
 from app.utils.watcher import start_watcher, stop_watcher
 from app.utils.ws_manager import manager as ws_manager

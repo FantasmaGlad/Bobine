@@ -29,7 +29,7 @@ def _run_importer(unit, staged: list[str], job_id: str) -> int | None:
     from app.utils.audio_importer import import_audio_course_from_files
     from app.utils.executors import ffmpeg_executor
     from app.utils.importer.video import import_video
-    from app.utils.radio_importer import import_radio_tracks_from_files
+    from app.radio.importer import import_radio_tracks_from_files
 
     if unit.kind == "video":
         video = ffmpeg_executor.submit(import_video, staged[0], os.path.basename(unit.files[0].absolute), ImportSource.upload, job_id).result()

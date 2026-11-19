@@ -12,7 +12,7 @@ from app.database import SessionLocal  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import Setting  # noqa: E402
 from app.playback.manager import get_playback_manager  # noqa: E402
-from app.utils.radio_sound import default_sound  # noqa: E402
+from app.radio.sound import default_sound  # noqa: E402
 from app.utils.video_sound import load_all_video_sounds_into_managers, load_video_sound, video_sound_setting_key  # noqa: E402
 
 KEYS = [video_sound_setting_key("cable"), video_sound_setting_key("network")]

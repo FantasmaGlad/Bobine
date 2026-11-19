@@ -4,7 +4,7 @@ import logging
 from typing import Any, Callable
 from app.config import settings
 from app.utils.playback_clock import PlaybackClock
-from app.utils.radio_sound import default_sound
+from app.radio.sound import default_sound
 from app.api.contract import CHANNELS, DEFAULT_CHANNEL
 from app.playback.constants import BroadcastFn, PlaybackStateEnum
 from app.playback.state import StateMixin

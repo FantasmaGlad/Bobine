@@ -42,7 +42,7 @@ def compare(corpus, baseline_path, binary, output, repeats):
     if len(references) != len(baseline["entries"]) or set(references) != {entry["id"] for entry in manifest["entries"]}:
         raise ValueError("Manifest and baseline ids differ or are duplicated")
     source_paths = {"binary": binary, "manifest": manifest_path, "baseline": baseline_path,
-                    "radio_utils.py": ROOT / "backend/app/utils/radio_utils.py",
+                    "track_files.py": ROOT / "backend/app/radio/track_files.py",
                     "audio_utils.py": ROOT / "backend/app/utils/audio_utils.py",
                     "media_metadata.py": ROOT / "backend/app/utils/media_metadata.py",
                     "media_sidecar.py": ROOT / "backend/app/utils/media_sidecar.py"}
@@ -55,7 +55,7 @@ def compare(corpus, baseline_path, binary, output, repeats):
                            "BOBINE_DATABASE_URL": f"sqlite:///{Path(temporary) / 'unused.db'}"})
         sys.path.insert(0, str(ROOT / "backend"))
         from app.utils.media_sidecar import MediaClient
-        from app.utils.radio_utils import clean_filename_label
+        from app.radio.track_files import clean_filename_label
         from app.utils.media_metadata import render_cover
         reference_covers = baseline_path.parent / "reference-covers"
         client = MediaClient(command=[str(binary)], enabled=True)

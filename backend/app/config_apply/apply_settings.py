@@ -164,7 +164,7 @@ def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
         ctx.fail(file, "« sound » doit être un objet")
         return
     from app.playback.manager import get_playback_manager
-    from app.utils.radio_sound import sanitize_sound
+    from app.radio.sound import sanitize_sound
     from app.utils.video_sound import video_sound_setting_key
 
     for channel, raw in sounds.items():

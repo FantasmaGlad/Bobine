@@ -8,7 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.utils.audio_utils import extract_audio_duration, parse_track_number_and_title
-from app.utils.radio_utils import extract_radio_metadata
+from app.radio.track_files import extract_radio_metadata
 
 
 class AudioMetadataContractTests(unittest.TestCase):

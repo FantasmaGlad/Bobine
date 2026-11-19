@@ -7,7 +7,8 @@ import os
 from pathlib import Path
 import tempfile
 
-from app.utils import audio_utils, media_native, radio_utils
+from app.utils import audio_utils, media_native
+from app.radio import track_files
 from app.utils.media_sidecar import get_media_client
 
 logger = logging.getLogger(__name__)
@@ -26,10 +27,10 @@ def extract_radio_metadata(file_path: str) -> dict:
     """Balises natives vérifiées, avec repli sur le nom du fichier."""
     metadata = _probe(file_path, "radio-v1")
     if metadata is None:
-        return radio_utils.extract_radio_metadata(file_path)
+        return track_files.extract_radio_metadata(file_path)
     result = dict(metadata)
     if not result["title"]:
-        result["title"] = radio_utils.clean_filename_label(file_path)
+        result["title"] = track_files.clean_filename_label(file_path)
     return result
 
 
@@ -86,4 +87,4 @@ def extract_embedded_cover(file_path: str, covers_dir: str, file_id: str) -> str
             written = _write_native_cover(cover.data, covers_dir, file_id)
             if written is not None:
                 return written
-    return radio_utils.extract_embedded_cover(file_path, covers_dir, file_id)
+    return track_files.extract_embedded_cover(file_path, covers_dir, file_id)

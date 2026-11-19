@@ -17,8 +17,8 @@ def _apply_radio_outputs(ctx: _Context, file: str, document: dict) -> None:
     from app.api.contract import RADIO_CHANNELS
     from app.radio.manager import get_radio_manager
     from app.scheduling.radio import radio_default_playlist_key
-    from app.utils.radio_mix import mix_setting_key, sanitize_mix
-    from app.utils.radio_sound import sanitize_sound, sound_setting_key
+    from app.radio.mix import mix_setting_key, sanitize_mix
+    from app.radio.sound import sanitize_sound, sound_setting_key
 
     outputs = document.get("outputs")
     if not isinstance(outputs, dict):
