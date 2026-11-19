@@ -101,6 +101,139 @@ impl MacOs {
         }
         require_success(run("blueutil", args, timeout, None)?, "blueutil")
     }
+
+    fn audio_set_default(&self, id: &str) -> RpcResult {
+        if !self.has_switch_audio {
+            return Err(RpcError::unsupported(
+                "SwitchAudioSource n'est pas installé.",
+            ));
+        }
+        require_success(
+            run(
+                "SwitchAudioSource",
+                &["-t", "output", "-s", id],
+                SHORT,
+                None,
+            )?,
+            "SwitchAudioSource",
+        )?;
+        Ok(Value::Null)
+    }
+
+    fn blueutil_null(&self, args: &[&str], timeout: Duration) -> RpcResult {
+        self.blueutil(args, timeout).map(|_| Value::Null)
+    }
+
+    fn bluetooth_scan(&self, on: bool) -> RpcResult {
+        if !on {
+            return Ok(Value::Null);
+        }
+        let out = self.blueutil(
+            &["--format", "json", "--inquiry", "6"],
+            Duration::from_secs(30),
+        )?;
+        let found: Vec<Value> = serde_json::from_str::<Vec<Value>>(&out.stdout)
+            .unwrap_or_default()
+            .iter()
+            .map(discovered_device)
+            .collect();
+        if let Ok(mut slot) = self.discovered.lock() {
+            *slot = found;
+        }
+        Ok(Value::Null)
+    }
+
+    fn networksetup(&self, args: &[&str], timeout: Duration) -> RpcResult {
+        require_success(run("networksetup", args, timeout, None)?, "networksetup")?;
+        Ok(Value::Null)
+    }
+
+    fn wifi_status(&self) -> RpcResult {
+        let device = self.wifi_device()?;
+        let power_text = run("networksetup", &["-getairportpower", &device], SHORT, None)?.stdout;
+        let enabled = parse::macos::wifi_power(&power_text).unwrap_or(true);
+        let known = self.preferred(&device);
+        let mut networks = Vec::new();
+        if enabled {
+            let out = run(
+                "system_profiler",
+                &["SPAirPortDataType", "-json"],
+                LONG,
+                None,
+            )?;
+            networks = parse::macos::airport(&out.stdout, &device, &known).unwrap_or_default();
+        }
+        let current = networks.iter().find(|n| n["in_use"] == true).cloned();
+        Ok(json!({
+            "supported": true,
+            "enabled": enabled,
+            "interface": device,
+            "state": if current.is_some() { "connected" } else { "disconnected" },
+            "current": current,
+            "networks": networks,
+            "known": known,
+        }))
+    }
+
+    fn wifi_set_power(&self, on: bool) -> RpcResult {
+        let device = self.wifi_device()?;
+        self.networksetup(
+            &["-setairportpower", &device, if on { "on" } else { "off" }],
+            SHORT,
+        )
+    }
+
+    fn wifi_current(&self) -> RpcResult {
+        let device = self.wifi_device()?;
+        let out = run(
+            "networksetup",
+            &["-getairportnetwork", &device],
+            SHORT,
+            None,
+        )?;
+        Ok(json!(parse::macos::current_network(&out.stdout)))
+    }
+
+    fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> RpcResult {
+        let device = self.wifi_device()?;
+        let mut args = vec!["-setairportnetwork", device.as_str(), ssid];
+        if let Some(pw) = password {
+            args.push(pw);
+        }
+        let out = run("networksetup", &args, Duration::from_secs(45), None)?;
+        if wifi_join_failed(&format!("{}{}", out.stdout, out.stderr)) {
+            return Err(RpcError::app(
+                "wifi_auth_failed",
+                "Mot de passe incorrect ou réseau inaccessible.",
+            ));
+        }
+        Ok(Value::Null)
+    }
+
+    fn wifi_activate(&self, connection: &str) -> RpcResult {
+        let device = self.wifi_device()?;
+        self.networksetup(
+            &["-setairportnetwork", &device, connection],
+            Duration::from_secs(45),
+        )
+    }
+
+    fn wifi_forget(&self, ssid: &str) -> RpcResult {
+        let device = self.wifi_device()?;
+        self.networksetup(&["-removepreferredwirelessnetwork", &device, ssid], SHORT)
+    }
+
+    fn wifi_subnet(&self) -> RpcResult {
+        let device = self.wifi_device()?;
+        let ip = run("ipconfig", &["getifaddr", &device], SHORT, None)?.stdout;
+        let ifconfig = run("ifconfig", &[&device], SHORT, None)?.stdout;
+        let mask = ifconfig
+            .split_whitespace()
+            .skip_while(|w| *w != "netmask")
+            .nth(1)
+            .unwrap_or("");
+        Ok(json!(parse::subnet_cidr(ip.trim(), mask)))
+    }
 }
 
 impl Platform for MacOs {
@@ -132,211 +265,77 @@ impl Platform for MacOs {
     }
 
     fn call(&self, method: &str, params: &Map<String, Value>) -> RpcResult {
-        let s = |k: &str| params.get(k).and_then(Value::as_str).unwrap_or("");
-        let b = |k: &str| params.get(k).and_then(Value::as_bool).unwrap_or(false);
+        let s = |k: &str| str_param(params, k);
+        let on = || params.get("on").and_then(Value::as_bool).unwrap_or(false);
         match method {
             "audio.list" => self.audio_list(),
-            "audio.set_default" => {
-                if !self.has_switch_audio {
-                    return Err(RpcError::unsupported(
-                        "SwitchAudioSource n'est pas installé.",
-                    ));
-                }
-                require_success(
-                    run(
-                        "SwitchAudioSource",
-                        &["-t", "output", "-s", s("id")],
-                        SHORT,
-                        None,
-                    )?,
-                    "SwitchAudioSource",
-                )?;
-                Ok(Value::Null)
-            }
-            "audio.set_volume" => {
-                if let Some(v) = params.get("volume").and_then(Value::as_f64) {
-                    let script = format!(
-                        "set volume output volume {}",
-                        (v.clamp(0.0, 1.0) * 100.0).round() as i64
-                    );
-                    require_success(
-                        run("osascript", &["-e", &script], SHORT, None)?,
-                        "osascript",
-                    )?;
-                }
-                if let Some(m) = params.get("muted").and_then(Value::as_bool) {
-                    let script = format!(
-                        "set volume output muted {}",
-                        if m { "true" } else { "false" }
-                    );
-                    require_success(
-                        run("osascript", &["-e", &script], SHORT, None)?,
-                        "osascript",
-                    )?;
-                }
-                Ok(Value::Null)
-            }
+            "audio.set_default" => self.audio_set_default(s("id")),
+            "audio.set_volume" => audio_set_volume(params),
             "bluetooth.status" => self.bluetooth_status(),
-            "bluetooth.set_power" => self
-                .blueutil(&["--power", if b("on") { "1" } else { "0" }], SHORT)
-                .map(|_| Value::Null),
-            "bluetooth.scan" => {
-                if !b("on") {
-                    return Ok(Value::Null);
-                }
-                let out = self.blueutil(
-                    &["--format", "json", "--inquiry", "6"],
-                    Duration::from_secs(30),
-                )?;
-                let found: Vec<Value> = serde_json::from_str::<Vec<Value>>(&out.stdout)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|d| json!({
-                        "address": d["address"].as_str().unwrap_or("").replace('-', ":").to_uppercase(),
-                        "name": d["name"].as_str().unwrap_or(d["address"].as_str().unwrap_or("")),
-                        "paired": d["paired"].as_bool().unwrap_or(false),
-                        "connected": d["connected"].as_bool().unwrap_or(false),
-                        "trusted": false, "rssi": d["rawRSSI"], "kind": "other", "profiles": [], "battery": null,
-                    }))
-                    .collect();
-                if let Ok(mut slot) = self.discovered.lock() {
-                    *slot = found;
-                }
-                Ok(Value::Null)
-            }
-            "bluetooth.pair" => self
-                .blueutil(&["--pair", s("address")], Duration::from_secs(45))
-                .map(|_| Value::Null),
-            "bluetooth.connect" => self
-                .blueutil(&["--connect", s("address")], Duration::from_secs(30))
-                .map(|_| Value::Null),
-            "bluetooth.disconnect" => self
-                .blueutil(&["--disconnect", s("address")], SHORT)
-                .map(|_| Value::Null),
-            "bluetooth.forget" => self
-                .blueutil(&["--unpair", s("address")], SHORT)
-                .map(|_| Value::Null),
-            "wifi.status" => {
-                let device = self.wifi_device()?;
-                let power_text =
-                    run("networksetup", &["-getairportpower", &device], SHORT, None)?.stdout;
-                let enabled = parse::macos::wifi_power(&power_text).unwrap_or(true);
-                let known = self.preferred(&device);
-                let mut networks = Vec::new();
-                if enabled {
-                    let out = run(
-                        "system_profiler",
-                        &["SPAirPortDataType", "-json"],
-                        LONG,
-                        None,
-                    )?;
-                    networks =
-                        parse::macos::airport(&out.stdout, &device, &known).unwrap_or_default();
-                }
-                let current = networks.iter().find(|n| n["in_use"] == true).cloned();
-                Ok(json!({
-                    "supported": true,
-                    "enabled": enabled,
-                    "interface": device,
-                    "state": if current.is_some() { "connected" } else { "disconnected" },
-                    "current": current,
-                    "networks": networks,
-                    "known": known,
-                }))
-            }
+            "bluetooth.set_power" => self.blueutil_null(&["--power", if on() { "1" } else { "0" }], SHORT),
+            "bluetooth.scan" => self.bluetooth_scan(on()),
+            "bluetooth.pair" => self.blueutil_null(&["--pair", s("address")], Duration::from_secs(45)),
+            "bluetooth.connect" => self.blueutil_null(&["--connect", s("address")], Duration::from_secs(30)),
+            "bluetooth.disconnect" => self.blueutil_null(&["--disconnect", s("address")], SHORT),
+            "bluetooth.forget" => self.blueutil_null(&["--unpair", s("address")], SHORT),
+            "wifi.status" => self.wifi_status(),
             "wifi.scan" => Ok(Value::Null), // reading `wifi.status` already triggers a scan
-            "wifi.set_power" => {
-                let device = self.wifi_device()?;
-                require_success(
-                    run(
-                        "networksetup",
-                        &[
-                            "-setairportpower",
-                            &device,
-                            if b("on") { "on" } else { "off" },
-                        ],
-                        SHORT,
-                        None,
-                    )?,
-                    "networksetup",
-                )?;
-                Ok(Value::Null)
-            }
-            "wifi.current_connection" => {
-                let device = self.wifi_device()?;
-                let out = run(
-                    "networksetup",
-                    &["-getairportnetwork", &device],
-                    SHORT,
-                    None,
-                )?;
-                Ok(json!(parse::macos::current_network(&out.stdout)))
-            }
-            "wifi.connect" => {
-                let device = self.wifi_device()?;
-                let mut args = vec!["-setairportnetwork", device.as_str(), s("ssid")];
-                if let Some(pw) = params
-                    .get("password")
-                    .and_then(Value::as_str)
-                    .filter(|p| !p.is_empty())
-                {
-                    args.push(pw);
-                }
-                let out = run("networksetup", &args, Duration::from_secs(45), None)?;
-                let text = format!("{}{}", out.stdout, out.stderr);
-                if text.contains("Failed to join")
-                    || text.contains("Could not find network")
-                    || text.contains("Error")
-                {
-                    return Err(RpcError::app(
-                        "wifi_auth_failed",
-                        "Mot de passe incorrect ou réseau inaccessible.",
-                    ));
-                }
-                Ok(Value::Null)
-            }
-            "wifi.activate" => {
-                let device = self.wifi_device()?;
-                require_success(
-                    run(
-                        "networksetup",
-                        &["-setairportnetwork", &device, s("connection")],
-                        Duration::from_secs(45),
-                        None,
-                    )?,
-                    "networksetup",
-                )?;
-                Ok(Value::Null)
-            }
-            "wifi.forget" => {
-                let device = self.wifi_device()?;
-                require_success(
-                    run(
-                        "networksetup",
-                        &["-removepreferredwirelessnetwork", &device, s("ssid")],
-                        SHORT,
-                        None,
-                    )?,
-                    "networksetup",
-                )?;
-                Ok(Value::Null)
-            }
-            "wifi.subnet" => {
-                let device = self.wifi_device()?;
-                let ip = run("ipconfig", &["getifaddr", &device], SHORT, None)?.stdout;
-                let ifconfig = run("ifconfig", &[&device], SHORT, None)?.stdout;
-                let mask = ifconfig
-                    .split_whitespace()
-                    .skip_while(|w| *w != "netmask")
-                    .nth(1)
-                    .unwrap_or("");
-                Ok(json!(parse::subnet_cidr(ip.trim(), mask)))
-            }
+            "wifi.set_power" => self.wifi_set_power(on()),
+            "wifi.current_connection" => self.wifi_current(),
+            "wifi.connect" => self.wifi_connect(s("ssid"), password_param(params)),
+            "wifi.activate" => self.wifi_activate(s("connection")),
+            "wifi.forget" => self.wifi_forget(s("ssid")),
+            "wifi.subnet" => self.wifi_subnet(),
             _ => Err(RpcError::unsupported(
                 "Méthode non prise en charge sur macOS.",
             )),
         }
     }
+}
+
+fn str_param<'a>(params: &'a Map<String, Value>, key: &str) -> &'a str {
+    params.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
+fn password_param(params: &Map<String, Value>) -> Option<&str> {
+    params
+        .get("password")
+        .and_then(Value::as_str)
+        .filter(|p| !p.is_empty())
+}
+
+fn osascript(script: &str) -> Result<Output, RpcError> {
+    require_success(run("osascript", &["-e", script], SHORT, None)?, "osascript")
+}
+
+fn audio_set_volume(params: &Map<String, Value>) -> RpcResult {
+    if let Some(v) = params.get("volume").and_then(Value::as_f64) {
+        osascript(&format!(
+            "set volume output volume {}",
+            (v.clamp(0.0, 1.0) * 100.0).round() as i64
+        ))?;
+    }
+    if let Some(m) = params.get("muted").and_then(Value::as_bool) {
+        osascript(&format!(
+            "set volume output muted {}",
+            if m { "true" } else { "false" }
+        ))?;
+    }
+    Ok(Value::Null)
+}
+
+fn discovered_device(d: &Value) -> Value {
+    json!({
+        "address": d["address"].as_str().unwrap_or("").replace('-', ":").to_uppercase(),
+        "name": d["name"].as_str().unwrap_or(d["address"].as_str().unwrap_or("")),
+        "paired": d["paired"].as_bool().unwrap_or(false),
+        "connected": d["connected"].as_bool().unwrap_or(false),
+        "trusted": false, "rssi": d["rawRSSI"], "kind": "other", "profiles": [], "battery": null,
+    })
+}
+
+fn wifi_join_failed(text: &str) -> bool {
+    text.contains("Failed to join") || text.contains("Could not find network") || text.contains("Error")
 }
 
 fn note_if(caps: &mut Value, condition: bool, keys: &[&str], reason: &str) {
