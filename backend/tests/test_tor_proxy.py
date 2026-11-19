@@ -226,7 +226,6 @@ def test_tor_check_endpoint(client, monkeypatch):
 
 
 def test_automatic_checks_reuse_the_last_result_longer_under_tor(monkeypatch):
-    from app.api.routes import updates
     from app.updates import github
 
     calls = []

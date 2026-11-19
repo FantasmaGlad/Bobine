@@ -3,13 +3,11 @@ import json
 import subprocess
 import sys
 import urllib.error
-from pathlib import Path
 import pytest
 from app import cli
 import urllib.request
 from app.cli import completion as cli_completion
-from app.cli import config as cli_config
-from cli_support import BACKEND, Recorder, _http_error  # noqa: E402
+from cli_support import BACKEND, _http_error  # noqa: E402
 
 
 @pytest.mark.parametrize("argv, expected", [

@@ -1,4 +1,3 @@
-import pytest
 
 from app.storage import fsadvisor, health, longevity
 

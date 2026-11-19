@@ -22,7 +22,6 @@ from app.utils.audio_importer import (
     import_audio_course_from_watched_folder,
 )
 from app.playback.manager import PlaybackManager
-from app.scheduling.jobs import sync_schedule_job
 from app.scheduling.launch import fire_schedule
 
 

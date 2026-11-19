@@ -17,7 +17,6 @@ from app.devices.base import DeviceError  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import ActivityLog, ExternalVolume, Setting, StorageImport, Video  # noqa: E402
 from app.storage import availability  # noqa: E402
-from app.storage.formatting.model import DiskInfo  # noqa: E402
 from app.storage.formatting.tokens import PlanTokens  # noqa: E402
 from app.storage.service import StorageService  # noqa: E402
 

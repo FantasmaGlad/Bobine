@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.api.routes import updates
-from app.updates import assets, github, versions
+from app.updates import assets, versions
 from app.updates import orchestrator as orch
 
 
@@ -417,8 +417,7 @@ def test_store_managed_apply_is_refused(monkeypatch):
 
 
 def test_rolling_release_target_is_the_tag_commit_not_the_stale_release_field(monkeypatch):
-    from app.api.routes import updates
-    from app.updates import assets, github, versions
+    from app.updates import github, versions
 
     def fake_get(url, etag=None):
         if url.endswith("/commits/canary"):

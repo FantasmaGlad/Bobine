@@ -1,29 +1,14 @@
 """Appui des tests du routage audio : sorties types, PipeWire simulé, pilote et lecteurs simulés."""
 
-import asyncio
 import json
-import os
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices.base import CAPABILITY_KEYS, DeviceDriver, DeviceError, NullDriver  # noqa: E402
+from app.database import SessionLocal  # noqa: E402
+from app.devices.base import DeviceDriver  # noqa: E402
 from app.devices.linux.driver import LinuxDriver  # noqa: E402
-from app.devices.linux.parse.audio import choose_browser_stream, parse_output_streams  # noqa: E402
 from app.devices.routing import (  # noqa: E402
     ROUTES_SETTING,
     describe_sink,
-    load_routes,
-    load_routes_into_managers,
-    normalize_label,
-    player_route_state,
-    resolve_route,
-    sanitize_routes,
     save_routes,
-    stable_sink_key,
 )
-from app.devices.service import PLAYER_ROUTE_STATUSES, DevicesService, service  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import Setting  # noqa: E402
 from app.radio.manager import get_radio_manager  # noqa: E402
 
 

@@ -4,7 +4,3 @@ extend-exclude = ["android/app/build", "frontend", "backend/.venv"]
 
 [lint]
 select = ["F"]
-
-[lint.per-file-ignores]
-"backend/tests/*" = ["F401", "F811"]
-"scripts/ci/test_*.py" = ["F401", "F811"]

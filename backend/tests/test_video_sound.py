@@ -28,9 +28,7 @@ def _clean():
 
 @pytest.fixture()
 def client(monkeypatch):
-    from app import config_files
     from app import config_mirror
-    from app import config_builders
     monkeypatch.setattr(config_mirror, "schedule_mirror", lambda: None)
     with TestClient(app) as c:
         _clean()
@@ -85,8 +83,6 @@ def test_state_change_carries_the_sound(client):
 
 
 def test_sound_travels_in_the_display_config_file(client):
-    from app import config_files
-    from app import config_mirror
     from app import config_builders
     client.post("/api/playback/cable/set_sound", json={"sound": {"bass_boost": 4}})
     with SessionLocal() as db:

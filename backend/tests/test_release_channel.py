@@ -1,4 +1,3 @@
-import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -9,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app import release_channel
 from app.models import Base, Setting
-from app.api.routes import settings, updates
+from app.api.routes import settings
 from app.updates import github, local_build
 
 MODULE_PATH = Path(release_channel.__file__)
