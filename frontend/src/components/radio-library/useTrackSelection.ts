@@ -7,45 +7,17 @@ import { getApiUrl } from "@/lib/apiUrl";
 import type { ShowToast } from "@/lib/useToast";
 
 import { fetchJson, sendJson } from "./api";
+import { mergedIds, tagStateOf, toggledAll, toggledSet } from "./selectionOps";
 import type { PlaylistDetail, RadioTrack } from "./types";
 
-export function useTrackSelection(tracks: RadioTrack[], showToast: ShowToast, refreshAll: () => void) {
+function useBulkTrackActions(
+  targets: () => RadioTrack[],
+  selected: Set<number>,
+  setMenu: (menu: null | "tag" | "playlist") => void,
+  showToast: ShowToast,
+  refreshAll: () => void,
+) {
   const { t } = useAppSettings();
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [menu, setMenu] = useState<null | "tag" | "playlist">(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const toggle = (id: number) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const clear = () => {
-    setSelected(new Set());
-    setMenu(null);
-  };
-
-  const toggleAll = (ids: number[]) => {
-    const all = ids.length > 0 && ids.every((id) => selected.has(id));
-    setSelected((prev) => {
-      const next = new Set(prev);
-      ids.forEach((id) => (all ? next.delete(id) : next.add(id)));
-      return next;
-    });
-  };
-
-  const targets = () => tracks.filter((tr) => selected.has(tr.id));
-
-  const tagState = (name: string): "all" | "some" | "none" => {
-    const chosen = targets();
-    const withTag = chosen.filter((tr) => tr.tags.includes(name)).length;
-    if (chosen.length === 0 || withTag === 0) return "none";
-    return withTag === chosen.length ? "all" : "some";
-  };
-
   const applyTag = async (name: string, add: boolean) => {
     await Promise.all(targets().map((tr) => {
       if (add === tr.tags.includes(name)) return Promise.resolve();
@@ -62,10 +34,7 @@ export function useTrackSelection(tracks: RadioTrack[], showToast: ShowToast, re
       showToast(t("radioLibrary.playlistError"), "error");
       return;
     }
-    const merged = detail.items.map((i) => i.track.id);
-    selected.forEach((id) => {
-      if (!merged.includes(id)) merged.push(id);
-    });
+    const merged = mergedIds(detail.items.map((i) => i.track.id), selected);
     try {
       const res = await sendJson(`/radio/playlists/${playlistId}`, "PUT", { name: detail.name, track_ids: merged });
       if (!res.ok) throw new Error();
@@ -76,6 +45,33 @@ export function useTrackSelection(tracks: RadioTrack[], showToast: ShowToast, re
       showToast(t("radioLibrary.playlistError"), "error");
     }
   };
+
+  return { applyTag, addToPlaylist };
+}
+
+export function useTrackSelection(tracks: RadioTrack[], showToast: ShowToast, refreshAll: () => void) {
+  const { t } = useAppSettings();
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [menu, setMenu] = useState<null | "tag" | "playlist">(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const toggle = (id: number) => setSelected((prev) => toggledSet(prev, id));
+
+  const clear = () => {
+    setSelected(new Set());
+    setMenu(null);
+  };
+
+  const toggleAll = (ids: number[]) => {
+    const all = ids.length > 0 && ids.every((id) => selected.has(id));
+    setSelected((prev) => toggledAll(prev, ids, all));
+  };
+
+  const targets = () => tracks.filter((tr) => selected.has(tr.id));
+
+  const tagState = (name: string) => tagStateOf(targets(), name);
+
+  const { applyTag, addToPlaylist } = useBulkTrackActions(targets, selected, setMenu, showToast, refreshAll);
 
   const remove = async () => {
     const ids = Array.from(selected);
