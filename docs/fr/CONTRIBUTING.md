@@ -19,7 +19,7 @@ Version anglaise : [CONTRIBUTING.md](../../CONTRIBUTING.md). En participant, vou
 
 **Dites ce que vous n'avez pas vérifié.** Indiquez précisément ce que vous avez testé, sur quel système et quelle version, et ce que vous n'avez pas pu tester. Une lacune assumée est bienvenue ; une affirmation non vérifiée présentée comme un fait ne l'est pas.
 
-**Respectez l'architecture.** Lisez [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) avant de toucher au backend, au modèle de données ou au contrat réseau. Bobine fonctionne en un seul processus (FastAPI et SQLite) et entièrement hors ligne. Un changement qui ajoute un service externe, une dépendance au cloud ou un nouveau composant d'arrière-plan exige un accord préalable dans un ticket.
+**Respectez l'architecture.** Lisez le code autour de votre changement avant de toucher au backend, au modèle de données ou au contrat réseau. Bobine fonctionne en un seul processus (FastAPI et SQLite) et entièrement hors ligne. Un changement qui ajoute un service externe, une dépendance au cloud ou un nouveau composant d'arrière-plan exige un accord préalable dans un ticket.
 
 **Exactitude de la documentation.** Ne documentez jamais une fonctionnalité qui n'existe pas ou n'est pas publiée. La documentation utilisateur vit dans `README.md` et `README.fr.md` ; gardez les deux cohérents, et signalez-nous si vous ne pouvez pas fournir la traduction.
 

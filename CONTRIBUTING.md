@@ -19,7 +19,7 @@ French version: [docs/fr/CONTRIBUTING.md](docs/fr/CONTRIBUTING.md). By taking pa
 
 **Say what you did not verify.** State precisely what you tested, on which system and version, and what you could not test. An honest gap is welcome; an unverified claim presented as fact is not.
 
-**Respect the architecture.** Read [`docs/ARCHITECTURE.en.md`](docs/ARCHITECTURE.en.md) before touching the backend, the data model or the network contract. Bobine runs as a single process (FastAPI and SQLite) and works fully offline. A change that adds an external service, a cloud dependency or a new background component needs prior agreement in an issue.
+**Respect the architecture.** Read the code around your change before touching the backend, the data model or the network contract. Bobine runs as a single process (FastAPI and SQLite) and works fully offline. A change that adds an external service, a cloud dependency or a new background component needs prior agreement in an issue.
 
 **Accuracy in documentation.** Never document a feature that does not exist or is not released. User-facing documentation lives in `README.md` and `README.fr.md`; keep the two consistent, and tell us if you cannot provide a translation.
 

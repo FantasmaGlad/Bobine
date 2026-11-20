@@ -12,8 +12,7 @@
   <a href="https://bobine.fit"><b>Official Website</b></a> &nbsp;·&nbsp;
   <a href="#download"><b>Downloads</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/en/documentation"><b>User Documentation</b></a> &nbsp;·&nbsp;
-  <a href="README.fr.md"><b>Français</b></a> &nbsp;·&nbsp;
-  <a href="docs/ARCHITECTURE.en.md"><b>Technical Architecture</b></a>
+  <a href="README.fr.md"><b>Français</b></a>
 </p>
 
 <p align="center">
@@ -138,7 +137,6 @@ Three channels, switchable at any time in **Settings → Software Updates**.
 | User guide and FAQ | [bobine.fit/en/documentation](https://bobine.fit/en/documentation) |
 | Author and project | [bobine.fit/en/about](https://bobine.fit/en/about) |
 | Linux repositories | [packages.bobine.fit](https://packages.bobine.fit) |
-| Architecture and API | [docs/ARCHITECTURE.en.md](docs/ARCHITECTURE.en.md) |
 
 ## Why go this far?
 

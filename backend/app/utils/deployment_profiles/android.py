@@ -1,4 +1,4 @@
-"""Handler du profil `android` (app Chaquopy, voir docs/ARCHITECTURE.md)."""
+"""Handler du profil `android` (app Chaquopy)."""
 
 import logging
 import os
