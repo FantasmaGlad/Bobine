@@ -7,7 +7,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 from sqlalchemy import text
 
-from app import migrations
+from app.database import migrations
 from app.database import SessionLocal, init_db
 from app.models import Playlist, UidMixin, Base
 from app.utils.uid import PREFIXES, is_uid, new_uid

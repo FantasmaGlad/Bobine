@@ -2,7 +2,7 @@ import sqlite3
 
 from sqlalchemy import create_engine, event
 
-from app.foreign_keys import align_foreign_keys
+from app.database.foreign_keys import align_foreign_keys
 from app.models import Base
 
 
@@ -90,7 +90,7 @@ def test_alignment_is_idempotent(tmp_path):
 
 
 def test_a_table_from_an_older_schema_does_not_block_the_others(tmp_path, monkeypatch):
-    from app import foreign_keys
+    from app.database import foreign_keys
 
     path = tmp_path / "ancienne.db"
     _old_schema(path)
@@ -120,7 +120,7 @@ def test_a_table_from_an_older_schema_does_not_block_the_others(tmp_path, monkey
 
 
 def test_a_failed_alignment_leaves_no_connection_with_keys_enforced(tmp_path, monkeypatch):
-    from app import foreign_keys
+    from app.database import foreign_keys
 
     path = tmp_path / "ancienne.db"
     _old_schema(path)

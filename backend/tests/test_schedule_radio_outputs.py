@@ -10,7 +10,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal  # noqa: E402
-from app.migrations import migrate_schedule_radio_channel_to_network  # noqa: E402
+from app.database.migrations import migrate_schedule_radio_channel_to_network  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
     ImportSource,

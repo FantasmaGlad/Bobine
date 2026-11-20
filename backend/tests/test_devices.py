@@ -14,7 +14,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, init_db  # noqa: E402
-from app.migrations import migrate_drop_devices_access_settings  # noqa: E402
+from app.database.migrations import migrate_drop_devices_access_settings  # noqa: E402
 from app.devices import locality  # noqa: E402
 from app.devices.base import DeviceDriver, DeviceError, NullDriver  # noqa: E402
 from app.devices.linux.parse.audio import audio_kind, parse_pw_dump, parse_wpctl_volume  # noqa: E402
