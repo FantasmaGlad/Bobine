@@ -12,8 +12,7 @@
   <a href="https://bobine.fit/fr"><b>Site officiel</b></a> &nbsp;·&nbsp;
   <a href="#téléchargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/fr/documentation"><b>Documentation utilisateur</b></a> &nbsp;·&nbsp;
-  <a href="README.md"><b>English</b></a> &nbsp;·&nbsp;
-  <a href="docs/ARCHITECTURE.md"><b>Architecture technique</b></a>
+  <a href="README.md"><b>English</b></a>
 </p>
 
 <p align="center">
@@ -138,7 +137,6 @@ Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 | Guide d'utilisation et FAQ | [bobine.fit/fr/documentation](https://bobine.fit/fr/documentation) |
 | Auteur et projet | [bobine.fit/fr/a-propos](https://bobine.fit/fr/a-propos) |
 | Dépôts Linux | [packages.bobine.fit](https://packages.bobine.fit/fr/) |
-| Architecture et API | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
 ## Pourquoi aller aussi loin ?
 
