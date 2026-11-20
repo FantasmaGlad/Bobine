@@ -2,6 +2,7 @@
 
 import React, { useId, useMemo, useState } from "react";
 import Highlight from "@/components/Highlight";
+import { useSuggestionKeys } from "@/components/search/useSuggestionKeys";
 import { suggestFrom } from "@/lib/searchText";
 
 interface SearchBoxProps {
@@ -31,41 +32,8 @@ export default function SearchBox({
 }: SearchBoxProps) {
   const listId = useId();
   const [focused, setFocused] = useState(false);
-  const [active, setActive] = useState(-1);
-  const [dismissedFor, setDismissedFor] = useState<string | null>(null);
-
   const list = useMemo(() => (suggestions ? suggestFrom(suggestions, value, limit) : []), [suggestions, value, limit]);
-  const open = focused && list.length > 0 && dismissedFor !== value;
-  const activeIndex = active >= 0 && active < list.length ? active : -1;
-
-  const pick = (text: string) => {
-    onChange(text);
-    setDismissedFor(text);
-    setActive(-1);
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "ArrowDown" && list.length > 0) {
-      event.preventDefault();
-      setDismissedFor(null);
-      setActive((current) => (current + 1) % list.length);
-    } else if (event.key === "ArrowUp" && list.length > 0) {
-      event.preventDefault();
-      setDismissedFor(null);
-      setActive((current) => (current <= 0 ? list.length - 1 : current - 1));
-    } else if (event.key === "Enter") {
-      if (open && activeIndex >= 0) {
-        event.preventDefault();
-        pick(list[activeIndex]);
-      } else {
-        onSubmit?.(value);
-      }
-    } else if (event.key === "Escape" && open) {
-      event.preventDefault();
-      setDismissedFor(value);
-      setActive(-1);
-    }
-  };
+  const { open, activeIndex, setActive, pick, handleKeyDown, typed } = useSuggestionKeys({ value, list, focused, onChange, onSubmit });
 
   return (
     <div className="search-box" style={{ position: "relative", width: "100%" }}>
@@ -87,8 +55,7 @@ export default function SearchBox({
         spellCheck={false}
         enterKeyHint="search"
         onChange={(event) => {
-          setDismissedFor(null);
-          setActive(-1);
+          typed();
           onChange(event.target.value);
         }}
         onFocus={() => setFocused(true)}
