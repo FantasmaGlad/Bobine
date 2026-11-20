@@ -102,33 +102,35 @@ function relaxOuter(outer: PlacedNode[]): void {
   }
 }
 
-export function layoutOrbits(topology: Topology): MapLayout {
-  const placed = new Map<string, PlacedNode>();
-  const base = (n: TopoNode): PlacedNode => ({ ...n, x: 0, y: 0, r: NODE_RADIUS[n.kind], angle: 0 });
-  const byRing = (ring: number) => topology.nodes.filter((n) => n.ring === ring);
-  const anchorOf = new Map(topology.links.map((l) => [l.to, l.from]));
+const basePlaced = (n: TopoNode): PlacedNode => ({ ...n, x: 0, y: 0, r: NODE_RADIUS[n.kind], angle: 0 });
 
+function placeInnerRings(topology: Topology, placed: Map<string, PlacedNode>) {
   const machine = topology.nodes.find((n) => n.ring === 0);
-  if (machine) placed.set(machine.id, base(machine));
-
+  if (machine) placed.set(machine.id, basePlaced(machine));
   for (const [ring, start] of [[1, -Math.PI / 2], [2, -Math.PI / 2 + 0.35]] as const) {
-    const nodes = byRing(ring);
+    const nodes = topology.nodes.filter((n) => n.ring === ring);
     const angles = ringAngles(nodes.map((n) => n.id), start);
     for (const n of nodes) {
       const angle = angles.get(n.id) ?? 0;
-      placed.set(n.id, { ...base(n), ...place(RING_RADII[ring], angle), angle });
+      placed.set(n.id, { ...basePlaced(n), ...place(RING_RADII[ring], angle), angle });
     }
   }
+}
 
-  const outer = byRing(3);
+function groupOuterByAnchor(topology: Topology): Map<string, TopoNode[]> {
+  const anchorOf = new Map(topology.links.map((l) => [l.to, l.from]));
   const groups = new Map<string, TopoNode[]>();
-  for (const n of outer) {
+  for (const n of topology.nodes.filter((node) => node.ring === 3)) {
     const anchor = anchorOf.get(n.id) ?? "machine";
     groups.set(anchor, [...(groups.get(anchor) ?? []), n]);
   }
+  return groups;
+}
+
+function placeOuterRing(topology: Topology, placed: Map<string, PlacedNode>) {
   const free: TopoNode[] = [];
   let index = 0;
-  for (const [anchor, members] of groups) {
+  for (const [anchor, members] of groupOuterByAnchor(topology)) {
     const anchorNode = placed.get(anchor);
     if (anchor === "machine" || !anchorNode) {
       free.push(...members);
@@ -138,15 +140,27 @@ export function layoutOrbits(topology: Topology): MapLayout {
     members.forEach((n, i) => {
       const angle = anchorNode.angle + (i - (members.length - 1) / 2) * spread;
       const radius = RING_RADII[3] + (index++ % 3) * 70;
-      placed.set(n.id, { ...base(n), ...place(radius, angle), angle });
+      placed.set(n.id, { ...basePlaced(n), ...place(radius, angle), angle });
     });
   }
   const freeAngles = ringAngles(free.map((n) => n.id), Math.PI / 2 + 0.2);
   free.forEach((n, i) => {
     const angle = freeAngles.get(n.id) ?? 0;
-    placed.set(n.id, { ...base(n), ...place(RING_RADII[3] + (i % 3) * 70, angle), angle });
+    placed.set(n.id, { ...basePlaced(n), ...place(RING_RADII[3] + (i % 3) * 70, angle), angle });
   });
+}
 
+function layoutBounds(nodes: PlacedNode[]): MapLayout["bounds"] {
+  if (!nodes.length) return { minX: -200, minY: -200, maxX: 200, maxY: 200 };
+  const xs = nodes.flatMap((n) => [n.x - n.r - 40, n.x + n.r + 40]);
+  const ys = nodes.flatMap((n) => [n.y - n.r - 40, n.y + n.r + 40]);
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
+export function layoutOrbits(topology: Topology): MapLayout {
+  const placed = new Map<string, PlacedNode>();
+  placeInnerRings(topology, placed);
+  placeOuterRing(topology, placed);
   relaxOuter([...placed.values()].filter((n) => n.ring === 3));
 
   const nodes = topology.nodes.map((n) => placed.get(n.id)).filter((n): n is PlacedNode => Boolean(n));
@@ -154,14 +168,8 @@ export function layoutOrbits(topology: Topology): MapLayout {
   const links: PlacedLink[] = topology.links
     .filter((l) => byId.has(l.from) && byId.has(l.to))
     .map((l) => ({ ...l, a: { x: byId.get(l.from)!.x, y: byId.get(l.from)!.y }, b: { x: byId.get(l.to)!.x, y: byId.get(l.to)!.y } }));
-
-  const rings = [1, 2, 3].filter((r) => byRing(r).length > 0).map((r) => RING_RADII[r]);
-  const xs = nodes.flatMap((n) => [n.x - n.r - 40, n.x + n.r + 40]);
-  const ys = nodes.flatMap((n) => [n.y - n.r - 40, n.y + n.r + 40]);
-  const bounds = nodes.length
-    ? { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) }
-    : { minX: -200, minY: -200, maxX: 200, maxY: 200 };
-  return { nodes, links, rings, bounds };
+  const rings = [1, 2, 3].filter((r) => topology.nodes.some((n) => n.ring === r)).map((r) => RING_RADII[r]);
+  return { nodes, links, rings, bounds: layoutBounds(nodes) };
 }
 
 export function linkStyle(medium: LinkMedium): { dash: string; width: number; cap: "butt" | "round" } {

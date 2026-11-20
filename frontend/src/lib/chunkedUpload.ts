@@ -183,13 +183,53 @@ function failureReason(err: unknown): { reasonKey: string; status?: number; seco
   return { reasonKey: "uploads.reason.network" };
 }
 
-export async function uploadFileInChunks(file: File, opts: ChunkedUploadOptions): Promise<string> {
-  const sleepImpl = opts.deps?.sleepImpl ?? sleep;
-  const sendImpl = opts.deps?.sendChunkImpl ?? sendChunk;
+function acceptChunk(result: ChunkResult): { offset: number; accepted: boolean } {
+  if (result.status === 200) return { offset: result.offset, accepted: true };
+  if (result.status === 409) return { offset: result.offset, accepted: false };
+  if (result.status >= 400 && result.status < 500) {
+    throw Object.assign(new Error(errorMessage(result, `Refusé par le serveur (${result.status})`)), { fatal: true });
+  }
+  throw Object.assign(new Error(`Erreur serveur (${result.status})`), { status: result.status });
+}
+
+function interruptedError(err: unknown, reason: ReturnType<typeof failureReason>): UploadNoticeError {
+  return new UploadNoticeError(
+    "uploads.errors.interrupted",
+    `Transfert interrompu après ${MAX_ATTEMPTS} tentatives : ${(err as Error).message}`,
+    {
+      max: MAX_ATTEMPTS,
+      reasonKey: reason.reasonKey,
+      ...(reason.status !== undefined ? { status: reason.status } : {}),
+      ...(reason.seconds !== undefined ? { seconds: reason.seconds } : {}),
+    },
+    true,
+  );
+}
+
+async function resyncOffset(uploadId: string, opts: ChunkedUploadOptions): Promise<number | null> {
+  try {
+    return await fetchOffset(uploadId, opts);
+  } catch (syncErr) {
+    if (syncErr instanceof UploadAbortedError || (syncErr as DOMException).name === "AbortError") throw new UploadAbortedError();
+    if ((syncErr as { sessionLost?: boolean }).sessionLost) {
+      throw new UploadNoticeError("uploads.errors.sessionLost", "Session de transfert perdue (le serveur a redémarré ou la session a expiré). Relancez l'import.", {}, true);
+    }
+    return null;
+  }
+}
+
+async function openSession(file: File, opts: ChunkedUploadOptions) {
   opts.onPhase?.("connecting");
   const session = await createSession(file, opts);
   opts.onSession?.(session.upload_id);
   opts.onPhase?.("sending");
+  return session;
+}
+
+export async function uploadFileInChunks(file: File, opts: ChunkedUploadOptions): Promise<string> {
+  const sleepImpl = opts.deps?.sleepImpl ?? sleep;
+  const sendImpl = opts.deps?.sendChunkImpl ?? sendChunk;
+  const session = await openSession(file, opts);
   const chunkSize = Math.max(1, session.chunk_size);
   let offset = session.offset;
   opts.onProgress(offset, file.size);
@@ -200,51 +240,25 @@ export async function uploadFileInChunks(file: File, opts: ChunkedUploadOptions)
     const attemptStart = offset;
     try {
       const result = await sendImpl(session.upload_id, file, offset, end, opts, (sent) => opts.onProgress(offset + sent, file.size));
-      if (result.status === 200) {
-        offset = result.offset;
+      const next = acceptChunk(result);
+      offset = next.offset;
+      if (next.accepted) {
         failures = 0;
         opts.onNotice?.(null);
-        opts.onProgress(offset, file.size);
-        continue;
       }
-      if (result.status === 409) {
-        offset = result.offset;
-        opts.onProgress(offset, file.size);
-        continue;
-      }
-      if (result.status >= 400 && result.status < 500) {
-        throw Object.assign(new Error(errorMessage(result, `Refusé par le serveur (${result.status})`)), { fatal: true });
-      }
-      throw Object.assign(new Error(`Erreur serveur (${result.status})`), { status: result.status });
+      opts.onProgress(offset, file.size);
     } catch (err) {
       if (err instanceof UploadAbortedError || (err as { fatal?: boolean }).fatal) throw err;
       failures += 1;
       const reason = failureReason(err);
-      if (failures >= MAX_ATTEMPTS) {
-        throw new UploadNoticeError(
-          "uploads.errors.interrupted",
-          `Transfert interrompu après ${MAX_ATTEMPTS} tentatives : ${(err as Error).message}`,
-          {
-            max: MAX_ATTEMPTS,
-            reasonKey: reason.reasonKey,
-            ...(reason.status !== undefined ? { status: reason.status } : {}),
-            ...(reason.seconds !== undefined ? { seconds: reason.seconds } : {}),
-          },
-          true,
-        );
-      }
+      if (failures >= MAX_ATTEMPTS) throw interruptedError(err, reason);
       opts.onNotice?.(retryNotice(failures + 1, MAX_ATTEMPTS, reason.reasonKey, reason.status));
       await sleepImpl(backoffMs(failures), opts.signal);
-      try {
-        const synced = await fetchOffset(session.upload_id, opts);
+      const synced = await resyncOffset(session.upload_id, opts);
+      if (synced !== null) {
         if (synced > attemptStart) failures = 0;
         offset = synced;
         opts.onProgress(offset, file.size);
-      } catch (syncErr) {
-        if (syncErr instanceof UploadAbortedError || (syncErr as DOMException).name === "AbortError") throw new UploadAbortedError();
-        if ((syncErr as { sessionLost?: boolean }).sessionLost) {
-          throw new UploadNoticeError("uploads.errors.sessionLost", "Session de transfert perdue (le serveur a redémarré ou la session a expiré). Relancez l'import.", {}, true);
-        }
       }
     }
   }
