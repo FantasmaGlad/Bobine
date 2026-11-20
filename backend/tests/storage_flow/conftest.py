@@ -35,7 +35,7 @@ def env(tmp_path, monkeypatch):
     driver = FakeStorageDriver(tmp_path / "fake")
     service = StorageService(lambda: driver)
     monkeypatch.setattr("app.main.storage_service", service)
-    monkeypatch.setattr("app.api.routes.media_streams.storage_service", service)
+    monkeypatch.setattr("app.api.stream_response.storage_service", service)
     monkeypatch.setattr("app.api.routes.storage.service", service)
     with TestClient(app) as client:
         ns = SimpleNamespace(client=client, driver=driver, service=service, tmp=tmp_path)

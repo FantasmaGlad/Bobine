@@ -60,7 +60,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(service.formatter, "_device_numbers", device_numbers)
     service.formatter.tokens = PlanTokens(min_age=0.0)
     monkeypatch.setattr("app.main.storage_service", service)
-    monkeypatch.setattr("app.api.routes.media_streams.storage_service", service)
+    monkeypatch.setattr("app.api.stream_response.storage_service", service)
     monkeypatch.setattr("app.api.routes.storage.service", service)
     monkeypatch.setattr("app.storage.formatting.steps.UNMOUNT_PAUSE", 0.01)
     monkeypatch.setattr("app.storage.formatting.steps.SETTLE_SECONDS", 3.0)
