@@ -53,7 +53,7 @@ def runtime_icon_datas(repo_dir: Path = REPO_DIR) -> list[tuple[str, str]]:
     missing = [name for name in names if not (images / name).exists()]
     if missing:
         raise FileNotFoundError(
-            f"Icônes absentes dans Assets/Images : {', '.join(missing)} — lancer scripts/generate_channel_icons.py"
+            f"Icônes absentes dans Assets/Images : {', '.join(missing)} — lancer scripts/generators/generate_channel_icons.py"
         )
     return [(str(images / name), ".") for name in names]
 

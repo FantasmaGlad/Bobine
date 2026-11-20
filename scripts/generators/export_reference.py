@@ -10,7 +10,7 @@ import sys
 import warnings
 from pathlib import Path
 
-REPO_DIR = Path(__file__).resolve().parent.parent
+REPO_DIR = Path(__file__).resolve().parents[2]
 TARGET = REPO_DIR / "docs" / "reference"
 
 
@@ -45,7 +45,7 @@ def main() -> int:
         path.write_text(content, encoding="utf-8")
         print(f"écrit : {path.relative_to(REPO_DIR)}")
     if stale:
-        print(f"périmé : {', '.join(stale)} : relancer scripts/export_reference.py", file=sys.stderr)
+        print(f"périmé : {', '.join(stale)} : relancer scripts/generators/export_reference.py", file=sys.stderr)
     return 1 if stale else 0
 
 

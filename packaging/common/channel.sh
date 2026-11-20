@@ -10,7 +10,7 @@ install_channel_icons() {
     local channel="$1" icons_root="$2" dest="$3"
     local src="${icons_root}/${channel}" png size_dir
     if [ ! -d "${src}/hicolor" ]; then
-        echo "Erreur: icônes du canal '${channel}' introuvables dans ${src} (lancer scripts/generate_channel_icons.py)." >&2
+        echo "Erreur: icônes du canal '${channel}' introuvables dans ${src} (lancer scripts/generators/generate_channel_icons.py)." >&2
         return 1
     fi
     while IFS= read -r png; do

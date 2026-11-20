@@ -1128,7 +1128,7 @@ EOF
     if [[ -d "${REPO_DIR}/backend/data" ]]; then
         warn "Données héritées détectées dans ${REPO_DIR}/backend/data (ancien emplacement)."
         warn "Pour les unifier sous ${REPO_DIR}/data, arrête le backend puis lance :"
-        warn "  ${VENV_DIR}/bin/python ${REPO_DIR}/scripts/migrate_unify_data_dirs.py --dry-run"
+        warn "  ${VENV_DIR}/bin/python ${REPO_DIR}/scripts/migrations/migrate_unify_data_dirs.py --dry-run"
         warn "puis à nouveau sans --dry-run une fois le plan vérifié."
     fi
     step_done

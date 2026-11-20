@@ -27,7 +27,7 @@ def _load_module(name: str, relative: str):
 
 @pytest.fixture(scope="module")
 def generator():
-    return _load_module("generate_channel_icons", "scripts/generate_channel_icons.py")
+    return _load_module("generate_channel_icons", "scripts/generators/generate_channel_icons.py")
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +37,7 @@ def spec_helper():
 
 def test_fichiers_generes_presents_et_a_jour(generator):
     stale = [o.path for o in generator.all_outputs() if not generator._is_current(o, REPO / o.path)]
-    assert not stale, "relancer scripts/generate_channel_icons.py : " + ", ".join(stale)
+    assert not stale, "relancer scripts/generators/generate_channel_icons.py : " + ", ".join(stale)
 
 
 def test_aucun_fichier_historique_non_genere_ne_traine():
