@@ -1,7 +1,6 @@
 """Télémétrie assemblée : durée de fonctionnement, instantanés en base, purge."""
 
 import logging
-import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -18,7 +17,8 @@ from .power import (
     get_power_watts,
     update_cumulative_energy,
 )
-from .probe import _SERVICE_START_TIME, is_android_system
+from .probe import _SERVICE_START_TIME
+from .uptime import system_uptime_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -28,28 +28,7 @@ def get_runtime_info() -> dict[str, Any]:
     now = time.time()
     service_uptime = int(now - _SERVICE_START_TIME)
 
-    system_uptime = 0
-    is_android = is_android_system()
-
-    if is_android:
-        try:
-            from android.os import SystemClock
-            system_uptime = int(SystemClock.elapsedRealtime() / 1000)
-        except Exception as exc:
-            logger.debug("get_runtime_info : %s", exc)
-
-    if system_uptime <= 0 and os.path.exists("/proc/uptime"):
-        try:
-            with open("/proc/uptime", "r", encoding="utf-8") as f:
-                system_uptime = int(float(f.read().split()[0]))
-        except Exception as exc:
-            logger.debug("get_runtime_info : %s", exc)
-
-    if system_uptime <= 0:
-        try:
-            system_uptime = int(now - psutil.boot_time())
-        except Exception:
-            system_uptime = service_uptime
+    system_uptime = system_uptime_seconds(service_uptime)
 
     avg_w = get_average_power_watts()
     wh = get_cumulative_energy_wh()
