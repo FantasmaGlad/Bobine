@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { devicesRequest } from "@/lib/devices/request";
 import { type AudioDetails } from "@/lib/devices/types";
-import { errorText, type SectionProps } from "../../common";
+import { errorText, type SectionProps } from "../../shared/section";
 
 export function useAudioDetails(id: string | null, t: SectionProps["t"]) {
   const [details, setDetails] = useState<AudioDetails | null>(null);

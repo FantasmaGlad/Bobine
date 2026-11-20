@@ -7,7 +7,9 @@ import AudioDetailSheet from "./AudioDetailSheet";
 import AudioDeviceRow from "./audio/AudioDeviceRow";
 import { AudioUnsupported, NoDefaultSwitchNote } from "./audio/AudioNotes";
 import { useAudioCalls } from "./audio/useAudioCalls";
-import { errorText, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
+import { errorText, type SectionProps } from "./shared/section";
+import { useDevicesResource } from "./shared/useDevicesResource";
+import { useFocusFlash } from "./shared/useFocusFlash";
 
 export default function AudioSection({ caps, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {
   const { data, error, loading, reload } = useDevicesResource<AudioListing>("/audio", refreshKey);

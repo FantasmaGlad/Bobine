@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { devicesRequest } from "@/lib/devices/request";
-import { errorText, type SectionProps } from "../common";
+import { errorText, type SectionProps } from "../shared/section";
 
 export type BluetoothCall = (path: string, body?: unknown, okMessage?: string) => Promise<void>;
 

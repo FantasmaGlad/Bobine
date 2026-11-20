@@ -3,7 +3,9 @@
 import { useState } from "react";
 import Icon from "@/components/Icon";
 import { type WifiStatus } from "@/lib/devices/types";
-import { errorText, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
+import { errorText, type SectionProps } from "./shared/section";
+import { useDevicesResource } from "./shared/useDevicesResource";
+import { useFocusFlash } from "./shared/useFocusFlash";
 import { usePendingCountdown } from "./wifi/usePendingCountdown";
 import { useWifiActions } from "./wifi/useWifiActions";
 import WifiBanners from "./wifi/WifiBanners";

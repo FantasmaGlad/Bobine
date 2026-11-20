@@ -6,7 +6,7 @@ import RadioSoundPanel from "@/components/RadioSoundPanel";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { clampSound, defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import { getDevicesApiUrl } from "@/lib/devices/request";
-import type { SectionProps } from "./common";
+import type { SectionProps } from "./shared/section";
 
 const CHANNELS = ["cable", "network"] as const;
 type VideoChannel = (typeof CHANNELS)[number];

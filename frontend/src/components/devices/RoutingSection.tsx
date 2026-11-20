@@ -5,7 +5,7 @@ import type { SelectOption } from "@/components/select/options";
 import { audioDisplayName } from "@/lib/devices/audio";
 import { summarizeRouting } from "@/lib/devices/routing";
 import type { RadioFeed } from "@/lib/useRadioFeed";
-import { errorText, type SectionProps } from "./common";
+import { errorText, type SectionProps } from "./shared/section";
 import RoutingCard from "./routing/RoutingCard";
 import { RoutingUnsupported, UnlockLabelsNote } from "./routing/RoutingNotes";
 import { useRoutingModel, useRoutingSave } from "./routing/useRouting";

@@ -1,6 +1,6 @@
 import { audioKindIcon } from "@/lib/devices/audio";
 import { type GraphSink, type GraphSource } from "@/lib/routingGraph";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 
 type T = SectionProps["t"];
 

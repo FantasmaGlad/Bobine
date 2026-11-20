@@ -1,7 +1,8 @@
 "use client";
 
 import Icon from "@/components/Icon";
-import { openSystemSettings, type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
+import { openSystemSettings } from "../shared/systemSettings";
 
 interface UnsupportedProps {
   reason?: string;

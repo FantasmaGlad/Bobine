@@ -3,7 +3,7 @@
 import Icon from "@/components/Icon";
 import { signalBars, wifiConnectPlan } from "@/lib/devices/wireless";
 import { type WifiNetwork } from "@/lib/devices/types";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type WifiActions } from "./useWifiActions";
 
 interface RowProps {

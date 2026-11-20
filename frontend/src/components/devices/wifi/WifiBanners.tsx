@@ -2,7 +2,7 @@
 
 import Icon from "@/components/Icon";
 import { type WifiPendingChange } from "@/lib/devices/types";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type WifiActions } from "./useWifiActions";
 
 interface BannersProps {

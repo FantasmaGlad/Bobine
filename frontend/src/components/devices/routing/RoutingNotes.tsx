@@ -1,7 +1,7 @@
 "use client";
 
 import Icon from "@/components/Icon";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 
 async function unlockOutputLabels(): Promise<"ok" | "denied" | "unsupported"> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return "unsupported";

@@ -1,5 +1,5 @@
 import { type PlacedNode, type Topology } from "@/lib/deviceMap";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 
 type T = SectionProps["t"];
 

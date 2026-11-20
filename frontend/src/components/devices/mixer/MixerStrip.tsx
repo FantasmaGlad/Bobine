@@ -2,7 +2,7 @@
 
 import Icon from "@/components/Icon";
 import { formatDb, GAIN_MAX_DB, GAIN_MIN_DB, type StripId } from "@/lib/radioMix";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 
 function MeterBar({ level, label }: { level: number | undefined; label: string }) {
   const value = level ?? 0;

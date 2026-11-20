@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Icon from "@/components/Icon";
 import { layoutOrbits, neighborhood, type Topology } from "@/lib/deviceMap";
-import { useDevicesResource, type SectionProps } from "./common";
+import { type SectionProps } from "./shared/section";
+import { useDevicesResource } from "./shared/useDevicesResource";
 import MapGraph from "./map/MapGraph";
 import MapLegend from "./map/MapLegend";
 import MapPanel, { type OpenTab } from "./map/MapPanel";

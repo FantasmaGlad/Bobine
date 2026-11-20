@@ -3,7 +3,7 @@ import { devicesRequest } from "@/lib/devices/request";
 import { RADIO_OUTPUTS, type MixerView, type RadioOutputId } from "@/lib/devices/routing";
 import { type RadioMix } from "@/lib/radioMix";
 import { type RadioSoundSettings } from "@/lib/radioSound";
-import { errorText, type SectionProps } from "../common";
+import { errorText, type SectionProps } from "../shared/section";
 import { type MixPatch } from "./mixPatch";
 
 const SEND_DELAY_MS = 150;

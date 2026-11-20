@@ -1,6 +1,6 @@
 import type { ApiError } from "@/lib/apiError";
 import { formatBytes } from "@/lib/storage/display";
-import type { Notify } from "@/components/devices/common";
+import type { Notify } from "@/components/devices/shared/section";
 
 export type T = (key: string, params?: Record<string, string | number>) => string;
 export type Lang = "fr" | "en";

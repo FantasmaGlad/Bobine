@@ -1,7 +1,7 @@
 "use client";
 
 import { truncateLabel, type GraphLayout, type GraphSink, type GraphSource } from "@/lib/routingGraph";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { sinkIcon, sinkSub, sourceIcon, sourceLabel, sourceSub } from "./graphText";
 import { type GraphInteraction } from "./useGraphInteraction";
 

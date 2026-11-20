@@ -1,7 +1,7 @@
 "use client";
 
 import { curvePath, linkStyle, neighborhood, nodeIcon, type MapLayout, type PlacedNode } from "@/lib/deviceMap";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { nodeLabel, truncate } from "./mapText";
 
 type Near = ReturnType<typeof neighborhood> | null;

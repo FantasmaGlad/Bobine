@@ -3,7 +3,8 @@
 import Icon from "@/components/Icon";
 import { devicesRequest } from "@/lib/devices/request";
 import { type WifiStatus } from "@/lib/devices/types";
-import { openSystemSettings, type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
+import { openSystemSettings } from "../shared/systemSettings";
 import { type WifiActions } from "./useWifiActions";
 
 interface ToolbarProps {
