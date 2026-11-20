@@ -128,7 +128,7 @@ def run_migration(repo_dir: Path, db_path: Path | None, configured_audio_dir: Pa
 
 def main() -> int:
     dry = "--dry-run" in sys.argv[1:]
-    repo_dir = Path(os.environ.get("OLMC_MIGRATE_REPO_DIR", Path(__file__).resolve().parent.parent))
+    repo_dir = Path(os.environ.get("OLMC_MIGRATE_REPO_DIR", Path(__file__).resolve().parents[2]))
     backend_dir = repo_dir / "backend"
     sys.path.insert(0, str(backend_dir))
 

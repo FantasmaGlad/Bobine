@@ -11,7 +11,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops
 
-REPO_DIR = Path(__file__).resolve().parent.parent
+REPO_DIR = Path(__file__).resolve().parents[2]
 SOURCE_DIR = REPO_DIR / "Assets" / "Images" / "channel-icons"
 
 _spec = importlib.util.spec_from_file_location("bobine_release_channel", REPO_DIR / "backend" / "app" / "release_channel.py")
@@ -194,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         stale = [o.path for o in outputs if not _is_current(o, REPO_DIR / o.path)]
         if stale:
-            print(f"{len(stale)} fichier(s) absent(s) ou périmé(s) — relancer scripts/generate_channel_icons.py :", file=sys.stderr)
+            print(f"{len(stale)} fichier(s) absent(s) ou périmé(s) — relancer scripts/generators/generate_channel_icons.py :", file=sys.stderr)
             for path in stale:
                 print(f"  {path}", file=sys.stderr)
             return 1

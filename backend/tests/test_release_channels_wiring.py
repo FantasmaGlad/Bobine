@@ -33,13 +33,13 @@ def _load(name: str, relative: str):
 
 def test_fichiers_generes_a_jour():
     result = subprocess.run(
-        [sys.executable, str(REPO / "scripts" / "sync_release_channels.py"), "--check"], capture_output=True, text=True
+        [sys.executable, str(REPO / "scripts" / "generators" / "sync_release_channels.py"), "--check"], capture_output=True, text=True
     )
     assert result.returncode == 0, result.stderr
 
 
 def test_le_generateur_d_icones_et_le_paquetage_lisent_le_registre():
-    generator = _load("generate_channel_icons", "scripts/generate_channel_icons.py")
+    generator = _load("generate_channel_icons", "scripts/generators/generate_channel_icons.py")
     packaging = _load("bobine_packaging_channel", "packaging/common/channel.py")
     assert tuple(generator.CHANNELS) == release_channel.CHANNEL_IDS
     assert generator.DEFAULT_CHANNEL == release_channel.DEFAULT_CHANNEL
@@ -65,7 +65,7 @@ def test_aucune_regle_de_canal_reecrite_dans_les_scripts_et_specs():
     for relative in (
         "packaging/common/channel.sh", "packaging/common/channel.py", "packaging/common/stage_root.sh",
         "packaging/linux/build_deb.sh", "packaging/windows/bobine.spec", "packaging/macos/bobine.spec",
-        "packaging/linux/bobine.spec", "scripts/generate_channel_icons.py",
+        "packaging/linux/bobine.spec", "scripts/generators/generate_channel_icons.py",
     ):
         code = "\n".join(_code_lines(relative, ("#", "//")))
         assert not re.search(r"\(beta\|canary\)|\"canary\"|'canary'|\(canary\|beta\)", code), f"{relative} réécrit la liste des canaux"

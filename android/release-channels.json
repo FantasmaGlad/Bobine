@@ -1,5 +1,5 @@
 {
-  "_comment": "Généré par scripts/sync_release_channels.py depuis backend/app/release_channel.py — ne pas modifier.",
+  "_comment": "Généré par scripts/generators/sync_release_channels.py depuis backend/app/release_channel.py — ne pas modifier.",
   "default": "stable",
   "channels": [
     {
