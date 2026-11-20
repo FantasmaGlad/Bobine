@@ -31,7 +31,7 @@ Validation avant contribution : `pytest` dans `backend/`, `npm test` et `npx tsc
 
 ## 3. Données
 
-Une base SQLite (`data/database.db`) : vidéos, chapitres, sous-titres, playlists, cours audio, radio, planning, réglages, journaux et métriques. Les migrations sont de petites fonctions idempotentes de `backend/app/database.py`. Les médias d'origine ne sont jamais modifiés.
+Une base SQLite (`data/database.db`) : vidéos, chapitres, sous-titres, playlists, cours audio, radio, planning, réglages, journaux et métriques. Les migrations sont de petites fonctions idempotentes de `backend/app/database/migrations.py`. Les médias d'origine ne sont jamais modifiés.
 
 ### 3.1 Profil Android : compatibilité Pydantic v1 et surveillance de dossiers
 

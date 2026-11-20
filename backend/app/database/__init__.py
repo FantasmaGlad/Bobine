@@ -38,7 +38,7 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA cache_size=-64000")
     cursor.execute("PRAGMA busy_timeout=30000")
-    from app import foreign_keys
+    from app.database import foreign_keys
 
     if foreign_keys.enforced:
         cursor.execute("PRAGMA foreign_keys=ON")
@@ -99,7 +99,7 @@ def get_db():
 
 def init_db():
     if _IS_SQLITE:
-        from app import foreign_keys
+        from app.database import foreign_keys
 
         foreign_keys.suspend(engine)
     from pathlib import Path
@@ -124,7 +124,7 @@ def init_db():
         db_path = Path(settings.database_url[len("sqlite:///"):])
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    from app import migrations
+    from app.database import migrations
 
     migrations.migrate_audio_playlist_items_to_tracks()
     Base.metadata.create_all(bind=engine)
@@ -137,6 +137,6 @@ def init_db():
     migrations.migrate_drop_devices_access_settings()
     migrations.migrate_add_uids()
     if _IS_SQLITE:
-        from app.foreign_keys import align_foreign_keys
+        from app.database.foreign_keys import align_foreign_keys
 
         align_foreign_keys(engine)

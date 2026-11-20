@@ -31,7 +31,7 @@ Before contributing: `pytest` in `backend/`, `npm test` and `npx tsc --noEmit` i
 
 ## 3. Data
 
-One SQLite database (`data/database.db`): videos, chapters, subtitles, playlists, audio classes, radio, schedule, settings, logs and metrics. Migrations are small idempotent functions in `backend/app/database.py`. Original media files are never modified.
+One SQLite database (`data/database.db`): videos, chapters, subtitles, playlists, audio classes, radio, schedule, settings, logs and metrics. Migrations are small idempotent functions in `backend/app/database/migrations.py`. Original media files are never modified.
 
 ### 3.1 Android profile: Pydantic v1 compatibility and folder watching
 

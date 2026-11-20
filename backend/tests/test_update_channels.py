@@ -90,7 +90,7 @@ def test_migrate_update_channel_beta_to_canary_rewrites_existing_value(tmp_path,
     from sqlalchemy import create_engine, text
 
     from app import database as db_module
-    from app import migrations
+    from app.database import migrations
 
     temp_engine = create_engine(f"sqlite:///{tmp_path / 'migrate.db'}")
     with temp_engine.connect() as conn:
@@ -111,7 +111,7 @@ def test_migrate_update_channel_beta_to_canary_is_a_noop_for_other_values(tmp_pa
     from sqlalchemy import create_engine, text
 
     from app import database as db_module
-    from app import migrations
+    from app.database import migrations
 
     temp_engine = create_engine(f"sqlite:///{tmp_path / 'migrate.db'}")
     with temp_engine.connect() as conn:
