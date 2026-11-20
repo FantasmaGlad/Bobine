@@ -1,75 +1,21 @@
 "use client";
-import { errorMessage } from "@/lib/apiError";
 
-import { useCallback, useEffect, useState } from "react";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
-import { getApiUrl } from "@/lib/apiUrl";
+import RenditionButton from "./web-rendition/RenditionButton";
+import { decodeIssueLabels, useWebRendition } from "./web-rendition/useWebRendition";
 
-interface VideoWebState {
-  web_issues: string[];
-  web_status: "pending" | "ready" | "error" | null;
-}
-
-function decodeIssues(issues: string[]): string[] {
-  return issues.filter((issue) => issue.startsWith("decode:"));
-}
+const PANEL_STYLE = { marginTop: 12, padding: "12px 14px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", background: "var(--bg-surface-elevated)", display: "flex", flexDirection: "column", gap: 8 } as const;
 
 export default function WebRenditionPanel({ videoId }: { videoId: number }) {
   const { t } = useAppSettings();
-  const { libraryVersion } = usePlaybackSocket();
-  const [state, setState] = useState<VideoWebState | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const load = useCallback(() => fetch(getApiUrl(`/videos/${videoId}`), { cache: "no-store" })
-    .then(async (res) => {
-      if (res.ok) setState(await res.json());
-    })
-    .catch(() => {}), [videoId]);
-
-  useEffect(() => {
-    void load();
-  }, [load, libraryVersion]);
-
-  useEffect(() => {
-    if (state?.web_status !== "pending") return;
-    const id = setInterval(() => void load(), 4000);
-    return () => clearInterval(id);
-  }, [state?.web_status, load]);
-
-  const decode = decodeIssues(state?.web_issues ?? []);
-  if (!state || decode.length === 0) return null;
-
-  const labels = decode.map((issue) =>
-    issue === "decode:pixel-format"
-      ? t("webRendition.issuePixel")
-      : t("webRendition.issueCodec", { codec: issue.replace("decode:codec-", "").toUpperCase() }),
-  );
-
-  const act = async (method: "POST" | "DELETE") => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const res = await fetch(getApiUrl(`/videos/${videoId}/web-rendition`), { method });
-      if (res.ok) {
-        setMessage(method === "POST" ? t("webRendition.queued") : null);
-        setState((prev) => (prev ? { ...prev, web_status: method === "POST" ? "pending" : null } : prev));
-      } else {
-        const body = await res.json().catch(() => ({}));
-        setMessage(errorMessage(body, t("webRendition.failed")));
-      }
-    } catch {
-      setMessage(t("webRendition.failed"));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { state, busy, message, act } = useWebRendition(videoId, t);
+  const labels = decodeIssueLabels(state?.web_issues ?? [], t);
+  if (!state || labels.length === 0) return null;
 
   const status = state.web_status;
   return (
-    <div className="web-rendition-panel" style={{ marginTop: 12, padding: "12px 14px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", background: "var(--bg-surface-elevated)", display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="web-rendition-panel" style={PANEL_STYLE}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
         <Icon name={status === "ready" ? "check_circle" : "devices"} size={18} color={status === "ready" ? "var(--accent-success-text)" : "var(--accent-text)"} />
         {t("webRendition.title")}
@@ -78,21 +24,7 @@ export default function WebRenditionPanel({ videoId }: { videoId: number }) {
         {status === "ready" ? t("webRendition.ready") : t("webRendition.notSafe", { issues: labels.join(", ") })}
       </p>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        {status === "ready" ? (
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => act("DELETE")}>
-            {t("webRendition.remove")}
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy || status === "pending"} onClick={() => act("POST")}>
-            {status === "pending" ? (
-              <>
-                <Icon name="sync" size={14} className="olc-spin" /> {t("webRendition.creating")}
-              </>
-            ) : (
-              t("webRendition.create")
-            )}
-          </button>
-        )}
+        <RenditionButton status={status} busy={busy} act={act} t={t} />
         {status === "error" && <span style={{ color: "var(--accent-error-text)", fontSize: "0.8rem" }}>{t("webRendition.failed")}</span>}
         {message && <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{message}</span>}
       </div>
