@@ -3,7 +3,7 @@
 import Icon from "@/components/Icon";
 import { describeBalance, describeChannels, formatLatency, formatSampleRate, sliderFromBalance, balanceFromSlider } from "@/lib/devices/audio";
 import { type AudioDetails, type AudioDevice } from "@/lib/devices/types";
-import { type SectionProps } from "../../common";
+import { type SectionProps } from "../../shared/section";
 import { type AudioDetailActions, type Tone } from "./useAudioDetailActions";
 
 type T = SectionProps["t"];

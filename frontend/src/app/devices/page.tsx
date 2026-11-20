@@ -11,7 +11,7 @@ import MapSection from "@/components/devices/MapSection";
 import MixerSection from "@/components/devices/MixerSection";
 import VideoSoundSection from "@/components/devices/VideoSoundSection";
 import RoutingSection from "@/components/devices/RoutingSection";
-import type { SectionProps } from "@/components/devices/common";
+import type { SectionProps } from "@/components/devices/shared/section";
 import { devicesRequest } from "@/lib/devices/request";
 import { type DevicesStatus } from "@/lib/devices/types";
 import { useDevicesEvents } from "@/lib/useDevicesEvents";

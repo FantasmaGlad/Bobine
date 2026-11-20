@@ -1,7 +1,7 @@
 "use client";
 
 import { linkStyle, type Topology } from "@/lib/deviceMap";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import MediumLine from "./MediumLine";
 
 const MEDIA = ["wifi", "bluetooth", "wired"] as const;

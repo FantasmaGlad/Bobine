@@ -2,7 +2,8 @@
 
 import Icon from "@/components/Icon";
 import { type BluetoothStatus } from "@/lib/devices/types";
-import { openSystemSettings, type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
+import { openSystemSettings } from "../shared/systemSettings";
 import { type BluetoothCall } from "./useBluetoothCall";
 
 interface ToolbarProps {

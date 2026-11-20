@@ -3,7 +3,7 @@
 import Icon from "@/components/Icon";
 import { bluetoothKindIcon } from "@/lib/devices/wireless";
 import { type BluetoothDevice } from "@/lib/devices/types";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type BluetoothCall } from "./useBluetoothCall";
 
 interface RowProps {

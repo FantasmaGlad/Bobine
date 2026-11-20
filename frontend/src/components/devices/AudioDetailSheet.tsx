@@ -7,7 +7,7 @@ import { type AudioDevice } from "@/lib/devices/types";
 import { AnalysisBlock, BalanceBlock, NameBlock, ProfileBlock, ToneBlock } from "./audio/detail/AudioDetailBlocks";
 import { useAudioDetailActions } from "./audio/detail/useAudioDetailActions";
 import { useAudioDetails } from "./audio/detail/useAudioDetails";
-import { type SectionProps } from "./common";
+import { type SectionProps } from "./shared/section";
 
 interface Props extends Pick<SectionProps, "caps" | "notify" | "t"> {
   device: AudioDevice | null;

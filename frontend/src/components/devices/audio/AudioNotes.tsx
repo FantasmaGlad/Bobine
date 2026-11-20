@@ -2,7 +2,8 @@
 
 import Icon from "@/components/Icon";
 import { type Capabilities } from "@/lib/devices/types";
-import { openSystemSettings, type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
+import { openSystemSettings } from "../shared/systemSettings";
 
 export function AudioUnsupported({ reason, t }: { reason?: string; t: SectionProps["t"] }) {
   return (

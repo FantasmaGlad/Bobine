@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { devicesRequest } from "@/lib/devices/request";
-import { errorText, type SectionProps } from "../common";
+import { errorText, type SectionProps } from "../shared/section";
 
 export interface AckRequest {
   kind: "connect" | "forget" | "power";

@@ -7,7 +7,7 @@ import { type RadioOutputId } from "@/lib/devices/routing";
 import { hasSolo, type MeterId, type RadioMix, type StripId } from "@/lib/radioMix";
 import { clampSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { FeedLevels } from "@/lib/useRadioFeed";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type MixPatch } from "./mixPatch";
 import Strip from "./MixerStrip";
 

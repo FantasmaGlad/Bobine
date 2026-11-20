@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import Icon from "@/components/Icon";
 import { layoutRoutingGraph, sinkAt, type Assignment, type GraphLayout, type GraphSource, type RoutingGraphModel } from "@/lib/routingGraph";
-import type { SectionProps } from "./common";
+import type { SectionProps } from "./shared/section";
 import { SinkNode, SourceNode } from "./routing/GraphNodes";
 import { sourceLabel } from "./routing/graphText";
 import { useGraphInteraction, type GraphInteraction } from "./routing/useGraphInteraction";

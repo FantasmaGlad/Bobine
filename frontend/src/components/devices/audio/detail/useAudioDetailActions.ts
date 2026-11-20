@@ -2,7 +2,7 @@ import { useState } from "react";
 import { balanceFromSlider } from "@/lib/devices/audio";
 import { devicesRequest } from "@/lib/devices/request";
 import { type AudioDevice } from "@/lib/devices/types";
-import { errorText, type SectionProps } from "../../common";
+import { errorText, type SectionProps } from "../../shared/section";
 
 export type Tone = "left" | "right" | "both";
 

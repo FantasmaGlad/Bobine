@@ -2,7 +2,7 @@
 
 import Icon from "@/components/Icon";
 import { linkStyle, nodeIcon, type PlacedNode, type Topology } from "@/lib/deviceMap";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import MediumLine from "./MediumLine";
 import { panelRows } from "./mapText";
 

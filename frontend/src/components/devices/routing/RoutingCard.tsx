@@ -6,7 +6,7 @@ import type { SelectOption } from "@/components/select/options";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import { type summarizeRouting, type RoutingOutput } from "@/lib/devices/routing";
 import type { RadioFeed } from "@/lib/useRadioFeed";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type RoutingSave } from "./useRouting";
 
 const TONE_ICON = { neutral: "info", ok: "check_circle", info: "schedule", warn: "warning", bad: "error" } as const;

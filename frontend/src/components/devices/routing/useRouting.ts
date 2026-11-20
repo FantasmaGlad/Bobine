@@ -5,7 +5,8 @@ import { type RadioOutputId, type RoutingView } from "@/lib/devices/routing";
 import { type AudioListing } from "@/lib/devices/types";
 import type { RadioFeed } from "@/lib/useRadioFeed";
 import { buildRoutingGraph, type Assignment } from "@/lib/routingGraph";
-import { errorText, useDevicesResource, type SectionProps } from "../common";
+import { errorText, type SectionProps } from "../shared/section";
+import { useDevicesResource } from "../shared/useDevicesResource";
 
 export function useRoutingModel(refreshKey: number, feed: RadioFeed, t: SectionProps["t"]) {
   const routing = useDevicesResource<RoutingView>("/routing", refreshKey);

@@ -1,7 +1,7 @@
 "use client";
 
 import Icon from "@/components/Icon";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type BluetoothCall } from "./useBluetoothCall";
 
 export function BluetoothUnsupported({ reason, t }: { reason?: string; t: SectionProps["t"] }) {

@@ -3,7 +3,7 @@
 import Icon from "@/components/Icon";
 import { audioDisplayName, audioKindIcon } from "@/lib/devices/audio";
 import { type AudioDevice } from "@/lib/devices/types";
-import { type SectionProps } from "../common";
+import { type SectionProps } from "../shared/section";
 import { type AudioCalls } from "./useAudioCalls";
 
 interface RowProps {

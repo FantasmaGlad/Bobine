@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { splitBluetooth } from "@/lib/devices/wireless";
 import { type BluetoothDevice, type BluetoothStatus } from "@/lib/devices/types";
-import { errorText, useDevicesResource, useFocusFlash, type SectionProps } from "./common";
+import { errorText, type SectionProps } from "./shared/section";
+import { useDevicesResource } from "./shared/useDevicesResource";
+import { useFocusFlash } from "./shared/useFocusFlash";
 import { BluetoothPermission, BluetoothUnsupported } from "./bluetooth/BluetoothFallbacks";
 import BluetoothDeviceRow from "./bluetooth/BluetoothDeviceRow";
 import BluetoothNotes from "./bluetooth/BluetoothNotes";
