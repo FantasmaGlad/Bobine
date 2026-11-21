@@ -112,6 +112,7 @@ test("avancement d'un travail", () => {
 test("requête du conseiller de format", () => {
   assert.equal(adviceQuery("linux", ["windows", "macos", "linux"], "flash", false), "?host=linux&media=flash&others=windows%2Cmacos");
   assert.equal(adviceQuery("windows", [], "hdd", true), "?host=windows&media=hdd&legacy=true");
+  assert.equal(adviceQuery(null, ["windows"], "flash", false), "?media=flash&others=windows");
 });
 
 test("libellés et icônes", () => {

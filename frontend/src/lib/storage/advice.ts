@@ -4,8 +4,8 @@ export const OS_CHOICES = ["linux", "windows", "macos", "android"] as const;
 
 export type OsChoice = (typeof OS_CHOICES)[number];
 
-export function adviceQuery(host: OsChoice, others: OsChoice[], media: "flash" | "ssd" | "hdd", legacy: boolean): string {
-  const params = new URLSearchParams({ host, media });
+export function adviceQuery(host: OsChoice | null, others: OsChoice[], media: "flash" | "ssd" | "hdd", legacy: boolean): string {
+  const params = new URLSearchParams(host ? { host, media } : { media });
   const list = others.filter((o) => o !== host);
   if (list.length) params.set("others", list.join(","));
   if (legacy) params.set("legacy", "true");

@@ -43,7 +43,7 @@ function AdviceResult({ t, advice, osLabel }: { t: StorageCtx["t"]; advice: Form
 }
 
 export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props) {
-  const [host, setHost] = useState<OsChoice>("linux");
+  const [host, setHost] = useState<OsChoice | null>(null);
   const [others, setOthers] = useState<OsChoice[]>([]);
   const [media, setMedia] = useState<"flash" | "ssd" | "hdd">("flash");
   const [legacy, setLegacy] = useState(false);
@@ -62,6 +62,7 @@ export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props)
     };
   }, [open, host, others, media, legacy, notify, t, lang]);
 
+  const shownHost = host ?? (advice?.host_os as OsChoice | undefined) ?? null;
   const toggleOther = (os: OsChoice) => setOthers((prev) => (prev.includes(os) ? prev.filter((o) => o !== os) : [...prev, os]));
   const osLabel = (os: string) => t(`storage.advisor.oses.${os}`);
 
@@ -70,12 +71,12 @@ export default function FormatAdvisor({ open, onClose, t, lang, notify }: Props)
       <div className="dv-detail">
         <div className="dv-detail-block">
           <h4>{t("storage.advisor.host")}</h4>
-          <SegmentedTabs ariaLabel={t("storage.advisor.host")} value={host} onChange={(id) => setHost(id as OsChoice)} tabs={OS_CHOICES.map((os) => ({ id: os, label: osLabel(os) }))} />
+          <SegmentedTabs ariaLabel={t("storage.advisor.host")} value={shownHost ?? ""} onChange={(id) => setHost(id as OsChoice)} tabs={OS_CHOICES.map((os) => ({ id: os, label: osLabel(os) }))} />
         </div>
         <div className="dv-detail-block">
           <h4>{t("storage.advisor.others")}</h4>
           <div className="st-choices">
-            {OS_CHOICES.filter((os) => os !== host).map((os) => (
+            {OS_CHOICES.filter((os) => os !== shownHost).map((os) => (
               <label key={os} className="st-check st-check--chip">
                 <input type="checkbox" checked={others.includes(os)} onChange={() => toggleOther(os)} />
                 <span>{osLabel(os)}</span>
