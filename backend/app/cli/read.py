@@ -108,6 +108,8 @@ def cmd_devices(client: Client, out: Output, args: argparse.Namespace) -> int:
     elif action == "bluetooth":
         if not payload.get("supported"):
             lines = [payload.get("reason") or "Bluetooth non disponible."]
+        elif payload.get("permission_required"):
+            lines = [f"autorisation requise : {payload.get('permission_message') or 'Appareils à proximité'}"]
         else:
             devices = payload.get("devices", [])
             lines = [f"powered={payload.get('powered')} discovering={payload.get('discovering')} ({len(devices)} appareil(s))"]

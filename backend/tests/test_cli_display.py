@@ -69,3 +69,13 @@ def test_version_still_answers_when_the_target_is_unreachable(monkeypatch, capsy
     monkeypatch.setattr(cli_read, "local_version", lambda: "5.2.2")
     assert cli.main(["version"]) == cli.EXIT_OK
     assert capsys.readouterr().out == "5.2.2\nserveur injoignable\n"
+
+
+def test_a_missing_bluetooth_permission_is_named(recorder, capsys):
+    recorder.responses[("GET", "/api/devices/bluetooth")] = {
+        "supported": True, "powered": False, "discovering": False, "devices": [], "permission_required": True,
+        "permission_message": "Autorisez « Appareils à proximité » pour Bobine.",
+    }
+    assert cli.main(["devices", "bluetooth"]) == cli.EXIT_OK
+    out = capsys.readouterr().out
+    assert out == "autorisation requise : Autorisez « Appareils à proximité » pour Bobine.\n"
