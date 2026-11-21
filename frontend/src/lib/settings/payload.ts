@@ -17,6 +17,7 @@ export interface SettingsPatch {
   displayExternalCount?: number | null;
   waitTimeBetweenCourses?: number;
   network?: NetworkInfo;
+  logoChanged?: boolean;
 }
 
 type Raw = Record<string, unknown>;
