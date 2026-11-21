@@ -3550,7 +3550,7 @@
        "type": "boolean"
       }
      ],
-     "summary": "Système de fichiers conseillé selon l'OS hôte et les OS qui brancheront le support."
+     "summary": "Système de fichiers conseillé selon l'OS hôte (par défaut celui où tourne Bobine) et les OS qui brancheront le support."
     },
     {
      "body": null,

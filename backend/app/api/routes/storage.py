@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.devices.base import DeviceError
+from app.host.registry import os_key
 from app.api.routes.devices.access import Access, fail, require_access
 from app.storage import fsadvisor
 from app.storage.paths import PathError
@@ -174,15 +175,15 @@ async def update_default_settings(payload: SettingsRequest, _: Access = Depends(
 
 @router.get("/advisor/format")
 async def advisor_format(
-    host: str = "linux",
+    host: str | None = None,
     others: str = "",
     media: str = "flash",
     legacy: bool = False,
     _: Access = Depends(require_access),
 ) -> dict[str, Any]:
-    """Système de fichiers conseillé selon l'OS hôte et les OS qui brancheront le support."""
+    """Système de fichiers conseillé selon l'OS hôte (par défaut celui où tourne Bobine) et les OS qui brancheront le support."""
     other_oses = tuple(o for o in others.split(",") if o)
-    return fsadvisor.recommend_format(host, other_oses, media, legacy_readers=legacy)
+    return fsadvisor.recommend_format(host or os_key(), other_oses, media, legacy_readers=legacy)
 
 
 @router.get("/portable")
