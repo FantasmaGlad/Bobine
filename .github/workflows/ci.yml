@@ -330,7 +330,9 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - name: Installer la toolchain Rust
-        run: bash "$(git rev-parse --show-toplevel)/scripts/ci/install-rust-toolchain.sh"
+        run: |
+          bash "$(git rev-parse --show-toplevel)/scripts/ci/clear-preinstalled-rust.sh"
+          rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -368,7 +370,9 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - name: Installer la toolchain Rust
-        run: bash "$(git rev-parse --show-toplevel)/scripts/ci/install-rust-toolchain.sh"
+        run: |
+          bash "$(git rev-parse --show-toplevel)/scripts/ci/clear-preinstalled-rust.sh"
+          rustup toolchain install
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -502,7 +506,9 @@ jobs:
         run: python scripts/ci/check-android-signing.py ${{ github.event_name == 'pull_request' && '--allow-missing' || '' }}
       - name: Installer la toolchain Rust
         if: steps.check_secrets.outputs.configured == 'true'
-        run: bash "$(git rev-parse --show-toplevel)/scripts/ci/install-rust-toolchain.sh"
+        run: |
+          bash "$(git rev-parse --show-toplevel)/scripts/ci/clear-preinstalled-rust.sh"
+          rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: steps.check_secrets.outputs.configured == 'true'
         with:
@@ -957,7 +963,9 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - name: Installer la toolchain Rust (avant pip)
-        run: bash "$(git rev-parse --show-toplevel)/scripts/ci/install-rust-toolchain.sh"
+        run: |
+          bash "$(git rev-parse --show-toplevel)/scripts/ci/clear-preinstalled-rust.sh"
+          rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -1057,7 +1065,9 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - name: Installer la toolchain Rust (avant pip)
-        run: bash "$(git rev-parse --show-toplevel)/scripts/ci/install-rust-toolchain.sh"
+        run: |
+          bash "$(git rev-parse --show-toplevel)/scripts/ci/clear-preinstalled-rust.sh"
+          rustup toolchain install
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
