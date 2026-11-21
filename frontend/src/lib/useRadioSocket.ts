@@ -10,6 +10,7 @@ import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
 import type { ClockTarget } from "@/lib/useMediaClockFollower";
 import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
+import { mergeRadioState, SILENT_LINK_MS, type RadioStatePatch } from "@/lib/radioEvent";
 
 export interface RadioTrackInfo {
   id: number;
@@ -90,8 +91,6 @@ export interface RadioEvent {
   client_ts?: number;
 }
 
-const RESYNC_INTERVAL_MS = 15000;
-
 export function useRadioSocket(
   onEvent?: (evt: RadioEvent) => void,
   role?: "kiosk",
@@ -112,13 +111,17 @@ export function useRadioSocket(
     onEventRef.current = onEvent;
   }, [onEvent]);
 
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const applyState = useCallback((data: RadioStatePatch, evt: Omit<RadioEvent, "data">) => {
+    const next = mergeRadioState(stateRef.current, data);
+    stateRef.current = next;
+    setState(next);
+    onEventRef.current?.({ ...evt, data: next });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    let silenceTimer: ReturnType<typeof setTimeout> | undefined;
     let retryDelay = 1000;
     const MAX_RETRY_DELAY = 30000;
 
@@ -144,6 +147,8 @@ export function useRadioSocket(
 
       ws.onmessage = (evt) => {
         if (wsRef.current !== ws) return;
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => ws.close(), SILENT_LINK_MS);
         try {
           const parsed = JSON.parse(evt.data);
           if (parsed.event === "ping") {
@@ -181,8 +186,7 @@ export function useRadioSocket(
             return;
           }
           if (parsed.event === "state_change" && parsed.channel === channel) {
-            setState(parsed.data);
-            onEventRef.current?.(parsed as RadioEvent);
+            applyState(parsed.data, parsed);
           }
         } catch (err) {
           console.error("Message WebSocket radio invalide", err);
@@ -190,6 +194,7 @@ export function useRadioSocket(
       };
 
       ws.onclose = () => {
+        clearTimeout(silenceTimer);
         clockSyncRef.current.stop();
         if (wsRef.current !== ws) return;
         setConnected(false);
@@ -211,29 +216,28 @@ export function useRadioSocket(
     return () => {
       cancelled = true;
       clearTimeout(reconnectTimer);
+      clearTimeout(silenceTimer);
       wsRef.current?.close();
     };
-  }, [role, channel]);
+  }, [role, channel, applyState]);
 
   useEffect(() => {
     let cancelled = false;
     const resync = () => {
+      if (document.visibilityState !== "visible") return;
       fetch(getApiUrl(`/radio/state?channel=${channel}`), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
         .then((data: RadioState | null) => {
-          if (cancelled || !data) return;
-          if (JSON.stringify(stateRef.current) === JSON.stringify(data)) return;
-          setState(data);
-          onEventRef.current?.({ event: "state_change", cause: "sync", channel, data });
+          if (!cancelled && data) applyState(data, { event: "state_change", cause: "sync", channel });
         })
-        .catch(() => {});
+        .catch((err) => console.warn("Relecture de l'état radio impossible", err));
     };
-    const id = setInterval(resync, RESYNC_INTERVAL_MS);
+    document.addEventListener("visibilitychange", resync);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      document.removeEventListener("visibilitychange", resync);
     };
-  }, [channel]);
+  }, [channel, applyState]);
 
   useEffect(() => {
     let cancelled = false;
