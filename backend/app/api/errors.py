@@ -20,6 +20,8 @@ CODE_BY_STATUS = {
     422: "invalid",
     429: "too_many_requests",
     500: "internal_error",
+    501: "not_implemented",
+    502: "bad_gateway",
     503: "unavailable",
     504: "timeout",
     507: "insufficient_storage",
