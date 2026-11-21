@@ -10,6 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private const val TAG = "WifiBridge"
+private const val HIDDEN_SSID = "Android ne donne le nom du réseau qu'aux applications autorisées à la localisation, que Bobine ne demande pas."
 
 object WifiBridge {
     @Suppress("DEPRECATION")
@@ -38,6 +39,7 @@ object WifiBridge {
                 val ssid = ssidRaw?.takeIf { it.isNotBlank() && it != WifiManager.UNKNOWN_SSID }
                 current = JSONObject()
                     .put("ssid", ssid ?: JSONObject.NULL)
+                    .put("ssid_reason", if (ssid == null) HIDDEN_SSID else JSONObject.NULL)
                     .put("signal", Math.round(((rssi + 100) * 2.0).coerceIn(0.0, 100.0)).toInt())
                     .put("security", "").put("band", if ((info?.frequency ?: 0) >= 4900) "5 GHz" else "2.4 GHz")
                     .put("known", true).put("in_use", true).put("ip", ip ?: JSONObject.NULL)
