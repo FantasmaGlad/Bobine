@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .model import Arg, Call, Spec, UsageError
-from .render import summary
+from .render import describe, summary
 
 _FIELD = re.compile(r"^(?P<name>[a-z_]+)(?::(?P<kind>int|float|bool|ints|strs|json))?(?:=(?P<choices>[\w|.:-]+))?$")
 PAGE = ("limit:int", "offset:int")
@@ -90,7 +90,7 @@ def _path_arg(name: str) -> Arg:
 def route(
     command: str, action: str, method: str, path: str, help: str, *,
     body: tuple[str, ...] = (), query: tuple[str, ...] = (), pos: tuple[str, ...] = (), files: tuple[str, ...] = (),
-    confirm: str | None = None, human: Callable[[Any, Any], str] = summary, require_one: bool = False, raw: str | None = None,
+    confirm: str | None = None, human: Callable[[Any, Any], str] | None = None, require_one: bool = False, raw: str | None = None,
     text: bool = False,
 ) -> Spec:
     positional = set(pos)
@@ -110,5 +110,6 @@ def route(
         return Call(method, target, content, params_ or None, attached, text)
 
     optional = tuple(f.dest for f in body_fields + query_fields if not f.positional)
-    return Spec(command, action, help, request, (f"{method} {path}",), arguments, human, confirm,
+    shown = human or (describe if method == "GET" else summary)
+    return Spec(command, action, help, request, (f"{method} {path}",), arguments, shown, confirm,
                 optional if require_one else ())

@@ -4631,7 +4631,7 @@
   {
    "actions": [],
    "arguments": [],
-   "help": "version de cette installation",
+   "help": "version de cette commande et du serveur visé",
    "name": "version"
   }
  ],

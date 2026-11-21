@@ -6,9 +6,10 @@ import argparse
 
 from app.api.contract import CHANNELS
 
-from .client import Client
+from .client import Client, local_version
 from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output, segment
 from .paging import window
+from .specs.render import minutes, value_text
 
 
 def cmd_status(client: Client, out: Output, args: argparse.Namespace) -> int:
@@ -32,7 +33,7 @@ def cmd_library(client: Client, out: Output, args: argparse.Namespace) -> int:
         lines = []
         for video in videos:
             duration = video.get("duration_seconds")
-            suffix = f" ({duration / 60:.0f} min)" if duration else ""
+            suffix = f" ({minutes(duration)})" if duration else ""
             lines.append(f"{video.get('id')}  {video.get('title')}{suffix}")
         out.result(videos, "\n".join(lines))
         return EXIT_OK
@@ -177,17 +178,17 @@ def cmd_metrics(client: Client, out: Output, args: argparse.Namespace) -> int:
     elif args.metrics_action == "system":
         payload = client.request("GET", "/api/settings/system")
         lines = [
-            f"CPU {payload.get('cpu_percent')} % ({payload.get('cpu_temp_c')} °C)  "
-            f"RAM {payload.get('memory_percent')} %  GPU {payload.get('gpu_percent')} %  "
-            f"puissance {payload.get('power_watts')} W",
+            f"CPU {value_text(payload.get('cpu_percent'))} % ({value_text(payload.get('cpu_temp_c'))} °C)  "
+            f"RAM {value_text(payload.get('memory_percent'))} %  GPU {value_text(payload.get('gpu_percent'))} %  "
+            f"puissance {value_text(payload.get('power_watts'))} W",
         ]
     else:
         payload = client.request("GET", "/api/metrics/hardware/history", query={
             "metric": args.metric, "period": args.period,
         })
         lines = [
-            f"{payload.get('label')} : {payload.get('current')} {payload.get('unit')}  "
-            f"min={payload.get('min')} max={payload.get('max')} moyenne={payload.get('avg')} "
+            f"{payload.get('label')} : {value_text(payload.get('current'))} {payload.get('unit')}  "
+            f"min={value_text(payload.get('min'))} max={value_text(payload.get('max'))} moyenne={value_text(payload.get('avg'))} "
             f"({payload.get('count', 0)} point(s))",
         ]
     out.result(payload, "\n".join(lines))
@@ -233,4 +234,14 @@ def cmd_logs(client: Client, out: Output, args: argparse.Namespace) -> int:
     if payload.get("truncated"):
         lines.insert(0, out.paint(f"(plus ancien tronqué : --limit {args.limit})", "dim"))
     out.result(payload, "\n".join(lines))
+    return EXIT_OK
+
+
+def cmd_version(client: Client, out: Output, args: argparse.Namespace) -> int:
+    local = local_version()
+    try:
+        server = client.request("GET", "/api/health").get("version")
+    except CliError:
+        server = None
+    out.result({"version": local, "server": server}, f"{local}\nserveur {server or 'injoignable'}")
     return EXIT_OK
