@@ -9,7 +9,7 @@ function subscribeUpdateProgress(apply: (status: UpdateStatus) => void): () => v
 
   const connect = () => {
     if (cancelled || typeof window === "undefined") return;
-    ws = new WebSocket(getPlaybackWsUrl());
+    ws = new WebSocket(getPlaybackWsUrl([]));
     ws.onopen = () => ws?.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
     ws.onmessage = (evt) => {
       try {

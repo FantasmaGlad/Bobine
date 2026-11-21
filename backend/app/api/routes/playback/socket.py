@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from fastapi import Depends, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.api.contract import CHANNELS, DEFAULT_CHANNEL
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL, RADIO_CHANNELS
 from app.database import get_db
 from app.playback.manager import get_playback_manager
 from app.radio.channels import is_radio_channel, normalize_radio_channel
@@ -28,9 +28,19 @@ class _Session:
     client_id: str = ""
 
 
-async def _send_initial_state(websocket: WebSocket) -> None:
+def _declared_channels(websocket: WebSocket) -> list[str] | None:
+    """Channels declared in the URL (`?channels=a,b`), or None for a client that declares nothing."""
+    raw = websocket.query_params.get("channels")
+    if raw is None:
+        return None
+    named = (normalize_radio_channel(c) if is_radio_channel(c) else c for c in (part.strip() for part in raw.split(",")))
+    return [c for c in named if c in CHANNELS or c in RADIO_CHANNELS]
+
+
+async def _send_initial_state(websocket: WebSocket, declared: list[str] | None) -> None:
     await websocket.send_json({"event": "boot_id", "boot_id": current_boot_id()})
-    managers = [*((c, get_playback_manager(c)) for c in CHANNELS), *get_all_radio_managers().items()]
+    radios = get_all_radio_managers().items()
+    managers = [*((c, get_playback_manager(c)) for c in CHANNELS), *(r for r in radios if declared is None or r[0] in declared)]
     for channel, manager in managers:
         await websocket.send_json({"event": "state_change", "cause": "sync", "channel": channel, "data": manager.snapshot()})
 
@@ -87,8 +97,11 @@ async def _handle(websocket: WebSocket, db: Session, session: _Session, message:
 async def playback_ws(websocket: WebSocket, db: Session = Depends(get_db)):
     await ws_manager.connect(websocket)
     session = _Session()
+    declared = _declared_channels(websocket)
+    if declared is not None:
+        ws_manager.subscribe(websocket, declared)
     try:
-        await _send_initial_state(websocket)
+        await _send_initial_state(websocket, declared)
         while True:
             await _handle(websocket, db, session, await websocket.receive_json())
     except WebSocketDisconnect:

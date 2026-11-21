@@ -37,7 +37,7 @@ export function useSettingsSocket(handlers: SettingsSocketHandlers) {
 
     const connect = () => {
       if (cancelled || typeof window === "undefined") return;
-      const socket = new WebSocket(getPlaybackWsUrl());
+      const socket = new WebSocket(getPlaybackWsUrl([]));
       ws = socket;
       socket.onopen = () => socket.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       socket.onmessage = (evt) => {

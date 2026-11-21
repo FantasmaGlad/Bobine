@@ -127,7 +127,7 @@ export function useRadioSocket(
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getPlaybackWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl([channel]));
       wsRef.current = ws;
 
       ws.onopen = () => {

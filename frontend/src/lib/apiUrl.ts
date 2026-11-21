@@ -6,9 +6,9 @@ export function getApiUrl(path: string): string {
   return isDevServer() ? `http://localhost:8001/api${path}` : `/api${path}`;
 }
 
-export function getPlaybackWsUrl(): string {
+export function getPlaybackWsUrl(channels: readonly string[]): string {
   if (typeof window === "undefined") return "";
   const host = isDevServer() ? "localhost:8001" : window.location.host;
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws/playback`;
+  return `${protocol}//${host}/ws/playback?channels=${channels.map(encodeURIComponent).join(",")}`;
 }

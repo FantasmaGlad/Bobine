@@ -58,7 +58,7 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getPlaybackWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl(OUTPUTS));
       socketRef.current = ws;
       ws.onopen = () => {
         delay = 1000;
