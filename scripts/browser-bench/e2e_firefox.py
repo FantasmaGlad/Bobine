@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import geckodriver_client as wd  # noqa: E402
+import geckodriver_client as wd
 
 BASE = os.environ.get("BOBINE_URL", "http://127.0.0.1:8078").rstrip("/")
 HERE = Path(__file__).resolve().parent

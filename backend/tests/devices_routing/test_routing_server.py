@@ -1,12 +1,12 @@
 import asyncio
-from app.database import SessionLocal  # noqa: E402
-from app.devices.base import DeviceError  # noqa: E402
-from app.devices.routing import (  # noqa: E402
+from app.database import SessionLocal
+from app.devices.base import DeviceError
+from app.devices.routing import (
     describe_sink,
     save_routes,
 )
-from app.radio.manager import get_radio_manager  # noqa: E402
-from devices_routing_support import SPEAKER, JBL, HDMI, _route, _add_player  # noqa: E402
+from app.radio.manager import get_radio_manager
+from devices_routing_support import SPEAKER, JBL, HDMI, _route, _add_player
 
 
 def test_reconciliation_publie_l_etat_et_suit_la_reconnexion(routing_env):

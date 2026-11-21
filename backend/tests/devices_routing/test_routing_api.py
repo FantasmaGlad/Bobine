@@ -1,13 +1,13 @@
-from fastapi.testclient import TestClient  # noqa: E402
-from app.database import SessionLocal  # noqa: E402
-from app.devices.base import DeviceError, NullDriver  # noqa: E402
-from app.devices.routing import (  # noqa: E402
+from fastapi.testclient import TestClient
+from app.database import SessionLocal
+from app.devices.base import DeviceError, NullDriver
+from app.devices.routing import (
     load_routes,
 )
-from app.devices.service import PLAYER_ROUTE_STATUSES  # noqa: E402
-from app.main import app  # noqa: E402
-from app.radio.manager import get_radio_manager  # noqa: E402
-from devices_routing_support import JBL, _local, _players, _wait_for  # noqa: E402
+from app.devices.service import PLAYER_ROUTE_STATUSES
+from app.main import app
+from app.radio.manager import get_radio_manager
+from devices_routing_support import JBL, _local, _players, _wait_for
 
 
 def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
@@ -109,4 +109,4 @@ def test_un_client_non_identifie_ne_peut_pas_poser_de_rapport(api, monkeypatch):
         ws.send_json({"command": "pong"})
     from app.utils.ws_manager import manager as manager_ws
 
-    assert not manager_ws._route_reports  # noqa: SLF001
+    assert not manager_ws._route_reports

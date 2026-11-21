@@ -3,4 +3,4 @@ line-length = 200
 extend-exclude = ["android/app/build", "frontend", "backend/.venv"]
 
 [lint]
-select = ["F"]
+select = ["F", "RUF100", "PGH003", "PGH004"]

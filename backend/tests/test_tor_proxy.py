@@ -5,19 +5,19 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import socket  # noqa: E402
-import struct  # noqa: E402
-import threading  # noqa: E402
-import time  # noqa: E402
-import urllib.request  # noqa: E402
+import socket
+import struct
+import threading
+import time
+import urllib.request
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.utils import tor_daemon, tor_proxy, tor_socks  # noqa: E402
-from app.utils.deployment import ProfileHandler  # noqa: E402
+from app.database import init_db
+from app.main import app
+from app.utils import tor_daemon, tor_proxy, tor_socks
+from app.utils.deployment import ProfileHandler
 
 
 @pytest.fixture(autouse=True)

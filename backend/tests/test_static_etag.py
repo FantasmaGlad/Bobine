@@ -9,9 +9,9 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-from starlette.staticfiles import NotModifiedResponse  # noqa: E402
+from starlette.staticfiles import NotModifiedResponse
 
-from app.api.static_files import RevalidateStaticFiles  # noqa: E402
+from app.api.static_files import RevalidateStaticFiles
 
 
 def _scope_with_if_none_match(etag: str) -> dict:

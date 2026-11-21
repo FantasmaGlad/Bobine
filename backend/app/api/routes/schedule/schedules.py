@@ -43,7 +43,7 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
         raise HTTPException(status_code=422, detail="La date de fin doit être postérieure à la date de début")
     if end - start > MAX_OCCURRENCE_SPAN:
         raise HTTPException(status_code=422, detail="L'intervalle demandé dépasse 62 jours")
-    query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
+    query = db.query(Schedule).filter(Schedule.active == True)
     if normalize_channel(channel):
         query = query.filter(Schedule.channel == normalize_channel(channel))
     return page.items(expand_occurrences(db, query.all(), start, end))
@@ -54,7 +54,7 @@ def get_next_schedule(channel: str | None = None, db: Session = Depends(get_db))
     """Prochaine occurrence active à venir, récurrence et overrides résolus, pour le bloc « prochain cours » de l'écran d'attente."""
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=60)
-    query = db.query(Schedule).filter(Schedule.active == True)  # noqa: E712
+    query = db.query(Schedule).filter(Schedule.active == True)
     if normalize_channel(channel):
         query = query.filter(Schedule.channel == normalize_channel(channel))
     schedules = query.all()

@@ -25,7 +25,7 @@ STUCK_JOB_SECONDS = 300
 def _safe(block: Callable[[], Any]) -> Any:
     try:
         return block()
-    except Exception as exc:  # noqa: BLE001 — règle d'or : jamais d'exception vers l'API
+    except Exception as exc:
         logger.warning("Diagnostic d'import : bloc en échec : %s: %s", type(exc).__name__, exc)
         return {"error": f"{type(exc).__name__}: {exc}"}
 

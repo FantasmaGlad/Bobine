@@ -6,12 +6,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.videos.encoding import registry  # noqa: E402
-from app.videos.encoding.accelerators.mediacodec import MediaCodec  # noqa: E402
-from app.videos.encoding.accelerators.qsv import QuickSync  # noqa: E402
-from app.videos.encoding.accelerators.software import Software  # noqa: E402
-from app.videos.encoding.accelerators.vaapi import Vaapi  # noqa: E402
-from app.videos.encoding.accelerators.videotoolbox import VideoToolbox  # noqa: E402
+from app.videos.encoding import registry
+from app.videos.encoding.accelerators.mediacodec import MediaCodec
+from app.videos.encoding.accelerators.qsv import QuickSync
+from app.videos.encoding.accelerators.software import Software
+from app.videos.encoding.accelerators.vaapi import Vaapi
+from app.videos.encoding.accelerators.videotoolbox import VideoToolbox
 
 
 @pytest.mark.parametrize(("system", "device", "expected"), [

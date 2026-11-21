@@ -164,7 +164,7 @@ def _due_wait_end_announcement(db: Session, manager) -> RadioAnnouncement | None
     rules = (
         db.query(RadioAnnouncementRule)
         .filter(
-            RadioAnnouncementRule.enabled == True,  # noqa: E712
+            RadioAnnouncementRule.enabled == True,
             RadioAnnouncementRule.rule_type == RadioAnnouncementRuleType.every_n_tracks,
         )
         .all()

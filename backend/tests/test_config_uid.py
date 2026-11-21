@@ -7,16 +7,16 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
+import pytest
 
-from app import config_library  # noqa: E402
-from app.config_apply.context import ConfigErrors  # noqa: E402
-from app.database import SessionLocal  # noqa: E402
-from app.models import (  # noqa: E402
+from app import config_library
+from app.config_apply.context import ConfigErrors
+from app.database import SessionLocal
+from app.models import (
     AudioCourse, Playlist, RadioAnnouncement, RadioAnnouncementRule, RadioTag, RadioTrack, Schedule,
     ScheduleOverride, ScheduleTargetType, ScheduleType, Video,
 )
-from test_config_apply import _apply, _export, _quiet_effects  # noqa: E402,F401
+from test_config_apply import _apply, _export, _quiet_effects  # noqa: F401
 
 
 def _expect_errors(files, *needles):

@@ -6,11 +6,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_schedule_database.db")
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import (  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.main import app
+from app.models import (
     OverrideAction,
     Playlist,
     Schedule,
@@ -19,7 +19,7 @@ from app.models import (  # noqa: E402
     ScheduleTargetType,
     ScheduleType,
 )
-from app.scheduling import launch_store  # noqa: E402
+from app.scheduling import launch_store
 
 
 def test_deleting_a_playlist_cleans_the_schedule():

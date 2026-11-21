@@ -1,6 +1,6 @@
 import os
-from app.devices.base import DeviceError  # noqa: E402
-from storage_flow_support import get_volumes, vol_view, codes  # noqa: E402
+from app.devices.base import DeviceError
+from storage_flow_support import get_volumes, vol_view, codes
 
 
 def test_hot_plug_listing_never_exposes_paths(env):

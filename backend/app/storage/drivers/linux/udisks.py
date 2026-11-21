@@ -42,7 +42,7 @@ class UdisksMixin:
             )
         except asyncio.TimeoutError as exc:
             raise DeviceError("format_failed", "Le système n'a pas répondu à temps.", 504) from exc
-        except Exception as exc:  # noqa: BLE001 - tout échec de bus devient une erreur structurée
+        except Exception as exc:
             if isinstance(exc, DeviceError):
                 raise
             raise DeviceError("format_failed", "Le service udisks2 est injoignable.", 502) from exc
@@ -50,7 +50,7 @@ class UdisksMixin:
             if bus is not None:
                 try:
                     bus.disconnect()
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     logger.debug("_udisks_call : %s", exc)
         if reply.message_type == MessageType.ERROR:
             raise classify_dbus_error(reply.error_name or "", str(reply.body[0]) if reply.body else "")

@@ -6,13 +6,13 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.main import app  # noqa: E402
-from app.models import RadioTrack  # noqa: E402
-from app.radio.manager import RadioPlaybackManager, get_radio_manager  # noqa: E402
-from app.scheduling.radio import radio_track_dict  # noqa: E402
+from app.main import app
+from app.models import RadioTrack
+from app.radio.manager import RadioPlaybackManager, get_radio_manager
+from app.scheduling.radio import radio_track_dict
 
 TRACKS = [{"id": i, "title": f"T{i}", "duration_seconds": 60.0} for i in range(1, 7)]
 

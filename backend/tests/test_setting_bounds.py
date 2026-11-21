@@ -4,11 +4,11 @@ from pathlib import Path
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.api.contract import SETTING_BOUNDS  # noqa: E402
-from app.main import app  # noqa: E402
+from app.api.contract import SETTING_BOUNDS
+from app.main import app
 
 BOUNDS_TS = Path(__file__).resolve().parents[2] / "frontend/src/lib/settingsBounds.ts"
 

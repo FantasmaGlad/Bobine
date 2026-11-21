@@ -6,13 +6,13 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal  # noqa: E402
-from app.database.migrations import migrate_schedule_radio_channel_to_network  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import (  # noqa: E402
+from app.database import SessionLocal
+from app.database.migrations import migrate_schedule_radio_channel_to_network
+from app.main import app
+from app.models import (
     ImportSource,
     RadioPlaylist,
     RadioPlaylistItem,
@@ -23,8 +23,8 @@ from app.models import (  # noqa: E402
     ScheduleType,
     Setting,
 )
-from app.radio.manager import get_radio_manager  # noqa: E402
-from app.scheduling.launch import launch_target, fire_schedule_end  # noqa: E402
+from app.radio.manager import get_radio_manager
+from app.scheduling.launch import launch_target, fire_schedule_end
 
 
 def _clean_db():
@@ -122,7 +122,7 @@ def test_filtres_de_liste_par_voie_avec_alias(client):
     pid = _playlist()
     client.post("/api/schedule", json=_payload(pid, "radio_cable"))
     client.post("/api/schedule", json=_payload(pid, "radio_network"))
-    by_channel = lambda ch: [s["channel"] for s in client.get("/api/schedule", params={"channel": ch}).json()]  # noqa: E731
+    by_channel = lambda ch: [s["channel"] for s in client.get("/api/schedule", params={"channel": ch}).json()]
     assert by_channel("radio_cable") == ["radio_cable"]
     assert by_channel("radio_network") == ["radio_network"]
     assert by_channel("radio") == ["radio_network"]

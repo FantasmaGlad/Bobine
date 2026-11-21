@@ -5,15 +5,15 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import init_db  # noqa: E402
-from app.devices.base import DeviceDriver  # noqa: E402
-from app.devices.service import service  # noqa: E402
-from app.devices.topology import build_topology, client_medium, ethernet_interfaces  # noqa: E402
-from app.main import app  # noqa: E402
-from app.utils.ws_manager import ConnectionManager  # noqa: E402
+from app.database import init_db
+from app.devices.base import DeviceDriver
+from app.devices.service import service
+from app.devices.topology import build_topology, client_medium, ethernet_interfaces
+from app.main import app
+from app.utils.ws_manager import ConnectionManager
 
 AUDIO = {"supported": True, "devices": [
     {"id": "spk", "name": "Haut-parleurs", "kind": "internal", "is_default": True, "volume": 0.5, "muted": False},

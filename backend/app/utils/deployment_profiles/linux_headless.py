@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 UNINSTALL_WRAPPER = Path("/usr/local/sbin/bobine-uninstall")
 
-_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None
 
 
 def _repo_dir() -> Path:

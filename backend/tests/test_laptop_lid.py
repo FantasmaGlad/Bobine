@@ -5,14 +5,14 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-import sys  # noqa: E402
-from types import SimpleNamespace  # noqa: E402
+import sys
+from types import SimpleNamespace
 
-import psutil  # noqa: E402
+import psutil
 
-from starlette.testclient import TestClient  # noqa: E402
+from starlette.testclient import TestClient
 
-from app.main import app  # noqa: E402
+from app.main import app
 
 
 def test_macbook_lid_setting_is_not_offered(monkeypatch):

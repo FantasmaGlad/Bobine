@@ -13,9 +13,9 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-from app.database import Base, get_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import ImportSource, Setting, Video  # noqa: E402
+from app.database import Base, get_db
+from app.main import app
+from app.models import ImportSource, Setting, Video
 
 ORIGINAL = b"ORIGINAL-HEVC" * 50
 WEB = b"WEB-H264" * 30

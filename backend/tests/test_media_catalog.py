@@ -5,13 +5,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from app.api import contract  # noqa: E402
-from app.catalog.entries import LOADERS  # noqa: E402
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import ImportSource, Playlist, PlaylistItem, Video  # noqa: E402
+from app.api import contract
+from app.catalog.entries import LOADERS
+from app.database import SessionLocal, init_db
+from app.main import app
+from app.models import ImportSource, Playlist, PlaylistItem, Video
 
 
 def _seed():

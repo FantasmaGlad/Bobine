@@ -13,7 +13,7 @@ from app.updates.orchestrator import clean_subprocess_env, download_with_progres
 
 logger = logging.getLogger(__name__)
 
-_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None
 
 
 def detect_linux_package_format() -> str:

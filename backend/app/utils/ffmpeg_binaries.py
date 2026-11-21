@@ -137,6 +137,6 @@ def probe_tool(bin_path: str) -> dict:
             info["error"] = f"code de sortie {res.returncode}"
     except subprocess.TimeoutExpired:
         info["error"] = "délai dépassé (5 s)"
-    except Exception as e:  # noqa: BLE001 — diagnostic : jamais d'exception vers l'API
+    except Exception as e:
         info["error"] = f"{type(e).__name__}: {e}"
     return info

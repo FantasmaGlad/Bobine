@@ -6,14 +6,14 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-import pytest  # noqa: E402
-from fastapi import FastAPI, WebSocket  # noqa: E402
-from starlette.testclient import TestClient  # noqa: E402
-from starlette.websockets import WebSocketDisconnect  # noqa: E402
+import pytest
+from fastapi import FastAPI, WebSocket
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
-from app.main import app as real_app  # noqa: E402
-from app.api import origin_guard  # noqa: E402
-from app.api.origin_guard import SameOriginGuard, is_same_origin, is_trusted_host_name  # noqa: E402
+from app.main import app as real_app
+from app.api import origin_guard
+from app.api.origin_guard import SameOriginGuard, is_same_origin, is_trusted_host_name
 
 EVIL = "https://evil.example"
 

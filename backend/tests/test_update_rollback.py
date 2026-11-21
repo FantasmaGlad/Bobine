@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.utils.deployment_profiles import linux_headless  # noqa: E402
+from app.utils.deployment_profiles import linux_headless
 
 ROOT = Path(__file__).resolve().parents[2]
 HEALTHY = '{"status":"ok","version":"5.1.2","components":{"database":"ok","kiosk":true,"scheduler":"ok","frontend":"ok"}}'

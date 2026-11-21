@@ -10,7 +10,7 @@ from app.utils.tor_proxy import TorSession
 
 logger = logging.getLogger(__name__)
 
-_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None
 
 
 def _get_android_context():

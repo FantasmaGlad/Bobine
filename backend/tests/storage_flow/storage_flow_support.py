@@ -4,9 +4,9 @@ import hashlib
 import shutil
 import time
 from pathlib import Path
-import pytest  # noqa: E402
-from app.database import SessionLocal  # noqa: E402
-from app.models import (  # noqa: E402
+import pytest
+from app.database import SessionLocal
+from app.models import (
     AudioCourse,
     AudioTrack,
     ExternalVolume,
@@ -15,7 +15,7 @@ from app.models import (  # noqa: E402
     StorageImport,
     Video,
 )
-from app.storage import availability  # noqa: E402
+from app.storage import availability
 
 
 HAS_FFMPEG = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None

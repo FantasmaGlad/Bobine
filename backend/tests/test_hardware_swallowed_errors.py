@@ -4,8 +4,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.hardware.power import watts  # noqa: E402
-from app.hardware.disk import usage  # noqa: E402
+from app.hardware.power import watts
+from app.hardware.disk import usage
 
 
 def _boom(*_args, **_kwargs):

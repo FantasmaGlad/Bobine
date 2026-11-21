@@ -62,7 +62,7 @@ def _timed_rules(db, channel: str) -> list[RadioAnnouncementRule]:
     rules = (
         db.query(RadioAnnouncementRule)
         .filter(
-            RadioAnnouncementRule.enabled == True,  # noqa: E712
+            RadioAnnouncementRule.enabled == True,
             RadioAnnouncementRule.rule_type.in_(
                 [RadioAnnouncementRuleType.every_x_minutes, RadioAnnouncementRuleType.fixed_times]
             ),
@@ -101,7 +101,7 @@ async def _check_rules_for(manager) -> None:
             return
         announcement = (
             db.query(RadioAnnouncement)
-            .filter(RadioAnnouncement.enabled == True)  # noqa: E712
+            .filter(RadioAnnouncement.enabled == True)
             .order_by(func.random())
             .first()
         )

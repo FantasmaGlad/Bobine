@@ -4,11 +4,11 @@ from pathlib import Path
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.main import app  # noqa: E402
-from app.utils import themes  # noqa: E402
+from app.main import app
+from app.utils import themes
 
 PALETTES = Path(__file__).resolve().parents[2] / "frontend/src/lib/themePalettes.ts"
 

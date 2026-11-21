@@ -7,8 +7,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_schedule_database.db")
 
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.models import (  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.models import (
     ImportSource,
     Playlist,
     PlaylistItem,
@@ -18,11 +18,11 @@ from app.models import (  # noqa: E402
     ScheduleType,
     Video,
 )
-from app.playback.manager import get_playback_manager, init_playback_managers  # noqa: E402
-from app.scheduling.launch import launch_target  # noqa: E402
-from app.scheduling.resume import resume_running_schedules  # noqa: E402
-from app.scheduling import launch_store as scheduled_launch_store  # noqa: E402
-from app.scheduling.offsets import MIN_REMAINING_SECONDS, playback_offset, playlist_resume_point  # noqa: E402
+from app.playback.manager import get_playback_manager, init_playback_managers
+from app.scheduling.launch import launch_target
+from app.scheduling.resume import resume_running_schedules
+from app.scheduling import launch_store as scheduled_launch_store
+from app.scheduling.offsets import MIN_REMAINING_SECONDS, playback_offset, playlist_resume_point
 
 T0 = datetime(2026, 11, 11, 18, 0, tzinfo=timezone.utc)
 

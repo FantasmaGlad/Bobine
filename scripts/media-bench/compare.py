@@ -13,7 +13,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import cover_equivalence  # noqa: E402
+import cover_equivalence
 EXPECTED_FALLBACKS = frozenset(("unsupported", "corrupt", "ambiguous_metadata", "ambiguous_cover", "limit_exceeded"))
 
 

@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.hardware import platforms  # noqa: E402
+from app.hardware import platforms
 
 
 @pytest.mark.parametrize(("system", "android", "expected"), [

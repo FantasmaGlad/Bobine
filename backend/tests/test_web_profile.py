@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.utils.web_profile import (  # noqa: E402
+from app.utils.web_profile import (
     build_web_rendition_command, choose_rendition, client_can_decode, parse_accept, web_playback_issues,
 )
 

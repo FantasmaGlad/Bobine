@@ -6,15 +6,15 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import RadioTrack, Setting  # noqa: E402
-from app.playback.manager import get_playback_manager  # noqa: E402
-from app.radio.manager import get_radio_manager  # noqa: E402
-from app.api.contract import PLAYBACK_ACTIONS, RADIO_ACTIONS  # noqa: E402
+from app.database import SessionLocal
+from app.main import app
+from app.models import RadioTrack, Setting
+from app.playback.manager import get_playback_manager
+from app.radio.manager import get_radio_manager
+from app.api.contract import PLAYBACK_ACTIONS, RADIO_ACTIONS
 
 OUTPUT_KEYS = ("display_output_cable", "display_output_network")
 

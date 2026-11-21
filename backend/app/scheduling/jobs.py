@@ -212,7 +212,7 @@ def start_scheduler() -> None:
 
     db = SessionLocal()
     try:
-        active_schedules = db.query(Schedule).filter(Schedule.active == True).all()  # noqa: E712
+        active_schedules = db.query(Schedule).filter(Schedule.active == True).all()
         for schedule in active_schedules:
             sync_schedule_job(schedule)
         logger.info(f"Scheduler démarré, {len(active_schedules)} programmation(s) active(s) rechargée(s)")

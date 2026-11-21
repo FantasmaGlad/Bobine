@@ -7,16 +7,16 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app import config_mirror  # noqa: E402
-from app import config_builders  # noqa: E402
-from app.config_apply.context import ConfigErrors  # noqa: E402
-from app.config_apply.runner import apply as apply_configuration  # noqa: E402
-from app.database import SessionLocal  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import Playlist, RadioAnnouncement, Schedule, Setting  # noqa: E402
+from app import config_mirror
+from app import config_builders
+from app.config_apply.context import ConfigErrors
+from app.config_apply.runner import apply as apply_configuration
+from app.database import SessionLocal
+from app.main import app
+from app.models import Playlist, RadioAnnouncement, Schedule, Setting
 
 
 @pytest.fixture(autouse=True)
@@ -88,7 +88,7 @@ def test_all_or_nothing_with_every_error_listed(single_names):
         assert db.query(Playlist).filter(Playlist.name == "Nouvelle").first() is None
 
 
-def test_ambiguous_names_are_refused(library):  # noqa: F811
+def test_ambiguous_names_are_refused(library):
     legacy = _export()["schedule/cable.json"]
     for entry in legacy["schedules"]:
         entry.pop("uid", None)
@@ -98,7 +98,7 @@ def test_ambiguous_names_are_refused(library):  # noqa: F811
     assert "plusieurs playlists « Lundi soir »" in " ".join(refused.value.errors)
 
 
-def test_a_uid_disambiguates_two_playlists_with_the_same_name(library):  # noqa: F811
+def test_a_uid_disambiguates_two_playlists_with_the_same_name(library):
     result = _apply({"schedule/cable.json": _export()["schedule/cable.json"]})
     assert result["changes"] == {}
 

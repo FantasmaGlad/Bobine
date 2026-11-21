@@ -5,15 +5,15 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import Setting  # noqa: E402
-from app.playback.manager import get_playback_manager  # noqa: E402
-from app.radio.sound import default_sound  # noqa: E402
-from app.utils.video_sound import load_all_video_sounds_into_managers, load_video_sound, video_sound_setting_key  # noqa: E402
+from app.database import SessionLocal
+from app.main import app
+from app.models import Setting
+from app.playback.manager import get_playback_manager
+from app.radio.sound import default_sound
+from app.utils.video_sound import load_all_video_sounds_into_managers, load_video_sound, video_sound_setting_key
 
 KEYS = [video_sound_setting_key("cable"), video_sound_setting_key("network")]
 

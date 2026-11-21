@@ -5,14 +5,14 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-import shutil  # noqa: E402
-import subprocess  # noqa: E402
-import sys  # noqa: E402
+import shutil
+import subprocess
+import sys
 
-import pytest  # noqa: E402
+import pytest
 
-from app.hardware import lid  # noqa: E402
-from app.utils import audio_utils  # noqa: E402
+from app.hardware import lid
+from app.utils import audio_utils
 from app.radio import track_files
 
 

@@ -262,7 +262,7 @@ class _Server:
         self.hits = 0
 
         class Handler(http.server.BaseHTTPRequestHandler):
-            def do_GET(self):  # noqa: N802
+            def do_GET(self):
                 outer.hits += 1
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(payload)))

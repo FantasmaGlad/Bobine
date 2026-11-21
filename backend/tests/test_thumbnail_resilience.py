@@ -7,11 +7,11 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from PIL import Image  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
+from PIL import Image
 
-from app.utils.video_utils import thumbnails  # noqa: E402
+from app.utils.video_utils import thumbnails
 
 
 @pytest.fixture(autouse=True)

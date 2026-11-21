@@ -12,11 +12,11 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-from app.utils import (  # noqa: E402
+from app.utils import (
     audio_utils, chapters, ffmpeg_binaries, import_jobs, staged_uploads as staged,
 )
-from app.radio import track_files  # noqa: E402
-from app.utils.video_utils import probe, progress, thumbnails  # noqa: E402
+from app.radio import track_files
+from app.utils.video_utils import probe, progress, thumbnails
 
 
 @pytest.fixture

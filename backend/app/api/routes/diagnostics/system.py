@@ -46,7 +46,7 @@ class _Report:
         before = len(self.problems)
         try:
             function(self)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Diagnostic système : sonde %s en échec : %s", name, exc)
             del self.problems[before:]
             self.checks = [c for c in self.checks if c["name"] != name]
@@ -64,7 +64,7 @@ def _probe_database(report: _Report) -> None:
     try:
         with SessionLocal() as db:
             db.execute(text("SELECT 1"))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         report.problem("database", "database_unreachable", "critical", f"La base de données ne répond pas ({exc}).",
                        "Vérifier le fichier de la base, ses droits et l'espace disque, puis redémarrer Bobine.")
 
@@ -194,7 +194,7 @@ async def _probe_storage(report: _Report) -> None:
 
     try:
         status = await storage_service.status()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         report.check("storage", "unknown", f"{type(exc).__name__}: {exc}")
         return
     error = status.get("error")

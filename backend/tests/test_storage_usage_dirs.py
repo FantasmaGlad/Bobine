@@ -5,8 +5,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.api.routes.settings import maintenance  # noqa: E402
-from app.config import DATA_DIRS  # noqa: E402
+from app.api.routes.settings import maintenance
+from app.config import DATA_DIRS
 
 
 def test_every_data_folder_counts_in_the_application_size(monkeypatch, tmp_path):

@@ -7,7 +7,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.main import app  # noqa: E402
+from app.main import app
 
 ATTACHMENTS = {("get", "/api/videos/{video_id}/chapters/export")}
 

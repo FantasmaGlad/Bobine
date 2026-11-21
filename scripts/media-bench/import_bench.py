@@ -16,7 +16,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import cover_equivalence  # noqa: E402
+import cover_equivalence
 MODES = ("reference", "native")
 DROP_SYSTEM_CACHE = False
 

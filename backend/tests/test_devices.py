@@ -10,19 +10,19 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.database.migrations import migrate_drop_devices_access_settings  # noqa: E402
-from app.devices import locality  # noqa: E402
-from app.devices.base import DeviceDriver, DeviceError, NullDriver  # noqa: E402
-from app.devices.linux.parse.audio import audio_kind, parse_pw_dump, parse_wpctl_volume  # noqa: E402
-from app.devices.linux.parse.bluetooth import bluez_device_path, is_valid_mac, parse_bluez_objects  # noqa: E402
-from app.devices.linux.parse.wifi import parse_known_wifi, parse_wifi_device, parse_wifi_list, split_terse, wifi_band  # noqa: E402
-from app.devices.service import DevicesService, service  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import Setting  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.database.migrations import migrate_drop_devices_access_settings
+from app.devices import locality
+from app.devices.base import DeviceDriver, DeviceError, NullDriver
+from app.devices.linux.parse.audio import audio_kind, parse_pw_dump, parse_wpctl_volume
+from app.devices.linux.parse.bluetooth import bluez_device_path, is_valid_mac, parse_bluez_objects
+from app.devices.linux.parse.wifi import parse_known_wifi, parse_wifi_device, parse_wifi_list, split_terse, wifi_band
+from app.devices.service import DevicesService, service
+from app.main import app
+from app.models import Setting
 
 
 PW_DUMP = [
