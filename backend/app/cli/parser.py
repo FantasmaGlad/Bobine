@@ -24,7 +24,7 @@ from .control import cmd_api, cmd_diagnose, cmd_open, cmd_playback, cmd_update, 
 from .core import DEFAULT_TIMEOUT, EXIT_OK, Output
 from .declared import add_import_commands, add_spec_commands
 from .paging import paged
-from .read import cmd_devices, cmd_display, cmd_imports, cmd_library, cmd_logs, cmd_metrics, cmd_playlists, cmd_schedule, cmd_status, cmd_storage
+from .read import cmd_devices, cmd_display, cmd_imports, cmd_library, cmd_logs, cmd_metrics, cmd_playlists, cmd_schedule, cmd_status, cmd_storage, cmd_version
 
 
 def _add_common_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool = False) -> None:
@@ -233,8 +233,7 @@ def build_parser() -> argparse.ArgumentParser:
     open_page.add_argument("page", nargs="?", default="admin", help="admin, grid, cinema, kiosk ou radio")
     open_page.set_defaults(run=cmd_open)
 
-    sub.add_parser("version", parents=[sub_common], help="version de cette installation").set_defaults(
-        run=lambda client, out, args: (out.result({"version": local_version()}, local_version()), EXIT_OK)[1])
+    sub.add_parser("version", parents=[sub_common], help="version de cette commande et du serveur visé").set_defaults(run=cmd_version)
     return parser
 
 

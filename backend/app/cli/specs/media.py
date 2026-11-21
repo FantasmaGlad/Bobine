@@ -3,15 +3,12 @@ from __future__ import annotations
 from app.api.contract import CABLE_ONLY_MEDIA, CHANNELS, COACH_CHANNELS, DEFAULT_CHANNEL, MEDIA_KINDS, PLAYABLE_MEDIA
 
 from .model import Arg, Call, Spec
+from .render import minutes
 from .route import route
 
 
-def _duration(seconds: float | None) -> str:
-    return f"{int(seconds // 60)} min" if seconds else "-"
-
-
 def _catalog_lines(payload, args) -> str:
-    rows = [f"{e['kind']:<15} {e['id']:>5}  {e['title']}  ({e.get('subtitle') or '-'}, {_duration(e.get('duration_seconds'))})"
+    rows = [f"{e['kind']:<15} {e['id']:>5}  {e['title']}  ({e.get('subtitle') or '-'}, {minutes(e.get('duration_seconds'))})"
             + ("" if e.get("available") else "  [indisponible]") for e in (payload or {}).get("items", [])]
     return "\n".join(rows) + f"\n{len(rows)} sur {(payload or {}).get('total', 0)}"
 
