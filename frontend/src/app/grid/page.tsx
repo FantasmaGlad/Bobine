@@ -80,10 +80,8 @@ export default function GridPage() {
         });
     };
     load();
-    const id = setInterval(load, 15000);
     return () => {
       cancelled = true;
-      clearInterval(id);
       if (retryTimer) clearTimeout(retryTimer);
     };
   }, [libraryVersion]);

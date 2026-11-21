@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Video, VideoChapter
 from app.utils import chapters as chapter_utils
-from app.utils.ws_manager import manager as ws_manager
+from app.videos.events import notify_library
 
 logger = logging.getLogger(__name__)
 
@@ -85,12 +85,12 @@ def list_chapters(video_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{video_id}/chapters", response_model=List[ChapterResponse])
-async def replace_chapters(video_id: int, payload: ChaptersPayload, db: Session = Depends(get_db)):
+def replace_chapters(video_id: int, payload: ChaptersPayload, db: Session = Depends(get_db)):
     """Remplace tous les chapitres du cours (liste vide = les supprimer)."""
     video = _get_video(db, video_id)
     raw = [{"start_seconds": c.start_seconds, "end_seconds": c.end_seconds, "title": c.title} for c in payload.chapters]
     result = _replace(db, video, raw, source="manual")
-    await ws_manager.broadcast({"type": "library_change"})
+    notify_library("chapters_changed")
     return result
 
 
@@ -110,7 +110,7 @@ async def import_chapters(video_id: int, file: UploadFile = File(...), db: Sessi
     except chapter_utils.ChapterError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     result = _replace(db, video, raw, source="file", filename=file.filename, content=content)
-    await ws_manager.broadcast({"type": "library_change"})
+    notify_library("chapters_changed")
     return result
 
 
@@ -122,7 +122,7 @@ async def import_embedded_chapters(video_id: int, db: Session = Depends(get_db))
     if not raw:
         raise HTTPException(status_code=404, detail="Aucun chapitre incorporé dans ce fichier vidéo.")
     result = _replace(db, video, raw, source="embedded")
-    await ws_manager.broadcast({"type": "library_change"})
+    notify_library("chapters_changed")
     return result
 
 

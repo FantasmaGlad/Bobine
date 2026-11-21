@@ -119,6 +119,7 @@ async def upload_video_thumbnail(video_id: int, file: UploadFile = File(...), db
     except ValueError:
         raise HTTPException(status_code=422, detail="Fichier image invalide")
     replace_thumbnail(db, video, new_path)
+    notify_library("thumbnail_changed")
     return video
 
 

@@ -139,8 +139,6 @@ const DEFAULT_STATE: PlaybackState = {
   audio_clock: null,
 };
 
-const RESYNC_INTERVAL_MS = 15000;
-
 let pageClientId: string | null = null;
 
 function getPageKioskClientId(): string {
@@ -173,6 +171,7 @@ export function usePlaybackSocket(
   const lastTickSeqRef = useRef<number | null>(null);
   const clockSyncRef = useRef(new ServerClockSync());
   const doResyncRef = useRef<() => void>(() => {});
+  const openedRef = useRef(false);
   const onEventRef = useRef(onEvent);
   const onCinemaCommandRef = useRef(onCinemaCommand);
   const stateRef = useRef<PlaybackState>(DEFAULT_STATE);
@@ -211,6 +210,8 @@ export function usePlaybackSocket(
       ws.onopen = () => {
         if (wsRef.current !== ws) return;
         setConnected(true);
+        if (openedRef.current) setLibraryVersion((v) => v + 1);
+        openedRef.current = true;
         retryDelay = 1000;
         lastMessageAtRef.current = Date.now();
         lastTickSeqRef.current = null;
@@ -335,6 +336,7 @@ export function usePlaybackSocket(
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ command: "pong" }));
       }
+      doResyncRef.current();
     };
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", onVisible);
@@ -378,14 +380,11 @@ export function usePlaybackSocket(
           setState(data);
           onEventRef.current?.({ event: "state_change", cause: "sync", data });
         })
-        .catch(() => {
-        });
+        .catch((err) => console.warn("Relecture de l'état de lecture impossible", err));
     };
     doResyncRef.current = resync;
-    const id = setInterval(resync, RESYNC_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
       doResyncRef.current = () => {};
     };
   }, [channel]);

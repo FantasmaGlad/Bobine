@@ -29,10 +29,8 @@ export function useCinemaVideos(libraryVersion: number) {
         });
     };
     load();
-    const id = setInterval(load, 15000);
     return () => {
       cancelled = true;
-      clearInterval(id);
       if (retry) clearTimeout(retry);
     };
   }, [libraryVersion]);
