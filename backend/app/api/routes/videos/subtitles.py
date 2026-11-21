@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session
 from app.api.responses import Message, binary
 from app.database import get_db
 from app.utils.subtitles import MAX_SUBTITLE_BYTES
-from app.utils.ws_manager import manager as ws_manager
 from app.videos.subtitles import SubtitleRejected, delete_subtitle as remove_subtitle, save_uploaded_subtitle
+from app.videos.events import notify_library
 
 from .lookup import subtitle_or_404, video_or_404
 from .schemas import VideoSubtitleResponse, subtitle_response
@@ -42,15 +42,15 @@ async def upload_subtitle(
         sub = save_uploaded_subtitle(db, video_id, file.filename or "subtitles.srt", content, language_code, language_label)
     except SubtitleRejected as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
-    await ws_manager.broadcast({"type": "library_change"})
+    notify_library("subtitles_changed")
     return subtitle_response(sub)
 
 
 @router.delete("/{video_id}/subtitles/{subtitle_id}", response_model=Message)
-async def delete_subtitle(video_id: int, subtitle_id: int, db: Session = Depends(get_db)):
+def delete_subtitle(video_id: int, subtitle_id: int, db: Session = Depends(get_db)):
     """Supprime une piste de sous-titres sur disque et en base."""
     remove_subtitle(db, subtitle_or_404(db, video_id, subtitle_id))
-    await ws_manager.broadcast({"type": "library_change"})
+    notify_library("subtitles_changed")
     return {"message": "Sous-titre supprimé"}
 
 
