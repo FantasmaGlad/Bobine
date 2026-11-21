@@ -9,11 +9,15 @@ source "${SCRIPT_DIR}/../common/version.sh"
 if [ "$(id -u)" -eq 0 ]; then
     id builder >/dev/null 2>&1 || useradd -m builder
     OUTPUT_DIR="${OUTPUT_DIR:-${REPO_DIR}/dist-arch}"
-    mkdir -p "${OUTPUT_DIR}"; chmod 0777 "${OUTPUT_DIR}"
-    exec runuser -u builder -- env "OUTPUT_DIR=${OUTPUT_DIR}" "PATH=${PATH}" \
+    STAGE_DIR="$(runuser -u builder -- mktemp -d)"
+    runuser -u builder -- env "OUTPUT_DIR=${STAGE_DIR}" "PATH=${PATH}" \
         ${VERSION:+"VERSION=${VERSION}"} ${PKG_FILENAME_VERSION:+"PKG_FILENAME_VERSION=${PKG_FILENAME_VERSION}"} \
         ${PKG_ARCH:+"PKG_ARCH=${PKG_ARCH}"} ${BOBINE_DIST_DIR:+"BOBINE_DIST_DIR=${BOBINE_DIST_DIR}"} ${BOBINE_BUILD_DIST:+"BOBINE_BUILD_DIST=${BOBINE_BUILD_DIST}"} \
         "${BASH_SOURCE[0]}" "$@"
+    mkdir -p "${OUTPUT_DIR}"
+    cp "${STAGE_DIR}"/*.pkg.tar.zst "${OUTPUT_DIR}/"
+    echo " Paquet Arch copié dans ${OUTPUT_DIR}"
+    exit 0
 fi
 
 VERSION="${VERSION:-$(cat "${REPO_DIR}/VERSION")}"
