@@ -19,7 +19,7 @@ function handleMessage(ws: WebSocket, parsed: Record<string, unknown>, boot: { i
     else if (boot.id !== parsed.boot_id) void clearCachesAndReload();
     return;
   }
-  if (parsed.event === "settings_change") handlers.apply(readLook(parsed));
+  if (parsed.event === "settings_change") handlers.apply({ ...readLook(parsed), logoChanged: typeof parsed.has_custom_logo === "boolean" });
   if (parsed.event === "display_mode_change") {
     const mode = parsed.mode || parsed.wired_display_mode;
     if (mode === "dual_screen" || mode === "headless") handlers.apply({ wiredDisplayMode: mode as WiredDisplayMode });

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { translate, translateList, UI_LANGUAGE, type Language } from "@/lib/i18n";
 import { pushUpdateChannelToNative } from "@/lib/nativeBridge";
 import { DEFAULT_RELEASE_CHANNEL, type UpdateChannel } from "@/lib/releaseChannel";
+import { logoNeedsReload, sameNetwork } from "@/lib/settings/apply";
 import { readBranding, readSettings, fetchSettings, persistSettings, type SettingsPatch } from "@/lib/settings/payload";
 import {
   DEFAULT_LANGUAGE,
@@ -60,6 +61,7 @@ function useSettingsState() {
   const [storedLanguage, setLanguage] = useState<Language>(UI_LANGUAGE);
   const [simplifiedUi, setSimplifiedUi] = useState(false);
   const [hasCustomLogo, setHasCustomLogo] = useState(false);
+  const customLogoRef = useRef(false);
   const [activeLogo, setActiveLogo] = useState<ActiveLogo>("default");
   const [logoVersion, setLogoVersion] = useState(0);
   const [wiredDisplayMode, setWiredDisplayMode] = useState<WiredDisplayMode>(DEFAULT_WIRED_DISPLAY_MODE);
@@ -74,9 +76,10 @@ function useSettingsState() {
     if (patch.themeMode !== undefined) setThemeMode(patch.themeMode);
     if (patch.language !== undefined) setLanguage(patch.language);
     if (patch.simplifiedUi !== undefined) setSimplifiedUi(patch.simplifiedUi);
+    if (logoNeedsReload(customLogoRef.current, patch)) setLogoVersion((v) => v + 1);
     if (patch.hasCustomLogo !== undefined) {
+      customLogoRef.current = patch.hasCustomLogo;
       setHasCustomLogo(patch.hasCustomLogo);
-      setLogoVersion((v) => v + 1);
     }
     if (patch.activeLogo !== undefined) setActiveLogo(patch.activeLogo);
     if (patch.wiredDisplayMode !== undefined) setWiredDisplayMode(patch.wiredDisplayMode);
@@ -87,7 +90,8 @@ function useSettingsState() {
     if (patch.displayModeSetting !== undefined) setDisplayModeSetting(patch.displayModeSetting);
     if ("displayExternalCount" in patch) setDisplayExternalCount(patch.displayExternalCount ?? null);
     if (patch.waitTimeBetweenCourses !== undefined) setWaitTimeBetweenCourses(patch.waitTimeBetweenCourses);
-    if (patch.network !== undefined) setNetwork(patch.network);
+    const network = patch.network;
+    if (network !== undefined) setNetwork((current) => (sameNetwork(current, network) ? current : network));
   }, []);
 
   const values = React.useMemo(
@@ -99,7 +103,7 @@ function useSettingsState() {
 
 function useSettingsSync(apply: (patch: SettingsPatch) => void) {
   const refetch = useCallback(() => {
-    fetchSettings().then((data) => data && apply(readSettings(data))).catch(() => {});
+    fetchSettings().then((data) => data && apply(readSettings(data))).catch((err) => console.warn("Relecture des réglages impossible", err));
   }, [apply]);
 
   useEffect(() => {
@@ -122,7 +126,7 @@ function useSettingsSync(apply: (patch: SettingsPatch) => void) {
   useSettingsSocket({ apply, refetch });
 
   return useCallback(() => {
-    fetchSettings().then((data) => data && apply(readBranding(data))).catch(() => {});
+    fetchSettings().then((data) => data && apply({ ...readBranding(data), logoChanged: true })).catch((err) => console.warn("Relecture du logo impossible", err));
   }, [apply]);
 }
 
