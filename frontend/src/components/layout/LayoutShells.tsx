@@ -8,6 +8,7 @@ import NavEntries from "@/components/layout/NavEntries";
 import { activeNavInfoFor, isEntryActive } from "@/components/layout/navActive";
 import { type useAppSettings } from "@/lib/AppSettingsContext";
 import { type visibleNavEntries } from "@/lib/navLinks";
+import { entryDelayMs } from "@/lib/entryDelay";
 
 type FooterEntry = { href: string; iconName: string; label: string; labelKey: string };
 
@@ -26,18 +27,18 @@ interface FooterLinkProps {
   link: { href: string; iconName: string; label: string };
   pathname: string;
   onNavigate?: () => void;
-  animationDelay?: number;
+  entryIndex?: number;
 }
 
-function FooterLink({ link, pathname, onNavigate, animationDelay }: FooterLinkProps) {
+function FooterLink({ link, pathname, onNavigate, entryIndex }: FooterLinkProps) {
   const active = isEntryActive(pathname, link.href);
-  const animated = animationDelay !== undefined;
+  const animated = entryIndex !== undefined;
   return (
     <Link
       href={link.href}
       onClick={onNavigate}
       className={`nav-link olc-press${animated ? " olc-anim-in" : ""} ${active ? "active" : ""}`}
-      style={animated ? { animationDelay: `${animationDelay}ms` } : undefined}
+      style={animated ? { animationDelay: `${entryDelayMs(entryIndex)}ms` } : undefined}
       title={link.label}
     >
       <Icon name={link.iconName} size={20} />
@@ -108,7 +109,7 @@ export function desktopShell({ navEntries, footerLinks, pathname, activeGroup, t
           </nav>
         </div>
         <div className="sidebar-footer">
-          {footerLinks.map((link, i) => <FooterLink key={link.href} link={link} pathname={pathname} animationDelay={(navEntries.length + i) * 30} />)}
+          {footerLinks.map((link, i) => <FooterLink key={link.href} link={link} pathname={pathname} entryIndex={navEntries.length + i} />)}
         </div>
       </aside>
 

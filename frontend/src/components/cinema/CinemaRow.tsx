@@ -6,6 +6,7 @@ import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import { formatMinutes } from "@/lib/format";
 import Icon from "@/components/Icon";
 import MarqueeText from "@/components/MarqueeText";
+import { entryDelayMs } from "@/lib/entryDelay";
 
 const ROW_SCROLL_FRACTION = 0.85;
 
@@ -54,7 +55,7 @@ const CinemaRow = React.memo(function CinemaRow({
   };
 
   return (
-    <section className="cinema-row" style={{ animationDelay: `${rowIndex * 90}ms` }}>
+    <section className="cinema-row" style={{ animationDelay: `${entryDelayMs(rowIndex)}ms` }}>
       <div className="cinema-row-header">
         <h2 style={accentTitle ? { color: "var(--accent-text)" } : undefined}>{programName}</h2>
         <span className="cinema-row-count">{coursesCountLabel}</span>
@@ -76,7 +77,7 @@ const CinemaRow = React.memo(function CinemaRow({
               <button
                 key={v.id}
                 className="cinema-card"
-                style={{ animationDelay: `${rowIndex * 90 + i * 45}ms` }}
+                style={{ animationDelay: `${entryDelayMs(rowIndex + i)}ms` }}
                 onClick={() => onSelect(v)}
                 onMouseEnter={onHover}
                 title={v.title}

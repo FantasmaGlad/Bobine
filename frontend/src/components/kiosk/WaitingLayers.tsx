@@ -3,16 +3,17 @@ import React from "react";
 import AppLogo from "@/components/AppLogo";
 import { formatWallClock } from "@/lib/format";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
-import { formatDuration, type NextCourse } from "./media";
+import { formatDuration } from "./media";
+import { useKioskClock } from "./useKioskClock";
 
 interface WaitingLayersProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
   state: PlaybackState;
-  now: Date;
-  nextCourse: NextCourse | null;
+  channel: "cable" | "network";
 }
 
-export default function WaitingLayers({ t, state, now, nextCourse }: WaitingLayersProps) {
+export default function WaitingLayers({ t, state, channel }: WaitingLayersProps) {
+  const { now, nextCourse } = useKioskClock(channel);
   const isIdle = state.state === "waiting" || state.state === "offline";
   const nextCourseRemaining = nextCourse ? Math.max(0, (new Date(nextCourse.run_at).getTime() - now.getTime()) / 1000) : null;
   const nextPlaylistItem = state.playlist_items && state.playlist_index !== null && state.playlist_index !== undefined

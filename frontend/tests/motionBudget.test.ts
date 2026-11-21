@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const STYLES = join(import.meta.dirname, "..", "src", "styles");
+import { entryDelayMs, MAX_ENTRY_DELAY_MS } from "../src/lib/entryDelay.ts";
+
+const SRC = join(import.meta.dirname, "..", "src");
+const STYLES = join(SRC, "styles");
 const COMPOSITED = new Set(["transform", "opacity"]);
 const MAX_ENTRY_MS = 200;
 const MAX_DELAY_MS = 80;
@@ -58,4 +61,15 @@ test("une entrée animée dure au plus 200 ms et ne commence pas après 80 ms", 
   const delays = [...css.matchAll(/animation-delay\s*:\s*([^;]+)/g)].map((m) => milliseconds(m[1].trim())).filter((ms) => ms > MAX_DELAY_MS);
   assert.deepEqual(slow, []);
   assert.deepEqual(delays, []);
+});
+
+test("un délai d'entrée calculé dans un composant passe par entryDelayMs, plafonné à 80 ms", () => {
+  const inline = (readdirSync(SRC, { recursive: true }) as string[])
+    .filter((name) => name.endsWith(".tsx"))
+    .flatMap((name) => [...readFileSync(join(SRC, name), "utf8").matchAll(/animationDelay\s*:\s*([^,}]+)/g)].map((m) => ({ name, value: m[1].trim() })))
+    .filter((use) => !use.value.includes("entryDelayMs("))
+    .map((use) => `${use.name} → ${use.value}`);
+  assert.deepEqual(inline, []);
+  assert.equal(MAX_ENTRY_DELAY_MS, MAX_DELAY_MS);
+  assert.deepEqual([0, 1, 4, 800].map(entryDelayMs), [0, 20, 80, 80]);
 });

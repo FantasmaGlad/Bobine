@@ -6,11 +6,6 @@ export function useKioskClock(channel: "cable" | "network") {
   const [now, setNow] = useState(new Date());
   const clockOffsetRef = useRef<number>(0);
   const [nextCourse, setNextCourse] = useState<NextCourse | null>(null);
-  const [, setFastTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setFastTick((t) => (t + 1) % 1_000_000), 200);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const syncClock = () => {

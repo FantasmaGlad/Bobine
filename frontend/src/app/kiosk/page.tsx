@@ -22,7 +22,6 @@ import PauseOverlay from "@/components/kiosk/PauseOverlay";
 import WaitingLayers from "@/components/kiosk/WaitingLayers";
 import { applyKioskEvent } from "@/components/kiosk/kioskEvents";
 import type { OsdContent } from "@/components/kiosk/media";
-import { useKioskClock } from "@/components/kiosk/useKioskClock";
 import { useStallWatchdog } from "@/components/kiosk/useStallWatchdog";
 
 export default function KioskPage() {
@@ -53,7 +52,6 @@ export default function KioskPage() {
 
   const [volumeHud, showVolumeHud] = useVolumeHud();
   const [seekHud, showSeekHud] = useSeekHud();
-  const { now, nextCourse } = useKioskClock(channel);
 
   const showOsd = useCallback((content: OsdContent) => {
     setOsd(content);
@@ -211,7 +209,7 @@ export default function KioskPage() {
 
   return (
     <div className="kiosk-root">
-      <WaitingLayers t={t} state={state} now={now} nextCourse={nextCourse} />
+      <WaitingLayers t={t} state={state} channel={channel} />
 
       <div
         className={`kiosk-layer kiosk-video-layer ${isVideoLayer ? "visible" : ""}`}
