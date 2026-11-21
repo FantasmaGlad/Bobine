@@ -119,7 +119,9 @@ def cmd_devices(client: Client, out: Output, args: argparse.Namespace) -> int:
             lines = [payload.get("reason") or "Wi-Fi non disponible."]
         else:
             current = payload.get("current") or {}
-            lines = [f"enabled={payload.get('enabled')}  ssid={current.get('ssid') or '-'}  ip={current.get('ip') or '-'}"]
+            ssid = current.get("ssid") or ("masqué" if current.get("ssid_reason") else "-")
+            lines = [f"enabled={payload.get('enabled')}  ssid={ssid}  ip={current.get('ip') or '-'}"]
+            lines += [f"  {current['ssid_reason']}"] if current.get("ssid_reason") else []
             lines += [f"  {n.get('ssid')}  {n.get('signal')}%" for n in payload.get("networks", [])]
     else:
         counts = payload.get("counts") or {}

@@ -27,6 +27,7 @@ function CurrentStatus({ data, t }: { data: WifiStatus; t: SectionProps["t"] }) 
         {current ? (current.ssid ? t("devices.wifi.connectedTo", { ssid: current.ssid }) : t("devices.wifi.connectedUnnamed")) : t("devices.wifi.disconnected")}
       </span>
       {current?.ip && <span className="dv-sub">{current.ip}</span>}
+      {current && !current.ssid && current.ssid_reason && <span className="dv-sub">{current.ssid_reason}</span>}
       {data.transport && data.transport !== "wifi" && data.transport !== "none" && (
         <span className="dv-sub">{t("devices.wifi.otherTransport", { transport: data.transport })}</span>
       )}

@@ -107,6 +107,7 @@ export interface BluetoothStatus {
 
 export interface WifiNetwork {
   ssid: string;
+  ssid_reason?: string | null;
   signal: number;
   security: string;
   band: string;
