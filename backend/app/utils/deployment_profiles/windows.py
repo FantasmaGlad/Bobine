@@ -13,7 +13,7 @@ from app.updates.orchestrator import download_with_progress, status_file_path
 
 logger = logging.getLogger(__name__)
 
-_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None
 
 
 def _detached_creationflags() -> int:

@@ -145,7 +145,7 @@ def local_version() -> str:
         from app.utils.version import get_app_version
 
         return get_app_version()
-    except Exception:  # noqa: BLE001 — la version ne doit jamais empêcher la commande de répondre
+    except Exception:
         return "inconnue"
 
 
@@ -174,5 +174,5 @@ def _default_port() -> int:
         from app.utils.port import current_port
 
         return current_port()
-    except Exception:  # noqa: BLE001 — sans fichier d'exécution lisible, le port par défaut de Bobine
+    except Exception:
         return DEFAULT_PORT

@@ -5,14 +5,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-from PIL import Image  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
+from PIL import Image
 
-from app.videos import normalize as videos  # noqa: E402
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import ImportSource, Video  # noqa: E402
+from app.videos import normalize as videos
+from app.database import SessionLocal, init_db
+from app.main import app
+from app.models import ImportSource, Video
 
 
 @pytest.fixture()

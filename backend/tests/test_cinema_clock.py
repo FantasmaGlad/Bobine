@@ -5,10 +5,10 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
+import pytest
 
-from app.api.routes import playback as pb  # noqa: E402
-from app.utils.playback_clock import PlaybackClock  # noqa: E402
+from app.api.routes import playback as pb
+from app.utils.playback_clock import PlaybackClock
 
 
 class FakeTime:

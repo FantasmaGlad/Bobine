@@ -8,8 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 pytest.importorskip("app.desktop.tray_display")
 
-from app.desktop import tray_display, tray_urls  # noqa: E402
-from app.utils import port  # noqa: E402
+from app.desktop import tray_display, tray_urls
+from app.utils import port
 
 
 def _boom(*_args, **_kwargs):

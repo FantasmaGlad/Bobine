@@ -67,7 +67,7 @@ def resolve_radio_default_playlist(db: Session, radio_channel: str) -> RadioPlay
         playlist = db.query(RadioPlaylist).filter(RadioPlaylist.id == override_id).first()
         if playlist is not None:
             return playlist
-    return db.query(RadioPlaylist).filter(RadioPlaylist.is_default == True).first()  # noqa: E712
+    return db.query(RadioPlaylist).filter(RadioPlaylist.is_default == True).first()
 
 
 def is_cable_output_radio(db: Session) -> bool:

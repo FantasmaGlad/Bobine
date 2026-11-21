@@ -4,9 +4,9 @@ import pytest
 
 pytest.importorskip("dbus_fast")
 
-from dbus_fast import DBusError  # noqa: E402
+from dbus_fast import DBusError
 
-from app.devices.linux.agent import make_agent  # noqa: E402
+from app.devices.linux.agent import make_agent
 
 
 class FakeDriver:

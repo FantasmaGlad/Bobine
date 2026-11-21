@@ -5,12 +5,12 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-import pytest  # noqa: E402
-from fastapi import FastAPI, HTTPException  # noqa: E402
-from starlette.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi import FastAPI, HTTPException
+from starlette.testclient import TestClient
 
-from app.api.errors import install_error_handlers, redact_paths  # noqa: E402
-from app.utils import import_jobs  # noqa: E402
+from app.api.errors import install_error_handlers, redact_paths
+from app.utils import import_jobs
 
 
 @pytest.mark.parametrize(

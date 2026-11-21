@@ -6,15 +6,15 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from app import config_files  # noqa: E402
-from app import config_builders  # noqa: E402
-from app import config_mirror  # noqa: E402
+from app import config_files
+from app import config_builders
+from app import config_mirror
 from app.utils.uid import is_uid
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import RadioAnnouncement  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.main import app
+from app.models import RadioAnnouncement
 
 
 def _no_uid(value):

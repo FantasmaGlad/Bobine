@@ -12,7 +12,7 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-from app.utils.media_response import RangeNotSatisfiable, build_media_response, parse_byte_range  # noqa: E402
+from app.utils.media_response import RangeNotSatisfiable, build_media_response, parse_byte_range
 
 PAYLOAD = bytes(range(256)) * 40
 

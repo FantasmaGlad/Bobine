@@ -9,18 +9,18 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices.base import DeviceError  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import ActivityLog, ExternalVolume, Setting, StorageImport, Video  # noqa: E402
-from app.storage import availability  # noqa: E402
-from app.storage.formatting.tokens import PlanTokens  # noqa: E402
-from app.storage.service import StorageService  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.devices.base import DeviceError
+from app.main import app
+from app.models import ActivityLog, ExternalVolume, Setting, StorageImport, Video
+from app.storage import availability
+from app.storage.formatting.tokens import PlanTokens
+from app.storage.service import StorageService
 
-from storage_fakes import FakeStorageDriver  # noqa: E402
+from storage_fakes import FakeStorageDriver
 
 KEYS = ("storage_defaults",)
 GIB = 1024 ** 3

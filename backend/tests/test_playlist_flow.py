@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_playlist_database.db"
 
-from app.api.paging import whole  # noqa: E402
+from app.api.paging import whole
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.models import Video, Playlist, PlaylistItem, ImportSource

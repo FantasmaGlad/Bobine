@@ -6,10 +6,10 @@ os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 import os
-import pytest  # noqa: E402
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices.service import DevicesService  # noqa: E402
-from app.models import Setting  # noqa: E402
+import pytest
+from app.database import SessionLocal, init_db
+from app.devices.service import DevicesService
+from app.models import Setting
 from devices_routing_support import KEYS, RoutingDriver, _reset_managers
 
 
@@ -35,9 +35,9 @@ def routing_env():
         db.commit()
     from app.utils.ws_manager import manager as ws
 
-    ws._kiosk_connections["radio_cable"].clear()  # noqa: SLF001
-    ws._kiosk_connections["radio_network"].clear()  # noqa: SLF001
-    ws._route_reports.clear()  # noqa: SLF001
+    ws._kiosk_connections["radio_cable"].clear()
+    ws._kiosk_connections["radio_network"].clear()
+    ws._route_reports.clear()
 
 
 @pytest.fixture()

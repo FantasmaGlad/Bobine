@@ -1,9 +1,9 @@
 import asyncio
-import pytest  # noqa: E402
-from app.devices.base import CAPABILITY_KEYS, DeviceError, NullDriver  # noqa: E402
-from app.devices.linux.driver import LinuxDriver  # noqa: E402
-from app.devices.linux.parse.audio import choose_browser_stream, parse_output_streams  # noqa: E402
-from devices_routing_support import _stream, _sink, _link, FakePipeWire, _driver, _no_sleep, _async_value  # noqa: E402
+import pytest
+from app.devices.base import CAPABILITY_KEYS, DeviceError, NullDriver
+from app.devices.linux.driver import LinuxDriver
+from app.devices.linux.parse.audio import choose_browser_stream, parse_output_streams
+from devices_routing_support import _stream, _sink, _link, FakePipeWire, _driver, _no_sleep, _async_value
 
 
 def test_analyse_des_flux_reconnait_navigateurs_etat_et_sortie_liee():
@@ -72,8 +72,8 @@ def test_capacite_declaree_selon_les_outils(monkeypatch):
     async def run(which):
         monkeypatch.setattr("app.devices.linux.driver.shutil.which", which)
         driver = LinuxDriver(runner=FakePipeWire({}))
-        driver._probe_bluetooth = _async_value("pas de Bluetooth")  # noqa: SLF001
-        driver._probe_wifi = _async_value("pas de Wi-Fi")  # noqa: SLF001
+        driver._probe_bluetooth = _async_value("pas de Bluetooth")
+        driver._probe_wifi = _async_value("pas de Wi-Fi")
         return await driver.capabilities()
 
     caps = asyncio.run(run(lambda name: f"/usr/bin/{name}"))

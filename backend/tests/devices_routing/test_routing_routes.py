@@ -1,6 +1,6 @@
 import json
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.devices.routing import (  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.devices.routing import (
     ROUTES_SETTING,
     describe_sink,
     load_routes,
@@ -12,9 +12,9 @@ from app.devices.routing import (  # noqa: E402
     save_routes,
     stable_sink_key,
 )
-from app.models import Setting  # noqa: E402
-from app.radio.manager import get_radio_manager  # noqa: E402
-from devices_routing_support import SPEAKER, JBL, HDMI  # noqa: E402
+from app.models import Setting
+from app.radio.manager import get_radio_manager
+from devices_routing_support import SPEAKER, JBL, HDMI
 
 
 def test_cle_stable_bluetooth_independante_du_profil_et_du_suffixe():

@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "packaging" / "common"))
 
-from dearmor import dearmor  # noqa: E402
+from dearmor import dearmor
 
 PRIMARY = "B77D96D72F84F36ACAA3F8729CBF497D829EE15A"
 KEYRING = ROOT / "packaging" / "linux" / "keyring"

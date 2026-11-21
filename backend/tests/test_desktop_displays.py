@@ -255,7 +255,7 @@ def test_rapport_au_backend_rejoue_jusqu_au_succes_puis_cede_la_place_au_plus_re
     assert len(calls) <= 3
 
 
-from app.desktop.projector import build_native_projector_command, find_native_projector  # noqa: E402
+from app.desktop.projector import build_native_projector_command, find_native_projector
 
 
 def test_fenetre_native_trouvee_a_cote_de_l_executable_du_tray_sur_macos():

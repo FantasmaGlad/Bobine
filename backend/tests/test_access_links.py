@@ -5,17 +5,17 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import asyncio  # noqa: E402
-import socket  # noqa: E402
+import asyncio
+import socket
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.utils import network, port80  # noqa: E402
-from app.utils.deployment import ProfileHandler  # noqa: E402
-from app.utils.network import LanAddress  # noqa: E402
+from app.database import init_db
+from app.main import app
+from app.utils import network, port80
+from app.utils.deployment import ProfileHandler
+from app.utils.network import LanAddress
 
 
 @pytest.mark.parametrize(

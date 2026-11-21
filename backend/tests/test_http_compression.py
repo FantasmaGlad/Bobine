@@ -7,16 +7,16 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-import pytest  # noqa: E402
-from fastapi import FastAPI, WebSocket  # noqa: E402
-from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse  # noqa: E402
-from starlette.applications import Starlette  # noqa: E402
-from starlette.routing import Mount  # noqa: E402
-from starlette.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi import FastAPI, WebSocket
+from fastapi.responses import JSONResponse, PlainTextResponse, Response, StreamingResponse
+from starlette.applications import Starlette
+from starlette.routing import Mount
+from starlette.testclient import TestClient
 
 from app.main import app as real_app
-from app.api.static_files import RevalidateStaticFiles  # noqa: E402
-from app.api.http_compression import (  # noqa: E402
+from app.api.static_files import RevalidateStaticFiles
+from app.api.http_compression import (
     ApiCompressionMiddleware,
     accepts_gzip,
     is_compressible_media_type,

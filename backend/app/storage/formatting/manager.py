@@ -131,7 +131,7 @@ class FormatManager(PlanMixin, StepsMixin, VerifyMixin):
             await self._fail(job, disk, exc.code, exc.message)
         except DeviceError as exc:
             await self._fail(job, disk, exc.code, exc.message)
-        except Exception as exc:  # noqa: BLE001 - jamais une exception brute : état explicite
+        except Exception as exc:
             logger.warning("Formatage : échec inattendu : %s", exc, exc_info=True)
             await self._fail(job, disk, "format_failed", "Le formatage a échoué.")
         finally:
@@ -145,7 +145,7 @@ class FormatManager(PlanMixin, StepsMixin, VerifyMixin):
             self.svc.notify("format", ["format_finished"])
             try:
                 await self.svc.refresh()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 logger.debug("Relecture après formatage impossible", exc_info=True)
 
     async def _fail(self, job: FormatJob, disk: DiskInfo, code: str, message: str) -> None:

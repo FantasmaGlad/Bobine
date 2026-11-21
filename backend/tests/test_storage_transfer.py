@@ -6,9 +6,9 @@ import pytest
 
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.storage import portable, verified_copy  # noqa: E402
-from app.storage.import_plan import plan_import  # noqa: E402
-from app.storage.verified_copy import Cancelled, TransferError, copy_verified, export_file  # noqa: E402
+from app.storage import portable, verified_copy
+from app.storage.import_plan import plan_import
+from app.storage.verified_copy import Cancelled, TransferError, copy_verified, export_file
 
 
 @pytest.fixture()

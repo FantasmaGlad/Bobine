@@ -7,7 +7,7 @@ import pytest
 from app import cli
 import urllib.request
 from app.cli import completion as cli_completion
-from cli_support import BACKEND, _http_error  # noqa: E402
+from cli_support import BACKEND, _http_error
 
 
 @pytest.mark.parametrize("argv, expected", [

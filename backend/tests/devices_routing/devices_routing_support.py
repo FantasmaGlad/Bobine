@@ -1,15 +1,15 @@
 """Appui des tests du routage audio : sorties types, PipeWire simulé, pilote et lecteurs simulés."""
 
 import json
-from app.database import SessionLocal  # noqa: E402
-from app.devices.base import DeviceDriver  # noqa: E402
-from app.devices.linux.driver import LinuxDriver  # noqa: E402
-from app.devices.routing import (  # noqa: E402
+from app.database import SessionLocal
+from app.devices.base import DeviceDriver
+from app.devices.linux.driver import LinuxDriver
+from app.devices.routing import (
     ROUTES_SETTING,
     describe_sink,
     save_routes,
 )
-from app.radio.manager import get_radio_manager  # noqa: E402
+from app.radio.manager import get_radio_manager
 
 
 KEYS = (ROUTES_SETTING, "devices_audio_meta")
@@ -133,11 +133,11 @@ def _add_player(channel, host="127.0.0.1", primary=True, status=None):
     from app.utils.ws_manager import manager as ws
 
     sock = FakeSocket(host)
-    ws._kiosk_connections[channel].append(sock)  # noqa: SLF001
-    ws._kiosk_channel[sock] = channel  # noqa: SLF001
-    ws._kiosk_primary_status[sock] = primary  # noqa: SLF001
+    ws._kiosk_connections[channel].append(sock)
+    ws._kiosk_channel[sock] = channel
+    ws._kiosk_primary_status[sock] = primary
     if status:
-        ws._route_reports[sock] = {"status": status}  # noqa: SLF001
+        ws._route_reports[sock] = {"status": status}
     return sock
 
 

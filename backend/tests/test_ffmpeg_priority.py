@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("BOBINE_DATABASE_URL", "sqlite:///data/test_database.db")
 
-from app.process import priority  # noqa: E402
+from app.process import priority
 
 pytestmark = pytest.mark.skipif(os.name == "nt", reason="nice POSIX")
 

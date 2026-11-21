@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.utils.zip_safety import InvalidArchiveError, UnsafeZipError, safe_extract_archive  # noqa: E402
+from app.utils.zip_safety import InvalidArchiveError, UnsafeZipError, safe_extract_archive
 
 
 def _tar(path: Path, mode: str, members: list[tuple[tarfile.TarInfo, bytes | None]]) -> Path:

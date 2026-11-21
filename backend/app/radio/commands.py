@@ -22,7 +22,7 @@ async def apply_sound(db: Session, manager, raw, client_ts: float | None = None)
 
 def resolve_announcement(db: Session, announcement_id) -> RadioAnnouncement | None:
     """Rappel actif ciblé, ou tirage aléatoire parmi les actifs si `announcement_id` est absent."""
-    query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)  # noqa: E712
+    query = db.query(RadioAnnouncement).filter(RadioAnnouncement.enabled == True)
     if announcement_id:
         return query.filter(RadioAnnouncement.id == announcement_id).first()
     return query.order_by(func.random()).first()

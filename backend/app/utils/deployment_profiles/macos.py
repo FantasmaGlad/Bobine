@@ -13,7 +13,7 @@ from app.updates.orchestrator import download_with_progress, run_checked
 
 logger = logging.getLogger(__name__)
 
-_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None  # noqa: E731
+_NOOP_REPORT: Callable[..., None] = lambda *a, **k: None
 
 _APP_PATH = Path("/Applications/Bobine.app")
 

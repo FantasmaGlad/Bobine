@@ -6,12 +6,12 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import (  # noqa: E402
+from app.database import SessionLocal
+from app.main import app
+from app.models import (
     ImportSource,
     RadioAnnouncement,
     RadioAnnouncementRule,
@@ -21,9 +21,9 @@ from app.models import (  # noqa: E402
     RadioTrack,
     Setting,
 )
-from app.radio.channels import rule_targets_output  # noqa: E402
-from app.radio.manager import get_radio_manager  # noqa: E402
-from app.api.routes.playback.radio_commands import _due_wait_end_announcement  # noqa: E402
+from app.radio.channels import rule_targets_output
+from app.radio.manager import get_radio_manager
+from app.api.routes.playback.radio_commands import _due_wait_end_announcement
 from app.scheduling.radio import _revert_radio_to_default, resolve_radio_default_playlist, start_radio_ambiance
 
 SETTING_KEYS = (

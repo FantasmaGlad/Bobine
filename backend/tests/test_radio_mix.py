@@ -6,15 +6,15 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
+import pytest
+from fastapi.testclient import TestClient
 
-from app.database import SessionLocal, init_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models import Setting  # noqa: E402
-from app.radio.constants import METER_LEASE_SECONDS  # noqa: E402
-from app.radio.manager import RadioPlaybackManager, get_radio_manager  # noqa: E402
-from app.radio.mix import (  # noqa: E402
+from app.database import SessionLocal, init_db
+from app.main import app
+from app.models import Setting
+from app.radio.constants import METER_LEASE_SECONDS
+from app.radio.manager import RadioPlaybackManager, get_radio_manager
+from app.radio.mix import (
     GAIN_MAX_DB,
     GAIN_MIN_DB,
     default_mix,
@@ -25,7 +25,7 @@ from app.radio.mix import (  # noqa: E402
     sanitize_mix,
     save_mix,
 )
-from app.radio.sound import default_sound  # noqa: E402
+from app.radio.sound import default_sound
 
 KEYS = ("radio_mix_radio_cable", "radio_mix_radio_network", "radio_sound_radio_cable", "radio_sound_radio_network")
 
@@ -170,14 +170,14 @@ def test_le_vumetre_demande_s_active_une_fois_puis_expire_sans_renouvellement(mo
         assert manager.state["meter"] is True
         assert [m["cause"] for m in sent if m["event"] == "state_change"] == ["radio_meter"]
         clock[0] += METER_LEASE_SECONDS - 1
-        await manager._expire_meter()  # noqa: SLF001
+        await manager._expire_meter()
         assert manager.state["meter"] is True
         await manager.request_meter()
         clock[0] += METER_LEASE_SECONDS - 1
-        await manager._expire_meter()  # noqa: SLF001
+        await manager._expire_meter()
         assert manager.state["meter"] is True
         clock[0] += 2
-        await manager._expire_meter()  # noqa: SLF001
+        await manager._expire_meter()
         assert manager.state["meter"] is False
         assert [m["cause"] for m in sent if m["event"] == "state_change"] == ["radio_meter", "radio_meter"]
 

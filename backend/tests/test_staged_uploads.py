@@ -13,7 +13,7 @@ os.environ.setdefault("BOBINE_MEDIA_DIR", "data/test_videos")
 os.environ.setdefault("BOBINE_WATCH_DIR", "data/test_watched")
 os.environ.setdefault("BOBINE_THUMBNAILS_DIR", "data/test_thumbnails")
 
-from app.utils import staged_uploads as staged  # noqa: E402
+from app.utils import staged_uploads as staged
 
 DATA = bytes(range(256)) * 100
 

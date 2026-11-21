@@ -14,7 +14,7 @@ class BobineAgent(ServiceInterface):
         self._driver = driver
 
     @method()
-    def Release(self):  # noqa: N802 - noms imposés par D-Bus
+    def Release(self):
         self._driver._clear_pending()
 
     @method()
@@ -50,7 +50,7 @@ class BobineAgent(ServiceInterface):
         return
 
     @method()
-    def Cancel(self):  # noqa: N802
+    def Cancel(self):
         future = self._driver._pending_future
         if future is not None and not future.done():
             future.set_result(False)
