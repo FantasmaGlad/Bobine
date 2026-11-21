@@ -18,7 +18,7 @@ export function useDevicesEvents(onChange: (scope: string) => void, enabled = tr
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getPlaybackWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl([]));
       socket = ws;
       ws.onopen = () => {
         delay = 1000;

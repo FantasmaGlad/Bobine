@@ -197,7 +197,7 @@ export function usePlaybackSocket(
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getPlaybackWsUrl());
+      const ws = new WebSocket(getPlaybackWsUrl([channel]));
       wsRef.current = ws;
 
       const sendIdentify = () => {
