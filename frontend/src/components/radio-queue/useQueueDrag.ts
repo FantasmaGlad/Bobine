@@ -1,4 +1,5 @@
 import { useState, type RefObject } from "react";
+import { dropIndex } from "@/lib/listWindow";
 
 const AUTOSCROLL_EDGE = 36;
 const AUTOSCROLL_STEP = 14;
@@ -10,7 +11,7 @@ export interface DragState {
   startScroll: number;
   dy: number;
   rowHeight: number;
-  bottoms: number[];
+  boxHeight: number;
 }
 
 export function dragOffset(drag: DragState | null, index: number): number {
@@ -32,6 +33,7 @@ export function useQueueDrag(
   containerRef: RefObject<HTMLDivElement | null>,
   rowsRef: RefObject<(HTMLDivElement | null)[]>,
   count: number,
+  pitch: number,
   commitMove: (from: number, to: number) => void,
 ) {
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -45,12 +47,8 @@ export function useQueueDrag(
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
     }
-    const containerTop = container.getBoundingClientRect().top;
-    const bottoms = rowsRef.current
-      .slice(0, count)
-      .map((row) => (row ? row.getBoundingClientRect().bottom - containerTop + container.scrollTop : 0));
-    const rect = rowsRef.current[index]?.getBoundingClientRect();
-    setDrag({ from: index, to: index, startY: event.clientY, startScroll: container.scrollTop, dy: 0, rowHeight: (rect?.height ?? 56) + 8, bottoms });
+    const boxHeight = rowsRef.current[index]?.getBoundingClientRect().height ?? pitch;
+    setDrag({ from: index, to: index, startY: event.clientY, startScroll: container.scrollTop, dy: 0, rowHeight: pitch, boxHeight });
   };
 
   const moveDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -60,8 +58,7 @@ export function useQueueDrag(
     if (event.clientY < bounds.top + AUTOSCROLL_EDGE) container.scrollTop -= AUTOSCROLL_STEP;
     else if (event.clientY > bounds.bottom - AUTOSCROLL_EDGE) container.scrollTop += AUTOSCROLL_STEP;
     const contentY = event.clientY - bounds.top + container.scrollTop;
-    let to = drag.bottoms.findIndex((bottom) => contentY < bottom);
-    if (to < 0) to = Math.max(0, count - 1);
+    const to = dropIndex(contentY, drag.rowHeight, drag.boxHeight, count);
     const dy = event.clientY - drag.startY + (container.scrollTop - drag.startScroll);
     setDrag({ ...drag, to, dy });
   };

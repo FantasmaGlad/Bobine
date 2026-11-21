@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import RadioQueueList from "@/components/RadioQueueList";
 import SearchBox from "@/components/SearchBox";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -37,8 +37,13 @@ function useTrackSearch() {
 export default function QueuePanel({ state, sendCommand }: { state: RadioState; sendCommand: SendRadioCommand }) {
   const { t } = useAppSettings();
   const { query, setQuery, results, suggestions } = useTrackSearch();
-  const queue = state.index !== null ? state.order.slice(state.index + 1) : [];
-  const queueSeconds = queue.reduce((total, track) => total + (track.duration_seconds ?? 0), 0);
+  const queue = useMemo(() => (state.index !== null ? state.order.slice(state.index + 1) : []), [state.order, state.index]);
+  const queueSeconds = useMemo(() => queue.reduce((total, track) => total + (track.duration_seconds ?? 0), 0), [queue]);
+  const removeAt = useCallback((index: number) => sendCommand("radio_remove_from_queue", { index }), [sendCommand]);
+  const moveTo = useCallback(
+    (from: number, to: number) => sendCommand("radio_move_in_queue", { from_index: from, to_index: to }),
+    [sendCommand],
+  );
   return (
     <div className="live-block">
       <div className="live-header">
@@ -54,8 +59,8 @@ export default function QueuePanel({ state, sendCommand }: { state: RadioState; 
             tracks={queue}
             baseIndex={(state.index ?? -1) + 1}
             getApiUrl={getApiUrl}
-            onRemove={(index) => sendCommand("radio_remove_from_queue", { index })}
-            onMove={(from, to) => sendCommand("radio_move_in_queue", { from_index: from, to_index: to })}
+            onRemove={removeAt}
+            onMove={moveTo}
           />
         </>
       )}

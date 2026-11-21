@@ -56,6 +56,7 @@ class RadioPlaybackManager(TransportMixin, OutputMixin, OrderMixin):
             "meter": False,
         }
         self._meter_until = 0.0
+        self._sent_order: tuple | None = None
 
     def _lead_ms(self, nominal_ms: float) -> float:
         try:
@@ -83,12 +84,22 @@ class RadioPlaybackManager(TransportMixin, OutputMixin, OrderMixin):
         snap["clock"] = self._clock.to_dict()
         return snap
 
+    def _event_data(self) -> dict:
+        """Snapshot without the queue when every client already holds the same one."""
+        data = self.snapshot()
+        sent = tuple(tuple(track.values()) for track in data["order"])
+        if sent == self._sent_order:
+            del data["order"]
+        else:
+            self._sent_order = sent
+        return data
+
     async def _emit(self, cause: str, client_ts: float | None = None):
         payload: dict[str, Any] = {
             "event": "state_change",
             "cause": cause,
             "channel": self.channel,
-            "data": self.snapshot(),
+            "data": self._event_data(),
         }
         if client_ts is not None:
             payload["client_ts"] = client_ts

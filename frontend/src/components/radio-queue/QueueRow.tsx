@@ -23,6 +23,7 @@ export interface HandleEvents {
 interface RowProps {
   track: RadioTrackInfo;
   index: number;
+  total: number;
   cover: string | null;
   offset: number;
   dragged: boolean;
@@ -41,11 +42,13 @@ function TrackCover({ cover }: { cover: string | null }) {
   );
 }
 
-export default function QueueRow({ track, index, cover, offset, dragged, rowRef, handle, onRemove, t }: RowProps) {
+export default function QueueRow({ track, index, total, cover, offset, dragged, rowRef, handle, onRemove, t }: RowProps) {
   return (
     <div
       ref={rowRef}
       role="listitem"
+      aria-posinset={index + 1}
+      aria-setsize={total}
       className={`rq-row${dragged ? " is-dragging" : ""}`}
       style={{
         transform: offset ? `translateY(${offset}px)` : undefined,
