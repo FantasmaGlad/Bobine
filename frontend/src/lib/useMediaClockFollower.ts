@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { anchorPosition, msUntilStart, planDrift, type ClockAnchor } from "@/lib/playbackClock";
+import { anchorPosition, explicitSeekDue, lateStartNeedsSeek, msUntilStart, planDrift, SETTLE_AFTER_SEEK_MS, type ClockAnchor } from "@/lib/playbackClock";
 
 const FOLLOW_INTERVAL_MS = 200;
 const HOLD_SEEK_THRESHOLD_S = 0.25;
-const LATE_START_SEEK_THRESHOLD_S = 1.0;
-const SETTLE_AFTER_SEEK_MS = 1500;
 const MIN_MS_BETWEEN_SEEKS = 4000;
 const SEEK_LATENCY_COMPENSATION_S = 0.2;
 const START_ARM_WINDOW_MS = 600;
@@ -128,7 +126,7 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
       }
 
       if (video.paused) {
-        if (Math.abs(video.currentTime - target) > LATE_START_SEEK_THRESHOLD_S) {
+        if (lateStartNeedsSeek(video.currentTime - target, Date.now() - lastSeekAt)) {
           seekSafely(video, target + SEEK_LATENCY_COMPENSATION_S, true);
         }
         playThrottled(video);
@@ -139,7 +137,7 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
       if (anchor.epoch !== undefined) handledEpoch = anchor.epoch;
       if (!explicit && Date.now() - lastSeekAt < SETTLE_AFTER_SEEK_MS) return;
 
-      const plan = planDrift(video.currentTime - target, nominal, correcting, explicit);
+      const plan = planDrift(video.currentTime - target, nominal, correcting, explicitSeekDue(explicit, Date.now() - lastSeekAt));
       if (plan.action === "seek") {
         if (explicit || Date.now() - lastSeekAt >= MIN_MS_BETWEEN_SEEKS) {
           correcting = false;
