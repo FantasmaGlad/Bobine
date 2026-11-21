@@ -20,7 +20,7 @@
   cursor: pointer;
   scroll-snap-align: start;
   transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 0.12s ease;
-  animation: cinema-fade-up 0.45s ease both;
+  animation: cinema-fade-up 0.2s ease both;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   -webkit-touch-callout: none;
@@ -83,7 +83,7 @@
 }
 
 .cinema-card-thumb img {
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   will-change: transform;
 }
 

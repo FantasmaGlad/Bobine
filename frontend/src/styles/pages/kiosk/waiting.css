@@ -25,7 +25,7 @@
   width: 100%;
   max-width: min(90vw, 1100px);
   text-align: center;
-  animation: cinema-fade-up 0.4s ease both;
+  animation: cinema-fade-up 0.2s ease both;
 }
 
 .kiosk-waiting-clock {

@@ -82,15 +82,15 @@
 }
 
 .dv-wave i:nth-child(2) {
-  animation-delay: 120ms;
+  animation-delay: -120ms;
 }
 
 .dv-wave i:nth-child(3) {
-  animation-delay: 240ms;
+  animation-delay: -240ms;
 }
 
 .dv-wave i:nth-child(4) {
-  animation-delay: 360ms;
+  animation-delay: -360ms;
 }
 
 .dv-profiles {

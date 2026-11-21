@@ -31,7 +31,7 @@
   border: 1px solid color-mix(in srgb, var(--text-main) 18%, color-mix(in srgb, var(--accent-primary) 34%, transparent));
   box-shadow: 0 28px 72px color-mix(in srgb, var(--ink) 28%, transparent), inset 0 1px 1px 0 color-mix(in srgb, var(--specular) 65%, transparent), 0 0 0 1px color-mix(in srgb, var(--accent-primary) 16%, transparent);
   border-radius: 32px;
-  animation: netflix-pause-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: netflix-pause-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: default;
   overflow: hidden;
 }

@@ -110,7 +110,7 @@
   padding: 12px 20px 24px;
   display: flex;
   flex-direction: column;
-  animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: olcSheetUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .coach-sheet-handle {

@@ -117,6 +117,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
     const REPEAT_RATE_MS = 140;
 
     const pollGamepads = () => {
+      let polling = false;
       if (typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
         const gamepads = navigator.getGamepads();
         const now = Date.now();
@@ -125,6 +126,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
         for (let i = 0; i < gamepads.length; i++) {
           const gp = gamepads[i];
           if (!gp || !gp.connected) continue;
+          polling = true;
 
           const checkAction = (key: string, isPressed: boolean, action?: () => void, isDirectional = false) => {
             if (!action) return;
@@ -188,13 +190,18 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
           checkAction(`gp_${i}_btnStart`, btnStart, h.onPlayPause);
         }
       }
-      rafId = requestAnimationFrame(pollGamepads);
+      rafId = polling ? requestAnimationFrame(pollGamepads) : null;
     };
 
-    rafId = requestAnimationFrame(pollGamepads);
+    const startPolling = () => {
+      if (rafId === null) rafId = requestAnimationFrame(pollGamepads);
+    };
+    window.addEventListener("gamepadconnected", startPolling);
+    startPolling();
 
     return () => {
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("gamepadconnected", startPolling);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [enabled]);
