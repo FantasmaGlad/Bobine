@@ -82,7 +82,7 @@
 
 :root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--wifi,
 :root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--bluetooth {
-  animation: dv-flow 3.2s linear infinite;
+  animation: dv-link-pulse 2.4s ease-in-out infinite;
 }
 
 .dv-map-controls {

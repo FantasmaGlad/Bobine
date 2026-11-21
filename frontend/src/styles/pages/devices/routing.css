@@ -75,7 +75,7 @@
 }
 
 :root:not([data-input-mode="remote"]) .rt-edge.is-playing {
-  animation: rt-flow 1.6s linear infinite;
+  animation: rt-edge-pulse 1.6s ease-in-out infinite;
 }
 
 .rt-node,

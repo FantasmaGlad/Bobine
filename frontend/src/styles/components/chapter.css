@@ -142,7 +142,7 @@
   -webkit-backdrop-filter: blur(var(--blur-sm));
   backdrop-filter: blur(var(--blur-sm));
   pointer-events: none;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.18s ease-out;
 }
 
 .chapter-toast__num {

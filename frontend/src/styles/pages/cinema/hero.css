@@ -51,7 +51,7 @@
   justify-content: space-between;
   overflow: hidden;
   background: var(--bg-main);
-  animation: cinema-fade-up 0.5s ease both;
+  animation: cinema-fade-up 0.2s ease both;
 }
 
 .cinema-hero-backdrop-wrap {

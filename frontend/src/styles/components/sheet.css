@@ -23,7 +23,7 @@
   border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
   padding: 8px 16px 0;
   outline: none;
-  animation: olcSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: olcSheetUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sheet-panel--tall {

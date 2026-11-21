@@ -30,11 +30,11 @@
 @keyframes olcPulseDot {
   0%,
   100% {
-    box-shadow: 0 0 0 0 currentColor;
+    transform: scale(1);
     opacity: 1;
   }
   50% {
-    box-shadow: 0 0 0 4px transparent;
+    transform: scale(0.7);
     opacity: 0.55;
   }
 }
@@ -100,17 +100,14 @@
 }
 
 @keyframes pulseSuccess {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-success) 70%, transparent);
-  }
-  70% {
+  from {
     transform: scale(1);
-    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-success) 0%, transparent);
+    opacity: 0.7;
   }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-success) 0%, transparent);
+  70%,
+  to {
+    transform: scale(2.6);
+    opacity: 0;
   }
 }
 
@@ -141,9 +138,9 @@
   }
 }
 
-@keyframes dv-flow {
-  to {
-    stroke-dashoffset: -52;
+@keyframes dv-link-pulse {
+  50% {
+    opacity: 0.45;
   }
 }
 
@@ -167,9 +164,9 @@
   }
 }
 
-@keyframes rt-flow {
-  to {
-    stroke-dashoffset: -36;
+@keyframes rt-edge-pulse {
+  50% {
+    opacity: 0.5;
   }
 }
 
