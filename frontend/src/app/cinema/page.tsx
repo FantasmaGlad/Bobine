@@ -11,7 +11,7 @@ import { seekWhenReady } from "@/components/cinema/media";
 import PauseOverlay from "@/components/cinema/PauseOverlay";
 import { cinemaRemoteKeys } from "@/components/cinema/remoteKeys";
 import UpNextLayer, { UP_NEXT_AUTOPLAY_SECONDS } from "@/components/cinema/UpNextLayer";
-import { useCinemaVideos, useTicker } from "@/components/cinema/useCinemaVideos";
+import { useCinemaVideos } from "@/components/cinema/useCinemaVideos";
 import { useNowPlaying } from "@/components/cinema/useNowPlaying";
 import { useCinemaReport, useStallWatchdog } from "@/components/cinema/usePlaybackGuards";
 import Icon from "@/components/Icon";
@@ -88,7 +88,6 @@ export default function CinemaPage() {
   const subtitles = useVideoSubtitles(selected?.id, getApiUrl);
   useApplySubtitleMode([deckA, deckB], subtitles, activeSubtitle);
   const chapters = useVideoChapters(selected?.id, getApiUrl);
-  const now = new Date(useTicker(1000));
   const hideControls = wiredDisplayMode === "dual_screen" && isWiredDisplay();
   const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion, serverNow } = usePlaybackSocket(
     undefined, undefined, channel, (action, positionSeconds, videoId, extra) => cinemaCmd.current?.(action, positionSeconds, videoId, extra), "cinema",
@@ -342,8 +341,8 @@ export default function CinemaPage() {
 
   return (
     <div className="cinema-root" onMouseMove={playingLayer ? wakeControls : undefined} onTouchStart={playingLayer ? wakeControls : undefined} onPointerDown={playingLayer ? wakeControls : undefined}>
-      {videos.length === 0 && <EmptyScreen now={now} />}
-      {(hideControls || standby) && phase === "grid" && <StandbyScreen now={now} />}
+      {videos.length === 0 && <EmptyScreen />}
+      {(hideControls || standby) && phase === "grid" && <StandbyScreen />}
       {!(hideControls || standby) && <CinemaGrid visible={phase === "grid"} videos={videos} remote={remote} onSelect={handleSelect} />}
       <div className={`cinema-layer cinema-video-layer ${playingLayer ? "visible" : ""}`} style={!playingLayer ? { display: "none", pointerEvents: "none" } : undefined}>
         <div className="cinema-deck-container">

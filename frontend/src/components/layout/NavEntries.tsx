@@ -6,6 +6,7 @@ import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { isNavGroup, type NavEntry, type NavGroupConfig } from "@/lib/navLinks";
 import { isEntryActive, isNavLinkActive } from "./navActive";
+import { entryDelayMs } from "@/lib/entryDelay";
 
 
 interface NavEntriesProps {
@@ -62,7 +63,7 @@ export default function NavEntries({ entries, pathname, activeGroup, onToggleGro
             href={entry.href}
             onClick={onNavigate}
             className={`nav-link olc-press olc-anim-in ${isEntryActive(pathname, entry.href) ? "active" : ""}`}
-            style={{ animationDelay: `${i * 30}ms` }}
+            style={{ animationDelay: `${entryDelayMs(i)}ms` }}
             title={entryLabel}
           >
             <Icon name={entry.iconName} size={20} weight={500} />

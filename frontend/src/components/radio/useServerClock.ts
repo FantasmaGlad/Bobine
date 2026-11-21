@@ -11,7 +11,7 @@ export function useServerClock(): Date | null {
         .then((data) => {
           if (data && typeof data.server_ts === "number") clockOffsetRef.current = data.server_ts - Date.now();
         })
-        .catch(() => {});
+        .catch((err) => console.warn("[clock] Synchronisation heure serveur échouée :", err));
     };
     syncClock();
     setNow(new Date(Date.now() + clockOffsetRef.current));

@@ -20,7 +20,6 @@ import NowPlaying from "@/components/radio/NowPlaying";
 import UnlockOverlay from "@/components/radio/UnlockOverlay";
 import { useAudioContextKeepAlive } from "@/components/radio/useAudioContextKeepAlive";
 import { useDuckSettings } from "@/components/radio/useDuckSettings";
-import { useServerClock } from "@/components/radio/useServerClock";
 import { useLevelMeter } from "@/components/radio/useLevelMeter";
 import { useRadioRemote } from "@/components/radio/useRadioRemote";
 import { rampParam, rampParamFrom, setParamNow } from "@/components/radio/engine/params";
@@ -304,7 +303,6 @@ export default function RadioScreenPage() {
 
   const livePosition = useInterpolatedPosition(state.position_seconds, state.playing, lastCause);
 
-  const now = useServerClock();
 
   useEffect(() => {
     const slotA = audioARef;
@@ -461,7 +459,7 @@ export default function RadioScreenPage() {
       {autoplayProbed && !unlocked && <UnlockOverlay t={t} onUnlock={handleUnlock} />}
 
       <NowPlaying
-        t={t} state={state} connected={connected} now={now} livePosition={livePosition}
+        t={t} state={state} connected={connected} livePosition={livePosition}
         sendCommand={sendCommand} handlePlayPause={handlePlayPause}
       />
     </div>

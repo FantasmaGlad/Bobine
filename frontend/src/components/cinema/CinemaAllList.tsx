@@ -5,6 +5,7 @@ import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import { formatMinutes } from "@/lib/format";
 import Icon from "@/components/Icon";
 import MarqueeText from "@/components/MarqueeText";
+import { entryDelayMs } from "@/lib/entryDelay";
 
 const CinemaAllList = React.memo(function CinemaAllList({
   videos,
@@ -24,7 +25,7 @@ const CinemaAllList = React.memo(function CinemaAllList({
           <button
             key={v.id}
             className="cinema-all-item"
-            style={{ animationDelay: `${i * 30}ms` }}
+            style={{ animationDelay: `${entryDelayMs(i)}ms` }}
             onClick={() => onSelect(v)}
             onMouseEnter={onHover}
           >

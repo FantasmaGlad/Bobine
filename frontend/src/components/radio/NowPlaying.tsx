@@ -5,18 +5,22 @@ import Icon from "@/components/Icon";
 import { getApiUrl } from "@/lib/apiUrl";
 import { formatTime, formatWallClock } from "@/lib/format";
 import type { RadioState } from "@/lib/useRadioSocket";
+import { useServerClock } from "./useServerClock";
+
+function RadioClock() {
+  return <span className="radio-screen-clock">{formatWallClock(useServerClock())}</span>;
+}
 
 interface NowPlayingProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
   state: RadioState;
   connected: boolean;
-  now: Date | null;
   livePosition: number;
   sendCommand: (command: string, params?: Record<string, unknown>) => void;
   handlePlayPause: () => void;
 }
 
-export default function NowPlaying({ t, state, connected, now, livePosition, sendCommand, handlePlayPause }: NowPlayingProps) {
+export default function NowPlaying({ t, state, connected, livePosition, sendCommand, handlePlayPause }: NowPlayingProps) {
   const currentTrack = state.current_track;
   const coverSrc = currentTrack?.cover_url ? getApiUrl(currentTrack.cover_url) : null;
   const duration = state.duration_seconds ?? currentTrack?.duration_seconds ?? 0;
@@ -25,7 +29,7 @@ export default function NowPlaying({ t, state, connected, now, livePosition, sen
       {!currentTrack ? (
         <>
           <AppLogo className="radio-brand-logo" />
-          <span className="radio-screen-clock">{formatWallClock(now)}</span>
+          <RadioClock />
           <span className="radio-screen-idle-label">
             {connected ? t("radioScreen.idleHint") : t("radioRemote.disconnected")}
           </span>

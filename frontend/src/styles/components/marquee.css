@@ -16,9 +16,9 @@
 .marquee-content {
   display: inline-block;
   white-space: nowrap;
-  will-change: transform;
 }
 
 .marquee-track.marquee-overflowing .marquee-content {
+  will-change: transform;
   animation: marquee-scroll var(--marquee-duration, 8s) cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
 }
