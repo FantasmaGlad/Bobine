@@ -24,6 +24,7 @@ from app.utils.ws_manager import manager as ws_manager
 
 from .context import Command
 from .core import CommandRejected, _reject_unavailable
+from .params import require_numbers
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ async def _play_announcement(cmd: Command) -> None:
 
 async def _report_position(cmd: Command) -> None:
     if not cmd.secondary_kiosk():
-        await cmd.manager.report_position(float(cmd.params.get("position_seconds", 0)))
+        await cmd.manager.report_position(float(cmd.params["position_seconds"]))
 
 
 _HANDLERS = {
@@ -132,16 +133,16 @@ _HANDLERS = {
     "stop": lambda cmd: cmd.manager.stop(cmd.client_ts),
     "radio_next_track": lambda cmd: cmd.manager.next_track(cmd.client_ts),
     "radio_previous_track": lambda cmd: cmd.manager.previous_track(cmd.client_ts),
-    "radio_jump_to_track": lambda cmd: cmd.manager.jump_to(int(cmd.params.get("index", 0)), cmd.client_ts),
-    "radio_seek": lambda cmd: cmd.manager.seek(float(cmd.params.get("position_seconds", 0)), cmd.client_ts),
-    "volume": lambda cmd: cmd.manager.set_volume(cmd.params.get("volume", 100), cmd.client_ts),
+    "radio_jump_to_track": lambda cmd: cmd.manager.jump_to(int(cmd.params["index"]), cmd.client_ts),
+    "radio_seek": lambda cmd: cmd.manager.seek(float(cmd.params["position_seconds"]), cmd.client_ts),
+    "volume": lambda cmd: cmd.manager.set_volume(cmd.params["volume"], cmd.client_ts),
     "radio_set_sound": lambda cmd: radio_commands.apply_sound(cmd.db, cmd.manager, cmd.params.get("sound"), cmd.client_ts),
     "radio_meter": lambda cmd: cmd.manager.request_meter(),
     "radio_set_shuffle": lambda cmd: cmd.manager.set_shuffle(bool(cmd.params.get("on")), cmd.client_ts),
     "radio_set_repeat": lambda cmd: cmd.manager.set_repeat(cmd.params.get("mode", "off"), cmd.client_ts),
     "radio_move_in_queue": lambda cmd: cmd.manager.move_in_order(
         int(cmd.params.get("from_index", -1)), int(cmd.params.get("to_index", -1)), cmd.client_ts),
-    "radio_remove_from_queue": lambda cmd: cmd.manager.remove_from_order(int(cmd.params.get("index", -1)), cmd.client_ts),
+    "radio_remove_from_queue": lambda cmd: cmd.manager.remove_from_order(int(cmd.params["index"]), cmd.client_ts),
     "announcement_ended": lambda cmd: cmd.manager.announcement_ended(cmd.client_ts),
 }
 
@@ -156,6 +157,7 @@ async def _handle_radio_command(
     if handler is None:
         logger.warning(f"Commande radio WebSocket inconnue reçue : {command}")
         raise CommandRejected("unknown_command", manager.channel, f"Commande radio inconnue : {command}.", 400)
+    require_numbers(command, params, manager.channel)
     await handler(Command(command, params, client_ts, db, websocket, is_kiosk, manager.channel, manager))
 
 

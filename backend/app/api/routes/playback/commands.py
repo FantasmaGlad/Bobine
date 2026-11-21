@@ -18,6 +18,7 @@ from app.videos.describe import playlist_video_items, video_details
 from . import audio_commands, cinema_commands
 from .context import Command
 from .core import CommandRejected, _reject_unavailable, _resolve_channel
+from .params import require_numbers
 from .radio_commands import _handle_radio_command
 
 logger = logging.getLogger(__name__)
@@ -99,7 +100,7 @@ async def _video_ended(cmd: Command) -> None:
 
 async def _report_position(cmd: Command) -> None:
     if not cmd.secondary_kiosk():
-        await cmd.manager.report_position(float(cmd.params.get("position_seconds", 0)))
+        await cmd.manager.report_position(float(cmd.params["position_seconds"]))
 
 
 _VIDEO = {
@@ -111,9 +112,9 @@ _VIDEO = {
     "report_position": _report_position,
     "play": lambda cmd: cmd.manager.play(cmd.client_ts),
     "pause": lambda cmd: cmd.manager.pause(cmd.client_ts),
-    "seek": lambda cmd: cmd.manager.seek(float(cmd.params.get("position_seconds", 0)), cmd.client_ts),
-    "volume": lambda cmd: cmd.manager.set_volume(cmd.params.get("volume", 100), cmd.client_ts),
-    "speed": lambda cmd: cmd.manager.set_speed(cmd.params.get("speed", 1.0), cmd.client_ts),
+    "seek": lambda cmd: cmd.manager.seek(float(cmd.params["position_seconds"]), cmd.client_ts),
+    "volume": lambda cmd: cmd.manager.set_volume(cmd.params["volume"], cmd.client_ts),
+    "speed": lambda cmd: cmd.manager.set_speed(cmd.params["speed"], cmd.client_ts),
     "set_sound": lambda cmd: video_sound.apply_video_sound(cmd.db, cmd.manager, cmd.params.get("sound"), cmd.client_ts),
     "set_subtitle": lambda cmd: cmd.manager.set_subtitle(cmd.params.get("subtitle"), cmd.client_ts),
     "next_video": lambda cmd: cmd.manager.next_video(cmd.client_ts),
@@ -147,4 +148,5 @@ async def _handle_command(
     if handler is None:
         logger.warning(f"Commande WebSocket inconnue reçue : {command}")
         raise CommandRejected("unknown_command", channel, f"Commande inconnue : {command}.", 400)
+    require_numbers(command, params, channel)
     await handler(Command(command, params, client_ts, db, websocket, is_kiosk, channel, get_playback_manager(channel)))

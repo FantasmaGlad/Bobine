@@ -82,7 +82,7 @@ async def audio_previous_track(cmd: Command) -> None:
 
 
 async def audio_jump_to_track(cmd: Command) -> None:
-    index = int(cmd.params.get("index", 0))
+    index = int(cmd.params["index"])
     await _track_change(cmd, lambda: cmd.manager.audio_jump_to_track(index, cmd.client_ts))
 
 
@@ -94,7 +94,7 @@ async def audio_track_ended(cmd: Command) -> None:
 
 async def audio_report_position(cmd: Command) -> None:
     if not cmd.secondary_kiosk():
-        await cmd.manager.audio_report_position(float(cmd.params.get("position_seconds", 0)))
+        await cmd.manager.audio_report_position(float(cmd.params["position_seconds"]))
 
 
 HANDLERS = {
@@ -108,5 +108,5 @@ HANDLERS = {
     "audio_report_position": audio_report_position,
     "audio_restart_track": lambda cmd: cmd.manager.audio_restart_track(cmd.client_ts),
     "audio_set_chain_mode": lambda cmd: cmd.manager.audio_set_chain_mode(cmd.params.get("mode", "auto"), cmd.client_ts),
-    "audio_set_chain_timer": lambda cmd: cmd.manager.audio_set_chain_timer(float(cmd.params.get("seconds", 20)), cmd.client_ts),
+    "audio_set_chain_timer": lambda cmd: cmd.manager.audio_set_chain_timer(float(cmd.params["seconds"]), cmd.client_ts),
 }
