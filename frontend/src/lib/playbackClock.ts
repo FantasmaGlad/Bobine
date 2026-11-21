@@ -21,6 +21,8 @@ export const DRIFT_EXIT_S = 0.03;
 export const DRIFT_HARD_SEEK_S = 2.0;
 export const MAX_RATE_ADJUST = 0.05;
 export const EXPLICIT_SEEK_S = 0.3;
+export const LATE_START_SEEK_S = 1.0;
+export const SETTLE_AFTER_SEEK_MS = 1500;
 const RATE_GAIN = 0.5;
 
 export type DriftAction = "none" | "rate" | "seek";
@@ -87,4 +89,12 @@ export class ClockOffsetEstimator {
     if (this.samples.length === 0) return null;
     return Math.min(...this.samples.map((s) => s.rttMs));
   }
+}
+
+export function lateStartNeedsSeek(lagS: number, msSinceSeek: number): boolean {
+  return Math.abs(lagS) > (msSinceSeek < SETTLE_AFTER_SEEK_MS ? DRIFT_HARD_SEEK_S : LATE_START_SEEK_S);
+}
+
+export function explicitSeekDue(explicit: boolean, msSinceSeek: number): boolean {
+  return explicit && msSinceSeek >= SETTLE_AFTER_SEEK_MS;
 }

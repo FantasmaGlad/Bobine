@@ -5,7 +5,10 @@ import {
   DRIFT_HARD_SEEK_S,
   EXPLICIT_SEEK_S,
   MAX_RATE_ADJUST,
+  SETTLE_AFTER_SEEK_MS,
   anchorPosition,
+  explicitSeekDue,
+  lateStartNeedsSeek,
   msUntilStart,
   planDrift,
 } from "../src/lib/playbackClock.ts";
@@ -99,4 +102,24 @@ test("ordre explicite : seek immédiat dès 0,3 s d'écart, sans attendre la con
   assert.deepEqual(planDrift(0.5, 1, false, true), { action: "seek", playbackRate: 1 });
   assert.equal(planDrift(-10, 1, false, true).action, "seek");
   assert.notEqual(planDrift(EXPLICIT_SEEK_S - 0.05, 1, false, true).action, "seek");
+});
+
+test("saut lent (1,2 s sur une TV) : le retard d'une seconde se rattrape sans second déplacement", () => {
+  const justAfter = 300;
+  assert.equal(lateStartNeedsSeek(-1.05, justAfter), false);
+  const plan = planDrift(-1.05, 1, false, explicitSeekDue(true, justAfter));
+  assert.equal(plan.action, "rate");
+  assert.ok(plan.playbackRate > 1 && plan.playbackRate <= 1 + MAX_RATE_ADJUST);
+});
+
+test("hors stabilisation, un départ en retard ou un saut explicite déplacent toujours", () => {
+  const later = SETTLE_AFTER_SEEK_MS + 1;
+  assert.equal(lateStartNeedsSeek(-1.05, later), true);
+  assert.equal(planDrift(-1.05, 1, false, explicitSeekDue(true, later)).action, "seek");
+});
+
+test("deux sauts de chapitre rapprochés : le second est servi malgré la stabilisation", () => {
+  assert.equal(lateStartNeedsSeek(-280, 300), true);
+  assert.equal(planDrift(-280, 1, false, explicitSeekDue(true, 300)).action, "seek");
+  assert.ok(DRIFT_HARD_SEEK_S < 280);
 });
