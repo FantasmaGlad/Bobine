@@ -24,8 +24,8 @@ _MAX_OCCURRENCES_PER_SCHEDULE = 1000
 
 
 def ensure_utc(value: datetime) -> datetime:
-    """SQLite ne conserve pas le fuseau des datetimes stockés."""
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+    """SQLite ne conserve pas le fuseau des datetimes stockés : tout instant passe en UTC, un instant sans fuseau est réputé UTC."""
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 def _build_cron_trigger(schedule: Schedule) -> CronTrigger:
