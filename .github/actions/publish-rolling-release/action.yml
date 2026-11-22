@@ -82,10 +82,10 @@ runs:
         LAST_STABLE="$(git tag --list 'V*' --sort=-v:refname | grep -E '^V[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)"
         if [ -n "${LAST_STABLE}" ]; then
           CHANGELOG_HEADING="Changements depuis ${LAST_STABLE}"
-          CHANGELOG="$(git log "${LAST_STABLE}..HEAD" --oneline --no-merges | head -50)"
+          CHANGELOG="$(git log -n 50 --oneline --no-merges "${LAST_STABLE}..HEAD")"
         else
           CHANGELOG_HEADING="Changements récents"
-          CHANGELOG="$(git log --oneline --no-merges | head -50)"
+          CHANGELOG="$(git log -n 50 --oneline --no-merges)"
         fi
         {
           echo "---"
