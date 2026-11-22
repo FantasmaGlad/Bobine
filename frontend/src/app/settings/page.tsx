@@ -20,7 +20,9 @@ import SettingsToast from "@/components/settings/page/SettingsToast";
 import { useSettingsData } from "@/components/settings/page/useSettingsData";
 import { useSettingsNavigation } from "@/components/settings/page/useSettingsNavigation";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { SETTINGS_CATEGORIES, type SettingsCategoryId } from "@/lib/settingsCategories";
+import { availableCategories, type SettingsCapability, type SettingsCategoryId } from "@/lib/settingsCategories";
+import { getNativeBridge } from "@/lib/nativeBridge";
+import { useClientSnapshot } from "@/lib/useClientSnapshot";
 import { useToast } from "@/lib/useToast";
 
 export default function SettingsPage() {
@@ -28,6 +30,8 @@ export default function SettingsPage() {
   const { category, query, setQuery, searching, matched, shows, chooseCategory, openSection } = useSettingsNavigation(t);
   const { data, setData, loading, refreshingNetwork, refreshNetwork } = useSettingsData();
   const { toast, showToast } = useToast(5000);
+  const hasNativeBridge = useClientSnapshot(() => getNativeBridge() !== null, false);
+  const capabilities = new Set<SettingsCapability>(hasNativeBridge ? ["nativeBridge"] : []);
 
   if (loading) {
     return <div className="live-empty">{t("common.loading")}</div>;
@@ -41,7 +45,7 @@ export default function SettingsPage() {
       {toast && <SettingsToast toast={toast} />}
 
       <PageNav
-        tabs={SETTINGS_CATEGORIES.map((category) => ({ id: category.id, icon: category.icon, label: t(`settingsPage.cat.${category.id}.label`) }))}
+        tabs={availableCategories(capabilities).map((category) => ({ id: category.id, icon: category.icon, label: t(`settingsPage.cat.${category.id}.label`) }))}
         value={searching && matched.size > 0 ? [...matched][0] : category}
         onChange={(id) => chooseCategory(id as SettingsCategoryId)}
         ariaLabel={t("settingsPage.categoriesLabel")}
