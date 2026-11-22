@@ -19,7 +19,7 @@ def _nice_of(pid: int) -> int:
 
 @pytest.mark.parametrize("profile,expected_lower", [
     ("linux-desktop", True), ("macos", True), ("windows", True),
-    ("linux-headless", False), ("android", False),
+    ("android", False),
 ])
 def test_shares_machine_profiles(monkeypatch, profile, expected_lower):
     monkeypatch.setattr("app.utils.deployment.get_deployment_profile", lambda: profile)
@@ -37,8 +37,8 @@ def test_desktop_profile_lowers_the_child_priority(monkeypatch):
         child.kill()
 
 
-def test_headless_appliance_keeps_full_priority(monkeypatch):
-    monkeypatch.setattr("app.utils.deployment.get_deployment_profile", lambda: "linux-headless")
+def test_android_keeps_full_priority(monkeypatch):
+    monkeypatch.setattr("app.utils.deployment.get_deployment_profile", lambda: "android")
     child = subprocess.Popen(["sleep", "5"])
     try:
         before = _nice_of(child.pid)

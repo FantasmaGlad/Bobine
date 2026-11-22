@@ -73,7 +73,7 @@ export const dashboard: Dict = {
   subtitlesOff: "Aucun",
   launchCourseCableTitle: "Lancer un cours — sortie câblée",
   playlistCourseCount: "{{count}} cours",
-  launchCourseCableHint: "Diffusé avec le son sur l'écran physiquement câblé au Wyse (projecteur/enceintes de la salle).",
+  launchCourseCableHint: "Diffusé avec le son sur l'écran physiquement câblé à la machine (projecteur/enceintes de la salle).",
   launchCourseNetworkTitle: "Lancer un cours — sortie réseau",
   launchCourseNetworkHint: "Diffusé avec le son sur tout /kiosk ouvert depuis un autre appareil du réseau (écran secondaire avec ses propres enceintes).",
   chooseVideo: "Choisir une vidéo...",

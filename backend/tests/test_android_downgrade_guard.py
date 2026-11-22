@@ -86,7 +86,7 @@ def test_commit_local_inconnu_ne_declenche_aucune_requete(monkeypatch):
     assert appels == []
 
 
-@pytest.mark.parametrize("profile", ["windows", "macos", "linux-desktop", "linux-headless"])
+@pytest.mark.parametrize("profile", ["windows", "macos", "linux-desktop"])
 def test_autres_profils_ne_sont_pas_concernes(monkeypatch, profile):
     appels = _comparaison(monkeypatch, behind=32)
     r = _eval(profile, _local(), BETA)

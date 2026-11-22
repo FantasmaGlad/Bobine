@@ -62,11 +62,6 @@ Chaque commande installe la version Stable. Le script Windows vérifie la signat
 | <img src="Assets/Icons/tools/powershell.svg" width="20" height="20" valign="middle" alt="PowerShell"> **Windows (PowerShell)** | `irm https://bobine.fit/install.ps1 \| iex` |
 | <img src="Assets/Icons/tools/homebrew.svg" width="20" height="20" valign="middle" alt="Homebrew"> **macOS (Homebrew)** | `brew install --cask fantasmaglad/bobine/bobine` |
 | <img src="Assets/Icons/os/linux.svg" width="20" height="20" valign="middle" alt="Linux"> **Linux (APT, DNF, pacman)** | voir [packages.bobine.fit](https://packages.bobine.fit) |
-| <img src="Assets/Icons/distros/debian.svg" width="20" height="20" valign="middle" alt="Debian"> **Mini PC (Debian 13)** | `curl -fsSL https://bobine.fit/install.sh \| bash` |
-
-### Mini PC dédié
-
-Un mini PC sous Debian 13 minimale (x64 ou ARM64, SSH activé) devient un lecteur dédié : il démarre sur la borne en plein écran sur sa sortie HDMI. Installez-le depuis votre ordinateur avec [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy), qui trouve le mini PC sur le réseau et installe par SSH, ou lancez [`install.sh`](https://github.com/FantasmaGlad/Bobine/releases/download/V5.2.2/install.sh) sur le mini PC lui-même (commande ci-dessus).
 
 ### Autre canal, Tor
 
@@ -87,7 +82,7 @@ Sous Windows PowerShell 5.1 avec un .NET antérieur à 4.7, lancez `[Net.Service
 <details>
 <summary><img src="Assets/Icons/os/tor.svg" width="16" height="16" valign="middle" alt="Tor"> <b>Par Tor</b></summary>
 
-GitHub et Homebrew voient alors une sortie Tor à la place de votre adresse. Le script du mini PC est lu sur le miroir onion ; l'installation elle-même passe par le réseau ordinaire.
+GitHub et Homebrew voient alors une sortie Tor à la place de votre adresse.
 
 Windows (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
 
@@ -109,13 +104,6 @@ Dépôts Linux et clé de signature :
 ```bash
 onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
 curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
-```
-
-Mini PC :
-
-```bash
-onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
-curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install.sh" | bash
 ```
 
 </details>

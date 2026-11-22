@@ -198,10 +198,6 @@ class _StoreProfile:
     def restart_is_guaranteed():
         return True
 
-    @staticmethod
-    def has_system_port80_redirect():
-        return False
-
 
 @pytest.fixture()
 def store_build(monkeypatch):

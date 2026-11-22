@@ -69,21 +69,6 @@ def _probe_database(report: _Report) -> None:
                        "Vérifier le fichier de la base, ses droits et l'espace disque, puis redémarrer Bobine.")
 
 
-def _probe_kiosk(report: _Report) -> None:
-    from app.utils.deployment import get_profile_handler
-    from app.utils.health import kiosk_process_alive
-
-    if get_profile_handler().profile != "linux-headless":
-        report.check("kiosk", "not_applicable", "pas de kiosque séparé à superviser sur ce profil")
-        return
-    state = kiosk_process_alive()
-    if state == "down":
-        report.problem("kiosk", "kiosk_down", "warning", "Le navigateur du kiosque ne tourne pas sur l'appliance.",
-                       "Redémarrer le service du kiosque (le chien de garde le relance normalement seul).")
-    elif state == "unknown":
-        report.check("kiosk", "unknown", "liste des processus illisible")
-
-
 def _probe_port(report: _Report) -> None:
     from app.utils.port import active_port, preferred_port, read_runtime
 
@@ -217,7 +202,7 @@ async def system_diagnostics() -> dict:
 
     def synchronous_probes() -> None:
         for name, function in (
-            ("database", _probe_database), ("kiosk", _probe_kiosk), ("port", _probe_port), ("network", _probe_network),
+            ("database", _probe_database), ("port", _probe_port), ("network", _probe_network),
             ("media_tools", _probe_media_tools), ("disk", _probe_disks), ("imports", _probe_imports),
             ("updates", _probe_updates), ("media_native", _probe_media_native), ("firewall", _probe_firewall),
         ):

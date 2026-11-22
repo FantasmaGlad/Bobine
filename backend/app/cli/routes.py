@@ -77,8 +77,8 @@ EXEMPT: tuple[Exemption, ...] = (
     Exemption(r"POST /api/updates/(_android-callback|store/.+)", "mise à jour par la boutique ou par Android"),
     Exemption(r"GET /api/time", "horloge de synchronisation des lecteurs"),
     Exemption(r"POST /api/settings/open-path", "ouvre un dossier sur l'écran de la machine"),
-    Exemption(r"POST /api/settings/system/(reset|uninstall|reset-data)", "irréversible : interface, ou install.sh --uninstall"),
-    Exemption(r"POST /api/settings/system/restart", "autre outil : bobine restart de l'appliance, menu de la barre système"),
+    Exemption(r"POST /api/settings/system/(reset|uninstall|reset-data)", "irréversible : depuis l'interface seulement"),
+    Exemption(r"POST /api/settings/system/restart", "autre outil : menu de la barre système"),
     Exemption(r"GET /api/config", "liste des fichiers : `bobine config export` les écrit"),
     Exemption(r"(POST|GET|PATCH|DELETE) /api/uploads.*", "envoi reprenable par morceaux du navigateur : `bobine <famille> import` envoie en une fois"),
 )

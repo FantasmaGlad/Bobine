@@ -74,11 +74,9 @@ runs:
     - name: Rassembler les paquets Linux
       shell: bash
       run: find package-assets -type f \( -name '*.rpm' -o -name '*.pkg.tar.zst' -o -name '*.pkg.tar.zst.sig' \) -exec cp {} release-assets/ \;
-    - name: Copy install script into release assets
+    - name: Joindre l'installateur Windows en une commande
       shell: bash
-      run: |
-        cp install.sh release-assets/
-        if [ -f packaging/windows/install.ps1 ]; then cp packaging/windows/install.ps1 release-assets/; fi
+      run: cp packaging/windows/install.ps1 release-assets/
     - name: Manifestes winget (joints à la release, soumission manuelle)
       if: inputs.winget-tag != ''
       shell: bash

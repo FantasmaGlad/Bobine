@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def build_driver(profile: str | None = None) -> DeviceDriver:
-    """Linux (bureau et appliance) → D-Bus/PipeWire/NetworkManager ; Windows/macOS → sidecar Rust ; Android → pont Kotlin."""
+    """Linux → D-Bus/PipeWire ; Windows/macOS → sidecar Rust ; Android → pont Kotlin."""
     profile = profile or get_deployment_profile()
     try:
-        if profile in ("linux-desktop", "linux-headless"):
+        if profile == "linux-desktop":
             from .linux.driver import LinuxDriver
 
             return LinuxDriver()

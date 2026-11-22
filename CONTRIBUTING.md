@@ -51,7 +51,7 @@ The data schema is managed by SQLAlchemy: tables are created at startup, and col
 
 ## Platforms
 
-Bobine targets five execution profiles: Android (ARM64), Linux desktop, a headless Debian appliance, Windows and macOS. A change that touches system behavior (hardware detection, power and sleep, windowing, audio and video output, storage, processes, networking, packaging) must be reasoned about for each profile, and your pull request must state which ones you tested and which you did not. If you can only test on one system, say so: the maintainer will cover the others.
+Bobine targets four execution profiles: Android (ARM64), Linux desktop, Windows and macOS. A change that touches system behavior (hardware detection, power and sleep, windowing, audio and video output, storage, processes, networking, packaging) must be reasoned about for each profile, and your pull request must state which ones you tested and which you did not. If you can only test on one system, say so: the maintainer will cover the others.
 
 ## Tests
 
@@ -108,7 +108,7 @@ A pull request is merged when CI is green, the review is complete and the change
 
 ## Dependencies
 
-Adding a dependency requires a justification in the pull request: what it does, why the standard library or an existing dependency is not enough, its license (compatible with the AGPL-3.0), its maintenance status and its footprint on a small appliance. The runtime must remain usable without internet access.
+Adding a dependency requires a justification in the pull request: what it does, why the standard library or an existing dependency is not enough, its license (compatible with the AGPL-3.0), its maintenance status and its footprint on a small machine. The runtime must remain usable without internet access.
 
 ## Licensing
 

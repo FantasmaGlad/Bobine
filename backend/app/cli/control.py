@@ -95,7 +95,7 @@ def cmd_update_status(client: Client, out: Output, args: argparse.Namespace) -> 
 
 
 DANGEROUS_ROUTES = (
-    (re.compile(r"POST /api/settings/system/(reset|uninstall|reset-data|restart)"), "irréversible : interface, ou install.sh --uninstall"),
+    (re.compile(r"POST /api/settings/system/(reset|uninstall|reset-data|restart)"), "irréversible : depuis l'interface seulement"),
     (re.compile(r"POST /api/settings/backup/restore"), "bobine settings restore FICHIER --yes"),
     (re.compile(r"POST /api/storage/format/execute"), "assistant de formatage de l'interface"),
     (re.compile(r"POST /api/updates/apply"), "bobine update apply --yes"),

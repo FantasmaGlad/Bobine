@@ -1,6 +1,6 @@
 import type { UpdateChannel } from "@/lib/releaseChannel";
 
-export type DeploymentProfile = "linux-headless" | "linux-desktop" | "windows" | "macos" | "android";
+export type DeploymentProfile = "linux-desktop" | "windows" | "macos" | "android";
 
 export interface SettingsData {
   restart_guaranteed?: boolean;

@@ -74,7 +74,6 @@ export const settingsPage: Dict = {
   docSection: "Documentation",
   docHint: "Actual locations used by the app (read-only, set at install time).",
   uninstallSectionTitle: "Uninstall Bobine",
-  uninstallHint: "Completely uninstalls the program and its components from this machine. Irreversible.",
   uninstallButton: "Uninstall application",
   uninstallAction: "Uninstall Bobine",
   uninstallConfirmText: "This action is IRREVERSIBLE. The application and its components will be removed:",
@@ -95,7 +94,6 @@ export const settingsPage: Dict = {
   uninstallManualHintWindows: "Manual method: Windows Settings > Installed apps",
   uninstallManualHintMacos: "Manual method: Move Bobine.app to the Trash",
   uninstallManualHintAndroid: "Manual method: Long-press Bobine icon > Uninstall",
-  uninstallManualHintHeadless: "Manual method: sudo ./install.sh --uninstall",
   categoriesLabel: "Setting categories",
   timing: {
     title: "Timing and volume",

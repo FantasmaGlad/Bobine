@@ -27,7 +27,7 @@ def test_no_comment_spans_more_than_one_line():
     blocks = []
     for name in _tracked():
         path = REPO / name
-        suffix = path.suffix if path.suffix else (".sh" if name.startswith(("packaging/", "scripts/")) or name == "install.sh" else "")
+        suffix = path.suffix if path.suffix else (".sh" if name.startswith(("packaging/", "scripts/")) else "")
         if suffix not in HASH | SLASH | {".iss", ".xml"}:
             continue
         previous = False

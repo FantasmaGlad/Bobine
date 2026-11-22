@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 VALID_DISPLAY_MODE_SETTINGS = ("auto", "dual_screen", "headless")
 DEFAULT_DISPLAY_MODE_SETTING = "auto"
-VALID_SOURCES = ("android", "windows", "macos", "linux", "wyse", "manual")
+VALID_SOURCES = ("android", "windows", "macos", "linux", "manual")
 
 
 @dataclass

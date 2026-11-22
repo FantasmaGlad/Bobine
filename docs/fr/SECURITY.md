@@ -65,7 +65,7 @@ Ce sont des objectifs et non des engagements contractuels : le projet n'a qu'un 
 
 ## Périmètre
 
-Dans le périmètre : le logiciel Bobine et ses installateurs (`install.sh`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, les dépôts de paquets `packages.bobine.fit` et leur chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
+Dans le périmètre : le logiciel Bobine et ses installateurs (`install.ps1`, `install-tor.sh`, paquets Windows, macOS, Linux et Android), le site `bobine.fit` et ses routes serveur, les dépôts de paquets `packages.bobine.fit` et leur chaîne de signature, ainsi que les miroirs Tor du site et du dépôt.
 
 Modèle de confiance : Bobine n'a pas de compte ; seul le réseau local est de confiance. Le serveur refuse toute connexion venue d'une adresse publique (réseaux privés, liens locaux et 100.64.0.0/10 admis ; ajout explicite par `BOBINE_ALLOWED_NETWORKS`, qui n'ouvre aucun pare-feu). Le contrôle porte sur le pair TCP et sur chaque adresse qu'un proxy annonce dans `X-Forwarded-For`, `Forwarded` ou un en-tête voisin ; un proxy qui n'annonce rien (Docker en NAT, par exemple) masque ses clients et ne doit pas être exposé à Internet. Une requête relayée par un proxy ou adressée à un nom `.onion` n'a jamais les droits de l'écran local ; le serveur refuse les connexions WebSocket et les requêtes modifiantes (POST, PUT, PATCH, DELETE) d'une page web d'une autre origine ; et les installateurs n'ouvrent le pare-feu qu'aux réseaux privés. Contourner l'une de ces barrières est dans le périmètre.
 

@@ -128,9 +128,6 @@ def render(channel: str, manifests: bool = True) -> str:
          "glibc @G@+"),
         (logo("Icons/os/android.svg", "Android"), "**Android**", short(f"Bobine-{channel}.apk", "APK"), "Android 14+, ARM64"),
         (logo("Icons/os/androidtv.svg", "Android TV"), "**Android TV**", short(f"Bobine-TV-{channel}.apk", "APK TV"), "ARM 32 et 64 bits"),
-        (logo("Images/bash.svg", "Mini PC"), "**Mini PC dédié**",
-         f"{short('install.sh', 'install.sh')} · [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy/releases/latest)",
-         f"Debian 13 ; `sudo ./install.sh --channel={channel}`"),
     ]
     if manifests:
         rows.append(("", "**Intégrité**", f"{short('SHA256SUMS', 'SHA256SUMS')} · {short('SHA256SUMS.asc', 'signature')}",

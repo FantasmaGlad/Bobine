@@ -18,10 +18,10 @@ _PLANNED = {
 
 
 def build_storage_driver(profile: str | None = None) -> StorageDriver:
-    """Linux (bureau et appliance) → lsblk + udisks2 ; les autres profils reçoivent un pilote nul explicite."""
+    """Linux → lsblk + udisks2 ; les autres profils reçoivent un pilote nul explicite."""
     profile = profile or get_deployment_profile()
     try:
-        if profile in ("linux-desktop", "linux-headless"):
+        if profile == "linux-desktop":
             from .linux.driver import LinuxStorageDriver
 
             return LinuxStorageDriver()

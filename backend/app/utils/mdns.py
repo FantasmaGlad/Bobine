@@ -85,10 +85,7 @@ def _should_self_publish() -> bool:
 
     if _disabled_by_environment():
         return False
-    profile = get_deployment_profile()
-    if profile == "linux-headless":
-        return False
-    if profile == "linux-desktop" and _avahi_daemon_active():
+    if get_deployment_profile() == "linux-desktop" and _avahi_daemon_active():
         return False
     return True
 
@@ -176,11 +173,7 @@ def start_mdns_responder(port: int) -> None:
     """À appeler une fois au démarrage du backend (lifespan)."""
     global _thread
     if not _should_self_publish():
-        from app.utils.deployment import get_deployment_profile
-
-        headless = _disabled_by_environment() or get_deployment_profile() == "linux-headless"
-        state = "disabled" if headless else "external"
-        _set_status(state)
+        _set_status("disabled" if _disabled_by_environment() else "external")
         return
     if _thread is not None and _thread.is_alive():
         return

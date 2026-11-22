@@ -94,7 +94,7 @@ test("radio : la page radio ne suit jamais la sortie stockée au montage", () =>
   assert.equal(shouldFollowInitialOutput("cable", "kiosk"), true);
 });
 
-test("redirection : le kiosque du Wyse passe sur la radio câblée dès le montage", () => {
+test("redirection : le kiosque de la machine passe sur la radio câblée dès le montage", () => {
   const d = decideOutputRedirect("kiosk", "", "127.0.0.1", "radio", "kiosk", null);
   assert.equal(d.to, "/radio?channel=cable");
   assert.equal(d.seen, "radio");

@@ -182,8 +182,8 @@ class DesktopHandler(ProfileHandler):
     profile = "linux_desktop"
 
 
-class ApplianceHandler(ProfileHandler):
-    profile = "linux_headless"
+class NoTorHandler(ProfileHandler):
+    profile = "android"
 
     def supports_update_over_tor(self):
         return False
@@ -196,7 +196,6 @@ def client():
 
 
 def test_settings_expose_and_validate_tor(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
@@ -210,11 +209,10 @@ def test_settings_expose_and_validate_tor(client, monkeypatch):
     assert not tor_proxy.is_enabled()
 
 
-def test_appliance_refuses_tor_updates(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: ApplianceHandler())
-    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: ApplianceHandler())
-    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: ApplianceHandler())
-    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: ApplianceHandler())
+def test_profile_without_tor_refuses_tor_updates(client, monkeypatch):
+    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: NoTorHandler())
+    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: NoTorHandler())
+    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: NoTorHandler())
     assert client.get("/api/settings").json()["update_tor_supported"] is False
     assert client.put("/api/settings", json={"update_tor": "true"}).status_code == 409
 

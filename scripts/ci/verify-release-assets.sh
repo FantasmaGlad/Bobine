@@ -24,7 +24,6 @@ expected=(
     "Bobine-${S}.dmg"
     "Bobine-${S}.apk"
     "Bobine-TV-${S}.apk"
-    "install.sh"
     "install.ps1"
     "SHA256SUMS"
     "SHA256SUMS.asc"

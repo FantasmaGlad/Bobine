@@ -1,7 +1,6 @@
 # Kiosque Firefox (optionnel)
 
-Le kiosque de référence de Bobine reste **Chromium** (appliance headless, voir
-`install.sh`). Pour un poste qui doit afficher `/kiosk` ou `/cinema` avec
+Le kiosque de référence de Bobine reste **Chromium**. Pour un poste qui doit afficher `/kiosk` ou `/cinema` avec
 **Firefox**, ce dossier fournit la politique d'entreprise correspondante.
 
 `policies.json` :
