@@ -12,6 +12,7 @@ import BrandingSection from "@/components/settings/BrandingSection";
 import DangerSection from "@/components/settings/DangerSection";
 import DisplaySection from "@/components/settings/DisplaySection";
 import DocsSection from "@/components/settings/DocsSection";
+import InputsSection from "@/components/settings/InputsSection";
 import LogsSection from "@/components/settings/LogsSection";
 import SyncSection from "@/components/settings/SyncSection";
 import UpdatesSection from "@/components/settings/UpdatesSection";
@@ -56,6 +57,7 @@ export default function SettingsPage() {
       <AppearanceSection hidden={!shows("section-appearance")} data={data} />
       <DisplaySection hidden={!shows("section-display")} data={data} showToast={showToast} />
       <BrandingSection hidden={!shows("section-branding")} showToast={showToast} />
+      <InputsSection hidden={!shows("section-inputs")} showToast={showToast} />
       <UpdatesSection hidden={!shows("updates-section")} t={t} data={data} setData={setData} showToast={showToast} openSection={openSection} />
       <div id="section-playback" hidden={!shows("section-playback")}>
       <PlaybackTimingSettings />

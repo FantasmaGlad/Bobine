@@ -1,4 +1,4 @@
-export type SettingsCategoryId = "appearance" | "display" | "playback" | "updates" | "data" | "system" | "help" | "danger";
+export type SettingsCategoryId = "appearance" | "display" | "inputs" | "playback" | "updates" | "data" | "system" | "help" | "danger";
 
 export type SettingsCapability = "nativeBridge";
 
@@ -12,6 +12,7 @@ export interface SettingsCategory {
 export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
   { id: "appearance", icon: "palette", sections: ["section-appearance", "section-branding"] },
   { id: "display", icon: "tv", sections: ["section-display"] },
+  { id: "inputs", icon: "sports_esports", sections: ["section-inputs"] },
   { id: "playback", icon: "play_circle", sections: ["section-playback"] },
   { id: "updates", icon: "system_update", sections: ["updates-section"] },
   { id: "data", icon: "archive", sections: ["section-backup", "section-sync", "section-logs", "section-diagnostics"] },
