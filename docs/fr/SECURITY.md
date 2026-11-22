@@ -2,7 +2,7 @@
 
 Bobine est maintenu par un seul développeur, avec un processus de traitement des vulnérabilités documenté et vérifiable. Cette page explique comment signaler une vulnérabilité, comment chiffrer le rapport, ce que vous pouvez attendre en retour et comment vérifier l'authenticité de ce que nous publions.
 
-Version anglaise : [SECURITY.md](../../SECURITY.md). Politique lisible par machine ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116), signée OpenPGP) : <https://bobine.fit/.well-known/security.txt>. Page de politique du site : <https://bobine.fit/fr/securite>.
+Version anglaise : [SECURITY.md](../SECURITY.md). Politique lisible par machine ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116), signée OpenPGP) : <https://bobine.fit/.well-known/security.txt>. Page de politique du site : <https://bobine.fit/fr/securite>.
 
 ## Versions prises en charge
 

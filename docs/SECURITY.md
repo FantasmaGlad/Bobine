@@ -2,7 +2,7 @@
 
 Bobine is maintained by a single developer, with a documented and verifiable vulnerability-handling process. This page explains how to report a vulnerability, how to encrypt the report, what to expect in return, and how to verify the authenticity of what we publish.
 
-French version: [docs/fr/SECURITY.md](docs/fr/SECURITY.md). Machine-readable policy ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116), OpenPGP-signed): <https://bobine.fit/.well-known/security.txt>. Website policy page: <https://bobine.fit/en/securite>.
+French version: [docs/fr/SECURITY.md](fr/SECURITY.md). Machine-readable policy ([RFC 9116](https://www.rfc-editor.org/rfc/rfc9116), OpenPGP-signed): <https://bobine.fit/.well-known/security.txt>. Website policy page: <https://bobine.fit/en/securite>.
 
 ## Supported versions
 
@@ -31,7 +31,7 @@ Any report containing exploitable details must be encrypted with the OpenPGP pub
 
 The key is published through several independent channels. Retrieve it from at least two of them and check that the fingerprint matches before use:
 
-- this repository: [`docs/security/bobine-security-public-key.asc`](docs/security/bobine-security-public-key.asc)
+- this repository: [`docs/security/bobine-security-public-key.asc`](security/bobine-security-public-key.asc)
 - the website: <https://bobine.fit/.well-known/security.asc>
 - the dedicated disclosure site, hosted separately: <https://security.bobine.fit/security.asc>
 - DNS: a `TXT` record `openpgp4fpr:<fingerprint>` on `bobine.fit` and an `OPENPGPKEY` record (RFC 7929) for `security@bobine.fit`

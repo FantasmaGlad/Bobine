@@ -13,7 +13,7 @@ sys.path.insert(0, str(SPEC_DIR.parent / "common"))
 import channel  # noqa: E402
 
 datas = [
-    (str(REPO_DIR / "config.toml"), "."),
+    (str(REPO_DIR / "packaging" / "common" / "config.toml"), "."),
     *channel.runtime_icon_datas(REPO_DIR),
     (str(REPO_DIR / "VERSION"), "."),
 ]

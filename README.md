@@ -12,7 +12,7 @@
   <a href="https://bobine.fit"><b>Official Website</b></a> &nbsp;·&nbsp;
   <a href="#download"><b>Downloads</b></a> &nbsp;·&nbsp;
   <a href="https://bobine.fit/en/commands"><b>Command reference</b></a> &nbsp;·&nbsp;
-  <a href="README.fr.md"><b>Français</b></a>
+  <a href="docs/fr/README.md"><b>Français</b></a>
 </p>
 
 <p align="center">
@@ -106,8 +106,8 @@ A weekly timetable of fitness classes does not need seven platforms and three up
 
 ## Security and license
 
-- **Security**: report a vulnerability privately through [GitHub Security Advisories](https://github.com/FantasmaGlad/Bobine/security/advisories/new) or [security@bobine.fit](mailto:security@bobine.fit) (OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`; details on [security.bobine.fit](https://security.bobine.fit) and in [SECURITY.md](SECURITY.md)).
-- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+- **Security**: report a vulnerability privately through [GitHub Security Advisories](https://github.com/FantasmaGlad/Bobine/security/advisories/new) or [security@bobine.fit](mailto:security@bobine.fit) (OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2`; details on [security.bobine.fit](https://security.bobine.fit) and in [SECURITY.md](docs/SECURITY.md)).
+- **Contributing**: [CONTRIBUTING.md](docs/CONTRIBUTING.md), [CODE_OF_CONDUCT.md](docs/CODE_OF_CONDUCT.md).
 - **License**: [AGPL-3.0](LICENSE).
 
 <sub>Related repositories: [bobine-deploy](https://github.com/FantasmaGlad/bobine-deploy) (remote installation) · [BobineWeb](https://github.com/FantasmaGlad/BobineWeb) (website) · [bobine-packages](https://github.com/FantasmaGlad/bobine-packages) (Linux repositories) · [homebrew-bobine](https://github.com/FantasmaGlad/homebrew-bobine) (Homebrew tap)</sub>

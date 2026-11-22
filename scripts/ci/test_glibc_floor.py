@@ -115,7 +115,7 @@ class WiringTests(unittest.TestCase):
         self.assertRegex(DECLARED, r"^\d+\.\d+$")
 
     def test_readmes_state_the_declared_floor(self):
-        for name in ("README.md", "README.fr.md"):
+        for name in ("README.md", "docs/fr/README.md"):
             with self.subTest(document=name):
                 self.assertIn(f"glibc {DECLARED}", (ROOT / name).read_text(encoding="utf-8"))
 
