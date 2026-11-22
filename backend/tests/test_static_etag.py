@@ -90,3 +90,17 @@ def test_unchanged_content_is_served_as_304_on_revalidation(tmp_path):
     )
     assert isinstance(second_response, NotModifiedResponse)
     assert second_response.headers["Cache-Control"] == "no-cache"
+
+
+def test_hashed_build_assets_are_cached_for_good_and_pages_revalidated(tmp_path):
+    static_files = RevalidateStaticFiles(directory=str(tmp_path))
+    chunk = tmp_path / "fr" / "_next" / "static" / "chunks" / "2rv5jvl35qh22.js"
+    chunk.parent.mkdir(parents=True)
+    chunk.write_bytes(b"console.log(1)")
+    page = tmp_path / "fr" / "index.html"
+    page.write_bytes(b"<html></html>")
+    empty = {"type": "http", "headers": []}
+
+    asset = static_files.file_response(str(chunk), chunk.stat(), empty)
+    assert asset.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+    assert static_files.file_response(str(page), page.stat(), empty).headers["Cache-Control"] == "no-cache"
