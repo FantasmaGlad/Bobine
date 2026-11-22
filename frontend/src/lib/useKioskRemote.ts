@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {
+  ANALOG_TRIGGERS, DEFAULT_REMOTE_BINDINGS, GAMEPAD_DIRECTIONS, REMOTE_ACTIONS, gamepadBindings, keyBinding, pickHandler,
+  type RemoteActionHandlers,
+} from "./remoteBindings.ts";
 
 export interface RemoteHandlers {
   onLeft?: () => void;
@@ -19,25 +23,15 @@ export interface RemoteHandlers {
   onMute?: () => void;
 }
 
-const ANDROID_TV_KEYCODES: Partial<Record<number, keyof RemoteHandlers>> = {
-  4: "onBack",
-  19: "onUp",
-  20: "onDown",
-  21: "onLeft",
-  22: "onRight",
-  23: "onEnter",
-  66: "onEnter",
-  24: "onVolumeUp",
-  25: "onVolumeDown",
-  164: "onMute",
-  85: "onPlayPause",
-  126: "onPlayPause",
-  127: "onPlayPause",
-  87: "onNext",
-  88: "onPrev",
-  166: "onChapterNext",
-  167: "onChapterPrev",
-};
+function handlerName(action: string): keyof RemoteHandlers {
+  return `on${action.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join("")}` as keyof RemoteHandlers;
+}
+
+function actionHandlers(h: RemoteHandlers): RemoteActionHandlers {
+  return Object.fromEntries(
+    REMOTE_ACTIONS.map((action) => [action, h[handlerName(action)]]),
+  );
+}
 
 export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true) {
   const handlersRef = useRef(getHandlers);
@@ -55,54 +49,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-      const h = handlersRef.current();
-      let action: (() => void) | undefined;
-      switch (e.key) {
-        case "ArrowLeft": action = h.onLeft; break;
-        case "ArrowRight": action = h.onRight; break;
-        case "ArrowUp": action = h.onUp; break;
-        case "ArrowDown": action = h.onDown; break;
-        case "Enter":
-        case "Select":
-        case "Ok": action = h.onEnter; break;
-        case "Escape":
-        case "Backspace":
-        case "BrowserBack":
-        case "GoBack":
-        case "Back": action = h.onBack; break;
-        case " ":
-        case "Spacebar": action = h.onPlayPause ?? h.onEnter; break;
-        case "MediaPlayPause":
-        case "MediaPlay":
-        case "MediaPause":
-        case "Play":
-        case "Pause": action = h.onPlayPause; break;
-        case "MediaTrackNext":
-        case "FastForward":
-        case "MediaFastForward": action = h.onNext; break;
-        case "MediaTrackPrevious":
-        case "Rewind":
-        case "MediaRewind": action = h.onPrev; break;
-        case "ChannelUp": action = h.onChapterNext ?? h.onNext; break;
-        case "ChannelDown": action = h.onChapterPrev ?? h.onPrev; break;
-        case "PageDown": action = h.onNext ?? h.onDown; break;
-        case "PageUp": action = h.onPrev ?? h.onUp; break;
-        case "MediaStop": action = h.onBack; break;
-        case "AudioVolumeUp":
-        case "VolumeUp": action = h.onVolumeUp; break;
-        case "AudioVolumeDown":
-        case "VolumeDown": action = h.onVolumeDown; break;
-        case "AudioVolumeMute":
-        case "VolumeMute": action = h.onMute; break;
-        default: {
-          const mapped = ANDROID_TV_KEYCODES[e.keyCode];
-          if (!mapped) return;
-          action = mapped === "onChapterNext" ? (h.onChapterNext ?? h.onNext)
-            : mapped === "onChapterPrev" ? (h.onChapterPrev ?? h.onPrev)
-            : h[mapped];
-          break;
-        }
-      }
+      const action = pickHandler(actionHandlers(handlersRef.current()), keyBinding(DEFAULT_REMOTE_BINDINGS, e.key, e.keyCode));
       if (action) {
         e.preventDefault();
         action();
@@ -121,7 +68,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
       if (typeof navigator !== "undefined" && typeof navigator.getGamepads === "function") {
         const gamepads = navigator.getGamepads();
         const now = Date.now();
-        const h = handlersRef.current();
+        const h = actionHandlers(handlersRef.current());
 
         for (let i = 0; i < gamepads.length; i++) {
           const gp = gamepads[i];
@@ -152,42 +99,17 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
             }
           };
 
-          const dpadUp = (gp.buttons[12]?.pressed ?? false) || (gp.axes[1] !== undefined && gp.axes[1] < -AXIS_THRESHOLD);
-          const dpadDown = (gp.buttons[13]?.pressed ?? false) || (gp.axes[1] !== undefined && gp.axes[1] > AXIS_THRESHOLD);
-          const dpadLeft = (gp.buttons[14]?.pressed ?? false) || (gp.axes[0] !== undefined && gp.axes[0] < -AXIS_THRESHOLD);
-          const dpadRight = (gp.buttons[15]?.pressed ?? false) || (gp.axes[0] !== undefined && gp.axes[0] > AXIS_THRESHOLD);
-
-          checkAction(`gp_${i}_up`, dpadUp, h.onUp, true);
-          checkAction(`gp_${i}_down`, dpadDown, h.onDown, true);
-          checkAction(`gp_${i}_left`, dpadLeft, h.onLeft, true);
-          checkAction(`gp_${i}_right`, dpadRight, h.onRight, true);
-
-          const btnA = gp.buttons[0]?.pressed ?? false;
-          checkAction(`gp_${i}_btnA`, btnA, h.onEnter ?? h.onPlayPause);
-
-          const btnB = gp.buttons[1]?.pressed ?? false;
-          checkAction(`gp_${i}_btnB`, btnB, h.onBack);
-
-          const btnX = gp.buttons[2]?.pressed ?? false;
-          checkAction(`gp_${i}_btnX`, btnX, h.onPlayPause);
-
-          const btnY = gp.buttons[3]?.pressed ?? false;
-          checkAction(`gp_${i}_btnY`, btnY, h.onPlayPause);
-
-          const btnL1 = gp.buttons[4]?.pressed ?? false;
-          const btnR1 = gp.buttons[5]?.pressed ?? false;
-          checkAction(`gp_${i}_btnL1`, btnL1, h.onPrev);
-          checkAction(`gp_${i}_btnR1`, btnR1, h.onNext);
-
-          const btnL2 = (gp.buttons[6]?.pressed ?? false) || ((gp.buttons[6]?.value ?? 0) > 0.5);
-          const btnR2 = (gp.buttons[7]?.pressed ?? false) || ((gp.buttons[7]?.value ?? 0) > 0.5);
-          checkAction(`gp_${i}_btnL2`, btnL2, h.onVolumeDown);
-          checkAction(`gp_${i}_btnR2`, btnR2, h.onVolumeUp);
-
-          const btnSelect = gp.buttons[8]?.pressed ?? false;
-          const btnStart = gp.buttons[9]?.pressed ?? false;
-          checkAction(`gp_${i}_btnSelect`, btnSelect, h.onBack);
-          checkAction(`gp_${i}_btnStart`, btnStart, h.onPlayPause);
+          const axes: Record<number, boolean> = {
+            12: gp.axes[1] !== undefined && gp.axes[1] < -AXIS_THRESHOLD,
+            13: gp.axes[1] !== undefined && gp.axes[1] > AXIS_THRESHOLD,
+            14: gp.axes[0] !== undefined && gp.axes[0] < -AXIS_THRESHOLD,
+            15: gp.axes[0] !== undefined && gp.axes[0] > AXIS_THRESHOLD,
+          };
+          for (const [button, actions] of gamepadBindings(DEFAULT_REMOTE_BINDINGS)) {
+            const analog = (ANALOG_TRIGGERS as readonly number[]).includes(button) && (gp.buttons[button]?.value ?? 0) > 0.5;
+            const pressed = (gp.buttons[button]?.pressed ?? false) || analog || (axes[button] ?? false);
+            checkAction(`gp_${i}_${button}`, pressed, pickHandler(h, actions), button in GAMEPAD_DIRECTIONS);
+          }
         }
       }
       rafId = polling ? requestAnimationFrame(pollGamepads) : null;
