@@ -1,9 +1,12 @@
 export type SettingsCategoryId = "appearance" | "display" | "playback" | "updates" | "data" | "system" | "help" | "danger";
 
+export type SettingsCapability = "nativeBridge";
+
 export interface SettingsCategory {
   id: SettingsCategoryId;
   icon: string;
   sections: readonly string[];
+  requires?: SettingsCapability;
 }
 
 export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
@@ -12,10 +15,14 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
   { id: "playback", icon: "play_circle", sections: ["section-playback"] },
   { id: "updates", icon: "system_update", sections: ["updates-section"] },
   { id: "data", icon: "archive", sections: ["section-backup", "section-sync", "section-logs", "section-diagnostics"] },
-  { id: "system", icon: "settings_power", sections: ["section-startup"] },
+  { id: "system", icon: "settings_power", sections: ["section-startup"], requires: "nativeBridge" },
   { id: "help", icon: "description", sections: ["section-docs"] },
   { id: "danger", icon: "warning", sections: ["section-danger"] },
 ];
+
+export function availableCategories(capabilities: ReadonlySet<SettingsCapability>): readonly SettingsCategory[] {
+  return SETTINGS_CATEGORIES.filter((category) => !category.requires || capabilities.has(category.requires));
+}
 
 export const DEFAULT_SETTINGS_CATEGORY: SettingsCategoryId = "appearance";
 

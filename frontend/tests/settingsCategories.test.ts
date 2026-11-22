@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { SETTINGS_CATEGORIES, categoryOfSection, matchCategories, normalizeSearch } from "../src/lib/settingsCategories.ts";
+import { SETTINGS_CATEGORIES, availableCategories, categoryOfSection, matchCategories, normalizeSearch } from "../src/lib/settingsCategories.ts";
 
 test("chaque section appartient à une seule catégorie", () => {
   const seen = new Map<string, string>();
@@ -38,4 +38,11 @@ test("recherche : insensible aux accents et à la casse, tous les mots exigés",
   assert.deepEqual([...matchCategories("theme hdmi", haystack)], []);
   assert.equal(matchCategories("   ", haystack).size, 0);
   assert.equal(normalizeSearch("  Écran Câblé "), "ecran cable");
+});
+
+test("une catégorie dont les réglages exigent le pont natif n'apparaît pas sans lui", () => {
+  const ids = (capabilities: Parameters<typeof availableCategories>[0]) => availableCategories(capabilities).map((category) => category.id);
+  assert.equal(ids(new Set()).includes("system"), false);
+  assert.equal(ids(new Set(["nativeBridge"])).includes("system"), true);
+  assert.equal(ids(new Set()).length, SETTINGS_CATEGORIES.length - 1);
 });
