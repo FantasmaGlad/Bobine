@@ -9,7 +9,6 @@ export function formatDuration(seconds: number) {
 
 
 
-export type OsdContent = { icon: string; label: string } | null;
 
 export interface NextCourse {
   run_at: string;

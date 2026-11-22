@@ -4,11 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Chapter } from "@/lib/chapters";
 import { chapterIndexAt } from "@/lib/chapters";
 import ChapterTicks from "@/components/ChapterTicks";
+import type { SeekHud } from "@/lib/kioskFeedback";
 
-export interface SeekHud {
-  position: number;
-  duration: number;
-}
 
 const SEEK_HUD_MS = 2800;
 
