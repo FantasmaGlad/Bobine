@@ -8,7 +8,7 @@ import CinemaDeck from "@/components/cinema/CinemaDeck";
 import CinemaGrid from "@/components/cinema/CinemaGrid";
 import { EmptyScreen, StandbyScreen } from "@/components/cinema/CinemaScreens";
 import { seekWhenReady } from "@/components/cinema/media";
-import PauseOverlay from "@/components/cinema/PauseOverlay";
+import PauseScreen from "@/components/PauseScreen";
 import { cinemaRemoteKeys } from "@/components/cinema/remoteKeys";
 import UpNextLayer, { UP_NEXT_AUTOPLAY_SECONDS } from "@/components/cinema/UpNextLayer";
 import { useCinemaVideos } from "@/components/cinema/useCinemaVideos";
@@ -19,7 +19,7 @@ import VolumeOsd from "@/components/VolumeOsd";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
-import type { CinemaVideo } from "@/lib/cinemaCatalog";
+import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { buildOutputUrl } from "@/lib/displayChannel";
 import { unloadMedia } from "@/lib/mediaElement";
@@ -372,7 +372,10 @@ export default function CinemaPage() {
             <span>{t("cinema.play")}</span>
           </button>
         )}
-        {playingLayer && !isPlaying && !needsTap && <PauseOverlay video={selected} position={shownPosition} duration={duration} onResume={playPause} onBack={backToMenu} />}
+        {playingLayer && !isPlaying && !needsTap && (
+          <PauseScreen t={t} media={selected} thumbnail={selected ? thumbnailUrl(selected) : null} position={shownPosition} duration={duration}
+            kicker={t("cinema.pause")} resumeLabel={t("cinema.play")} onResume={playPause} back={{ label: t("cinema.backToMenu"), onBack: backToMenu }} />
+        )}
         <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} />
         {!hideControls && (
           <CinemaControls visible={playingLayer && (controlsVisible || !isPlaying)} playing={isPlaying} position={shownPosition} duration={duration} chapters={chapters}

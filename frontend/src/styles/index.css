@@ -34,8 +34,7 @@
 @import "./components/live-controls.css";
 @import "./components/speed.css";
 @import "./pages/kiosk/waiting.css";
-@import "./components/pause/pause.css";
-@import "./components/pause/media.css";
+@import "./components/pause/screen.css";
 @import "./pages/cinema/hero.css";
 @import "./components/playlist.css";
 @import "./components/drag.css";

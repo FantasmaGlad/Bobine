@@ -19,7 +19,8 @@ import { adjustMediaVolume, useVolumeHud, VOLUME_STEP } from "@/lib/volumeHud";
 import { getApiUrl } from "@/lib/apiUrl";
 import { unloadMedia } from "@/lib/mediaElement";
 import CoachStage from "@/components/kiosk/CoachStage";
-import PauseOverlay from "@/components/kiosk/PauseOverlay";
+import PauseScreen from "@/components/PauseScreen";
+import { thumbnailUrl } from "@/lib/thumbnail";
 import WaitingLayers from "@/components/kiosk/WaitingLayers";
 import { applyKioskEvent } from "@/components/kiosk/kioskEvents";
 import type { OsdContent } from "@/lib/kioskFeedback";
@@ -272,7 +273,12 @@ export default function KioskPage() {
         <CoachStage t={t} state={state} programAccent={programAccent} />
       </div>
 
-      {isPaused && <PauseOverlay t={t} state={state} programAccent={programAccent} onResume={() => sendCommand("play")} />}
+      {isPaused && (
+        <PauseScreen t={t} media={state.current_video ?? state.current_audio_course} kicker={t("kiosk.pausedLabel")} accent={programAccent}
+          thumbnail={thumbnailUrl(state.current_video?.thumbnail_url || state.current_video?.thumbnail_path)}
+          position={state.current_video ? state.position_seconds : state.audio_position_seconds ?? 0}
+          duration={state.current_video?.duration_seconds ?? 0} resumeLabel={t("kiosk.resume")} onResume={() => sendCommand("play")} />
+      )}
 
       {osd && (
         <div className="kiosk-osd">
