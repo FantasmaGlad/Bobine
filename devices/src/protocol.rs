@@ -22,14 +22,6 @@ pub const METHODS: &[&str] = &[
     "bluetooth.connect",
     "bluetooth.disconnect",
     "bluetooth.forget",
-    "wifi.status",
-    "wifi.scan",
-    "wifi.set_power",
-    "wifi.current_connection",
-    "wifi.connect",
-    "wifi.activate",
-    "wifi.forget",
-    "wifi.subnet",
 ];
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -198,26 +190,11 @@ fn validate_volume(params: &Map<String, Value>) -> Result<(), RpcError> {
     Ok(())
 }
 
-fn validate_wifi_connect(params: &Map<String, Value>) -> Result<(), RpcError> {
-    check_text(params, "ssid", 64)?;
-    if let Some(p) = params.get("password").filter(|p| !p.is_null()) {
-        let text = p
-            .as_str()
-            .ok_or_else(|| RpcError::invalid_params("password doit être un texte"))?;
-        if text.len() > 128 || text.chars().any(|c| c == '\n' || c == '\r' || c == '\0') {
-            return Err(RpcError::invalid_params("mot de passe invalide"));
-        }
-    }
-    Ok(())
-}
-
 fn validate_params(method: &str, params: &Map<String, Value>) -> Result<(), RpcError> {
     match method {
         "audio.set_default" => check_text(params, "id", 256),
         "audio.set_volume" => validate_volume(params),
-        "bluetooth.set_power" | "bluetooth.scan" | "wifi.set_power" => {
-            get_bool(params, "on").map(|_| ())
-        }
+        "bluetooth.set_power" | "bluetooth.scan" => get_bool(params, "on").map(|_| ()),
         "bluetooth.pair" | "bluetooth.connect" | "bluetooth.disconnect" | "bluetooth.forget" => {
             if is_valid_mac(get_str(params, "address")?) {
                 Ok(())
@@ -225,9 +202,6 @@ fn validate_params(method: &str, params: &Map<String, Value>) -> Result<(), RpcE
                 Err(RpcError::invalid_params("adresse Bluetooth invalide"))
             }
         }
-        "wifi.connect" => validate_wifi_connect(params),
-        "wifi.activate" => check_text(params, "connection", 64),
-        "wifi.forget" => check_text(params, "ssid", 64),
         _ => Ok(()),
     }
 }
@@ -252,11 +226,6 @@ pub fn capabilities_all(supported: bool, reason: &str) -> Value {
         "bluetooth_pair",
         "bluetooth_connect",
         "bluetooth_forget",
-        "wifi_status",
-        "wifi_power",
-        "wifi_scan",
-        "wifi_connect",
-        "wifi_forget",
     ];
     let mut map = Map::new();
     for key in keys {
@@ -285,7 +254,7 @@ mod tests {
         fn call(&self, method: &str, params: &Map<String, Value>) -> RpcResult {
             match method {
                 "audio.list" => Ok(json!({"supported": true, "devices": [], "default_id": null})),
-                "wifi.connect" => Ok(json!({"ssid": params["ssid"]})),
+                "bluetooth.pair" => Ok(json!({"address": params["address"]})),
                 _ => Err(RpcError::unsupported("non géré")),
             }
         }
@@ -302,14 +271,14 @@ mod tests {
         assert_eq!(r["result"]["protocol_version"], PROTOCOL_VERSION);
         assert_eq!(r["result"]["platform"], "fake");
         assert_eq!(
-            r["result"]["capabilities"]["wifi_connect"]["supported"],
+            r["result"]["capabilities"]["bluetooth_connect"]["supported"],
             true
         );
     }
 
     #[test]
     fn unknown_methods_never_reach_the_platform() {
-        for method in ["system.exec", "shell", "wifi.delete_all", "../hello", ""] {
+        for method in ["system.exec", "shell", "wifi.connect", "../hello", ""] {
             let r = call(&format!(
                 r#"{{"jsonrpc":"2.0","id":2,"method":"{method}"}}"#
             ));
@@ -338,22 +307,21 @@ mod tests {
     #[test]
     fn params_are_validated_before_the_platform() {
         let bad = [
-            r#"{"jsonrpc":"2.0","id":1,"method":"wifi.connect","params":{}}"#,
-            r#"{"jsonrpc":"2.0","id":1,"method":"wifi.connect","params":{"ssid":"a\nb"}}"#,
-            r#"{"jsonrpc":"2.0","id":1,"method":"wifi.connect","params":{"ssid":"ok","password":"x\ny"}}"#,
+            r#"{"jsonrpc":"2.0","id":1,"method":"audio.set_default","params":{}}"#,
+            r#"{"jsonrpc":"2.0","id":1,"method":"audio.set_default","params":{"id":"a\nb"}}"#,
             r#"{"jsonrpc":"2.0","id":1,"method":"bluetooth.pair","params":{"address":"nop"}}"#,
             r#"{"jsonrpc":"2.0","id":1,"method":"bluetooth.pair","params":{"address":"AA:BB:CC:DD:EE:GG"}}"#,
             r#"{"jsonrpc":"2.0","id":1,"method":"audio.set_volume","params":{"id":"x","volume":9}}"#,
-            r#"{"jsonrpc":"2.0","id":1,"method":"wifi.set_power","params":{"on":"oui"}}"#,
+            r#"{"jsonrpc":"2.0","id":1,"method":"bluetooth.set_power","params":{"on":"oui"}}"#,
         ];
         for line in bad {
             assert_eq!(call(line)["error"]["code"], ERR_INVALID_PARAMS, "{line}");
         }
         let ok = call(
-            r#"{"jsonrpc":"2.0","id":"abc","method":"wifi.connect","params":{"ssid":"Maison"}}"#,
+            r#"{"jsonrpc":"2.0","id":"abc","method":"bluetooth.pair","params":{"address":"AA:BB:CC:DD:EE:FF"}}"#,
         );
         assert_eq!(ok["id"], "abc");
-        assert_eq!(ok["result"]["ssid"], "Maison");
+        assert_eq!(ok["result"]["address"], "AA:BB:CC:DD:EE:FF");
     }
 
     #[test]

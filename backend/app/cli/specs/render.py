@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-LABELS = ("title", "name", "label", "description", "ssid", "address", "alias", "key", "event_type", "message")
+LABELS = ("title", "name", "label", "description", "address", "alias", "key", "event_type", "message")
 
 
 class _Blank(dict):

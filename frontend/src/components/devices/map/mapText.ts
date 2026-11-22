@@ -16,13 +16,9 @@ export function nodeLabel(n: PlacedNode, t: T): string {
 
 type Push = (key: string, value: unknown) => void;
 
-function pushNetwork(node: PlacedNode, push: Push, t: T) {
+function pushNetwork(node: PlacedNode, push: Push) {
   const m = node.meta;
-  if (node.kind === "wifi") {
-    push("network", node.label); push("signal", m.signal !== undefined ? `${m.signal} %` : null); push("band", m.band); push("security", m.security || t("devices.wifi.open")); push("ip", m.ip);
-  } else {
-    push("interface", m.interface); push("ip", m.ip); push("speed", m.speed ? `${m.speed} Mb/s` : null);
-  }
+  push("interface", m.interface); push("ip", m.ip); push("speed", m.speed ? `${m.speed} Mb/s` : null);
 }
 
 function pushBluetooth(node: PlacedNode, push: Push, t: T) {
@@ -49,9 +45,8 @@ export function panelRows(node: PlacedNode, label: string, topology: Topology, t
       push("bluetooth", topology.counts.bluetooth);
       push("screens", topology.counts.screens);
       break;
-    case "wifi":
     case "ethernet":
-      pushNetwork(node, push, t);
+      pushNetwork(node, push);
       break;
     case "bluetooth":
       pushBluetooth(node, push, t);

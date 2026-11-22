@@ -12,13 +12,13 @@ const link = (from: string, to: string, medium: TopoLink["medium"]): TopoLink =>
 
 function sample(extra = 0): Topology {
   const nodes = [
-    node("machine", "machine", 0), node("wifi", "wifi", 1), node("eth", "ethernet", 1),
+    node("machine", "machine", 0), node("eth2", "ethernet", 1), node("eth", "ethernet", 1),
     node("audio:a", "audio", 2), node("audio:b", "audio", 2, { device_kind: "hdmi" }), node("bt:1", "bluetooth", 2),
     node("c:1", "screen", 3, { page: "cinema" }), node("c:2", "remote", 3), node("c:3", "screen", 3, { page: "radio" }),
   ];
   const links = [
-    link("machine", "wifi", "wifi"), link("machine", "eth", "wired"), link("machine", "audio:a", "internal"), link("machine", "audio:b", "wired"),
-    link("machine", "bt:1", "bluetooth"), link("wifi", "c:1", "wifi"), link("wifi", "c:2", "wifi"), link("machine", "c:3", "lan"),
+    link("machine", "eth2", "wired"), link("machine", "eth", "wired"), link("machine", "audio:a", "internal"), link("machine", "audio:b", "wired"),
+    link("machine", "bt:1", "bluetooth"), link("eth2", "c:1", "wired"), link("eth2", "c:2", "wired"), link("machine", "c:3", "lan"),
   ];
   for (let i = 0; i < extra; i++) {
     nodes.push(node(`x:${i}`, "screen", 3));
@@ -52,12 +52,12 @@ test("chaque orbite a le bon rayon (hors orbite externe alternée) et aucun nœu
   }
 });
 
-test("les écrans rattachés au Wi-Fi se placent près de leur point d'accès", () => {
+test("les écrans rattachés à un réseau se placent près de leur point d'accès", () => {
   const layout = layoutOrbits(sample());
-  const wifi = layout.nodes.find((n) => n.id === "wifi")!;
+  const anchor = layout.nodes.find((n) => n.id === "eth2")!;
   for (const id of ["c:1", "c:2"]) {
     const n = layout.nodes.find((x) => x.id === id)!;
-    let delta = Math.abs(n.angle - wifi.angle) % (Math.PI * 2);
+    let delta = Math.abs(n.angle - anchor.angle) % (Math.PI * 2);
     delta = Math.min(delta, Math.PI * 2 - delta);
     assert.ok(delta < 0.5, `${id} trop loin de son point d'accès (${delta.toFixed(2)} rad)`);
   }
@@ -74,19 +74,18 @@ test("tout nœud est dans les bornes et chaque lien a ses deux extrémités", ()
   assert.deepEqual([empty.nodes.length, empty.rings.length], [0, 0]);
 });
 
-test("styles de trait : Wi-Fi long, Bluetooth court, filaire plein", () => {
-  const wifi = linkStyle("wifi").dash.split(" ").map(Number);
-  const bt = linkStyle("bluetooth").dash.split(" ").map(Number);
-  assert.ok(wifi[0] > bt[0] * 3, "les pointillés Wi-Fi sont nettement plus longs");
+test("styles de trait : Bluetooth en tirets, réseau local en points, filaire plein", () => {
   assert.equal(linkStyle("wired").dash, "");
   assert.equal(linkStyle("internal").dash, "");
-  assert.notEqual(linkStyle("lan").dash, linkStyle("wifi").dash);
+  assert.notEqual(linkStyle("bluetooth").dash, "");
+  assert.notEqual(linkStyle("lan").dash, "");
+  assert.notEqual(linkStyle("lan").dash, linkStyle("bluetooth").dash);
 });
 
 test("voisinage au survol", () => {
   const { links } = sample();
-  const near = neighborhood(links, "wifi");
-  assert.deepEqual([...near.nodes].sort(), ["c:1", "c:2", "machine", "wifi"]);
+  const near = neighborhood(links, "eth2");
+  assert.deepEqual([...near.nodes].sort(), ["c:1", "c:2", "eth2", "machine"]);
   assert.equal(near.links.size, 3);
 });
 

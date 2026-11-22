@@ -1,4 +1,4 @@
-"""Pilote Linux : PipeWire (audio), BlueZ par D-Bus (Bluetooth), NetworkManager (Wi-Fi)."""
+"""Pilote Linux : PipeWire (audio), BlueZ par D-Bus (Bluetooth)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from .audio_routing import AudioRoutingMixin
 from .bluetooth import BluetoothMixin
 from .command import Runner, run_command
 from .pairing import PairingMixin
-from .wifi import WifiMixin
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +21,13 @@ _PROBE_TTL = 30.0
 _AUDIO_BASE = ("audio_list", "audio_set_default", "audio_set_volume")
 _AUDIO_TOOLS = (("audio_balance", "pw-cli"), ("audio_test_tone", "pw-play"), ("audio_profile", "wpctl"), ("audio_route_stream", "pw-metadata"))
 _BLUETOOTH = ("bluetooth_status", "bluetooth_power", "bluetooth_scan", "bluetooth_pair", "bluetooth_connect", "bluetooth_forget")
-_WIFI = ("wifi_status", "wifi_power", "wifi_scan", "wifi_connect", "wifi_forget")
 
 
 def _support(reason: str | None) -> dict[str, Any]:
     return {"supported": True} if reason is None else {"supported": False, "reason": reason}
 
 
-class LinuxDriver(AudioMixin, AudioRoutingMixin, BluetoothMixin, PairingMixin, WifiMixin, DeviceDriver):
+class LinuxDriver(AudioMixin, AudioRoutingMixin, BluetoothMixin, PairingMixin, DeviceDriver):
     name = "linux"
 
     def __init__(self, runner: Runner = run_command) -> None:
@@ -45,7 +43,6 @@ class LinuxDriver(AudioMixin, AudioRoutingMixin, BluetoothMixin, PairingMixin, W
         self._moved_streams: dict[int, str] = {}
         self._route_lock = asyncio.Lock()
         self._probe_cache: tuple[float, dict[str, dict[str, Any]]] | None = None
-        self._wifi_device_cache: tuple[float, dict[str, str] | None] = (0.0, None)
 
     async def stop(self) -> None:
         bus, self._bus = self._bus, None
@@ -67,8 +64,6 @@ class LinuxDriver(AudioMixin, AudioRoutingMixin, BluetoothMixin, PairingMixin, W
             caps[key] = _support(audio_reason or missing)
         bt_reason = await self._probe_bluetooth()
         caps.update({key: _support(bt_reason) for key in _BLUETOOTH})
-        wifi_reason = await self._probe_wifi()
-        caps.update({key: _support(wifi_reason) for key in _WIFI})
         caps["system_settings"] = _support("Non applicable sur ce système : utilisez cet écran.")
         self._probe_cache = (now, caps)
         return caps

@@ -88,7 +88,7 @@ def _add_machine(sub, common: argparse.ArgumentParser) -> None:
     devices_sub = devices.add_subparsers(dest="devices_action", required=True)
     for name, help_text in (
         ("status", "état du pilote"), ("audio", "sorties audio"), ("bluetooth", "Bluetooth"),
-        ("wifi", "Wi-Fi"), ("topology", "carte des périphériques"),
+        ("topology", "carte des périphériques"),
     ):
         devices_sub.add_parser(name, parents=[common], help=help_text)
     devices.set_defaults(run=cmd_devices)

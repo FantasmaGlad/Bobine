@@ -1,5 +1,5 @@
-export type NodeKind = "machine" | "audio" | "bluetooth" | "wifi" | "ethernet" | "screen" | "remote";
-export type LinkMedium = "wifi" | "bluetooth" | "wired" | "internal" | "lan";
+export type NodeKind = "machine" | "audio" | "bluetooth" | "ethernet" | "screen" | "remote";
+export type LinkMedium = "bluetooth" | "wired" | "internal" | "lan";
 
 export interface TopoNode {
   id: string;
@@ -8,7 +8,7 @@ export interface TopoNode {
   sub: string;
   state: "active" | "idle" | "off";
   ring: number;
-  tab: "audio" | "bluetooth" | "wifi" | null;
+  tab: "audio" | "bluetooth" | null;
   ref: string | null;
   meta: Record<string, unknown>;
 }
@@ -48,7 +48,7 @@ export interface MapLayout {
 }
 
 export const RING_RADII = [0, 175, 305, 430];
-const NODE_RADIUS: Record<NodeKind, number> = { machine: 46, audio: 30, bluetooth: 30, wifi: 34, ethernet: 34, screen: 30, remote: 28 };
+const NODE_RADIUS: Record<NodeKind, number> = { machine: 46, audio: 30, bluetooth: 30, ethernet: 34, screen: 30, remote: 28 };
 const TAU = Math.PI * 2;
 
 export function hash01(text: string): number {
@@ -174,7 +174,6 @@ export function layoutOrbits(topology: Topology): MapLayout {
 
 export function linkStyle(medium: LinkMedium): { dash: string; width: number; cap: "butt" | "round" } {
   switch (medium) {
-    case "wifi": return { dash: "16 10", width: 2.4, cap: "butt" };
     case "bluetooth": return { dash: "3 7", width: 2.8, cap: "round" };
     case "wired": return { dash: "", width: 3, cap: "butt" };
     case "internal": return { dash: "", width: 1.8, cap: "butt" };
@@ -224,7 +223,6 @@ export function zoomAt(view: { scale: number; tx: number; ty: number }, point: {
 export function nodeIcon(node: Pick<TopoNode, "kind" | "meta">): string {
   switch (node.kind) {
     case "machine": return "dns";
-    case "wifi": return "wifi";
     case "ethernet": return "lan";
     case "bluetooth": return "bluetooth";
     case "remote": return "settings_remote";

@@ -108,9 +108,6 @@ class RoutingDriver(DeviceDriver):
     async def bluetooth_status(self):
         return {"supported": False}
 
-    async def wifi_status(self):
-        return {"supported": False}
-
 
 class FakeSocket:
     def __init__(self, host="127.0.0.1"):

@@ -6,7 +6,6 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import SegmentedTabs from "@/components/SegmentedTabs";
 import AudioSection from "@/components/devices/AudioSection";
 import BluetoothSection from "@/components/devices/BluetoothSection";
-import WifiSection from "@/components/devices/WifiSection";
 import MapSection from "@/components/devices/MapSection";
 import MixerSection from "@/components/devices/MixerSection";
 import VideoSoundSection from "@/components/devices/VideoSoundSection";
@@ -18,13 +17,13 @@ import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
 import { useToast } from "@/lib/useToast";
 
-type Tab = "map" | "audio" | "bluetooth" | "wifi" | "routing" | "mixer" | "videosound";
+type Tab = "map" | "audio" | "bluetooth" | "routing" | "mixer" | "videosound";
 const TAB_KEY = "bobine.devices.tab";
 
 function readSavedTab(): Tab | null {
   try {
     const saved = window.localStorage.getItem(TAB_KEY);
-    if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "wifi" || saved === "routing" || saved === "mixer" || saved === "videosound") return saved;
+    if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "routing" || saved === "mixer" || saved === "videosound") return saved;
   } catch { }
   return null;
 }
@@ -78,7 +77,6 @@ export default function DevicesPage() {
               { id: "map", icon: "hub", label: t("devices.tabs.map") },
               { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
               { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
-              { id: "wifi", icon: "wifi", label: t("devices.tabs.wifi") },
               { id: "routing", icon: "alt_route", label: t("devices.tabs.routing") },
               { id: "mixer", icon: "instant_mix", label: t("devices.tabs.mixer") },
               { id: "videosound", icon: "graphic_eq", label: t("devices.tabs.videosound") },
@@ -94,8 +92,6 @@ export default function DevicesPage() {
           <AudioSection {...section} />
         ) : tab === "bluetooth" ? (
           <BluetoothSection {...section} />
-        ) : tab === "wifi" ? (
-          <WifiSection {...section} />
         ) : tab === "routing" ? (
           <RoutingSection {...section} feed={radioFeed} />
         ) : tab === "videosound" ? (

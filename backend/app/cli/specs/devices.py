@@ -7,7 +7,6 @@ from .route import route
 
 _AUDIO = "/api/devices/audio"
 _BT = "/api/devices/bluetooth"
-_WIFI = "/api/devices/wifi"
 
 SPECS: tuple[Spec, ...] = (
     route("devices", "audio-details", "GET", f"{_AUDIO}/details", "détail d'une sortie audio", query=("id",), pos=("id",)),
@@ -31,14 +30,6 @@ SPECS: tuple[Spec, ...] = (
     route("devices", "bt-disconnect", "POST", f"{_BT}/disconnect", "déconnecter un appareil", body=("address",), pos=("address",)),
     route("devices", "bt-forget", "POST", f"{_BT}/forget", "oublier un appareil", body=("address",), pos=("address",),
           confirm="Oublier l'appareil {address} ?"),
-    route("devices", "wifi-scan", "POST", f"{_WIFI}/scan", "rechercher les réseaux Wi-Fi"),
-    route("devices", "wifi-power", "POST", f"{_WIFI}/power", "allumer ou éteindre le Wi-Fi",
-          body=("on:bool", "acknowledge_disconnect:bool"), pos=("on",)),
-    route("devices", "wifi-connect", "POST", f"{_WIFI}/connect", "se connecter à un réseau (à confirmer ensuite)",
-          body=("ssid", "password", "acknowledge_disconnect:bool"), pos=("ssid",)),
-    route("devices", "wifi-confirm", "POST", f"{_WIFI}/confirm", "confirmer le nouveau réseau Wi-Fi"),
-    route("devices", "wifi-forget", "POST", f"{_WIFI}/forget", "oublier un réseau",
-          body=("ssid", "acknowledge_disconnect:bool"), pos=("ssid",), confirm="Oublier le réseau {ssid} ?"),
     route("devices", "routing", "GET", "/api/devices/routing", "sortie audio de chaque canal"),
     route("devices", "routing-set", "PUT", "/api/devices/routing", "diriger un canal vers une sortie audio",
           body=("channel=" + "|".join(RADIO_CHANNELS), "sink_id", "fallback=" + "|".join(ROUTING_FALLBACKS), "clear:bool"),

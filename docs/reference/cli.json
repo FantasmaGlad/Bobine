@@ -690,11 +690,6 @@
     },
     {
      "arguments": [],
-     "help": "Wi-Fi",
-     "name": "wifi"
-    },
-    {
-     "arguments": [],
      "help": "carte des périphériques",
      "name": "topology"
     },
@@ -974,98 +969,6 @@
      ],
      "help": "oublier un appareil",
      "name": "bt-forget"
-    },
-    {
-     "arguments": [],
-     "help": "rechercher les réseaux Wi-Fi",
-     "name": "wifi-scan"
-    },
-    {
-     "arguments": [
-      {
-       "choices": null,
-       "flag": false,
-       "help": "bool",
-       "name": "on",
-       "positional": true,
-       "repeat": false
-      },
-      {
-       "choices": null,
-       "flag": false,
-       "help": "bool",
-       "name": "--acknowledge-disconnect",
-       "positional": false,
-       "repeat": false
-      }
-     ],
-     "help": "allumer ou éteindre le Wi-Fi",
-     "name": "wifi-power"
-    },
-    {
-     "arguments": [
-      {
-       "choices": null,
-       "flag": false,
-       "help": "",
-       "name": "ssid",
-       "positional": true,
-       "repeat": false
-      },
-      {
-       "choices": null,
-       "flag": false,
-       "help": "",
-       "name": "--password",
-       "positional": false,
-       "repeat": false
-      },
-      {
-       "choices": null,
-       "flag": false,
-       "help": "bool",
-       "name": "--acknowledge-disconnect",
-       "positional": false,
-       "repeat": false
-      }
-     ],
-     "help": "se connecter à un réseau (à confirmer ensuite)",
-     "name": "wifi-connect"
-    },
-    {
-     "arguments": [],
-     "help": "confirmer le nouveau réseau Wi-Fi",
-     "name": "wifi-confirm"
-    },
-    {
-     "arguments": [
-      {
-       "choices": null,
-       "flag": false,
-       "help": "",
-       "name": "ssid",
-       "positional": true,
-       "repeat": false
-      },
-      {
-       "choices": null,
-       "flag": false,
-       "help": "bool",
-       "name": "--acknowledge-disconnect",
-       "positional": false,
-       "repeat": false
-      },
-      {
-       "choices": null,
-       "flag": true,
-       "help": "confirmer (sinon rien n'est modifié)",
-       "name": "--yes",
-       "positional": false,
-       "repeat": false
-      }
-     ],
-     "help": "oublier un réseau",
-     "name": "wifi-forget"
     },
     {
      "arguments": [],

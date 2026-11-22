@@ -188,9 +188,6 @@ class FakeAudioDriver(DeviceDriver):
     async def bluetooth_status(self):
         return {"supported": False, "reason": "x"}
 
-    async def wifi_status(self):
-        return {"supported": False, "reason": "x"}
-
 
 @pytest.fixture()
 def api(monkeypatch):

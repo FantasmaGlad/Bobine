@@ -24,10 +24,9 @@ _NO_DEFAULT_SINK = "Android ne permet pas à une application de changer la sorti
 _NO_AUDIO_TOOLS = "Android ne permet pas à une application de régler la balance, de jouer un son de test ni de changer le profil d'une sortie."
 _NO_ROUTE = "Android choisit lui-même la sortie du son : le routage de la radio n'est pas possible depuis Bobine."
 _NO_BT_CONNECT = "Android ne permet pas de connecter ou d'oublier un appareil déjà appairé : utilisez les réglages Bluetooth."
-_NO_WIFI = "Depuis Android 10, une application ne peut plus gérer le Wi-Fi : utilisez les réglages du système."
 
 
-BRIDGES = {"audio": "AudioBridge", "bluetooth": "BluetoothBridge", "wifi": "WifiBridge", "settings": "SettingsBridge"}
+BRIDGES = {"audio": "AudioBridge", "bluetooth": "BluetoothBridge", "settings": "SettingsBridge"}
 
 
 def _default_bridges() -> tuple[dict[str, Any], Any]:
@@ -106,9 +105,6 @@ class AndroidDriver(DeviceDriver):
             caps[key] = dict(yes) if has_bt else {"supported": False, "reason": "Cet appareil n'a pas de Bluetooth."}
         for key in ("bluetooth_connect", "bluetooth_forget"):
             caps[key] = {"supported": False, "reason": _NO_BT_CONNECT}
-        caps["wifi_status"] = dict(yes)
-        for key in ("wifi_power", "wifi_scan", "wifi_connect", "wifi_forget"):
-            caps[key] = {"supported": False, "reason": _NO_WIFI}
         caps["system_settings"] = dict(yes)
         return caps
 
@@ -155,9 +151,6 @@ class AndroidDriver(DeviceDriver):
     async def bluetooth_pair(self, address: str) -> None:
         await self._call("bluetooth", "bluetoothPair", address)
         self._emit("bluetooth")
-
-    async def wifi_status(self) -> dict[str, Any]:
-        return await self._call("wifi", "wifiStatus")
 
     async def open_system_settings(self, target: str) -> None:
         await self._call("settings", "openSettings", target)

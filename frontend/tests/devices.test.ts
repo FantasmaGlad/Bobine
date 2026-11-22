@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { audioKindIcon } from "../src/lib/devices/audio.ts";
-import { bluetoothKindIcon, secondsLeft, signalBars, splitBluetooth, wifiConnectPlan } from "../src/lib/devices/wireless.ts";
+import { bluetoothKindIcon, splitBluetooth } from "../src/lib/devices/wireless.ts";
 import { type BluetoothDevice } from "../src/lib/devices/types.ts";
 import { errorMessage, parseApiError } from "../src/lib/apiError.ts";
 
@@ -17,17 +17,6 @@ test("erreurs de l'API : détail structuré, texte simple ou absent", () => {
   assert.equal(errorMessage({ detail: { code: "external_read_only", message: "Lecture seule" } }, "repli"), "Lecture seule");
   assert.equal(errorMessage(null, "repli"), "repli");
   assert.equal(parseApiError(429, { detail: { code: "timeout", message: "x", retry_after: 60 } }).extra.retry_after, 60);
-});
-
-test("barres de signal", () => {
-  assert.deepEqual([0, 10, 30, 60, 90].map(signalBars), [0, 1, 2, 3, 4]);
-});
-
-test("connexion Wi-Fi : le mot de passe ne se saisit qu'en local", () => {
-  assert.equal(wifiConnectPlan({ known: true, security: "WPA2" }, false), "direct");
-  assert.equal(wifiConnectPlan({ known: false, security: "" }, false), "direct");
-  assert.equal(wifiConnectPlan({ known: false, security: "WPA2" }, true), "needs_password");
-  assert.equal(wifiConnectPlan({ known: false, security: "WPA2" }, false), "password_local_only");
 });
 
 const dev = (over: Partial<BluetoothDevice>): BluetoothDevice => ({
@@ -46,15 +35,11 @@ test("Bluetooth : appairés (connectés d'abord) et à portée triés par signal
   assert.deepEqual(nearby.map((d) => d.name), ["Près", "Loin", "Inconnu"]);
 });
 
-test("icônes et compte à rebours", () => {
+test("icônes des sorties et des appareils", () => {
   assert.equal(audioKindIcon("hdmi"), "settings_input_hdmi");
   assert.equal(audioKindIcon("other"), "volume_up");
   assert.equal(bluetoothKindIcon("headset"), "headset_mic");
   assert.equal(bluetoothKindIcon("???"), "bluetooth");
-  const pending = { kind: "connect" as const, target: "X", previous: "Y", seconds_left: 60 };
-  assert.equal(secondsLeft(pending, 12.9), 48);
-  assert.equal(secondsLeft(pending, 500), 0);
-  assert.equal(secondsLeft(null, 0), 0);
 });
 
 import { audioDisplayName, balanceFromSlider, describeBalance, describeChannels, formatLatency, formatSampleRate, sliderFromBalance } from "../src/lib/devices/audio.ts";

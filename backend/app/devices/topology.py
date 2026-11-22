@@ -8,12 +8,13 @@ import socket
 from typing import Any
 
 _VIRTUAL_IFACE = re.compile(r"^(lo|docker|veth|br-|virbr|lxc|lxd|tun|tap|wg|proton|ipv6leak|tailscale|zt|vmnet|vboxnet|utun|awdl|llw|bridge|anpi|ap\d)", re.I)
+_WIRELESS_IFACE = re.compile(r"^(wl|wlan|wifi|wi-fi)", re.I)
 
 REMOTE_PAGES = frozenset({"dashboard", "coach"})
 RING_NETWORK, RING_DEVICES, RING_SCREENS = 1, 2, 3
 
 
-def ethernet_interfaces(wifi_interface: str | None = None) -> list[dict[str, Any]]:
+def ethernet_interfaces() -> list[dict[str, Any]]:
     """Interfaces filaires actives (hors Wi-Fi, boucle locale et interfaces virtuelles) avec adresse IPv4."""
     try:
         import psutil
@@ -24,9 +25,7 @@ def ethernet_interfaces(wifi_interface: str | None = None) -> list[dict[str, Any
         return []
     found: list[dict[str, Any]] = []
     for name, stat in sorted(stats.items()):
-        if not stat.isup or name == wifi_interface or _VIRTUAL_IFACE.match(name):
-            continue
-        if re.match(r"^(wl|wlan|wifi|wi-fi)", name, re.I):
+        if not stat.isup or _VIRTUAL_IFACE.match(name) or _WIRELESS_IFACE.match(name):
             continue
         ipv4 = next((a for a in addrs.get(name, []) if a.family == socket.AF_INET and a.address), None)
         if ipv4 is None:
@@ -53,12 +52,10 @@ def _in_subnet(ip: str, subnet: str | None) -> bool:
         return False
 
 
-def client_medium(ip: str, own_ips: frozenset[str], wifi_subnet: str | None, ethernet_subnets: list[str]) -> str:
-    """Comment un client atteint la machine : `local` (même machine), `wifi`, `wired` ou `lan` (inconnu)."""
+def client_medium(ip: str, own_ips: frozenset[str], ethernet_subnets: list[str]) -> str:
+    """Comment un client atteint la machine : `local` (même machine), `wired` ou `lan` (autre réseau local)."""
     if not ip or ip in own_ips or ip.startswith("127.") or ip in ("::1",):
         return "local"
-    if _in_subnet(ip, wifi_subnet):
-        return "wifi"
     if any(_in_subnet(ip, s) for s in ethernet_subnets):
         return "wired"
     return "lan"
@@ -82,17 +79,6 @@ class _Graph:
 
 def _supported(probe: dict[str, Any] | None, key: str) -> list:
     return (probe or {}).get(key, []) if (probe or {}).get("supported") else []
-
-
-def _add_wifi(graph: _Graph, wifi: dict[str, Any] | None) -> str | None:
-    current = (wifi or {}).get("current") if (wifi or {}).get("supported") else None
-    if not current:
-        return None
-    graph.add({"id": "wifi", "kind": "wifi", "label": current.get("ssid") or "Wi-Fi", "sub": current.get("ip") or "", "state": "active",
-               "ring": RING_NETWORK, "tab": "wifi", "ref": current.get("ssid"),
-               "meta": {"signal": current.get("signal"), "band": current.get("band"), "security": current.get("security"), "ip": current.get("ip")}},
-              "machine", "wifi", "active", (current.get("signal") or 0) / 100)
-    return "wifi"
 
 
 def _add_ethernets(graph: _Graph, ethernets: list[dict[str, Any]]) -> list[tuple[str, str | None]]:
@@ -142,16 +128,13 @@ def _add_audio(graph: _Graph, audio: dict[str, Any] | None, bt_names: dict[str, 
                   "machine", medium, state)
 
 
-def _add_clients(graph: _Graph, clients: list[dict[str, Any]], own_ips: frozenset[str], wifi_subnet: str | None,
-                 wifi_node: str | None, eth_ids: list[tuple[str, str | None]]) -> None:
+def _add_clients(graph: _Graph, clients: list[dict[str, Any]], own_ips: frozenset[str], eth_ids: list[tuple[str, str | None]]) -> None:
     eth_subnets = [s for _, s in eth_ids if s]
     for c in clients:
         page, channel, ip = str(c.get("page") or "viewer"), str(c.get("channel") or ""), str(c.get("ip") or "")
-        medium = client_medium(ip, own_ips, wifi_subnet, eth_subnets)
+        medium = client_medium(ip, own_ips, eth_subnets)
         anchor = "machine"
-        if medium == "wifi" and wifi_node:
-            anchor = wifi_node
-        elif medium == "wired" and eth_ids:
+        if medium == "wired" and eth_ids:
             anchor = eth_ids[0][0]
         graph.add({"id": f"client:{channel}:{page}:{ip}:{c.get('role')}", "kind": "remote" if page in REMOTE_PAGES else "screen",
                    "label": page, "sub": ip or "local", "state": "active", "ring": RING_SCREENS, "tab": None, "ref": None,
@@ -164,17 +147,14 @@ def build_topology(
     machine: dict[str, Any],
     audio: dict[str, Any] | None,
     bluetooth: dict[str, Any] | None,
-    wifi: dict[str, Any] | None,
-    wifi_subnet: str | None,
     ethernets: list[dict[str, Any]],
     clients: list[dict[str, Any]],
     own_ips: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     graph = _Graph(machine)
-    wifi_node = _add_wifi(graph, wifi)
     eth_ids = _add_ethernets(graph, ethernets)
     bt_names = _add_bluetooth(graph, bluetooth)
     _add_audio(graph, audio, bt_names)
-    _add_clients(graph, clients, own_ips, wifi_subnet, wifi_node, eth_ids)
+    _add_clients(graph, clients, own_ips, eth_ids)
     return {"nodes": graph.nodes, "links": graph.links,
             "counts": {"audio": graph.count("audio"), "bluetooth": graph.count("bluetooth"), "screens": graph.count("screen", "remote")}}

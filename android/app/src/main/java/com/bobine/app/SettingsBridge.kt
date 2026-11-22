@@ -10,7 +10,6 @@ private const val TAG = "SettingsBridge"
 object SettingsBridge {
     fun openSettings(context: Context, target: String): String = try {
         val action = when (target) {
-            "wifi" -> Settings.ACTION_WIFI_SETTINGS
             "bluetooth" -> Settings.ACTION_BLUETOOTH_SETTINGS
             "sound" -> Settings.ACTION_SOUND_SETTINGS
             else -> return bridgeError("bad_target", "Réglage inconnu.")

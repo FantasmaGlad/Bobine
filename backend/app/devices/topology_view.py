@@ -32,15 +32,12 @@ async def _safe(coro: Awaitable[Any]) -> Any:
 
 async def topology_view(service: Any, db: Session) -> dict[str, Any]:
     driver = service.driver
-    audio, bluetooth, wifi = await asyncio.gather(_safe(driver.audio_list()), _safe(driver.bluetooth_status()), _safe(driver.wifi_status()))
-    wifi_subnet = await _safe(driver.wifi_interface_subnet())
+    audio, bluetooth = await asyncio.gather(_safe(driver.audio_list()), _safe(driver.bluetooth_status()))
     return build_topology(
         machine={"name": socket.gethostname(), "platform": get_deployment_profile()},
         audio=with_listing_meta(audio, db),
         bluetooth=bluetooth,
-        wifi=wifi,
-        wifi_subnet=wifi_subnet,
-        ethernets=ethernet_interfaces((wifi or {}).get("interface") if wifi else None),
+        ethernets=ethernet_interfaces(),
         clients=ws_manager.client_snapshot(),
         own_ips=locality.own_ip_addresses(),
     )

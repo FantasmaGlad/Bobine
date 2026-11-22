@@ -9,7 +9,6 @@ export interface DevicesStatus {
   local: boolean;
   platform: string;
   driver: string;
-  wifi_confirm_seconds: number;
   capabilities: Capabilities;
 }
 
@@ -103,36 +102,4 @@ export interface BluetoothStatus {
   pairing?: PairingProgress | null;
   permission_required?: boolean;
   permission_message?: string;
-}
-
-export interface WifiNetwork {
-  ssid: string;
-  ssid_reason?: string | null;
-  signal: number;
-  security: string;
-  band: string;
-  known: boolean;
-  in_use: boolean;
-  ip?: string | null;
-}
-
-export interface WifiPendingChange {
-  kind: "connect" | "power_off";
-  target: string;
-  previous: string | null;
-  seconds_left: number;
-}
-
-export interface WifiStatus {
-  supported: boolean;
-  reason?: string;
-  enabled?: boolean;
-  interface?: string | null;
-  state?: string;
-  transport?: string;
-  read_only?: boolean;
-  current?: WifiNetwork | null;
-  networks?: WifiNetwork[];
-  known?: string[];
-  pending_change?: WifiPendingChange | null;
 }

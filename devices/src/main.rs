@@ -2,8 +2,6 @@ mod exec;
 mod parse;
 mod platform;
 mod protocol;
-#[cfg_attr(not(windows), allow(dead_code))]
-mod secret_file;
 
 use std::io::{BufRead, Read, Write};
 

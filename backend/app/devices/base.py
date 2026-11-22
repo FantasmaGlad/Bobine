@@ -1,4 +1,4 @@
-"""Interface commune des pilotes de périphériques (audio, Bluetooth, Wi-Fi)."""
+"""Interface commune des pilotes de périphériques (audio, Bluetooth)."""
 from __future__ import annotations
 
 import logging
@@ -26,11 +26,6 @@ CAPABILITY_KEYS = (
     "bluetooth_pair",
     "bluetooth_connect",
     "bluetooth_forget",
-    "wifi_status",
-    "wifi_power",
-    "wifi_scan",
-    "wifi_connect",
-    "wifi_forget",
     "system_settings",
 )
 
@@ -140,37 +135,9 @@ class DeviceDriver(ABC):
     async def bluetooth_forget(self, address: str) -> None:
         raise DeviceError("unsupported", "L'oubli d'un appareil Bluetooth n'est pas possible ici.", 501)
 
-    @abstractmethod
-    async def wifi_status(self) -> dict[str, Any]:
-        """`{"supported": True, "enabled": bool, "interface": str|None, "current": {...}|None, "networks": [...], "known": [...]}` ou `unsupported()`."""
-
-    async def wifi_set_power(self, on: bool) -> None:
-        raise DeviceError("unsupported", "Le Wi-Fi ne peut pas être activé ici.", 501)
-
-    async def wifi_scan(self) -> None:
-        raise DeviceError("unsupported", "La recherche de réseaux Wi-Fi n'est pas possible ici.", 501)
-
-    async def wifi_current_connection(self) -> str | None:
-        """Nom de la connexion Wi-Fi active (pour le retour automatique), si connue."""
-        return None
-
-    async def wifi_connect(self, ssid: str, password: str | None) -> None:
-        raise DeviceError("unsupported", "La connexion Wi-Fi doit se faire dans les réglages du système.", 501)
-
-    async def wifi_activate(self, connection: str) -> None:
-        """Réactive une connexion enregistrée (retour automatique)."""
-        raise DeviceError("unsupported", "Réactivation impossible sur cette plateforme.", 501)
-
-    async def wifi_forget(self, ssid: str) -> None:
-        raise DeviceError("unsupported", "L'oubli d'un réseau Wi-Fi n'est pas possible ici.", 501)
-
     async def open_system_settings(self, target: str) -> None:
-        """Ouvre l'écran de réglages du système (« wifi », « bluetooth », « sound ») sur la machine."""
+        """Ouvre l'écran de réglages du système (« bluetooth », « sound ») sur la machine."""
         raise DeviceError("unsupported", "Les réglages du système ne peuvent pas être ouverts depuis Bobine ici.", 501)
-
-    async def wifi_interface_subnet(self) -> str | None:
-        """Sous-réseau IPv4 (CIDR) de l'interface Wi-Fi, pour détecter un appareil connecté par ce seul réseau."""
-        return None
 
 
 class NullDriver(DeviceDriver):
@@ -189,9 +156,6 @@ class NullDriver(DeviceDriver):
         return unsupported(self.reason)
 
     async def bluetooth_status(self) -> dict[str, Any]:
-        return unsupported(self.reason)
-
-    async def wifi_status(self) -> dict[str, Any]:
         return unsupported(self.reason)
 
 

@@ -1,4 +1,3 @@
-import asyncio
 import io
 import os
 import sqlite3
@@ -19,7 +18,6 @@ from app.devices import locality
 from app.devices.base import DeviceDriver, DeviceError, NullDriver
 from app.devices.linux.parse.audio import audio_kind, parse_pw_dump, parse_wpctl_volume
 from app.devices.linux.parse.bluetooth import bluez_device_path, is_valid_mac, parse_bluez_objects
-from app.devices.linux.parse.wifi import parse_known_wifi, parse_wifi_device, parse_wifi_list, split_terse, wifi_band
 from app.devices.service import DevicesService, service
 from app.main import app
 from app.models import Setting
@@ -91,34 +89,6 @@ def test_bluetooth_address_helpers():
     assert bluez_device_path("/org/bluez/hci0", "aa:bb:cc:dd:ee:ff") == "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF"
 
 
-def test_split_terse_handles_escaped_colons():
-    assert split_terse(r"*:Mon\:Wifi:82:WPA2:5180 MHz") == ["*", "Mon:Wifi", "82", "WPA2", "5180 MHz"]
-    assert split_terse(r"a\\b:c") == ["a\\b", "c"]
-
-
-def test_parse_wifi_list_dedupes_and_marks_known():
-    out = "\n".join([
-        "*:Livebox:76:WPA2:5180 MHz",
-        " :Livebox:40:WPA2:2412 MHz",
-        " :Voisin:55:WPA2 WPA3:2437 MHz",
-        " ::30:WPA2:2412 MHz",
-        " :Cafe:20:--:2412 MHz",
-    ])
-    networks = parse_wifi_list(out, {"Livebox"})
-    assert [n["ssid"] for n in networks] == ["Livebox", "Voisin", "Cafe"]
-    assert networks[0]["in_use"] and networks[0]["known"] and networks[0]["signal"] == 76 and networks[0]["band"] == "5 GHz"
-    assert networks[2]["security"] == ""
-    assert wifi_band("6000 MHz") == "6 GHz" and wifi_band("2412 MHz") == "2.4 GHz"
-
-
-def test_parse_known_wifi_and_device():
-    known = parse_known_wifi("Livebox:uuid1:802-11-wireless\nWired:uuid2:802-3-ethernet\nFanta:uuid3:802-11-wireless")
-    assert [k["name"] for k in known] == ["Livebox", "Fanta"]
-    device = parse_wifi_device("lo:loopback:connected (externally):\nwlo1:wifi:connected:Livebox")
-    assert device == {"device": "wlo1", "state": "connected", "connection": "Livebox"}
-    assert parse_wifi_device("eth0:ethernet:connected:Wired") is None
-
-
 def test_local_client_detection():
     assert locality.is_local_client("127.0.0.1") and locality.is_local_client("::1")
     assert locality.is_local_client("::ffff:127.0.0.1")
@@ -133,7 +103,7 @@ def test_remote_client_reads_status_without_cookie(driver):
     assert "set-cookie" not in response.headers
     body = response.json()
     assert body["local"] is False
-    assert set(body) == {"local", "platform", "driver", "wifi_confirm_seconds", "capabilities"}
+    assert set(body) == {"local", "platform", "driver", "capabilities"}
     assert "pin_set" not in body and "access" not in body
 
 
@@ -143,7 +113,6 @@ class FakeDriver(DeviceDriver):
     def __init__(self):
         super().__init__()
         self.calls: list[tuple] = []
-        self.current = "Maison"
         self.fail_with: Exception | None = None
 
     async def capabilities(self):
@@ -160,28 +129,6 @@ class FakeDriver(DeviceDriver):
     async def bluetooth_status(self):
         return {"supported": True, "powered": True, "discovering": False, "devices": [], "pending_pairing": None}
 
-    async def wifi_status(self):
-        return {"supported": True, "enabled": True, "interface": "wlan0", "current": None, "networks": [], "known": ["Maison"]}
-
-    async def wifi_current_connection(self):
-        return self.current
-
-    async def wifi_connect(self, ssid, password):
-        self.calls.append(("connect", ssid, password))
-        self.current = ssid
-
-    async def wifi_activate(self, connection):
-        self.calls.append(("activate", connection))
-        self.current = connection
-
-    async def wifi_set_power(self, on):
-        self.calls.append(("power", on))
-
-    async def wifi_interface_subnet(self):
-        return "10.0.0.0/24"
-
-    async def wifi_forget(self, ssid):
-        self.calls.append(("forget", ssid))
 
 
 @pytest.fixture()
@@ -190,7 +137,6 @@ def driver():
     fake = FakeDriver()
     service.set_driver(fake)
     yield fake
-    service.confirm_wifi_change()
     service.set_driver(None)
 
 
@@ -223,64 +169,6 @@ def test_null_driver_reports_unsupported(local):
         assert all(not c["supported"] for c in caps.values())
     finally:
         service.set_driver(None)
-
-
-@pytest.mark.recent_stack
-def test_wifi_password_only_on_local_screen(driver, local, monkeypatch):
-    local_client = TestClient(app)
-    ok = local_client.post("/api/devices/wifi/connect", json={"ssid": "Nouveau", "password": "secret-wifi"})
-    assert ok.status_code == 200 and ok.json()["pending_change"]["seconds_left"] > 50
-    assert ("connect", "Nouveau", "secret-wifi") in driver.calls
-    from app.models import ActivityLog
-    with SessionLocal() as db:
-        details = " ".join(str(r.detail) for r in db.query(ActivityLog).filter(ActivityLog.event_type.like("devices_%")).all())
-    assert "secret-wifi" not in details
-    service.confirm_wifi_change()
-    monkeypatch.undo()
-    client = remote("10.0.5.5")
-    refused = client.post("/api/devices/wifi/connect", json={"ssid": "X", "password": "pw", "acknowledge_disconnect": True})
-    assert refused.status_code == 403 and refused.json()["detail"]["code"] == "password_local_only"
-
-
-@pytest.mark.recent_stack
-def test_wifi_change_requires_ack_when_reached_through_wifi_and_confirm_clears(driver, local, monkeypatch):
-    monkeypatch.undo()
-    client = remote("10.0.0.77")
-    blocked = client.post("/api/devices/wifi/connect", json={"ssid": "Maison"})
-    assert blocked.status_code == 409 and blocked.json()["detail"]["code"] == "ack_required"
-    ok = client.post("/api/devices/wifi/connect", json={"ssid": "Autre", "acknowledge_disconnect": True})
-    assert ok.status_code == 200
-    assert client.post("/api/devices/wifi/connect", json={"ssid": "Encore", "acknowledge_disconnect": True}).json()["detail"]["code"] == "change_pending"
-    assert client.get("/api/devices/wifi").json()["pending_change"]["target"] == "Autre"
-    assert client.post("/api/devices/wifi/confirm").json() == {"confirmed": True}
-    assert client.get("/api/devices/wifi").json()["pending_change"] is None
-    outside = remote("10.9.9.4")
-    assert outside.post("/api/devices/wifi/connect", json={"ssid": "Maison"}).status_code == 200
-
-
-def test_wifi_rollback_restores_previous_connection_when_not_confirmed():
-    async def scenario():
-        fake = FakeDriver()
-        svc = DevicesService(driver_factory=lambda: fake)
-        fake.current = "Maison"
-        await fake.wifi_connect("Autre", None)
-        svc.arm_wifi_rollback("connect", "Maison", "Autre", seconds=0.05)
-        assert svc.wifi_pending_info() is not None
-        await asyncio.sleep(0.2)
-        assert ("activate", "Maison") in fake.calls and fake.current == "Maison"
-        assert svc.wifi_pending is None
-
-        fake.calls.clear()
-        svc.arm_wifi_rollback("connect", "Maison", "Autre", seconds=0.05)
-        assert svc.confirm_wifi_change() is True
-        await asyncio.sleep(0.15)
-        assert fake.calls == []
-
-        svc.arm_wifi_rollback("power_off", None, "Wi-Fi", seconds=0.05)
-        await asyncio.sleep(0.15)
-        assert ("power", True) in fake.calls
-
-    asyncio.run(scenario())
 
 
 def test_backup_keeps_settings_unchanged():
@@ -325,14 +213,15 @@ def test_event_is_a_data_free_signal(monkeypatch):
     sent = []
     monkeypatch.setattr("app.devices.service.ws_manager.broadcast_threadsafe", lambda message: sent.append(message))
     svc = DevicesService(driver_factory=lambda: FakeDriver())
-    svc.notify("wifi")
-    svc.notify("wifi")
-    assert sent == [{"event": "devices_changed", "scope": "wifi"}]
+    svc.notify("bluetooth")
+    svc.notify("bluetooth")
+    assert sent == [{"event": "devices_changed", "scope": "bluetooth"}]
 
 
 def test_system_settings_and_permission_routes(driver, local):
     client = TestClient(app)
     assert client.post("/api/devices/system-settings", json={"target": "rm -rf"}).json()["detail"]["code"] == "bad_target"
-    unsupported = client.post("/api/devices/system-settings", json={"target": "wifi"})
+    assert client.post("/api/devices/system-settings", json={"target": "wifi"}).json()["detail"]["code"] == "bad_target"
+    unsupported = client.post("/api/devices/system-settings", json={"target": "bluetooth"})
     assert unsupported.status_code == 501 and unsupported.json()["detail"]["code"] == "unsupported"
     assert client.post("/api/devices/bluetooth/permission").status_code == 200

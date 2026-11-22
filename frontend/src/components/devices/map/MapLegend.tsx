@@ -4,7 +4,7 @@ import { linkStyle, type Topology } from "@/lib/deviceMap";
 import { type SectionProps } from "../shared/section";
 import MediumLine from "./MediumLine";
 
-const MEDIA = ["wifi", "bluetooth", "wired"] as const;
+const MEDIA = ["wired", "bluetooth", "lan"] as const;
 
 export default function MapLegend({ counts, t }: { counts: Topology["counts"]; t: SectionProps["t"] }) {
   return (
