@@ -32,15 +32,13 @@ export default function SeekOsd({ position, duration, visible, chapters }: SeekH
   const ratio = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
   return (
     <div className={`seek-osd ${visible ? "is-visible" : ""}`} role="status" aria-live="off">
-      <div className="seek-osd-line">
-        <span className="seek-osd-time">{formatTime(position)}</span>
-        <div className="seek-osd-track">
-          <span className="seek-osd-fill" style={{ transform: `scaleX(${ratio})` }} />
-          <ChapterTicks chapters={chapters} duration={duration} />
-        </div>
-        <span className="seek-osd-time">{formatTime(duration)}</span>
+      <span className="seek-osd-time">{formatTime(position)}</span>
+      {title && <span className="seek-osd-chapter">{title}</span>}
+      <div className="seek-osd-track">
+        <span className="seek-osd-fill" style={{ transform: `scaleX(${ratio})` }} />
+        <ChapterTicks chapters={chapters} duration={duration} />
       </div>
-      {title && <div className="seek-osd-chapter">{title}</div>}
+      <span className="seek-osd-time">{formatTime(duration)}</span>
     </div>
   );
 }
