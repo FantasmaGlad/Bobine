@@ -68,6 +68,8 @@ object BluetoothBridge {
     @SuppressLint("MissingPermission")
     private fun connectedAddresses(context: Context, adapter: BluetoothAdapter): Set<String> {
         val connected = ConcurrentHashMap.newKeySet<String>()
+        val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        try { manager?.getConnectedDevices(BluetoothProfile.GATT)?.forEach { connected.add(it.address) } } catch (e: SecurityException) { Log.w(TAG, "Appareils BLE connectes illisibles", e) }
         for (profile in intArrayOf(BluetoothProfile.A2DP, BluetoothProfile.HEADSET)) {
             val latch = CountDownLatch(1)
             val listener = object : BluetoothProfile.ServiceListener {
