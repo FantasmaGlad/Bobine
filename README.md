@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://bobine.fit"><b>Official Website</b></a> &nbsp;·&nbsp;
   <a href="#download"><b>Downloads</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/en/documentation"><b>User Documentation</b></a> &nbsp;·&nbsp;
+  <a href="https://bobine.fit/en/commands"><b>Command reference</b></a> &nbsp;·&nbsp;
   <a href="README.fr.md"><b>Français</b></a>
 </p>
 
@@ -92,8 +92,8 @@ Three channels, switchable at any time in **Settings → Software Updates**.
 
 | Subject | Where |
 | :--- | :--- |
-| User guide and FAQ | [bobine.fit/en/documentation](https://bobine.fit/en/documentation) |
-| Author and project | [bobine.fit/en/about](https://bobine.fit/en/about) |
+| `bobine` command | [bobine.fit/en/commands](https://bobine.fit/en/commands) |
+| Local HTTP API | [bobine.fit/en/api](https://bobine.fit/en/api) |
 | Linux repositories | [packages.bobine.fit](https://packages.bobine.fit) |
 
 ## Why go this far?
@@ -102,7 +102,7 @@ A weekly timetable of fitness classes does not need seven platforms and three up
 
 - **Every system and architecture**: so that "is it compatible?" is not a question. An old laptop, a tablet, a TV box, a second-hand mini PC: if the device sits in a garage, Bobine should install on it, whatever its power. Reusing a device avoids buying one.
 - **Three update channels**: to run a clean release process, with Stable at the end of the line, Beta in chosen batches and Canary rebuilt on every change.
-- **One person**: the whole chain, from source code to signed packages on each platform, is built and maintained by [Clément Barillot](https://bobine.fit/en/about).
+- **One person**: the whole chain, from source code to signed packages on each platform, is built and maintained by [Clément Barillot](https://github.com/FantasmaGlad).
 
 ## Security and license
 

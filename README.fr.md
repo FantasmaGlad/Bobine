@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://bobine.fit/fr"><b>Site officiel</b></a> &nbsp;·&nbsp;
   <a href="#téléchargement"><b>Télécharger</b></a> &nbsp;·&nbsp;
-  <a href="https://bobine.fit/fr/documentation"><b>Documentation utilisateur</b></a> &nbsp;·&nbsp;
+  <a href="https://bobine.fit/fr/commandes"><b>Référence des commandes</b></a> &nbsp;·&nbsp;
   <a href="README.md"><b>English</b></a>
 </p>
 
@@ -92,8 +92,8 @@ Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 
 | Sujet | Où |
 | :--- | :--- |
-| Guide d'utilisation et FAQ | [bobine.fit/fr/documentation](https://bobine.fit/fr/documentation) |
-| Auteur et projet | [bobine.fit/fr/a-propos](https://bobine.fit/fr/a-propos) |
+| Commande `bobine` | [bobine.fit/fr/commandes](https://bobine.fit/fr/commandes) |
+| API HTTP locale | [bobine.fit/fr/api](https://bobine.fit/fr/api) |
 | Dépôts Linux | [packages.bobine.fit](https://packages.bobine.fit/fr/) |
 
 ## Pourquoi aller aussi loin ?
@@ -102,7 +102,7 @@ Un planning hebdomadaire de cours collectifs n'a pas besoin de sept plateformes 
 
 - **Tous les systèmes et architectures** : pour que la question « est-ce compatible ? » ne se pose pas. Un ancien portable, une tablette, un boîtier TV, un mini PC d'occasion : si l'appareil dort dans un garage, Bobine doit pouvoir s'y installer, quelle que soit sa puissance. Réutiliser un appareil évite d'en acheter un.
 - **Trois canaux de mise à jour** : pour tenir un processus de diffusion propre, avec la Stable en bout de chaîne, la Bêta par lots choisis et la Canary reconstruite à chaque modification.
-- **Une seule personne** : toute la chaîne, du code source aux paquets signés de chaque plateforme, est construite et maintenue par [Clément Barillot](https://bobine.fit/fr/a-propos).
+- **Une seule personne** : toute la chaîne, du code source aux paquets signés de chaque plateforme, est construite et maintenue par [Clément Barillot](https://github.com/FantasmaGlad).
 
 ## Sécurité et licence
 
