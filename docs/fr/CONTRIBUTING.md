@@ -51,7 +51,7 @@ Le schéma de données est géré par SQLAlchemy : les tables sont créées au d
 
 ## Plateformes
 
-Bobine cible cinq profils d'exécution : Android (ARM64), Linux bureau, appliance Debian headless, Windows et macOS. Un changement qui touche au comportement système (détection matérielle, alimentation et veille, fenêtrage, sortie audio et vidéo, stockage, processus, réseau, empaquetage) doit être raisonné pour chaque profil, et votre demande de fusion doit indiquer ceux que vous avez testés et ceux que vous n'avez pas testés. Si vous ne pouvez tester que sur un système, dites-le : le mainteneur couvrira les autres.
+Bobine cible quatre profils d'exécution : Android (ARM64), Linux bureau, Windows et macOS. Un changement qui touche au comportement système (détection matérielle, alimentation et veille, fenêtrage, sortie audio et vidéo, stockage, processus, réseau, empaquetage) doit être raisonné pour chaque profil, et votre demande de fusion doit indiquer ceux que vous avez testés et ceux que vous n'avez pas testés. Si vous ne pouvez tester que sur un système, dites-le : le mainteneur couvrira les autres.
 
 ## Tests
 
@@ -108,7 +108,7 @@ Une demande de fusion est acceptée lorsque la CI est verte, la revue terminée 
 
 ## Dépendances
 
-Ajouter une dépendance exige une justification dans la demande de fusion : ce qu'elle fait, pourquoi la bibliothèque standard ou une dépendance existante ne suffit pas, sa licence (compatible avec l'AGPL-3.0), son état de maintenance et son empreinte sur une petite appliance. L'exécution doit rester possible sans accès à Internet.
+Ajouter une dépendance exige une justification dans la demande de fusion : ce qu'elle fait, pourquoi la bibliothèque standard ou une dépendance existante ne suffit pas, sa licence (compatible avec l'AGPL-3.0), son état de maintenance et son empreinte sur une petite machine. L'exécution doit rester possible sans accès à Internet.
 
 ## Licence
 

@@ -30,7 +30,3 @@ def test_repli_de_gradle():
 def test_derniere_release_du_metainfo_appstream():
     first = re.search(r'<release version="([^"]+)"', _read("packaging/linux/bobine.metainfo.xml")).group(1)
     assert first == CURRENT
-
-
-def test_repli_de_l_installeur_autonome():
-    assert re.search(r'SCRIPT_VERSION=.*echo "([^\"]+)"', _read("install.sh")).group(1) == CURRENT

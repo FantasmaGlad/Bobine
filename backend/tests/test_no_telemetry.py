@@ -5,7 +5,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 RUNTIME = [
     "backend/app", "frontend/src", "android/app/src/main", "devices/src", "media/src", "projector/src",
-    "scripts/watchdog.sh", "packaging/firefox/policies.json",
+    "packaging/firefox/policies.json",
 ]
 URL = re.compile(r"https?://([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 

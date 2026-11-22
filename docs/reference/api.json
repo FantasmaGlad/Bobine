@@ -1178,7 +1178,7 @@
      "path": "/api/health",
      "path_parameters": [],
      "query": [],
-     "summary": "Contrôle de santé lisible par machine, consommé par le chien de garde `bobine-watchdog` (redémarrage auto d'un composant mort) et par toute supervision externe."
+     "summary": "Contrôle de santé lisible par machine, pour toute supervision externe."
     }
    ]
   },
@@ -3227,7 +3227,7 @@
      "path": "/api/settings/display-output",
      "path_parameters": [],
      "query": [],
-     "summary": "Sortie active des deux canaux : câblé (écran du Wyse) et réseau (tout autre appareil du LAN)."
+     "summary": "Sortie active des deux canaux : câblé (écran branché à la machine) et réseau (tout autre appareil du LAN)."
     },
     {
      "body": {

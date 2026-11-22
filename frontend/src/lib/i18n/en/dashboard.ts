@@ -73,7 +73,7 @@ export const dashboard: Dict = {
   subtitlesOff: "None",
   launchCourseCableTitle: "Launch a course — wired output",
   playlistCourseCount: "{{count}} courses",
-  launchCourseCableHint: "Streamed with sound on the screen physically wired to the Wyse (room projector/speakers).",
+  launchCourseCableHint: "Streamed with sound on the screen physically wired to the machine (room projector/speakers).",
   launchCourseNetworkTitle: "Launch a course — network output",
   launchCourseNetworkHint: "Streamed with sound on any /kiosk opened from another device on the network (secondary screen with its own speakers).",
   chooseVideo: "Choose a video...",

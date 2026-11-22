@@ -26,7 +26,7 @@ _mirror_timer: threading.Timer | None = None
 
 
 def mirror_dir() -> Path:
-    """`config/` à côté des journaux, dans le dossier de données de Bobine (jamais dans le dossier du code, qui est un dépôt git sur l'appliance)."""
+    """`config/` à côté des journaux, dans le dossier de données de Bobine (jamais dans le dossier du code)."""
     from app.config import settings as runtime_settings
 
     return Path(runtime_settings.logs_dir).parent / "config"

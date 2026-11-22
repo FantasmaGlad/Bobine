@@ -26,7 +26,7 @@ def signing_env(tmp_path):
 def _release(tmp_path):
     directory = tmp_path / "release-assets"
     directory.mkdir()
-    for name, content in {"Bobine-Setup-9.9.9.exe": b"exe", "bobine_9.9.9_amd64.deb": b"deb", "install.sh": b"#!/bin/sh\n"}.items():
+    for name, content in {"Bobine-Setup-9.9.9.exe": b"exe", "bobine_9.9.9_amd64.deb": b"deb", "install.ps1": b"param()\n"}.items():
         (directory / name).write_bytes(content)
     return directory
 
@@ -35,7 +35,7 @@ def test_la_liste_est_signee_et_verifiable(tmp_path, signing_env):
     directory = _release(tmp_path)
     subprocess.run(["bash", str(SIGN), str(directory)], env=signing_env, check=True, capture_output=True)
     lines = (directory / "SHA256SUMS").read_text().splitlines()
-    assert [line.split("  ")[1] for line in lines] == ["Bobine-Setup-9.9.9.exe", "bobine_9.9.9_amd64.deb", "install.sh"]
+    assert [line.split("  ")[1] for line in lines] == ["Bobine-Setup-9.9.9.exe", "bobine_9.9.9_amd64.deb", "install.ps1"]
     assert (directory / "SHA256SUMS.asc").read_text().startswith("-----BEGIN PGP SIGNATURE-----")
     subprocess.run(["gpg", "--batch", "--verify", "SHA256SUMS.asc", "SHA256SUMS"], cwd=directory, env=signing_env, check=True, capture_output=True)
     subprocess.run(["sha256sum", "--check", "--strict", "SHA256SUMS"], cwd=directory, check=True, capture_output=True)

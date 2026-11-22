@@ -31,7 +31,6 @@ EXCEPTIONS = {
     ("SQL construit par chaîne", "backend/tests/test_foreign_keys.py"): "PRAGMA sur un nom de table du modèle",
     ("eval, exec ou new Function", "backend/tests/test_channel_icons_wiring.py"): "préambule d'un fichier .spec PyInstaller du dépôt",
     ("HTML injecté hors constante", "frontend/src/components/InlineScript.tsx"): "ne reçoit que des constantes, vérifié par test_inline_script_receives_constants",
-    ("script téléchargé exécuté sans vérification", "install.sh"): "script d'amorçage NodeSource sans empreinte, à remplacer par un dépôt à clé épinglée",
 }
 
 

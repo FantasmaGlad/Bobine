@@ -32,13 +32,6 @@ _bobine_shortcuts() {
         cp /usr/share/applications/com.bobine.app.desktop /etc/skel/Desktop/com.bobine.app.desktop
         chmod 0755 /etc/skel/Desktop/com.bobine.app.desktop
     fi
-    if systemctl is-active --quiet bobine-backend.service 2>/dev/null; then
-        systemctl daemon-reload 2>/dev/null || true
-        systemctl restart bobine-backend.service 2>/dev/null || true
-        if systemctl is-active --quiet bobine-kiosk.service 2>/dev/null; then
-            systemctl restart bobine-kiosk.service 2>/dev/null || true
-        fi
-    fi
 }
 
 _bobine_relaunch() {

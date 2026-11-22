@@ -46,8 +46,7 @@ class RollingNotesTests(unittest.TestCase):
                 for expected in (f"https://packages.bobine.fit/debian/ {channel} main",
                                  f"https://packages.bobine.fit/fedora/bobine-{channel}.repo",
                                  f"https://packages.bobine.fit/arch/{channel}/$arch",
-                                 f"pacman-key --lsign-key {renderer.SIGNING_FINGERPRINT}",
-                                 f"sudo ./install.sh --channel={channel}"):
+                                 f"pacman-key --lsign-key {renderer.SIGNING_FINGERPRINT}"):
                     self.assertIn(expected, notes)
                 self.assertNotIn("@", re.sub(r"[\w.+-]+@[\w.-]+", "", notes), "unreplaced placeholder")
 

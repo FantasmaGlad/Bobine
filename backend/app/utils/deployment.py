@@ -1,20 +1,12 @@
 """Détection du profil de déploiement et comportement système qui en dépend — redémarrage des services, désinstallation, mise à jour."""
 
 import platform
-from pathlib import Path
 from typing import Callable, Literal
 
 from app import release_channel
 from app.utils.android_runtime import is_android
 
-DeploymentProfile = Literal["linux-headless", "linux-desktop", "windows", "macos", "android"]
-
-UNINSTALL_WRAPPER = Path("/usr/local/sbin/bobine-uninstall")
-SUDOERS_FILE = Path("/etc/sudoers.d/bobine")
-
-BACKEND_SERVICE_UNIT = "bobine-backend.service"
-KIOSK_SERVICE_UNIT = "bobine-kiosk.service"
-
+DeploymentProfile = Literal["linux-desktop", "windows", "macos", "android"]
 
 def get_deployment_profile() -> DeploymentProfile:
     """Détecte le profil de déploiement de la machine courante."""
@@ -25,8 +17,6 @@ def get_deployment_profile() -> DeploymentProfile:
         return "windows"
     if system == "Darwin":
         return "macos"
-    if UNINSTALL_WRAPPER.exists() and SUDOERS_FILE.exists():
-        return "linux-headless"
     return "linux-desktop"
 
 
@@ -65,11 +55,11 @@ class ProfileHandler:
         raise NotImplementedError
 
     def uninstall_instructions(self) -> str:
-        """Message affiché à la place du bouton d'action directe, pour un profil où la désinstallation automatique n'est pas sûre (pas d'équivalent fiable à l'enveloppe systemd-run de l'appliance headless)."""
+        """Message affiché à la place du bouton d'action directe, pour un profil où la désinstallation automatique n'est pas sûre."""
         raise NotImplementedError
 
     def supports_git_versioning(self) -> bool:
-        """True uniquement pour l'appliance headless (seul profil dont le dossier d'installation est un vrai checkout git, posé par `install.sh`)."""
+        """True quand le dossier d'installation est un checkout git (poste de développement Linux)."""
         return False
 
     def is_store_managed(self) -> bool:
@@ -92,13 +82,9 @@ class ProfileHandler:
         """Ouvre la fiche de l'application dans la boutique."""
         raise UpdateUnsupported("Aucune boutique n'est associée à cette installation.")
 
-    def has_system_port80_redirect(self) -> bool:
-        """True si le système redirige déjà le port 80 vers Bobine (règle nftables de l'appliance, `install.sh`)."""
-        return False
-
     def tries_port80_redirect(self) -> bool:
         """True si Bobine peut tenter d'écouter lui-même le port 80 pour rediriger."""
-        return not self.has_system_port80_redirect()
+        return True
 
     def supports_update_over_tor(self) -> bool:
         """True si TOUT le trafic d'une mise à jour peut passer par Tor (recherche et téléchargement par `tor_proxy`)."""
@@ -138,9 +124,6 @@ def get_profile_handler() -> ProfileHandler:
         if profile == "windows":
             from app.utils.deployment_profiles.windows import WindowsHandler
             _handler = WindowsHandler()
-        elif profile == "linux-desktop":
-            from app.utils.deployment_profiles.linux_desktop import LinuxDesktopHandler
-            _handler = LinuxDesktopHandler()
         elif profile == "macos":
             from app.utils.deployment_profiles.macos import MacOSHandler
             _handler = MacOSHandler()
@@ -148,8 +131,8 @@ def get_profile_handler() -> ProfileHandler:
             from app.utils.deployment_profiles.android import AndroidHandler
             _handler = AndroidHandler()
         else:
-            from app.utils.deployment_profiles.linux_headless import LinuxHeadlessHandler
-            _handler = LinuxHeadlessHandler()
+            from app.utils.deployment_profiles.linux_desktop import LinuxDesktopHandler
+            _handler = LinuxDesktopHandler()
     return _handler
 
 

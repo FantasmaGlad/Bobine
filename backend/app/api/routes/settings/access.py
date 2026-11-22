@@ -4,16 +4,13 @@ import socket
 import time
 
 from app.utils import port80
-from app.utils.deployment import (
-    get_profile_handler,
-)
 from app.utils.mdns import get_status as get_mdns_status
 from app.utils.network import access_addresses, primary_lan_ip
 from app.utils.port import active_port
 
 
 def _port80_redirect() -> bool:
-    return get_profile_handler().has_system_port80_redirect() or port80.is_active()
+    return port80.is_active()
 
 
 def _mdns_host() -> str:

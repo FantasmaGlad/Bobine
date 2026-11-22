@@ -85,13 +85,6 @@ class DesktopHandler(ProfileHandler):
     profile = "linux_desktop"
 
 
-class ApplianceHandler(ProfileHandler):
-    profile = "linux_headless"
-
-    def has_system_port80_redirect(self):
-        return True
-
-
 @pytest.fixture()
 def client(monkeypatch):
     init_db()
@@ -105,7 +98,6 @@ def client(monkeypatch):
 
 
 def test_desktop_without_redirect_keeps_the_port_in_every_link(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
@@ -119,12 +111,6 @@ def test_desktop_without_redirect_keeps_the_port_in_every_link(client, monkeypat
 
 
 def test_short_address_only_where_port_80_redirects(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: ApplianceHandler())
-    monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: ApplianceHandler())
-    monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: ApplianceHandler())
-    monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: ApplianceHandler())
-    assert client.get("/api/settings").json()["network"]["mdns_url"] == "http://bobine.local"
-    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
@@ -133,7 +119,6 @@ def test_short_address_only_where_port_80_redirects(client, monkeypatch):
 
 
 def test_linux_desktop_with_system_avahi_links_the_machine_name(client, monkeypatch):
-    monkeypatch.setattr("app.api.routes.settings.access.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.backup.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.maintenance.get_profile_handler", lambda: DesktopHandler())
     monkeypatch.setattr("app.api.routes.settings.values.get_profile_handler", lambda: DesktopHandler())
@@ -145,8 +130,6 @@ def test_linux_desktop_with_system_avahi_links_the_machine_name(client, monkeypa
 
 def test_profiles_that_never_try_port_80():
     from app.utils.deployment_profiles.android import AndroidHandler
-    from app.utils.deployment_profiles.linux_headless import LinuxHeadlessHandler
 
     assert DesktopHandler().tries_port80_redirect()
-    assert not LinuxHeadlessHandler().tries_port80_redirect()
     assert not AndroidHandler().tries_port80_redirect()

@@ -119,15 +119,6 @@ def test_les_reglages_exposent_origine_et_canal_d_installation():
         assert key in source
 
 
-def test_install_sh_connait_exactement_les_canaux_du_registre():
-    source = _read("install.sh")
-    usage = re.search(r"--channel=([a-z|]+)", source).group(1).split("|")
-    assert usage == list(release_channel.CHANNEL_IDS)
-    arms = re.findall(r"^\s*([a-z]+)\*\)\s+UPDATE_CHANNEL=\"([a-z]+)\"", source, re.M)
-    assert {channel for _, channel in arms} == set(release_channel.ROLLING_CHANNEL_IDS)
-    assert all(prefix == channel for prefix, channel in arms)
-
-
 def test_ci_publie_exactement_les_canaux_du_registre():
     ci = _read(".github/workflows/ci.yml")
     resolver = _load("ci_release_resolver", "scripts/ci/resolve-release.py")

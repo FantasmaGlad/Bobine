@@ -22,7 +22,7 @@ _IS_ANDROID = is_android()
 
 @router.get("/api/health", response_model=Health)
 async def health():
-    """Contrôle de santé lisible par machine, consommé par le chien de garde `bobine-watchdog` (redémarrage auto d'un composant mort) et par toute supervision externe."""
+    """Contrôle de santé lisible par machine, pour toute supervision externe."""
     components: dict[str, str] = {}
 
     def _check_database() -> str:

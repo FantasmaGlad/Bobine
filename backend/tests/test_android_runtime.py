@@ -19,7 +19,7 @@ def desktop_env(monkeypatch):
 
 def test_desktop_linux_is_not_android(desktop_env):
     assert android_runtime.is_android() is False
-    assert deployment.get_deployment_profile() in ("linux-desktop", "linux-headless")
+    assert deployment.get_deployment_profile() == "linux-desktop"
 
 
 def test_bootstrap_marker_is_enough(desktop_env, monkeypatch):

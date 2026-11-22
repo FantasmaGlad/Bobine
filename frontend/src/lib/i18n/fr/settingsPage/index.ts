@@ -74,7 +74,6 @@ export const settingsPage: Dict = {
   docSection: "Documentation",
   docHint: "Emplacements réels utilisés par l'application (lecture seule, définis à l'installation).",
   uninstallSectionTitle: "Désinstaller Bobine",
-  uninstallHint: "Désinstalle complètement le programme et remet la machine dans un état de bureau nu. Irréversible.",
   uninstallButton: "Désinstaller l'application",
   uninstallAction: "Désinstaller Bobine",
   uninstallConfirmText: "Cette action est IRRÉVERSIBLE. L'application et ses composants vont être supprimés :",
@@ -95,7 +94,6 @@ export const settingsPage: Dict = {
   uninstallManualHintWindows: "Méthode manuelle : Paramètres Windows > Applications installées",
   uninstallManualHintMacos: "Méthode manuelle : Déplacer Bobine.app vers la Corbeille",
   uninstallManualHintAndroid: "Méthode manuelle : Appui long sur l'icône Bobine > Désinstaller",
-  uninstallManualHintHeadless: "Méthode manuelle : sudo ./install.sh --uninstall",
   categoriesLabel: "Catégories de réglages",
   timing: {
     title: "Minutage et volume",

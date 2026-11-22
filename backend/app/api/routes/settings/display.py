@@ -56,7 +56,7 @@ def get_display_output_value(db: Session, channel: str = "cable") -> str:
 
 @router.get("/display-output")
 def get_display_output(db: Session = Depends(get_db)) -> dict[str, str]:
-    """Sortie active des deux canaux : câblé (écran du Wyse) et réseau (tout autre appareil du LAN)."""
+    """Sortie active des deux canaux : câblé (écran branché à la machine) et réseau (tout autre appareil du LAN)."""
     return {
         "cable": get_display_output_value(db, "cable"),
         "network": get_display_output_value(db, "network"),

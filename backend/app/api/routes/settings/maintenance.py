@@ -26,11 +26,7 @@ from app.hardware.telemetry import get_system_telemetry_payload, purge_expired_l
 from app.models import Setting
 from app.utils.activity_log import log_activity
 from app.utils.android_runtime import is_android
-from app.utils.deployment import (
-    SUDOERS_FILE,
-    UNINSTALL_WRAPPER,
-    get_profile_handler,
-)
+from app.utils.deployment import get_profile_handler
 from app.utils.ws_manager import manager as ws_manager
 
 from .core import router
@@ -170,14 +166,6 @@ async def uninstall_system(payload: UninstallRequest, background_tasks: Backgrou
     if not handler.can_self_uninstall():
         return {"message": handler.uninstall_instructions(), "self_uninstall": "false"}
 
-    if handler.profile == "linux-headless" and (not UNINSTALL_WRAPPER.exists() or not SUDOERS_FILE.exists()):
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Cette machine n'est pas une installation gérée (désinstalleur système absent). "
-                "Depuis un poste de dev, lancez à la main : sudo ./install.sh --uninstall --purge --purge-data"
-            ),
-        )
     background_tasks.add_task(_run_uninstall)
     return {"message": "Désinstallation lancée : la procédure de suppression est en cours d'exécution."}
 

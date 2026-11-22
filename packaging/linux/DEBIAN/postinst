@@ -38,13 +38,6 @@ if [ "$1" = "configure" ]; then
         chmod 0755 /etc/skel/Desktop/com.bobine.app.desktop
     fi
 
-    if systemctl is-active --quiet bobine-backend.service 2>/dev/null; then
-        systemctl daemon-reload 2>/dev/null || true
-        systemctl restart bobine-backend.service 2>/dev/null || true
-        if systemctl is-active --quiet bobine-kiosk.service 2>/dev/null; then
-            systemctl restart bobine-kiosk.service 2>/dev/null || true
-        fi
-    fi
 
     if [ -f /run/bobine-restart-after-upgrade ] || [ -f /tmp/bobine-restart-after-upgrade ]; then
         rm -f /run/bobine-restart-after-upgrade /tmp/bobine-restart-after-upgrade 2>/dev/null || true

@@ -21,11 +21,6 @@ def _reset_mdns_state(monkeypatch):
     mdns._zeroconf = None
 
 
-def test_should_self_publish_false_on_headless(monkeypatch):
-    monkeypatch.setattr(deployment, "get_deployment_profile", lambda: "linux-headless")
-    assert mdns._should_self_publish() is False
-
-
 def test_should_self_publish_false_on_desktop_with_native_avahi(monkeypatch):
     monkeypatch.setattr(deployment, "get_deployment_profile", lambda: "linux-desktop")
     monkeypatch.setattr(mdns, "_avahi_daemon_active", lambda: True)

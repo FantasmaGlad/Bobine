@@ -13,13 +13,11 @@ const UNINSTALL_HINTS: Record<string, string> = {
   windows: "settingsPage.uninstallDesktopWindows",
   macos: "settingsPage.uninstallDesktopMacos",
   android: "settingsPage.uninstallDesktopAndroid",
-  "linux-headless": "settingsPage.uninstallHint",
 };
 const MANUAL_HINTS: Record<string, string> = {
   windows: "settingsPage.uninstallManualHintWindows",
   macos: "settingsPage.uninstallManualHintMacos",
   android: "settingsPage.uninstallManualHintAndroid",
-  "linux-headless": "settingsPage.uninstallManualHintHeadless",
 };
 
 type ToastType = "success" | "error" | "warning";

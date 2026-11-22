@@ -100,25 +100,22 @@ class LinuxDesktopHandler(ProfileHandler):
         threading.Thread(target=_delayed_exit, daemon=True).start()
 
     def can_self_uninstall(self) -> bool:
-        return True
+        return not self._is_git_clone()
 
     def start_uninstall(self) -> None:
-        repo_dir = self._repo_root()
-        if self._is_git_clone() and (repo_dir / "install.sh").exists():
-            cmd = "sleep 1 && pkexec ./install.sh --uninstall --purge --purge-data -y"
-            subprocess.Popen(["sh", "-c", cmd], cwd=repo_dir, start_new_session=True)
+        pkg_fmt = detect_linux_package_format()
+        if pkg_fmt == ".pkg.tar.zst":
+            cmd = "sleep 1 && (pkexec pacman -Rns --noconfirm bobine || pkexec pacman -R --noconfirm bobine)"
+        elif pkg_fmt == ".rpm":
+            cmd = "sleep 1 && (pkexec dnf remove -y bobine || pkexec rpm -e bobine)"
         else:
-            pkg_fmt = detect_linux_package_format()
-            if pkg_fmt == ".pkg.tar.zst":
-                cmd = "sleep 1 && (pkexec pacman -Rns --noconfirm bobine || pkexec pacman -R --noconfirm bobine)"
-            elif pkg_fmt == ".rpm":
-                cmd = "sleep 1 && (pkexec dnf remove -y bobine || pkexec rpm -e bobine)"
-            else:
-                cmd = "sleep 1 && (pkexec apt-get remove -y bobine || pkexec dpkg -P bobine || pkexec dpkg -r bobine)"
-            subprocess.Popen(["sh", "-c", cmd], start_new_session=True, env=clean_subprocess_env())
+            cmd = "sleep 1 && (pkexec apt-get remove -y bobine || pkexec dpkg -P bobine || pkexec dpkg -r bobine)"
+        subprocess.Popen(["sh", "-c", cmd], start_new_session=True, env=clean_subprocess_env())
         logger.info("Désinstallation Linux desktop déclenchée en tâche de fond via pkexec.")
 
     def uninstall_instructions(self) -> str:
+        if self._is_git_clone():
+            return "Installation depuis les sources : arrêtez Bobine puis supprimez le dossier du dépôt."
         pkg_fmt = detect_linux_package_format()
         if pkg_fmt == ".pkg.tar.zst":
             return (

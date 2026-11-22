@@ -33,7 +33,7 @@ BLUETOOTH = {"supported": True, "devices": [
 
 def graph(**over):
     args = dict(
-        machine={"name": "wyse", "platform": "linux-headless"}, audio=AUDIO, bluetooth=BLUETOOTH,
+        machine={"name": "salle", "platform": "linux-desktop"}, audio=AUDIO, bluetooth=BLUETOOTH,
         ethernets=[{"name": "eth0", "ip": "10.0.0.5", "subnet": "10.0.0.0/24", "speed": 1000}],
         clients=[
             {"channel": "cable", "page": "kiosk", "role": "primary", "ip": "127.0.0.1", "count": 1},
@@ -54,7 +54,7 @@ def by_id(g):
 def test_machine_at_the_center_with_every_source():
     g = graph()
     nodes = by_id(g)
-    assert nodes["machine"]["ring"] == 0 and nodes["machine"]["label"] == "wyse"
+    assert nodes["machine"]["ring"] == 0 and nodes["machine"]["label"] == "salle"
     assert {"eth:eth0", "bt:AA:BB:CC:DD:EE:01", "bt:AA:BB:CC:DD:EE:02", "audio:spk", "audio:hdmi"} <= set(nodes)
     assert "bt:AA:BB:CC:DD:EE:03" not in nodes
     assert "audio:old" not in nodes

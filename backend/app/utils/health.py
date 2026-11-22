@@ -1,4 +1,4 @@
-"""Sondes de santé partagées par `/api/health` (chien de garde) et le diagnostic système."""
+"""Sonde de santé de `/api/health`."""
 import psutil
 
 KIOSK_PROCESS_NAMES = ("chromium", "chromium-browser", "chrome", "msedge", "google chrome")

@@ -208,8 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         prog="bobine", parents=[common], description="Piloter et diagnostiquer Bobine.",
-        epilog="Sur l'appliance, bobine start, stop, restart et journal pilotent aussi ses services. "
-               "Codes de sortie : 0 succès, 1 erreur ou problème trouvé, 2 usage, 3 injoignable, 4 refus.",
+        epilog="Codes de sortie : 0 succès, 1 erreur ou problème trouvé, 2 usage, 3 injoignable, 4 refus.",
     )
     parser.add_argument("-V", "--version", action="version", version=f"bobine {local_version()}")
     sub = parser.add_subparsers(dest="command", required=True, metavar="commande")

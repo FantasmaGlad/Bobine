@@ -92,7 +92,6 @@ class TestOption1TransverseA(unittest.IsolatedAsyncioTestCase):
         ("windows", True, "Bobine-Setup-9.9.9.exe"),
         ("linux-desktop", True, "bobine_9.9.9_amd64.deb"),
         ("macos", False, "Bobine-9.9.9.dmg"),
-        ("linux-headless", True, None),
     )
 
     async def _check_updates_as(self, profile, auto_apply):

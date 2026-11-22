@@ -25,7 +25,7 @@ def test_healthy_report_lists_every_check(client):
     report = client.get("/api/diagnostics/system").json()
     assert report["schema"] == 1 and report["generated_at"].endswith("Z")
     names = [check["name"] for check in report["checks"]]
-    for expected in ("database", "kiosk", "port", "network", "media_tools", "disk", "imports", "updates", "storage"):
+    for expected in ("database", "port", "network", "media_tools", "disk", "imports", "updates", "storage"):
         assert expected in names
     assert all(set(p) - {"fix"} == {"code", "severity", "message", "remedy"} for p in report["problems"])
 

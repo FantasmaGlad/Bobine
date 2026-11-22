@@ -90,8 +90,8 @@ jobs:
           {
             echo "code=true"
             echo "frontend=$(touche "$ci|^frontend/|^VERSION$|^scripts/ci/test-storage-policy")"
-            echo "install=$(touche "$ci|^install\.sh$|^packaging/windows/install\.ps1$")"
-            echo "packaging=$(touche "$ci|^packaging/|^projector/|^install\.sh$|^scripts/ci/|^backend/(requirements|constraints)|^backend/run_|^rust-toolchain\.toml$|^VERSION$|^frontend/(package(-lock)?\.json|next\.config|scripts/)")"
+            echo "install=$(touche "$ci|^packaging/windows/install\.ps1$")"
+            echo "packaging=$(touche "$ci|^packaging/|^projector/|^scripts/ci/|^backend/(requirements|constraints)|^backend/run_|^rust-toolchain\.toml$|^VERSION$|^frontend/(package(-lock)?\.json|next\.config|scripts/)")"
             echo "android=$(touche "$ci|^android/|^backend/(requirements|constraints)|^scripts/ci/[^/]*(android|apk|media)|^media/")"
             echo "media=$(touche "$ci|^media/|^rust-toolchain\.toml$|^scripts/ci/[^/]*media")"
             echo "devices=$(touche "$ci|^devices/|^rust-toolchain\.toml$")"
@@ -710,7 +710,7 @@ jobs:
           if-no-files-found: warn
 
   install-script:
-    name: install.sh sanity
+    name: install.ps1 sanity
     needs: [version]
     if: needs.version.outputs.install == 'true'
     runs-on: ubuntu-latest
@@ -719,26 +719,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
-      - name: Vérification de syntaxe bash
-        run: bash -n install.sh
       - name: Vérification de syntaxe du script PowerShell
         shell: pwsh
         run: |
           $errors = $null
           [System.Management.Automation.Language.Parser]::ParseFile("$PWD/packaging/windows/install.ps1", [ref]$null, [ref]$errors) | Out-Null
           if ($errors) { $errors; exit 1 }
-      - name: Le compteur d'étapes STEP_TOTAL reflète le nombre d'appels à step()
-        run: |
-          declared=$(grep -oE '^STEP_TOTAL=[0-9]+' install.sh | head -1 | cut -d= -f2)
-          actual=$(grep -cE '^[[:space:]]*step ' install.sh)
-          echo "STEP_TOTAL=${declared} ; appels step()=${actual}"
-          test "${declared}" = "${actual}"
-      - name: L'installation en une commande (tube curl | bash) s'amorce sans dépôt local
-        run: |
-          cd "$(mktemp -d)"
-          out=$(cat "${GITHUB_WORKSPACE}/install.sh" | sudo bash -s -- --as-user "$(id -un)" --dry-run -y --lang=en 2>&1)
-          echo "$out"
-          grep -q "would clone" <<<"$out"
 
   windows-build:
     name: Windows packaging (PyInstaller + Inno Setup)

@@ -12,7 +12,7 @@ spec = importlib.util.spec_from_file_location("winget_manifests", SCRIPT)
 winget = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(winget)
 
-SUMS = "a" * 64 + "  Bobine-Setup-9.9.9.exe\n" + "b" * 64 + " *Bobine-Setup-9.9.9-arm64.exe\n" + "c" * 64 + "  install.sh\n"
+SUMS = "a" * 64 + "  Bobine-Setup-9.9.9.exe\n" + "b" * 64 + " *Bobine-Setup-9.9.9-arm64.exe\n" + "c" * 64 + "  install.ps1\n"
 
 
 class WingetManifestTests(unittest.TestCase):
