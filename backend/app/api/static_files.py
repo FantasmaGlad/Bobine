@@ -61,8 +61,16 @@ else:
     frontend_out = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "out"
 
 
+IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
+
+
+def cache_control_for(full_path) -> str:
+    """Les fichiers de `_next/static` portent le numéro du build ou leur empreinte dans leur nom : jamais revalidés ; le reste l'est toujours."""
+    return IMMUTABLE_CACHE if "_next/static/" in Path(full_path).as_posix() else "no-cache"
+
+
 class RevalidateStaticFiles(StaticFiles):
-    """StaticFiles standard, avec revalidation systématique des fichiers du frontend exporté (`frontend/out`)."""
+    """StaticFiles standard : pages revalidées à chaque chargement, ressources versionnées du build gardées par le navigateur."""
 
     _GZIP_CACHE_MAX_BYTES = 8 * 1024 * 1024
 
@@ -129,7 +137,7 @@ class RevalidateStaticFiles(StaticFiles):
                 status_code=status_code,
                 headers=headers,
             )
-        response.headers["Cache-Control"] = "no-cache"
+        response.headers["Cache-Control"] = cache_control_for(full_path)
         return response
 
 
