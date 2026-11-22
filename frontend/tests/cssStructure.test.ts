@@ -9,7 +9,7 @@ const STYLES = join(SRC, "styles");
 const MAX_LINES = 500;
 const GENERATED = ["app/themes.css"];
 const OVERRIDE_SHEETS = new Set(["app/themes.css", "styles/components/button-states.css", "styles/layout/screen-safe.css"]);
-const IMPORT_ORDER_SHA256 = "bd7d85ac07835954f4c50ef65a7097e95c34bfba9dd97b6c7ad175335fc6a660";
+const IMPORT_ORDER_SHA256 = "d50651889803064a61695a5baee80faeb995533d61c07955153691f643489587";
 const BREAKPOINTS = new Set([
   "max-width: 640px", "max-width: 720px", "max-width: 768px", "max-width: 820px", "max-width: 860px",
   "max-width: 900px", "max-width: 960px", "max-width: 1120px", "max-width: 1440px",
