@@ -5,6 +5,7 @@ import {
   ANALOG_TRIGGERS, GAMEPAD_DIRECTIONS, REMOTE_ACTIONS, gamepadBindings, keyBinding, pickHandler,
   type RemoteActionHandlers,
 } from "./remoteBindings.ts";
+import { edgeFallbackIndex, scrollContainerOf } from "./scrollContainer.ts";
 import { currentRemoteBindings, loadRemoteBindings } from "./remoteBindingsStore.ts";
 
 export interface RemoteHandlers {
@@ -139,7 +140,7 @@ export function selectRemoteTarget(items: HTMLElement[], el: HTMLElement): void 
   for (const it of items) it.classList.toggle(REMOTE_FOCUS_CLASS, it === el);
   el.focus();
   if (el.closest(`[${REMOTE_SCROLL_TOP_ATTR}]`)) {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    (scrollContainerOf(el, (node) => getComputedStyle(node).overflowY) ?? window).scrollTo({ top: 0, behavior: "smooth" });
   } else {
     el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   }
@@ -226,11 +227,7 @@ export function moveDomFocus2D(
     }
   }
 
-  const targetEl =
-    bestItem ??
-    items[
-      (currentIndex + (direction === "right" || direction === "down" ? 1 : -1) + items.length) % items.length
-    ];
+  const targetEl = bestItem ?? items[edgeFallbackIndex(currentIndex, items.length, direction)];
 
   if (targetEl) selectRemoteTarget(items, targetEl);
 }
