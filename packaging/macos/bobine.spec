@@ -18,7 +18,7 @@ ICON_PATH = channel.stage_icon(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.icns", Path(w
 APP_VERSION = (REPO_DIR / "VERSION").read_text(encoding="utf-8").strip()
 
 datas = [
-    (str(REPO_DIR / "config.toml"), "."),
+    (str(REPO_DIR / "packaging" / "common" / "config.toml"), "."),
     *channel.runtime_icon_datas(REPO_DIR),
     (str(REPO_DIR / "VERSION"), "."),
 ]

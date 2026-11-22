@@ -1,6 +1,6 @@
 # Code de conduite
 
-Version anglaise : [CODE_OF_CONDUCT.md](../../CODE_OF_CONDUCT.md). Comment contribuer : [CONTRIBUTING.md](CONTRIBUTING.md).
+Version anglaise : [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md). Comment contribuer : [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Notre engagement
 

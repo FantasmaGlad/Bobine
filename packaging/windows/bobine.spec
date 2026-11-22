@@ -16,7 +16,7 @@ BUILD_CHANNEL = channel.build_channel(REPO_DIR)
 ICON_PATH = str(SPEC_DIR / f"bobine-{BUILD_CHANNEL}.ico")
 
 datas = [
-    (str(REPO_DIR / "config.toml"), "."),
+    (str(REPO_DIR / "packaging" / "common" / "config.toml"), "."),
     *channel.runtime_icon_datas(REPO_DIR),
     (channel.stage_icon(Path(ICON_PATH), Path(workpath), "bobine.ico"), "."),
     (str(REPO_DIR / "VERSION"), "."),

@@ -2,7 +2,7 @@
 
 Merci d'envisager une contribution. Bobine fonctionne sans surveillance dans des salles de sport et des studios, sur du matériel que son mainteneur ne peut pas toujours atteindre : une régression n'est pas un désagrément, c'est un cours qui ne démarre pas. Les exigences ci-dessous en découlent. Elles sont strictes parce que le logiciel est utilisé en production, pas pour vous décourager.
 
-Version anglaise : [CONTRIBUTING.md](../../CONTRIBUTING.md). En participant, vous acceptez de respecter le [Code de conduite](CODE_OF_CONDUCT.md). Les vulnérabilités ne se signalent ni par ticket ni par demande de fusion : voir [SECURITY.md](SECURITY.md).
+Version anglaise : [CONTRIBUTING.md](../CONTRIBUTING.md). En participant, vous acceptez de respecter le [Code de conduite](CODE_OF_CONDUCT.md). Les vulnérabilités ne se signalent ni par ticket ni par demande de fusion : voir [SECURITY.md](SECURITY.md).
 
 ## Avant de commencer
 
