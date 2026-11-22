@@ -156,8 +156,7 @@
   text-shadow: 0 2px 12px color-mix(in srgb, var(--ink) 95%, transparent), 0 0 24px color-mix(in srgb, var(--ink) 85%, transparent);
 }
 
-.kiosk-remote-focus,
-.cinema-grid-layer .kiosk-remote-focus {
+.kiosk-remote-focus {
   transform: scale(var(--remote-focus-scale)) !important;
   box-shadow: var(--remote-focus-ring), var(--remote-focus-shadow), var(--remote-focus-glow) !important;
   border-radius: var(--radius-md) !important;

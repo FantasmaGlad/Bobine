@@ -4,6 +4,15 @@
   scrollbar-width: thin;
 }
 
+.cinema-grid-layer .kiosk-remote-focus {
+  transform: scale(var(--remote-focus-scale)) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  transition: transform var(--remote-focus-ease) !important;
+  z-index: 15 !important;
+  outline: none !important;
+}
+
 .cinema-card {
   flex: 0 0 280px;
   width: 280px;
@@ -19,7 +28,9 @@
   color: inherit;
   cursor: pointer;
   scroll-snap-align: start;
-  transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), filter 0.12s ease;
+  transform-origin: center 40%;
+  will-change: transform;
+  transition: transform var(--remote-focus-ease), filter 0.12s ease;
   animation: cinema-fade-up 0.2s ease both;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -29,7 +40,7 @@
 
 .cinema-card:hover,
 .cinema-card:focus-visible {
-  transform: translateY(-3px) scale(1.03);
+  transform: scale(var(--remote-focus-scale));
   outline: none;
 }
 
@@ -52,14 +63,6 @@
   overflow: hidden;
   background: var(--bg-surface-elevated);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 18%, transparent);
-  border: 2px solid transparent;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.cinema-card:hover .cinema-card-thumb,
-.cinema-card:focus-visible .cinema-card-thumb {
-  border-color: var(--accent-text);
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 28%, transparent);
 }
 
 .cinema-card-duration {
@@ -80,19 +83,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.cinema-card-thumb img {
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
-}
-
-.cinema-card:hover .cinema-card-thumb img,
-.cinema-card:focus-visible .cinema-card-thumb img,
-.cinema-card.selected .cinema-card-thumb img,
-.cinema-card.active .cinema-card-thumb img,
-.kiosk-remote-focus .cinema-card-thumb img {
-  transform: scale(1.08);
 }
 
 .cinema-card-thumb-fallback {
