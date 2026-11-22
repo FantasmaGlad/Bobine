@@ -29,6 +29,7 @@ import { getDisplayChannel, isWiredDisplay, useDisplayOutputRedirect } from "@/l
 import { useKioskRemote } from "@/lib/useKioskRemote";
 import { useMediaClockFollower, type ClockTarget } from "@/lib/useMediaClockFollower";
 import { useMediaSound } from "@/lib/useMediaSound";
+import { useScrubber } from "@/lib/useScrubber";
 import { usePlaybackSocket, type CinemaCommandExtra } from "@/lib/usePlaybackSocket";
 import { adjustMediaVolume, useVolumeHud } from "@/lib/volumeHud";
 
@@ -250,6 +251,22 @@ export default function CinemaPage() {
     wakeControls();
   };
 
+  const scrubber = useScrubber();
+  const scrub = (direction: 1 | -1) => {
+    const el = videoRef.current;
+    if (!el) return;
+    scrubber.press(direction, el.currentTime || 0, el.duration || 0, {
+      onPreview: (seconds) => {
+        setPosition(seconds);
+        wakeControls();
+      },
+      onCommit: (seconds) => {
+        setCinemaSync(null);
+        if (videoRef.current) videoRef.current.currentTime = seconds;
+      },
+    });
+  };
+
   const seekTo = (value: number) => {
     setSeekDrag(null);
     setCinemaSync(null);
@@ -263,7 +280,7 @@ export default function CinemaPage() {
   }, [showVolumeHud, wakeControls]);
 
   useKioskRemote(() => cinemaRemoteKeys({
-    phase, standby, setStandby, volume: changeVolume, playPause, back: backToMenu, seekBy,
+    phase, standby, setStandby, volume: changeVolume, playPause, back: backToMenu, seekBy, scrub,
     chapter: (direction) => {
       const el = videoRef.current;
       const target = el ? chapterJumpTarget(chapters, el.currentTime || 0, direction) : null;

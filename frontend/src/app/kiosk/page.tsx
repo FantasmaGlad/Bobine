@@ -11,6 +11,7 @@ import Icon from "@/components/Icon";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
 import SeekOsd, { useSeekHud } from "@/components/SeekOsd";
+import { useScrubber } from "@/lib/useScrubber";
 import { useMediaSound } from "@/lib/useMediaSound";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
@@ -143,6 +144,20 @@ export default function KioskPage() {
     showSeekHud({ position: seconds, duration: videoRef.current?.duration || state.current_video?.duration_seconds || 0 });
   };
 
+  const mediaDuration = () => videoRef.current?.duration || state.current_video?.duration_seconds || audioRef.current?.duration || 0;
+  const scrubber = useScrubber();
+  const scrubTarget = {
+    onPreview: (seconds: number) => showSeekHud({ position: seconds, duration: mediaDuration() }),
+    onCommit: (seconds: number) => {
+      if (state.current_video) seekVideoTo(seconds);
+      else if (state.current_audio_course) sendCommand("seek", { position_seconds: seconds });
+    },
+  };
+  const scrub = (direction: 1 | -1) => {
+    if (state.current_video) scrubber.press(direction, videoRef.current?.currentTime || state.position_seconds || 0, mediaDuration(), scrubTarget);
+    else if (state.current_audio_course) scrubber.press(direction, audioRef.current?.currentTime || state.audio_position_seconds || 0, mediaDuration(), scrubTarget);
+  };
+
   const jumpChapter = (direction: "next" | "prev") => {
     if (!state.current_video) return;
     const cur = videoRef.current?.currentTime || state.position_seconds || 0;
@@ -166,26 +181,8 @@ export default function KioskPage() {
           sendCommand(state.audio_playing ? "pause" : "play");
         }
       },
-      onLeft: () => {
-        if (state.current_video) {
-          const cur = videoRef.current?.currentTime || state.position_seconds || 0;
-          seekVideoTo(Math.max(0, cur - 10));
-        } else if (state.current_audio_course) {
-          const cur = audioRef.current?.currentTime || state.audio_position_seconds || 0;
-          sendCommand("seek", { position_seconds: Math.max(0, cur - 10) });
-        }
-      },
-      onRight: () => {
-        if (state.current_video) {
-          const cur = videoRef.current?.currentTime || state.position_seconds || 0;
-          const dur = videoRef.current?.duration || state.current_video.duration_seconds || 0;
-          seekVideoTo(Math.min(dur, cur + 10));
-        } else if (state.current_audio_course) {
-          const cur = audioRef.current?.currentTime || state.audio_position_seconds || 0;
-          const dur = audioRef.current?.duration || 0;
-          sendCommand("seek", { position_seconds: Math.min(dur, cur + 10) });
-        }
-      },
+      onLeft: () => scrub(-1),
+      onRight: () => scrub(1),
       onChapterNext: () => jumpChapter("next"),
       onChapterPrev: () => jumpChapter("prev"),
       onVolumeUp: () => showVolumeHud(adjustMediaVolume([videoRef.current, audioRef.current], VOLUME_STEP)),
