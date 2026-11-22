@@ -153,14 +153,11 @@ def _probe_imports(report: _Report) -> None:
 
 def _probe_updates(report: _Report) -> None:
     from app.updates import orchestrator as update_orchestrator
-    from app.utils import tor_proxy
 
     status = update_orchestrator.get_status()
     if status.get("step") == "failed":
         report.problem("updates", "update_failed", "critical", f"La dernière mise à jour a échoué : {status.get('error') or 'cause inconnue'}.",
                        "Consulter le journal technique puis relancer la mise à jour depuis Réglages.")
-    if tor_proxy.is_enabled():
-        report.check("tor", "not_checked", "Tor actif pour les mises à jour : POST /api/updates/tor-check pour le tester")
 
 
 def _probe_media_native(report: _Report) -> None:

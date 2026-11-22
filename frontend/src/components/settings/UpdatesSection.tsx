@@ -10,7 +10,6 @@ import { useUpdateCheck } from "./updates/useUpdateCheck";
 import { useApplyUpdate, useSettingsUpdates } from "./updates/useUpdateActions";
 import ReleaseBanner from "./ReleaseBanner";
 import StoreUpdatePanel from "./StoreUpdatePanel";
-import TorUpdateSettings from "./TorUpdateSettings";
 import type { ShowToast } from "@/lib/useToast";
 import type { SettingsData } from "./types";
 
@@ -62,9 +61,6 @@ export default function UpdatesSection({ t, data, setData, showToast, hidden, op
                   }}
                 />
                 <p className="settings-hint" style={{ margin: 0 }}>{t("settingsPage.updateChannelHint")}</p>
-                {data.update_tor_supported && (
-                  <TorUpdateSettings t={t} data={data} setData={setData} handleAutoUpdateChange={handleAutoUpdateChange} />
-                )}
               </>
             )}
             {data.store_managed && (

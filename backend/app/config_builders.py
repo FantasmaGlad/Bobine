@@ -66,7 +66,7 @@ def _duplicates(names) -> list[str]:
     return sorted(name for name, count in Counter(names).items() if count > 1)
 
 
-_BOOLEAN_SETTINGS = {"auto_update_enabled", "auto_web_rendition", "media_native", "update_tor", "simplified_ui"}
+_BOOLEAN_SETTINGS = {"auto_update_enabled", "auto_web_rendition", "media_native", "simplified_ui"}
 
 
 def _settings_values(db: Session) -> dict[str, Any]:
@@ -117,8 +117,6 @@ def build_machine(db: Session) -> dict[str, Any]:
     return envelope("machine", {"machine": {
         "display_mode": values.get("display_mode_setting"),
         "media_native": _typed("media_native", values.get("media_native")),
-        "update_tor": _typed("update_tor", values.get("update_tor")),
-        "update_tor_proxy": values.get("update_tor_proxy"),
         "audio_routes": load_routes(db),
         "audio_outputs": load_audio_meta(db),
         "storage": global_defaults(db),

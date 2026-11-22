@@ -49,7 +49,6 @@ Application native pour ordinateurs, tablettes, téléviseurs et mini PC. Versio
 | <img src="Assets/Icons/distros/arch.svg" width="20" height="20" valign="middle" alt="Arch Linux"> **Arch Linux** | [pacman](https://packages.bobine.fit/arch/) · [x86_64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.2.2/bobine-5.2.2-1-x86_64.pkg.tar.zst) · [aarch64](https://github.com/FantasmaGlad/Bobine/releases/download/V5.2.2/bobine-5.2.2-1-aarch64.pkg.tar.zst) | glibc 2.38+ |
 | <img src="Assets/Icons/os/android.svg" width="20" height="20" valign="middle" alt="Android"> **Android** | [APK](https://github.com/FantasmaGlad/Bobine/releases/download/V5.2.2/Bobine-5.2.2.apk) | Android 14+, ARM64 |
 | <img src="Assets/Icons/os/androidtv.svg" width="20" height="20" valign="middle" alt="Android TV"> **Android TV, Google TV** | [APK TV](https://github.com/FantasmaGlad/Bobine/releases/download/V5.2.2/Bobine-TV-5.2.2.apk) | ARM 32 et 64 bits |
-| <img src="Assets/Icons/os/tor.svg" width="20" height="20" valign="middle" alt="Tor"> **Tor (.onion)** | [site](http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion/) · [paquets](http://rzvwjat5pidtxtwzcsvew7yc5ugfjvzz432ecpn3s5mlch4cs7vvmqad.onion/) | Tor Browser ou tor |
 
 Mêmes paquets sur les dérivées (glibc 2.38+) : <img src="Assets/Icons/distros/linuxmint.svg" width="16" height="16" valign="middle" alt="Linux Mint" title="Linux Mint"> Linux Mint · <img src="Assets/Icons/distros/popos.svg" width="16" height="16" valign="middle" alt="Pop!_OS" title="Pop!_OS"> Pop!_OS · <img src="Assets/Icons/distros/zorin.svg" width="16" height="16" valign="middle" alt="Zorin OS" title="Zorin OS"> Zorin OS · <img src="Assets/Icons/distros/raspberrypi.svg" width="16" height="16" valign="middle" alt="Raspberry Pi OS" title="Raspberry Pi OS"> Raspberry Pi OS · <img src="Assets/Icons/distros/nobara.svg" width="16" height="16" valign="middle" alt="Nobara" title="Nobara"> Nobara · <img src="Assets/Icons/distros/rhel.svg" width="16" height="16" valign="middle" alt="RHEL" title="RHEL"> RHEL 10+ · <img src="Assets/Icons/distros/almalinux.svg" width="16" height="16" valign="middle" alt="AlmaLinux" title="AlmaLinux"> AlmaLinux 10+ · <img src="Assets/Icons/distros/rockylinux.svg" width="16" height="16" valign="middle" alt="Rocky Linux" title="Rocky Linux"> Rocky Linux 10+ · <img src="Assets/Icons/distros/endeavouros.svg" width="16" height="16" valign="middle" alt="EndeavourOS" title="EndeavourOS"> EndeavourOS · <img src="Assets/Icons/distros/cachyos.svg" width="16" height="16" valign="middle" alt="CachyOS" title="CachyOS"> CachyOS · <img src="Assets/Icons/distros/manjaro.svg" width="16" height="16" valign="middle" alt="Manjaro" title="Manjaro"> Manjaro
 
@@ -63,7 +62,7 @@ Chaque commande installe la version Stable. Le script Windows vérifie la signat
 | <img src="Assets/Icons/tools/homebrew.svg" width="20" height="20" valign="middle" alt="Homebrew"> **macOS (Homebrew)** | `brew install --cask fantasmaglad/bobine/bobine` |
 | <img src="Assets/Icons/os/linux.svg" width="20" height="20" valign="middle" alt="Linux"> **Linux (APT, DNF, pacman)** | voir [packages.bobine.fit](https://packages.bobine.fit) |
 
-### Autre canal, Tor
+### Autre canal
 
 <details>
 <summary><b>Un autre canal sous Windows</b></summary>
@@ -76,35 +75,6 @@ $script = irm https://bobine.fit/install.ps1
 ```
 
 Sous Windows PowerShell 5.1 avec un .NET antérieur à 4.7, lancez `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12` avant `irm`.
-
-</details>
-
-<details>
-<summary><img src="Assets/Icons/os/tor.svg" width="16" height="16" valign="middle" alt="Tor"> <b>Par Tor</b></summary>
-
-GitHub et Homebrew voient alors une sortie Tor à la place de votre adresse.
-
-Windows (PowerShell 7.2+, Tor Browser ouvert ; `-TorPort 9050` pour le service tor) :
-
-```powershell
-$base = 'https://github.com/FantasmaGlad/Bobine/releases/latest/download'
-$script = irm "$base/install.ps1" -Proxy socks5://127.0.0.1:9150
-& ([scriptblock]::Create($script)) -Tor
-```
-
-macOS :
-
-```bash
-export ALL_PROXY=socks5h://127.0.0.1:9050
-brew install --cask fantasmaglad/bobine/bobine
-```
-
-Dépôts Linux et clé de signature :
-
-```bash
-onion=http://bobinedaoki42tt33rxacmtaab2gxvxb2orqgcyhvowv3aggxhruvrid.onion
-curl --socks5-hostname 127.0.0.1:9050 -fsSL "$onion/install-tor.sh" | bash
-```
 
 </details>
 
@@ -128,11 +98,10 @@ Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 
 ## Pourquoi aller aussi loin ?
 
-Un planning hebdomadaire de cours collectifs n'a pas besoin de sept plateformes, de trois canaux de mise à jour ni d'un miroir Tor. Ces choix sont voulus ; Bobine est aussi le terrain où son auteur les pratique.
+Un planning hebdomadaire de cours collectifs n'a pas besoin de sept plateformes ni de trois canaux de mise à jour. Ces choix sont voulus ; Bobine est aussi le terrain où son auteur les pratique.
 
 - **Tous les systèmes et architectures** : pour que la question « est-ce compatible ? » ne se pose pas. Un ancien portable, une tablette, un boîtier TV, un mini PC d'occasion : si l'appareil dort dans un garage, Bobine doit pouvoir s'y installer, quelle que soit sa puissance. Réutiliser un appareil évite d'en acheter un.
 - **Trois canaux de mise à jour** : pour tenir un processus de diffusion propre, avec la Stable en bout de chaîne, la Bêta par lots choisis et la Canary reconstruite à chaque modification.
-- **Un miroir Tor** : disproportionné pour une application de régie. Publier une application et ses dépôts par des miroirs onion, sans révéler l'adresse de l'utilisateur, est un savoir-faire à maîtriser avant de publier des logiciels plus sensibles.
 - **Une seule personne** : toute la chaîne, du code source aux paquets signés de chaque plateforme, est construite et maintenue par [Clément Barillot](https://bobine.fit/fr/a-propos).
 
 ## Sécurité et licence

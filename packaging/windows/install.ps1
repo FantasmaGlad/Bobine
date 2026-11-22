@@ -1,8 +1,6 @@
 param(
   [ValidateSet('stable', 'beta', 'canary')]
-  [string]$Channel = 'stable',
-  [switch]$Tor,
-  [int]$TorPort = 9150
+  [string]$Channel = 'stable'
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -11,14 +9,6 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
 }
 
 $web = @{ UseBasicParsing = $true }
-if ($Tor) {
-  if ($PSVersionTable.PSVersion -lt [version]'7.2') { throw "-Tor exige PowerShell 7.2 ou plus récent (pwsh) : https://aka.ms/powershell" }
-  $web.Proxy = "socks5://127.0.0.1:$TorPort"
-  try { $exit = Invoke-RestMethod 'https://check.torproject.org/api/ip' @web -TimeoutSec 60 }
-  catch { throw "Tor ne répond pas sur 127.0.0.1:$TorPort (ouvrez Tor Browser, ou -TorPort 9050 pour le service tor)." }
-  if (-not $exit.IsTor) { throw "Le proxy 127.0.0.1:$TorPort n'est pas une sortie Tor : téléchargements annulés." }
-  Write-Output "Téléchargements par Tor (127.0.0.1:$TorPort)."
-}
 
 $cpu = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 $arch = switch ($cpu) {

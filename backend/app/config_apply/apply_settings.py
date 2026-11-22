@@ -15,6 +15,7 @@ from app.config_apply.context import _Context
 from app.config_apply.resolve import _background
 
 
+_RETIRED_MACHINE_KEYS = ("update_tor", "update_tor_proxy")
 _START_ONLY_RADIO = {"volume_default": "radio_volume_default", "crossfade_seconds": "radio_crossfade_seconds",
                      "announcement_duck_level": "radio_announcement_duck_level"}
 
@@ -105,13 +106,12 @@ def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
         ctx.fail(file, "« machine » doit être un objet")
         return
     unknown = sorted(set(body) - {
-        "display_mode", "media_native", "update_tor", "update_tor_proxy", "audio_routes", "audio_outputs", "storage",
+        "display_mode", "media_native", "audio_routes", "audio_outputs", "storage", *_RETIRED_MACHINE_KEYS,
     })
     for key in unknown:
         ctx.fail(file, f"réglage machine inconnu : {key}")
     values: dict[str, Any] = {}
-    for source, target in (("display_mode", "display_mode_setting"), ("media_native", "media_native"),
-                           ("update_tor", "update_tor"), ("update_tor_proxy", "update_tor_proxy")):
+    for source, target in (("display_mode", "display_mode_setting"), ("media_native", "media_native")):
         if source in body:
             value = body[source]
             values[target] = ("true" if value else "false") if isinstance(value, bool) else value

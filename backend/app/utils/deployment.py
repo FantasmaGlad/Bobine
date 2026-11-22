@@ -86,10 +86,6 @@ class ProfileHandler:
         """True si Bobine peut tenter d'écouter lui-même le port 80 pour rediriger."""
         return True
 
-    def supports_update_over_tor(self) -> bool:
-        """True si TOUT le trafic d'une mise à jour peut passer par Tor (recherche et téléchargement par `tor_proxy`)."""
-        return not self.is_store_managed()
-
     def can_auto_apply(self) -> bool:
         """True si ce profil permet l'application automatique d'une mise à jour."""
         return self.supports_git_versioning()

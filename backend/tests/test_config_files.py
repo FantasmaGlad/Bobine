@@ -73,7 +73,7 @@ def test_objects_are_referenced_by_readable_keys(library):
     assert _no_uid(cable["schedules"][0]["target"]) == {"type": "playlist", "name": "Lundi soir"}
     assert cable["schedules"][0]["recurrence"] == {"days_of_week": [0], "time": "18:30"}
     assert _no_uid(cable["schedules"][0]["overrides"]) == [{"date": "2026-12-21", "action": "cancelled", "replacement": None}]
-    assert set(files["machine.json"]["machine"]) >= {"display_mode", "update_tor", "audio_routes", "storage"}
+    assert set(files["machine.json"]["machine"]) >= {"display_mode", "audio_routes", "storage"}
 
 
 def test_api_exports_all_files_or_one(library):

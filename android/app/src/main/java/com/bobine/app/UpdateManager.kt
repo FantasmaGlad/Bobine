@@ -18,8 +18,6 @@ import java.io.File
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
-import java.net.InetSocketAddress
-import java.net.Proxy
 import java.net.URL
 import java.security.MessageDigest
 
@@ -36,7 +34,7 @@ private const val READ_TIMEOUT_MS = 30_000
 
 object UpdateManager {
 
-    fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String, socksProxy: String?) {
+    fun downloadAndInstall(context: Context, downloadUrl: String, expectedDigest: String) {
         val appContext = context.applicationContext
         if (!appContext.packageManager.canRequestPackageInstalls()) {
             openUnknownSourcesSettings(appContext)
@@ -51,7 +49,7 @@ object UpdateManager {
             try {
                 val expected = expectedDigest.substringAfter(':').lowercase()
                 if (expected.length != 64) throw UpdateRejected("Empreinte SHA-256 invalide reçue du serveur.")
-                val apk = fetchVerifiedApk(appContext, downloadUrl, expected, socksProxy)
+                val apk = fetchVerifiedApk(appContext, downloadUrl, expected)
                 validatePackage(appContext, apk)
                 reportCallback(appContext, "downloaded", "APK vérifié — confirmez l'installation sur l'appareil.")
                 Handler(Looper.getMainLooper()).post { offerInstall(appContext, apk) }
@@ -93,7 +91,7 @@ object UpdateManager {
         }, "bobine-update-cleanup").start()
     }
 
-    private fun fetchVerifiedApk(context: Context, url: String, expectedSha256: String, socksProxy: String?): File {
+    private fun fetchVerifiedApk(context: Context, url: String, expectedSha256: String): File {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val target = File(dir, APK_FILE_NAME)
         if (target.exists() && sha256(target) == expectedSha256) return target
@@ -103,7 +101,7 @@ object UpdateManager {
         var lastError: IOException? = null
         for (attempt in 1..MAX_DOWNLOAD_ATTEMPTS) {
             try {
-                downloadTo(context, part, url, socksProxy)
+                downloadTo(context, part, url)
                 val actual = sha256(part)
                 if (actual != expectedSha256) {
                     part.delete()
@@ -127,9 +125,8 @@ object UpdateManager {
         throw IOException("Téléchargement impossible après $MAX_DOWNLOAD_ATTEMPTS tentatives : ${lastError?.message}")
     }
 
-    private fun downloadTo(context: Context, part: File, url: String, socksProxy: String?) {
-        val connection = (if (socksProxy == null) URL(url).openConnection() else URL(url).openConnection(socksProxyOf(socksProxy)))
-            as HttpURLConnection
+    private fun downloadTo(context: Context, part: File, url: String) {
+        val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
         connection.instanceFollowRedirects = true
@@ -249,12 +246,6 @@ object UpdateManager {
             .setAutoCancel(true)
             .build()
         manager.notify(UPDATE_NOTIFICATION_ID, notification)
-    }
-
-    private fun socksProxyOf(address: String): Proxy {
-        val host = address.substringBeforeLast(':').trim('[', ']')
-        val port = address.substringAfterLast(':').toIntOrNull() ?: throw UpdateRejected("Adresse du proxy Tor invalide : $address")
-        return Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port))
     }
 
     private fun reportCallback(context: Context, status: String, message: String, percent: Int? = null) {

@@ -5,8 +5,6 @@ import os
 from typing import Callable
 
 from app.utils.deployment import ProfileHandler, UpdateUnsupported
-from app.utils import tor_proxy
-from app.utils.tor_proxy import TorSession
 
 logger = logging.getLogger(__name__)
 
@@ -150,8 +148,7 @@ class AndroidHandler(ProfileHandler):
             from java import jclass
             context = _get_android_context()
             update_mgr = jclass("com.bobine.app.UpdateManager")
-            socks_proxy = TorSession().address if tor_proxy.is_enabled() else None
-            update_mgr.INSTANCE.downloadAndInstall(context, download_url, asset_digest, socks_proxy)
+            update_mgr.INSTANCE.downloadAndInstall(context, download_url, asset_digest)
         except Exception as exc:
             logger.exception("Échec du déclenchement de la mise à jour Android via UpdateManager")
             raise UpdateUnsupported(f"Impossible de déclencher la mise à jour Android : {exc}") from exc

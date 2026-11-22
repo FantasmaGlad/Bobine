@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 from app.api.errors import redact_paths
-from app.utils import tor_proxy
 from app.utils.deployment import UpdateUnsupported, get_profile_handler
 from app.utils.version import get_build_fingerprint
 from app.utils.ws_manager import manager as ws_manager
@@ -236,7 +235,7 @@ def _download_once(url: str, part: Path, on_progress: Callable[[int], None] | No
     )
     hasher = hashlib.sha256()
     last_percent = -1
-    with tor_proxy.urlopen(req, timeout=tor_proxy.request_timeout(DOWNLOAD_TIMEOUT_SECONDS)) as resp:
+    with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT_SECONDS) as resp:
         total = int(resp.headers.get("Content-Length") or 0)
         if total:
             free = shutil.disk_usage(part.parent).free

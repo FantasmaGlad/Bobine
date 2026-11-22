@@ -4,11 +4,10 @@ from datetime import datetime, timezone
 from typing import Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.api.contract import GITHUB_REPO
 from app.database import get_db
-from app.utils import tor_proxy, tor_socks
 from app.utils.activity_log import log_activity
 from app.utils.deployment import (
     UpdateUnsupported,
@@ -113,22 +112,6 @@ async def check_updates(refresh: bool = False, db: Session = Depends(get_db)) ->
     code = error_code or "offline"
     return {**base, "online": False, "error_code": code, **_no_release(handler.can_auto_apply()),
             "message": LOOKUP_ERROR_MESSAGES.get(code, LOOKUP_ERROR_MESSAGES["offline"])}
-
-
-class TorCheckRequest(BaseModel):
-    proxy: str | None = Field(default=None, max_length=80)
-
-
-@router.post("/tor-check")
-async def tor_check(payload: TorCheckRequest) -> dict[str, Any]:
-    """Vérifie par le service de contrôle de Tor que les mises à jour sortiraient bien par Tor."""
-    proxy = payload.proxy
-    if proxy is not None:
-        try:
-            tor_socks.parse_proxy(proxy)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return await asyncio.to_thread(tor_proxy.check, proxy)
 
 
 @router.get("/status")

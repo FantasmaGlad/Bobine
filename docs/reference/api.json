@@ -3170,18 +3170,6 @@
        },
        {
         "choices": null,
-        "name": "update_tor",
-        "required": false,
-        "type": "string"
-       },
-       {
-        "choices": null,
-        "name": "update_tor_proxy",
-        "required": false,
-        "type": "string"
-       },
-       {
-        "choices": null,
         "name": "simplified_ui",
         "required": false,
         "type": "string"
@@ -4125,24 +4113,6 @@
      "path_parameters": [],
      "query": [],
      "summary": "Build Google Play : lance la mise à jour par Google Play (téléchargement en arrière-plan)."
-    },
-    {
-     "body": {
-      "fields": [
-       {
-        "choices": null,
-        "name": "proxy",
-        "required": false,
-        "type": "string"
-       }
-      ],
-      "format": "json"
-     },
-     "method": "POST",
-     "path": "/api/updates/tor-check",
-     "path_parameters": [],
-     "query": [],
-     "summary": "Vérifie par le service de contrôle de Tor que les mises à jour sortiraient bien par Tor."
     }
    ]
   },

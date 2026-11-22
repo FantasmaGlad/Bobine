@@ -14,7 +14,7 @@ from app.api.errors import send_forbidden
 DEFAULT_DEV_ORIGINS = ("http://localhost:3000", "http://127.0.0.1:3000")
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _DEFAULT_PORTS = {"http": 80, "https": 443, "ws": 80, "wss": 443}
-_PRIVATE_SUFFIXES = (".local", ".localhost", ".onion", ".internal", ".home.arpa", ".test", ".lan", ".home", ".localdomain", ".ts.net")
+_PRIVATE_SUFFIXES = (".local", ".localhost", ".internal", ".home.arpa", ".test", ".lan", ".home", ".localdomain", ".ts.net")
 
 
 def dev_origins() -> tuple[str, ...]:

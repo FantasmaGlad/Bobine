@@ -31,7 +31,7 @@ from app.utils.deployment import get_profile_handler
 from app.utils.port import active_port
 from app import config_mirror
 from app.api.routes import config_files as config_files_router
-from app.utils import media_native, port80, tor_proxy
+from app.utils import media_native, port80
 from app.utils.media_sidecar import close_current_media_client
 from app.updates.orchestrator import load_persisted_state_at_startup
 from app.utils.version import get_app_version
@@ -98,7 +98,6 @@ async def lifespan(app: FastAPI):
         load_all_mixes_into_managers(sound_db)
         load_routes_into_managers(sound_db)
         media_native.load_from_database(sound_db)
-        tor_proxy.load_from_database(sound_db)
     await autostart_default_radio_playlist()
     await resume_running_schedules()
     for playback_manager in get_all_playback_managers().values():
@@ -120,7 +119,6 @@ async def lifespan(app: FastAPI):
     await storage_service.stop()
     stop_mdns_responder()
     await port80.stop()
-    tor_proxy.shutdown()
     close_current_media_client()
 
 
