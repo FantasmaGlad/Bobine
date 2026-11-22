@@ -143,8 +143,7 @@
 
 .cinema-all-item:hover,
 .cinema-all-item:focus-visible {
-  transform: translateY(-2px);
-  border-color: var(--accent-text);
+  transform: scale(1.02);
   background: var(--bg-surface-hover);
   outline: none;
 }
