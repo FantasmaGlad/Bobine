@@ -1420,11 +1420,6 @@ jobs:
           ref: gh-pages
           path: package-repo
           ssh-key: ${{ secrets.PACKAGES_DEPLOY_KEY }}
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: FantasmaGlad/BobineWeb
-          ref: 9051a451b39639c875fa5cc84897e79f7639d278
-          path: package-verification
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: bobine-linux-packages-signed
@@ -1474,8 +1469,8 @@ jobs:
       - name: Vérifier toute la chaîne APT, DNF et Pacman avant publication
         run: |
           sudo chown -R "$(id -u):$(id -g)" package-repo
-          python3 package-verification/deploy/onion/verify-packages.py package-repo
-          python3 package-verification/deploy/onion/test-verify-packages.py package-repo
+          python3 scripts/ci/verify-package-repository.py package-repo
+          python3 scripts/ci/verify-package-repository-refusals.py package-repo
           size=$(du -sb --exclude=.git package-repo | cut -f1)
           echo "Taille du site de paquets : $size octets"
           test "$size" -lt 950000000

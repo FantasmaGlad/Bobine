@@ -122,7 +122,7 @@ class ScheduledRefreshTests(unittest.TestCase):
         self.assertIn("group: publish-linux-packages", job("publish-linux-packages"))
 
     def test_it_refreshes_then_verifies_then_publishes_with_the_shared_script(self):
-        order = [REFRESH.index(marker) for marker in ("refresh-apt-release.sh package-repo", "verify-packages.py package-repo", "commit-package-repository.sh package-repo")]
+        order = [REFRESH.index(marker) for marker in ("refresh-apt-release.sh package-repo", "verify-package-repository.py package-repo", "commit-package-repository.sh package-repo")]
         self.assertEqual(order, sorted(order))
 
 
