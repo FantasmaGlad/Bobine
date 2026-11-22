@@ -64,6 +64,7 @@ export default function DangerSection({ hidden, deploymentProfile, showToast }: 
         <div className="settings-danger-group">
           <DangerCard icon="cleaning_services" title={t("settingsPage.resetDataTitle")} hint={t("settingsPage.resetDataHint")}
             action={t("settingsPage.resetDataAction")} onAction={() => reset.setOpen(true)} />
+          <hr className="settings-danger-separator" />
           <DangerCard icon="delete_forever" title={t("settingsPage.uninstallSectionTitle")}
             hint={t(UNINSTALL_HINTS[deploymentProfile] ?? "settingsPage.uninstallDesktopLinux")}
             action={t("settingsPage.uninstallAction")} onAction={() => uninstall.setOpen(true)}>

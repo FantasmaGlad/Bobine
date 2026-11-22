@@ -21,6 +21,10 @@
   --danger-action-bg: color-mix(in srgb, var(--accent-error) 16%, var(--bg-main));
   --danger-action-hover-bg: color-mix(in srgb, var(--accent-error) 22%, var(--bg-main));
   --danger-action-active-bg: color-mix(in srgb, var(--accent-error) 28%, var(--bg-main));
+  --danger-solid: #c40000;
+  --danger-solid-hover: #a80000;
+  --danger-solid-active: #8c0000;
+  --danger-on-solid: #ffffff;
   --glass-surface-bg: color-mix(in srgb, var(--bg-surface) 56%, transparent);
   --glass-surface-border: color-mix(in srgb, var(--specular) 13%, var(--border-color));
   --glass-surface-blur: var(--blur-xl);

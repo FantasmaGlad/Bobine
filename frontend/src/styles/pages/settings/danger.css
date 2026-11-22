@@ -19,8 +19,15 @@
 .settings-danger-group {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
   margin-top: 16px;
+}
+
+.settings-danger-separator {
+  margin: 0;
+  border: 0;
+  border-top: 2px dashed var(--danger-solid);
+  opacity: 0.55;
 }
 
 .settings-danger-card {
@@ -62,25 +69,26 @@
   min-height: 44px;
   max-width: 100%;
   white-space: normal;
-  background: var(--danger-action-bg);
-  color: var(--danger-text);
-  border: 1px solid var(--danger-text);
+  background: var(--danger-solid);
+  color: var(--danger-on-solid);
+  border: 1px solid var(--danger-solid);
+  font-weight: 700;
 }
 
 .settings-danger .btn-danger:hover:not(:disabled) {
-  background: var(--danger-action-hover-bg);
-  border-color: var(--danger-text);
+  background: var(--danger-solid-hover);
+  border-color: var(--danger-solid-hover);
   transform: none;
 }
 
 .settings-danger .btn-danger:active:not(:disabled) {
-  background: var(--danger-action-active-bg);
+  background: var(--danger-solid-active);
   transform: none;
   filter: none;
 }
 
 .settings-danger .btn-danger:focus-visible {
-  outline: 3px solid var(--danger-text);
+  outline: 3px solid var(--danger-solid);
   outline-offset: 3px;
 }
 
