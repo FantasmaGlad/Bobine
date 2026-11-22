@@ -3243,6 +3243,46 @@
     },
     {
      "body": null,
+     "method": "DELETE",
+     "path": "/api/settings/inputs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Rend toutes les entrées à la table par défaut."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/settings/inputs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Actions, table par défaut, correspondances choisies et table appliquée."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "input",
+        "required": true,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "actions",
+        "required": false,
+        "type": "string[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PATCH",
+     "path": "/api/settings/inputs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Associe une entrée à des actions par ordre de préférence ; liste vide : entrée désactivée ; `null` : valeur par défaut."
+    },
+    {
+     "body": null,
      "method": "GET",
      "path": "/api/settings/laptop-lid",
      "path_parameters": [],

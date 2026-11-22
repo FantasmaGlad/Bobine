@@ -25,3 +25,13 @@ export function pickHandler(handlers: RemoteActionHandlers, actions: readonly Re
   }
   return undefined;
 }
+
+export function parseRemoteBindings(raw: unknown): RemoteBindings | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const known = new Set<string>(REMOTE_ACTIONS);
+  const entries = Object.entries(raw as Record<string, unknown>).filter(
+    (entry): entry is [string, RemoteAction[]] =>
+      Array.isArray(entry[1]) && entry[1].every((action) => typeof action === "string" && known.has(action)),
+  );
+  return Object.fromEntries(entries);
+}

@@ -10,6 +10,7 @@ REMOTE_ACTIONS = (
 GAMEPAD_DIRECTIONS = {12: "up", 13: "down", 14: "left", 15: "right"}
 ANALOG_TRIGGERS = (6, 7)
 
+
 def _keys(names: tuple[str, ...], actions: tuple[str, ...]) -> list[tuple[str, tuple[str, ...]]]:
     return [(f"key:{name}", actions) for name in names]
 
