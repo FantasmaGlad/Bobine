@@ -11,6 +11,7 @@ export interface RemoteContext {
   playPause: () => void;
   back: () => void;
   seekBy: (delta: number) => void;
+  scrub: (direction: 1 | -1) => void;
   chapter: (direction: "next" | "prev") => void;
   playNext: () => void;
 }
@@ -53,7 +54,7 @@ export function cinemaRemoteKeys(ctx: RemoteContext) {
   return {
     ...volume,
     onEnter: ctx.playPause, onPlayPause: ctx.playPause, onBack: ctx.back,
-    onLeft: () => ctx.seekBy(-10), onRight: () => ctx.seekBy(10),
+    onLeft: () => ctx.scrub(-1), onRight: () => ctx.scrub(1),
     onUp: volume.onVolumeUp, onDown: volume.onVolumeDown,
     onPrev: () => ctx.seekBy(-30), onNext: () => ctx.seekBy(30),
     onChapterNext: () => ctx.chapter("next"), onChapterPrev: () => ctx.chapter("prev"),
