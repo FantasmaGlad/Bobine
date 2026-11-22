@@ -35,11 +35,6 @@ jobs:
           ref: gh-pages
           path: package-repo
           ssh-key: ${{ secrets.PACKAGES_DEPLOY_KEY }}
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: FantasmaGlad/BobineWeb
-          ref: 9051a451b39639c875fa5cc84897e79f7639d278
-          path: package-verification
       - name: Installer les outils de dépôt
         run: sudo apt-get $APT_OPTIONS update && sudo apt-get $APT_OPTIONS install -y reprepro gnupg
       - name: Ré-exporter et re-signer les fichiers Release
@@ -52,7 +47,7 @@ jobs:
           bash scripts/ci/refresh-apt-release.sh package-repo
       - name: Vérifier toute la chaîne avant publication
         run: |
-          python3 package-verification/deploy/onion/verify-packages.py package-repo
+          python3 scripts/ci/verify-package-repository.py package-repo
       - name: Publier sur gh-pages
         env:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
