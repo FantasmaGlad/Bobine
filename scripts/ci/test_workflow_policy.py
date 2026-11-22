@@ -47,6 +47,13 @@ class DroitsEtDelaisTests(unittest.TestCase):
             self.assertRegex(body, r"(?m)^    timeout-minutes: \d+$", f"job {name} sans timeout-minutes")
 
 
+class PipefailTests(unittest.TestCase):
+    def test_git_log_n_est_jamais_tronque_par_un_tube(self):
+        for path in sorted((ROOT / ".github").rglob("*.yml")):
+            text = path.read_text(encoding="utf-8")
+            self.assertNotRegex(text, r"git log[^\n|]*\|\s*head\b", f"{path.name} : git log | head meurt en SIGPIPE sous pipefail, utiliser git log -n")
+
+
 class PlayBundlesTests(unittest.TestCase):
     def test_les_bundles_play_ne_sont_jamais_publies_sur_la_release(self):
         for interdit in ("attach_to_release", "gh release", "contents: write"):
