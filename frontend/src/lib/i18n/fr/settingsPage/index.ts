@@ -3,6 +3,7 @@ import type { Dict } from "../../core.ts";
 import { importDiag } from "./importDiag.ts";
 import { paths } from "./paths.ts";
 import { cat } from "./categories.ts";
+import { inputs } from "./inputs.ts";
 
 export const settingsPage: Dict = {
   restartNotGuaranteed: "Sur cet appareil, la relance automatique n'est pas garantie : si l'écran reste vide après le redémarrage, rouvrez l'application.",
@@ -11,6 +12,7 @@ export const settingsPage: Dict = {
   purgeDone: "Nettoyage terminé : {{logs}} logs et {{metrics}} métriques supprimés.",
   openFolderError: "Impossible d'ouvrir le dossier",
   importDiag,
+  inputs,
   loadError: "Impossible de charger les paramètres.",
   savedToast: "Paramètres enregistrés — appliqués immédiatement",
   saveError: "Erreur lors de la sauvegarde",

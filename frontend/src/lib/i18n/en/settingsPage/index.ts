@@ -3,6 +3,7 @@ import type { Dict } from "../../core.ts";
 import { importDiag } from "./importDiag.ts";
 import { paths } from "./paths.ts";
 import { cat } from "./categories.ts";
+import { inputs } from "./inputs.ts";
 
 export const settingsPage: Dict = {
   restartNotGuaranteed: "On this device the automatic relaunch is not guaranteed: if the screen stays blank after the restart, reopen the app.",
@@ -11,6 +12,7 @@ export const settingsPage: Dict = {
   purgeDone: "Cleanup done: {{logs}} logs and {{metrics}} metrics deleted.",
   openFolderError: "Unable to open the folder",
   importDiag,
+  inputs,
   loadError: "Unable to load settings.",
   savedToast: "Settings saved — applied immediately",
   saveError: "Error while saving",

@@ -67,6 +67,7 @@
 @import "./pages/radio-library/playlists.css";
 @import "./pages/radio-library/tracks.css";
 @import "./pages/settings/danger.css";
+@import "./pages/settings/inputs.css";
 @import "./pages/settings/paths.css";
 @import "./pages/radio-announcements/radio-announcements.css";
 @import "./pages/grid/standby.css";

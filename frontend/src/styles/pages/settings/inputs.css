@@ -1,0 +1,82 @@
+.inputs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 18px;
+}
+
+.inputs-capture {
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.inputs-group h4 {
+  margin: 18px 0 8px;
+  font-size: 0.95rem;
+}
+
+.inputs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inputs-row {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(10rem, 14rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  scroll-margin: 6rem;
+}
+
+.inputs-row.is-disabled .inputs-row__name {
+  opacity: 0.6;
+}
+
+.inputs-row__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.inputs-row__note {
+  display: flex;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.inputs-row__buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .inputs-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .inputs-row__note,
+  .inputs-row__buttons {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+.inputs-row__buttons .btn {
+  min-height: 0;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+}
+
+.inputs-row__action {
+  min-height: 32px;
+}
