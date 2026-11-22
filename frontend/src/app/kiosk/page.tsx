@@ -21,7 +21,7 @@ import CoachStage from "@/components/kiosk/CoachStage";
 import PauseOverlay from "@/components/kiosk/PauseOverlay";
 import WaitingLayers from "@/components/kiosk/WaitingLayers";
 import { applyKioskEvent } from "@/components/kiosk/kioskEvents";
-import type { OsdContent } from "@/components/kiosk/media";
+import type { OsdContent } from "@/lib/kioskFeedback";
 import { useStallWatchdog } from "@/components/kiosk/useStallWatchdog";
 
 export default function KioskPage() {
@@ -88,9 +88,9 @@ export default function KioskPage() {
     (evt: PlaybackEvent) => applyKioskEvent(
       evt,
       { video: videoRef.current, bgVideo: bgVideoRef.current, audio: audioRef.current },
-      { isPrimary: () => isPrimaryRef.current, lastSeekTime: () => lastSeekTimeRef.current, tryPlay, showOsd, showVolumeHud },
+      { isPrimary: () => isPrimaryRef.current, lastSeekTime: () => lastSeekTimeRef.current, tryPlay, showOsd, showVolumeHud, showSeekHud },
     ),
-    [showOsd, showVolumeHud, tryPlay]
+    [showOsd, showVolumeHud, showSeekHud, tryPlay]
   );
 
   const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");

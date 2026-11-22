@@ -1,9 +1,8 @@
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { getApiUrl } from "@/lib/apiUrl";
-import { formatTime } from "@/lib/format";
 import { unloadMedia } from "@/lib/mediaElement";
 import type { PlaybackEvent } from "@/lib/usePlaybackSocket";
-import type { OsdContent } from "./media";
+import { kioskFeedback, type OsdContent, type SeekHud } from "@/lib/kioskFeedback";
 
 export interface KioskMedia {
   video: HTMLVideoElement | null;
@@ -17,6 +16,7 @@ export interface KioskEventContext {
   tryPlay: (el: HTMLMediaElement | null | undefined) => void;
   showOsd: (content: OsdContent) => void;
   showVolumeHud: (state: { level: number; muted: boolean }) => void;
+  showSeekHud: (hud: SeekHud) => void;
 }
 
 export function applyKioskEvent(evt: PlaybackEvent, media: KioskMedia, ctx: KioskEventContext): void {
@@ -157,18 +157,16 @@ export function applyKioskEvent(evt: PlaybackEvent, media: KioskMedia, ctx: Kios
         unloadMedia(audio);
         break;
       case "seek":
-        ctx.showOsd({
-          icon: "fast_forward",
-          label: `${formatTime(data.position_seconds)} / ${formatTime(data.current_video?.duration_seconds)}`,
-        });
+      case "speed": {
+        const feedback = kioskFeedback(cause, data);
+        if (feedback && "seekHud" in feedback) ctx.showSeekHud(feedback.seekHud);
+        else if (feedback) ctx.showOsd(feedback.osd);
         break;
+      }
       case "volume":
         if (video) applyVolume(video);
         if (audio) applyVolume(audio);
         ctx.showVolumeHud({ level: data.volume / 100, muted: false });
-        break;
-      case "speed":
-        ctx.showOsd({ icon: "speed", label: `${data.speed.toFixed(2)}x` });
         break;
       default:
         break;
