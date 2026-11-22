@@ -99,7 +99,6 @@ jobs:
       - name: Vérifier les outils de publication sans réseau
         run: |
           sudo apt-get $APT_OPTIONS update -qq && sudo apt-get $APT_OPTIONS install -y -qq --no-install-recommends reprepro python3-yaml
-          python3 scripts/ci/test-notify-web-release.py
           python3 -m unittest discover -s scripts/ci -p 'test_*.py' -q
           python3 scripts/ci/test-package-versions.py --family debian
           if [ -f scripts/ci/test-install-signature.ps1 ]; then pwsh -NoProfile -File scripts/ci/test-install-signature.ps1; fi
@@ -1487,20 +1486,3 @@ jobs:
           gpgconf --kill gpg-agent || true
           rm -rf "$GNUPGHOME"
 
-  notify-web-release:
-    name: Notifier le miroir web après publication
-    needs: [version, publish-linux-packages]
-    if: ${{ always() && !cancelled() && needs.publish-linux-packages.result == 'success' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.tag }}
-      - name: Envoyer bobine-release à BobineWeb
-        env:
-          BOBINE_WEB_DISPATCH_TOKEN: ${{ secrets.BOBINE_WEB_DISPATCH_TOKEN }}
-          RELEASE_CHANNEL: ${{ needs.version.outputs.channel }}
-        run: RELEASE_SHA="$(git rev-parse HEAD)" bash scripts/ci/notify-web-release.sh
