@@ -6,7 +6,7 @@ import { type SectionProps } from "../shared/section";
 import MediumLine from "./MediumLine";
 import { panelRows } from "./mapText";
 
-export type OpenTab = (tab: "audio" | "bluetooth" | "wifi", ref: string | null) => void;
+export type OpenTab = (tab: "audio" | "bluetooth", ref: string | null) => void;
 
 interface PanelProps {
   node: PlacedNode;
@@ -20,6 +20,7 @@ interface PanelProps {
 export default function MapPanel({ node, label, topology, t, onClose, onOpen }: PanelProps) {
   const link = topology.links.find((l) => l.to === node.id);
   const rows = panelRows(node, label, topology, t);
+  const tab = node.tab;
   return (
     <aside className="dv-map-panel" role="dialog" aria-label={label}>
       <header>
@@ -34,9 +35,9 @@ export default function MapPanel({ node, label, topology, t, onClose, onOpen }: 
         </p>
       )}
       <dl className="dv-defs">{rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-      {node.tab && (
-        <button type="button" className="btn btn-primary" onClick={() => onOpen(node.tab as "audio" | "bluetooth" | "wifi", node.ref)}>
-          <Icon name="open_in_new" size={16} /> {t(`devices.map.open.${node.tab}`)}
+      {tab && (
+        <button type="button" className="btn btn-primary" onClick={() => onOpen(tab, node.ref)}>
+          <Icon name="open_in_new" size={16} /> {t(`devices.map.open.${tab}`)}
         </button>
       )}
     </aside>

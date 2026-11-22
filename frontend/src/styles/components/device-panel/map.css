@@ -80,7 +80,6 @@
   -webkit-user-select: none;
 }
 
-:root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--wifi,
 :root:not([data-input-mode="remote"]) .dv-map .dv-link.active.dv-link--bluetooth {
   animation: dv-link-pulse 2.4s ease-in-out infinite;
 }

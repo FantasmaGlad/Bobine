@@ -1,12 +1,10 @@
-use crate::exec::{require_success as ok, run, run_with_env, Output};
+use crate::exec::{require_success as ok, run_with_env, Output};
 use crate::parse;
 use crate::protocol::{capabilities_all, Platform, RpcError, RpcResult};
-use crate::secret_file::SecretFile;
 use serde_json::{json, Map, Value};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const SHORT: Duration = Duration::from_secs(15);
-const LONG: Duration = Duration::from_secs(45);
 const POWERSHELL: &str = "powershell.exe";
 
 pub struct Windows {
@@ -22,16 +20,6 @@ fn powershell(script: &str, arg: Option<&str>, timeout: Duration) -> Result<Outp
         None,
         &[("BOBINE_ARG", arg.unwrap_or(""))],
     )
-}
-
-fn prefix_to_mask(prefix: u32) -> String {
-    let bits: u32 = if prefix == 0 {
-        0
-    } else {
-        u32::MAX << (32 - prefix.min(32))
-    };
-    let b = bits.to_be_bytes();
-    format!("{}.{}.{}.{}", b[0], b[1], b[2], b[3])
 }
 
 fn device_kind(name: &str) -> &'static str {
@@ -118,30 +106,6 @@ fn bluetooth_status() -> RpcResult {
     )
 }
 
-fn netsh(args: &[&str]) -> RpcResult {
-    ok(run("netsh", args, SHORT, None)?, "netsh")?;
-    Ok(Value::Null)
-}
-
-fn add_profile(ssid: &str, password: Option<&str>) -> Result<(), RpcError> {
-    let profile = SecretFile::create(
-        &std::env::temp_dir(),
-        "bobine-wifi",
-        parse::windows::profile_xml(ssid, password).as_bytes(),
-    )
-    .map_err(|e| RpcError::app("tool_failed", format!("Profil Wi-Fi non écrit : {e}")))?;
-    let path_text = profile.path().to_string_lossy().to_string();
-    let added = run(
-        "netsh",
-        &["wlan", "add", "profile", &format!("filename={path_text}"), "user=current"],
-        SHORT,
-        None,
-    );
-    drop(profile);
-    ok(added?, "netsh")?;
-    Ok(())
-}
-
 impl Windows {
     pub fn new() -> Self {
         let has = powershell(
@@ -154,21 +118,6 @@ impl Windows {
         Windows {
             has_audio_cmdlets: has,
         }
-    }
-
-    fn interface(&self) -> Result<parse::windows::NetshInterface, RpcError> {
-        let out = ok(
-            run("netsh", &["wlan", "show", "interfaces"], SHORT, None)?,
-            "netsh",
-        )?;
-        parse::windows::interface(&out.stdout)
-            .ok_or_else(|| RpcError::unsupported("Aucun adaptateur Wi-Fi détecté."))
-    }
-
-    fn profiles(&self) -> Vec<String> {
-        run("netsh", &["wlan", "show", "profiles"], SHORT, None)
-            .map(|o| parse::windows::profiles(&o.stdout))
-            .unwrap_or_default()
     }
 
     fn audio_list(&self) -> RpcResult {
@@ -185,83 +134,6 @@ impl Windows {
             })
             .collect();
         Ok(json!({ "supported": true, "devices": devices, "default_id": null }))
-    }
-
-    fn wifi_status(&self) -> RpcResult {
-        let iface = self.interface()?;
-        let known = self.profiles();
-        let out = run(
-            "netsh",
-            &["wlan", "show", "networks", "mode=bssid"],
-            LONG,
-            None,
-        )?;
-        let networks = parse::windows::networks(
-            &out.stdout,
-            iface.ssid.as_deref().filter(|_| iface.connected),
-            &known,
-        );
-        let current = networks.iter().find(|n| n["in_use"] == true).cloned()
-            .or_else(|| iface.ssid.clone().filter(|_| iface.connected).map(|ssid| json!({
-                "ssid": ssid, "signal": iface.signal, "security": "", "band": iface.band, "known": true, "in_use": true })));
-        Ok(json!({
-            "supported": true, "enabled": true, "interface": iface.name,
-            "state": if iface.connected { "connected" } else { "disconnected" },
-            "current": current, "networks": networks, "known": known,
-        }))
-    }
-
-    fn wifi_connect(&self, ssid: &str, password: Option<&str>) -> RpcResult {
-        let existed = self.profiles().iter().any(|p| p == ssid);
-        let mut created = false;
-        if password.is_some() || !existed {
-            add_profile(ssid, password)?;
-            created = !existed;
-        }
-        let name_arg = format!("name={ssid}");
-        netsh(&["wlan", "connect", &name_arg])?;
-        if !self.wait_connected(ssid, Duration::from_secs(25)) {
-            if created {
-                let _ = run(
-                    "netsh",
-                    &["wlan", "delete", "profile", &name_arg],
-                    SHORT,
-                    None,
-                ); // never keep a profile with a wrong password
-            }
-            return Err(RpcError::app(
-                "wifi_auth_failed",
-                "Mot de passe incorrect ou réseau inaccessible.",
-            ));
-        }
-        Ok(Value::Null)
-    }
-
-    fn wifi_subnet(&self) -> RpcResult {
-        let iface = self.interface()?;
-        let out = powershell(
-            "Get-NetIPAddress -InterfaceAlias $env:BOBINE_ARG -AddressFamily IPv4 | Select-Object -First 1 IPAddress,PrefixLength | ConvertTo-Json -Compress",
-            Some(&iface.name), SHORT)?;
-        let item = parse::windows::powershell_json_array(&out.stdout)
-            .into_iter()
-            .next();
-        Ok(json!(item.and_then(|i| {
-            let prefix = i["PrefixLength"].as_u64()? as u32;
-            parse::subnet_cidr(i["IPAddress"].as_str()?, &prefix_to_mask(prefix))
-        })))
-    }
-
-    fn wait_connected(&self, ssid: &str, deadline: Duration) -> bool {
-        let started = Instant::now();
-        while started.elapsed() < deadline {
-            if let Ok(i) = self.interface() {
-                if i.connected && i.ssid.as_deref() == Some(ssid) {
-                    return true;
-                }
-            }
-            std::thread::sleep(Duration::from_millis(1000));
-        }
-        false
     }
 }
 
@@ -291,10 +163,6 @@ impl Platform for Windows {
             ],
             "Sous Windows, l'appairage Bluetooth se fait dans Paramètres > Bluetooth et appareils.",
         );
-        deny(
-            &["wifi_power"],
-            "Activer ou couper la carte Wi-Fi demande des droits d'administrateur sous Windows.",
-        );
         caps
     }
 
@@ -307,39 +175,9 @@ impl Platform for Windows {
             }
             "audio.set_volume" if self.has_audio_cmdlets => audio_set_volume(params),
             "bluetooth.status" => bluetooth_status(),
-            "wifi.status" => self.wifi_status(),
-            "wifi.scan" => Ok(Value::Null), // `show networks` already triggers a fresh scan
-            "wifi.current_connection" => {
-                let iface = self.interface()?;
-                Ok(json!(iface.ssid.filter(|_| iface.connected)))
-            }
-            "wifi.connect" => self.wifi_connect(s("ssid"), password_param(params)),
-            "wifi.activate" => self.wifi_connect(s("connection"), password_param(params)),
-            "wifi.forget" => netsh(&["wlan", "delete", "profile", &format!("name={}", s("ssid"))]),
-            "wifi.subnet" => self.wifi_subnet(),
             _ => Err(RpcError::unsupported(
                 "Méthode non prise en charge sur Windows.",
             )),
         }
-    }
-}
-
-fn password_param(params: &Map<String, Value>) -> Option<&str> {
-    params
-        .get("password")
-        .and_then(Value::as_str)
-        .filter(|p| !p.is_empty())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn prefix_masks() {
-        assert_eq!(prefix_to_mask(24), "255.255.255.0");
-        assert_eq!(prefix_to_mask(16), "255.255.0.0");
-        assert_eq!(prefix_to_mask(0), "0.0.0.0");
-        assert_eq!(prefix_to_mask(32), "255.255.255.255");
     }
 }

@@ -25,14 +25,12 @@ FAKE = textwrap.dedent(
             if mode == "hang":
                 time.sleep(30)
             out = {"supported": True, "devices": [{"id": "a", "name": "A"}], "default_id": "a"}
-        elif method == "wifi.connect":
-            print(json.dumps({"jsonrpc": "2.0", "id": rid, "error": {"code": -32000, "message": "refus", "data": {"code": "wifi_auth_failed"}}}), flush=True)
+        elif method == "bluetooth.disconnect":
+            print(json.dumps({"jsonrpc": "2.0", "id": rid, "error": {"code": -32000, "message": "absent", "data": {"code": "not_found"}}}), flush=True)
             continue
-        elif method == "wifi.forget":
+        elif method == "bluetooth.forget":
             print(json.dumps({"jsonrpc": "2.0", "id": rid + 1000, "result": None}), flush=True)
             continue
-        elif method == "wifi.current_connection":
-            out = "Maison"
         elif method == "audio.set_default":
             err = {"code": -32000, "message": "PowerShell a échoué.", "data": {"code": "tool_failed", "detail": "Acces refuse : refus"}}
             print(json.dumps({"jsonrpc": "2.0", "id": rid, "error": err}), flush=True)
@@ -68,7 +66,7 @@ def test_blocked_until_experimental_flag(fake_script, monkeypatch):
         assert "validation" in caps["audio_list"]["reason"] and EXPERIMENTAL_ENV in caps["audio_list"]["reason"]
         assert (await driver.audio_list())["supported"] is False
         with pytest.raises(DeviceError) as exc:
-            await driver.wifi_connect("X", None)
+            await driver.bluetooth_connect("AA:BB:CC:DD:EE:FF")
         assert exc.value.code == "unsupported"
         assert driver._proc is None
 
@@ -93,9 +91,8 @@ def test_hello_capabilities_and_calls(fake_script, monkeypatch):
         assert (await driver.capabilities())["audio_list"]["supported"] is True
         listing = await driver.audio_list()
         assert listing["default_id"] == "a"
-        assert await driver.wifi_current_connection() == "Maison"
-        await driver.wifi_set_power(True)
-        assert "wifi" in events
+        await driver.bluetooth_connect("AA:BB:CC:DD:EE:FF")
+        assert "bluetooth" in events
         await driver.stop()
 
     run(scenario())
@@ -105,9 +102,9 @@ def test_rpc_errors_become_device_errors(fake_script):
     driver = SidecarDriver("macos", command=fake_script, experimental=True)
 
     async def scenario():
-        with pytest.raises(DeviceError) as auth:
-            await driver.wifi_connect("X", "pw")
-        assert (auth.value.code, auth.value.status) == ("wifi_auth_failed", 400)
+        with pytest.raises(DeviceError) as missing:
+            await driver.bluetooth_disconnect("AA:BB:CC:DD:EE:FF")
+        assert (missing.value.code, missing.value.status) == ("not_found", 404)
         with pytest.raises(DeviceError) as bad:
             await driver.bluetooth_pair("AA:BB:CC:DD:EE:FF")
         assert (bad.value.code, bad.value.status) == ("bad_params", 400)
@@ -150,10 +147,10 @@ def test_desynchronised_reply_kills_the_process(fake_script):
 
     async def scenario():
         with pytest.raises(DeviceError) as exc:
-            await driver.wifi_forget("X")
+            await driver.bluetooth_forget("AA:BB:CC:DD:EE:FF")
         assert exc.value.code == "sidecar_protocol"
         assert driver._proc is None
-        assert await driver.wifi_current_connection() == "Maison"
+        assert (await driver.audio_list())["default_id"] == "a"
         await driver.stop()
 
     run(scenario())
@@ -196,7 +193,7 @@ def test_real_binary_speaks_the_protocol_and_refuses_unknown_methods():
 
     async def scenario():
         caps = await driver.capabilities()
-        assert not caps["wifi_connect"]["supported"]
+        assert not caps["bluetooth_connect"]["supported"]
         assert (await driver.audio_list())["supported"] is False
         with pytest.raises(DeviceError) as exc:
             await driver._rpc("system.exec", {"cmd": "id"})

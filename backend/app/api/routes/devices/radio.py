@@ -33,7 +33,7 @@ class MixerRequest(BaseModel):
 
 @router.get("/topology")
 async def topology(_: Access = Depends(require_access), db: Session = Depends(get_db)) -> dict[str, Any]:
-    """Graphe machine → sorties audio, Bluetooth, Wi-Fi, Ethernet, écrans et télécommandes Bobine."""
+    """Graphe machine → sorties audio, Bluetooth, Ethernet, écrans et télécommandes Bobine."""
     return await topology_view(service, db)
 
 

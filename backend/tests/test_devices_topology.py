@@ -5,6 +5,9 @@ os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
 os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
+import socket
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -26,12 +29,11 @@ BLUETOOTH = {"supported": True, "devices": [
     {"address": "AA:BB:CC:DD:EE:02", "name": "Clavier", "paired": True, "connected": False, "kind": "keyboard", "profiles": [], "battery": None},
     {"address": "AA:BB:CC:DD:EE:03", "name": "Passant", "paired": False, "connected": False, "kind": "other", "profiles": [], "battery": None},
 ]}
-WIFI = {"supported": True, "current": {"ssid": "Livebox", "signal": 80, "ip": "192.168.1.17", "band": "5 GHz", "security": "WPA2"}}
 
 
 def graph(**over):
     args = dict(
-        machine={"name": "wyse", "platform": "linux-headless"}, audio=AUDIO, bluetooth=BLUETOOTH, wifi=WIFI, wifi_subnet="192.168.1.0/24",
+        machine={"name": "wyse", "platform": "linux-headless"}, audio=AUDIO, bluetooth=BLUETOOTH,
         ethernets=[{"name": "eth0", "ip": "10.0.0.5", "subnet": "10.0.0.0/24", "speed": 1000}],
         clients=[
             {"channel": "cable", "page": "kiosk", "role": "primary", "ip": "127.0.0.1", "count": 1},
@@ -53,7 +55,7 @@ def test_machine_at_the_center_with_every_source():
     g = graph()
     nodes = by_id(g)
     assert nodes["machine"]["ring"] == 0 and nodes["machine"]["label"] == "wyse"
-    assert {"wifi", "eth:eth0", "bt:AA:BB:CC:DD:EE:01", "bt:AA:BB:CC:DD:EE:02", "audio:spk", "audio:hdmi"} <= set(nodes)
+    assert {"eth:eth0", "bt:AA:BB:CC:DD:EE:01", "bt:AA:BB:CC:DD:EE:02", "audio:spk", "audio:hdmi"} <= set(nodes)
     assert "bt:AA:BB:CC:DD:EE:03" not in nodes
     assert "audio:old" not in nodes
     assert nodes["audio:hdmi"]["label"] == "Projecteur"
@@ -64,7 +66,7 @@ def test_machine_at_the_center_with_every_source():
 def test_link_mediums_match_the_requested_styles():
     g = graph()
     mediums = {link["to"]: link["medium"] for link in g["links"]}
-    assert mediums["wifi"] == "wifi" and mediums["eth:eth0"] == "wired"
+    assert mediums["eth:eth0"] == "wired"
     assert mediums["bt:AA:BB:CC:DD:EE:01"] == "bluetooth"
     assert mediums["audio:hdmi"] == "wired" and mediums["audio:spk"] == "internal"
     states = {link["to"]: link["state"] for link in g["links"]}
@@ -81,12 +83,12 @@ def test_bluetooth_headset_is_not_duplicated_as_an_audio_node():
 def test_clients_medium_and_anchor():
     g = graph()
     clients = [n for n in g["nodes"] if n["kind"] in ("screen", "remote")]
-    assert {(n["meta"]["page"], n["meta"]["medium"]) for n in clients} == {("kiosk", "local"), ("cinema", "wifi"), ("dashboard", "wired"), ("kiosk", "lan")}
+    assert {(n["meta"]["page"], n["meta"]["medium"]) for n in clients} == {("kiosk", "local"), ("cinema", "lan"), ("dashboard", "wired"), ("kiosk", "lan")}
     link_for = {link["to"]: link for link in g["links"]}
     kinds = {n["meta"]["ip"]: n["kind"] for n in clients}
     assert kinds["10.0.0.9"] == "remote" and kinds["192.168.1.60"] == "screen"
-    wifi_client = next(n for n in clients if n["meta"]["ip"] == "192.168.1.60")
-    assert link_for[wifi_client["id"]]["from"] == "wifi" and link_for[wifi_client["id"]]["medium"] == "wifi"
+    lan_client = next(n for n in clients if n["meta"]["ip"] == "192.168.1.60")
+    assert (link_for[lan_client["id"]]["from"], link_for[lan_client["id"]]["medium"]) == ("machine", "lan")
     eth_client = next(n for n in clients if n["meta"]["ip"] == "10.0.0.9")
     assert link_for[eth_client["id"]]["from"] == "eth:eth0"
     local = next(n for n in clients if n["meta"]["ip"] == "127.0.0.1")
@@ -98,23 +100,29 @@ def test_clients_medium_and_anchor():
 
 def test_client_medium_rules():
     own = frozenset({"192.168.1.17"})
-    assert client_medium("127.0.0.1", own, None, []) == "local"
-    assert client_medium("192.168.1.17", own, "192.168.1.0/24", []) == "local"
-    assert client_medium("192.168.1.50", own, "192.168.1.0/24", []) == "wifi"
-    assert client_medium("10.1.1.1", own, "192.168.1.0/24", ["10.1.1.0/24"]) == "wired"
-    assert client_medium("8.8.8.8", own, "192.168.1.0/24", ["10.1.1.0/24"]) == "lan"
-    assert client_medium("pas-une-ip", own, None, []) == "lan"
+    assert client_medium("127.0.0.1", own, []) == "local"
+    assert client_medium("192.168.1.17", own, []) == "local"
+    assert client_medium("192.168.1.50", own, []) == "lan"
+    assert client_medium("10.1.1.1", own, ["10.1.1.0/24"]) == "wired"
+    assert client_medium("8.8.8.8", own, ["10.1.1.0/24"]) == "lan"
+    assert client_medium("pas-une-ip", own, []) == "lan"
 
 
 def test_degrades_when_sources_are_missing():
-    g = graph(audio=None, bluetooth={"supported": False}, wifi=None, ethernets=[], clients=[], wifi_subnet=None)
+    g = graph(audio=None, bluetooth={"supported": False}, ethernets=[], clients=[])
     assert [n["id"] for n in g["nodes"]] == ["machine"] and g["links"] == []
     assert g["counts"] == {"audio": 0, "bluetooth": 0, "screens": 0}
 
 
-def test_ethernet_helper_ignores_virtual_and_wifi_interfaces():
-    names = {e["name"] for e in ethernet_interfaces("wlo1")}
-    assert not any(n.startswith(("lo", "docker", "veth", "virbr", "lxc", "wlo1")) for n in names)
+def test_ethernet_helper_ignores_virtual_and_wireless_interfaces(monkeypatch):
+    import psutil
+
+    up = SimpleNamespace(isup=True, speed=1000)
+    addr = SimpleNamespace(family=socket.AF_INET, address="192.168.1.5", netmask="255.255.255.0")
+    names = ("eth0", "wlo1", "Wi-Fi", "docker0", "lo")
+    monkeypatch.setattr(psutil, "net_if_stats", lambda: dict.fromkeys(names, up))
+    monkeypatch.setattr(psutil, "net_if_addrs", lambda: {n: [addr] for n in names})
+    assert [e["name"] for e in ethernet_interfaces()] == ["eth0"]
 
 
 class FakeWS:
@@ -155,12 +163,6 @@ class FakeDriver(DeviceDriver):
     async def bluetooth_status(self):
         return BLUETOOTH
 
-    async def wifi_status(self):
-        return {**WIFI, "interface": "wlan0"}
-
-    async def wifi_interface_subnet(self):
-        return "192.168.1.0/24"
-
 
 @pytest.fixture()
 def api(monkeypatch):
@@ -177,7 +179,7 @@ def test_topology_route_and_viewer_identify(api):
         ws.send_json({"command": "pong"})
         body = api.get("/api/devices/topology").json()
     ids = {n["id"] for n in body["nodes"]}
-    assert {"machine", "wifi", "audio:spk", "bt:AA:BB:CC:DD:EE:01"} <= ids
+    assert {"machine", "audio:spk", "bt:AA:BB:CC:DD:EE:01"} <= ids
     assert any(n["kind"] == "screen" and n["meta"]["page"] == "cinema" for n in body["nodes"])
     from app.utils.ws_manager import manager
 

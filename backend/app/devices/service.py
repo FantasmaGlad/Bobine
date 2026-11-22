@@ -1,4 +1,4 @@
-"""Service des périphériques : pilote unique du processus, évènements WebSocket, filet de sécurité Wi-Fi."""
+"""Service des périphériques : pilote unique du processus, évènements WebSocket, routage des sorties."""
 
 from __future__ import annotations
 
@@ -7,10 +7,8 @@ import hashlib
 import json
 import logging
 import time
-from dataclasses import dataclass
 from typing import Any, Callable
 
-from app.utils.activity_log import log_activity
 from app.utils.ws_manager import manager as ws_manager
 
 from . import locality
@@ -20,21 +18,10 @@ from .routing import load_routes, player_route_state, resolve_route
 
 logger = logging.getLogger(__name__)
 
-WIFI_CONFIRM_SECONDS = 60
 MONITOR_INTERVAL_SECONDS = 8.0
 _EVENT_MIN_GAP = 0.25
 
 PLAYER_ROUTE_STATUSES = frozenset({"applied", "default", "muted", "unsupported", "insecure", "needs_labels", "no_match", "missing", "error"})
-
-
-@dataclass
-class WifiPendingChange:
-    """Changement de Wi-Fi à reconfirmer : sans confirmation avant l'échéance, retour à l'ancien réseau."""
-
-    kind: str
-    previous_connection: str | None
-    target: str
-    deadline: float
 
 
 class DevicesService:
@@ -44,8 +31,6 @@ class DevicesService:
         self._last_event: dict[str, float] = {}
         self._monitor: asyncio.Task[None] | None = None
         self._snapshots: dict[str, str] = {}
-        self._wifi_pending: WifiPendingChange | None = None
-        self._wifi_timer: asyncio.Task[None] | None = None
         self._has_routes = False
         self._server_moved = False
         self._server_status: dict[str, dict[str, Any]] = {}
@@ -77,16 +62,12 @@ class DevicesService:
         try:
             if scope == "audio":
                 data: Any = await driver.audio_list()
-            elif scope == "bluetooth":
+            else:
                 data = await driver.bluetooth_status()
                 if isinstance(data, dict):
                     data = {k: v for k, v in data.items() if k != "devices"} | {
                         "devices": [{k: v for k, v in d.items() if k != "rssi"} for d in data.get("devices", [])]
                     }
-            else:
-                data = await driver.wifi_status()
-                if isinstance(data, dict) and isinstance(data.get("networks"), list):
-                    data = {**data, "networks": [{k: v for k, v in n.items() if k != "signal"} for n in data["networks"]]}
         except DeviceError as exc:
             data = {"error": exc.code}
         return hashlib.sha1(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
@@ -99,7 +80,7 @@ class DevicesService:
                     continue
                 caps = await self.driver.capabilities()
                 audio_changed = False
-                for scope, key in (("audio", "audio_list"), ("bluetooth", "bluetooth_status"), ("wifi", "wifi_status")):
+                for scope, key in (("audio", "audio_list"), ("bluetooth", "bluetooth_status")):
                     if not caps.get(key, {}).get("supported"):
                         continue
                     digest = await self._snapshot_scope(scope)
@@ -125,11 +106,11 @@ class DevicesService:
         self.schedule_reconcile()
 
     async def stop(self) -> None:
-        tasks = [task for task in (self._monitor, self._wifi_timer, self._reconcile_task)
+        tasks = [task for task in (self._monitor, self._reconcile_task)
                  if task is not None and not task.done()]
         for task in tasks:
             task.cancel()
-        self._monitor = self._wifi_timer = self._reconcile_task = None
+        self._monitor = self._reconcile_task = None
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for result in results:
@@ -232,67 +213,6 @@ class DevicesService:
                     self._server_status[channel] = {"status": "failed", "detail": exc.message}
         if json.dumps(self._server_status, sort_keys=True, default=str) != before:
             self.notify("routing")
-
-    @property
-    def wifi_pending(self) -> WifiPendingChange | None:
-        return self._wifi_pending
-
-    def wifi_pending_info(self) -> dict[str, Any] | None:
-        pending = self.wifi_pending
-        if pending is None:
-            return None
-        return {
-            "kind": pending.kind,
-            "target": pending.target,
-            "previous": pending.previous_connection,
-            "seconds_left": max(0, int(pending.deadline - time.monotonic())),
-        }
-
-    def arm_wifi_rollback(self, kind: str, previous: str | None, target: str, seconds: float = WIFI_CONFIRM_SECONDS) -> None:
-        self._cancel_wifi_timer()
-        self._wifi_pending = WifiPendingChange(kind, previous, target, time.monotonic() + seconds)
-        self._wifi_timer = asyncio.create_task(self._rollback_after(seconds))
-
-    def confirm_wifi_change(self) -> bool:
-        if self._wifi_pending is None:
-            return False
-        self._cancel_wifi_timer()
-        self._wifi_pending = None
-        return True
-
-    def _cancel_wifi_timer(self) -> None:
-        timer, self._wifi_timer = self._wifi_timer, None
-        if timer is not None and not timer.done() and timer is not asyncio.current_task():
-            timer.cancel()
-
-    async def _rollback_after(self, seconds: float) -> None:
-        try:
-            await asyncio.sleep(seconds)
-        except asyncio.CancelledError:
-            return
-        pending, self._wifi_pending = self._wifi_pending, None
-        if pending is None:
-            return
-        try:
-            if pending.kind == "power_off":
-                await self.driver.wifi_set_power(True)
-            elif pending.previous_connection:
-                await self.driver.wifi_activate(pending.previous_connection)
-            self._log("devices_wifi_rollback", f"Retour automatique ({pending.kind}) : {pending.previous_connection or 'Wi-Fi activé'}")
-        except Exception as exc:
-            logger.warning("Retour automatique du Wi-Fi impossible : %s", exc)
-            self._log("devices_wifi_rollback_failed", "Retour automatique impossible")
-        self.notify("wifi")
-
-    @staticmethod
-    def _log(event: str, detail: str) -> None:
-        from app.database import SessionLocal
-
-        try:
-            with SessionLocal() as db:
-                log_activity(db, event, detail)
-        except Exception as exc:
-            logger.debug("Journal d'activité indisponible : %s", exc)
 
 
 service = DevicesService()

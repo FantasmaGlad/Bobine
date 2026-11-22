@@ -73,7 +73,6 @@ def test_capacite_declaree_selon_les_outils(monkeypatch):
         monkeypatch.setattr("app.devices.linux.driver.shutil.which", which)
         driver = LinuxDriver(runner=FakePipeWire({}))
         driver._probe_bluetooth = _async_value("pas de Bluetooth")
-        driver._probe_wifi = _async_value("pas de Wi-Fi")
         return await driver.capabilities()
 
     caps = asyncio.run(run(lambda name: f"/usr/bin/{name}"))

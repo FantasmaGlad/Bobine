@@ -46,9 +46,6 @@ class FakeBridge:
         self.calls.append(("pair", address))
         return json.dumps({"ok": True})
 
-    def wifiStatus(self, ctx):
-        return json.dumps({"supported": True, "enabled": True, "interface": "wlan0", "state": "connected", "current": {"ssid": None, "signal": 80, "ip": "192.168.1.9"}, "networks": [], "known": [], "read_only": True})
-
     def openSettings(self, ctx, target):
         self.calls.append(("settings", target))
         return json.dumps({"ok": True})
@@ -69,9 +66,9 @@ def run(coro):
 
 def test_capabilities_are_honest_about_android_limits(bridge):
     caps = run(make(bridge).capabilities())
-    assert caps["audio_list"]["supported"] and caps["audio_set_volume"]["supported"] and caps["wifi_status"]["supported"]
+    assert caps["audio_list"]["supported"] and caps["audio_set_volume"]["supported"]
     assert caps["system_settings"]["supported"]
-    for key in ("audio_set_default", "bluetooth_connect", "bluetooth_forget", "wifi_connect", "wifi_scan", "wifi_forget", "wifi_power"):
+    for key in ("audio_set_default", "bluetooth_connect", "bluetooth_forget"):
         assert not caps[key]["supported"] and caps[key]["reason"], key
     bridge.bluetooth = False
     caps = run(make(bridge).capabilities())
@@ -125,9 +122,8 @@ def test_actions_and_unsupported_power_off(bridge):
     run(driver.audio_set_volume("7", 0.5, None))
     run(driver.bluetooth_set_power(True))
     run(driver.bluetooth_pair("AA:BB:CC:DD:EE:FF"))
-    run(driver.open_system_settings("wifi"))
-    assert ("volume", 0.5, -1) in bridge.calls and ("enable",) in bridge.calls and ("settings", "wifi") in bridge.calls
+    run(driver.open_system_settings("bluetooth"))
+    assert ("volume", 0.5, -1) in bridge.calls and ("enable",) in bridge.calls and ("settings", "bluetooth") in bridge.calls
     with pytest.raises(DeviceError) as exc:
         run(driver.bluetooth_set_power(False))
     assert exc.value.status == 501
-    assert run(driver.wifi_status())["read_only"] is True

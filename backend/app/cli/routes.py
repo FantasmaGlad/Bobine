@@ -22,7 +22,6 @@ COVERED: dict[str, str] = {
     "GET /api/devices/status": "devices",
     "GET /api/devices/audio": "devices",
     "GET /api/devices/bluetooth": "devices",
-    "GET /api/devices/wifi": "devices",
     "GET /api/devices/topology": "devices",
     "GET /api/storage/status": "storage",
     "GET /api/storage/volumes": "storage",

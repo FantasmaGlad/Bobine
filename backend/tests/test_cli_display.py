@@ -79,12 +79,3 @@ def test_a_missing_bluetooth_permission_is_named(recorder, capsys):
     assert cli.main(["devices", "bluetooth"]) == cli.EXIT_OK
     out = capsys.readouterr().out
     assert out == "autorisation requise : Autorisez « Appareils à proximité » pour Bobine.\n"
-
-
-def test_a_wifi_name_hidden_by_the_system_says_why(recorder, capsys):
-    recorder.responses[("GET", "/api/devices/wifi")] = {
-        "supported": True, "enabled": True, "current": {"ssid": None, "ssid_reason": "Nom masqué par Android.", "ip": "10.0.0.5"},
-        "networks": [],
-    }
-    assert cli.main(["devices", "wifi"]) == cli.EXIT_OK
-    assert capsys.readouterr().out == "enabled=True  ssid=masqué  ip=10.0.0.5\n  Nom masqué par Android.\n"

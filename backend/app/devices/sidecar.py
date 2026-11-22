@@ -26,7 +26,7 @@ _HELLO_TIMEOUT = 10.0
 _CAPS_TTL = 30.0
 
 _PLATFORM_LABEL = {"windows": "Windows", "macos": "macOS"}
-_STATUS_BY_CODE = {"unsupported": 501, "tool_missing": 501, "timeout": 504, "wifi_auth_failed": 400, "not_found": 404}
+_STATUS_BY_CODE = {"unsupported": 501, "tool_missing": 501, "timeout": 504, "not_found": 404}
 
 
 def find_binary(profile: str) -> list[str] | None:
@@ -237,40 +237,3 @@ class SidecarDriver(DeviceDriver):
     async def bluetooth_forget(self, address: str) -> None:
         await self._rpc("bluetooth.forget", {"address": address})
         self._emit("bluetooth")
-
-    async def wifi_status(self) -> dict[str, Any]:
-        return await self._list("wifi.status")
-
-    async def wifi_set_power(self, on: bool) -> None:
-        await self._rpc("wifi.set_power", {"on": on})
-        self._emit("wifi")
-
-    async def wifi_scan(self) -> None:
-        await self._rpc("wifi.scan")
-        self._emit("wifi")
-
-    async def wifi_current_connection(self) -> str | None:
-        result = await self._rpc("wifi.current_connection")
-        return result if isinstance(result, str) and result else None
-
-    async def wifi_connect(self, ssid: str, password: str | None) -> None:
-        params: dict[str, Any] = {"ssid": ssid}
-        if password:
-            params["password"] = password
-        await self._rpc("wifi.connect", params, timeout=90)
-        self._emit("wifi")
-
-    async def wifi_activate(self, connection: str) -> None:
-        await self._rpc("wifi.activate", {"connection": connection}, timeout=90)
-        self._emit("wifi")
-
-    async def wifi_forget(self, ssid: str) -> None:
-        await self._rpc("wifi.forget", {"ssid": ssid})
-        self._emit("wifi")
-
-    async def wifi_interface_subnet(self) -> str | None:
-        try:
-            result = await self._rpc("wifi.subnet")
-        except DeviceError:
-            return None
-        return result if isinstance(result, str) and result else None

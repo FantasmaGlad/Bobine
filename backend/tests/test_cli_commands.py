@@ -124,7 +124,7 @@ def test_launcher_recognizes_the_schedule_command():
     assert run_tray._is_cli_invocation(["schedule", "list"])
 
 
-@pytest.mark.parametrize("action", ["status", "audio", "bluetooth", "wifi", "topology"])
+@pytest.mark.parametrize("action", ["status", "audio", "bluetooth", "topology"])
 def test_devices_reads_each_section(recorder, action):
     assert cli.main(["devices", action]) == cli.EXIT_OK
     assert recorder.calls[0][:2] == ("GET", f"/api/devices/{action}")
@@ -152,7 +152,7 @@ def test_devices_json_is_the_route_response(recorder, capsys):
 def test_launcher_recognizes_the_devices_command():
     import run_tray
 
-    assert run_tray._is_cli_invocation(["devices", "wifi"])
+    assert run_tray._is_cli_invocation(["devices", "topology"])
 
 
 @pytest.mark.parametrize("action", ["status", "volumes", "portable"])
