@@ -71,6 +71,13 @@ class LaptopLid(BaseModel):
     prevent_sleep: bool
 
 
+class RemoteInputs(BaseModel):
+    actions: List[str]
+    defaults: Dict[str, List[str]]
+    overrides: Dict[str, List[str]]
+    bindings: Dict[str, List[str]]
+
+
 class OpenedPath(BaseModel):
     status: str
     path: str

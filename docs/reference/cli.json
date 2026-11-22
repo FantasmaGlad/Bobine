@@ -1188,6 +1188,82 @@
   {
    "actions": [
     {
+     "arguments": [],
+     "help": "entrées (clavier, télécommande, manette) et leurs actions",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "input",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "strs",
+       "name": "actions",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "associer une entrée (key:<touche>, code:<n>, pad:<n>) à des actions, par ordre de préférence",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "entrée",
+       "name": "input",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "désactiver une entrée",
+     "name": "off"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "input",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "rendre à une entrée sa valeur par défaut",
+     "name": "default"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "rendre toutes les entrées à la table par défaut",
+     "name": "reset"
+    }
+   ],
+   "arguments": [],
+   "help": "touches du clavier, de la télécommande et de la manette",
+   "name": "inputs"
+  },
+  {
+   "actions": [
+    {
      "arguments": [
       {
        "choices": [

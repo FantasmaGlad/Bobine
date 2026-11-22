@@ -7,6 +7,7 @@ import { type ClockAnchor } from "@/lib/playbackClock";
 import type { RadioSoundSettings } from "@/lib/radioSound";
 import { ServerClockSync } from "@/lib/serverClockSync";
 import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
+import { applyRemoteBindings } from "@/lib/remoteBindingsStore";
 
 export type PlaybackStateValue =
   | "waiting"
@@ -284,6 +285,10 @@ export function usePlaybackSocket(
               parsed.video_id ?? undefined,
               { title: parsed.title, duration_seconds: parsed.duration_seconds, clock: parsed.clock, clock_video_id: parsed.clock_video_id }
             );
+            return;
+          }
+          if (parsed.event === "inputs_change") {
+            applyRemoteBindings(parsed.bindings);
             return;
           }
           if (parsed.event === "library_change") {

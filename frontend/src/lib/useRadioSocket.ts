@@ -10,6 +10,7 @@ import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
 import type { ClockTarget } from "@/lib/useMediaClockFollower";
 import { getApiUrl, getPlaybackWsUrl } from "@/lib/apiUrl";
+import { applyRemoteBindings } from "@/lib/remoteBindingsStore";
 import { mergeRadioState, SILENT_LINK_MS, type RadioStatePatch } from "@/lib/radioEvent";
 
 export interface RadioTrackInfo {
@@ -179,6 +180,10 @@ export function useRadioSocket(
             ) {
               setDisplayOutputCable(parsed.output);
             }
+            return;
+          }
+          if (parsed.event === "inputs_change") {
+            applyRemoteBindings(parsed.bindings);
             return;
           }
           if (parsed.event === "force_reload") {

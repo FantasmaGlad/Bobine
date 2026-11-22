@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import {
-  ANALOG_TRIGGERS, DEFAULT_REMOTE_BINDINGS, GAMEPAD_DIRECTIONS, REMOTE_ACTIONS, gamepadBindings, keyBinding, pickHandler,
+  ANALOG_TRIGGERS, GAMEPAD_DIRECTIONS, REMOTE_ACTIONS, gamepadBindings, keyBinding, pickHandler,
   type RemoteActionHandlers,
 } from "./remoteBindings.ts";
+import { currentRemoteBindings, loadRemoteBindings } from "./remoteBindingsStore.ts";
 
 export interface RemoteHandlers {
   onLeft?: () => void;
@@ -41,6 +42,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
 
   useEffect(() => {
     if (!enabled) return;
+    void loadRemoteBindings();
 
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -49,7 +51,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-      const action = pickHandler(actionHandlers(handlersRef.current()), keyBinding(DEFAULT_REMOTE_BINDINGS, e.key, e.keyCode));
+      const action = pickHandler(actionHandlers(handlersRef.current()), keyBinding(currentRemoteBindings(), e.key, e.keyCode));
       if (action) {
         e.preventDefault();
         action();
@@ -105,7 +107,7 @@ export function useKioskRemote(getHandlers: () => RemoteHandlers, enabled = true
             14: gp.axes[0] !== undefined && gp.axes[0] < -AXIS_THRESHOLD,
             15: gp.axes[0] !== undefined && gp.axes[0] > AXIS_THRESHOLD,
           };
-          for (const [button, actions] of gamepadBindings(DEFAULT_REMOTE_BINDINGS)) {
+          for (const [button, actions] of gamepadBindings(currentRemoteBindings())) {
             const analog = (ANALOG_TRIGGERS as readonly number[]).includes(button) && (gp.buttons[button]?.value ?? 0) > 0.5;
             const pressed = (gp.buttons[button]?.pressed ?? false) || analog || (axes[button] ?? false);
             checkAction(`gp_${i}_${button}`, pressed, pickHandler(h, actions), button in GAMEPAD_DIRECTIONS);

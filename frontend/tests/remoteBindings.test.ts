@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_REMOTE_BINDINGS, gamepadBindings, keyBinding, pickHandler } from "../src/lib/remoteBindings.ts";
+import { DEFAULT_REMOTE_BINDINGS, gamepadBindings, keyBinding, parseRemoteBindings, pickHandler } from "../src/lib/remoteBindings.ts";
 
 const handler = (name: string) => Object.assign(() => {}, { label: name });
 const pick = (key: string, keyCode: number, handlers: Record<string, () => void>) =>
@@ -40,4 +40,13 @@ test("chaque touche de l'ancienne table garde son action", () => {
   for (const [key, action] of Object.entries(expected)) assert.deepEqual(keyBinding(DEFAULT_REMOTE_BINDINGS, key, 0), [action], key);
   const codes: Record<number, string> = { 4: "back", 19: "up", 23: "enter", 66: "enter", 85: "play_pause", 127: "play_pause", 87: "next", 164: "mute" };
   for (const [code, action] of Object.entries(codes)) assert.deepEqual(keyBinding(DEFAULT_REMOTE_BINDINGS, "Unidentified", Number(code)), [action], code);
+});
+
+test("la table du serveur ne garde que des actions connues et une entrée vide reste désactivée", () => {
+  assert.deepEqual(parseRemoteBindings({ "key:F1": ["chapter_next"], "key:F2": ["voler"], "key:F3": "next" }), { "key:F1": ["chapter_next"] });
+  const table = parseRemoteBindings({ "key:F1": ["next"] });
+  assert.ok(table);
+  assert.equal(keyBinding(table, "ArrowLeft", 21), undefined);
+  assert.equal(parseRemoteBindings(null), null);
+  assert.equal(parseRemoteBindings(["next"]), null);
 });
