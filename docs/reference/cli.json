@@ -4511,20 +4511,6 @@
      "arguments": [],
      "help": "acquitter le résultat de la dernière mise à jour",
      "name": "acknowledge"
-    },
-    {
-     "arguments": [
-      {
-       "choices": null,
-       "flag": false,
-       "help": "",
-       "name": "--proxy",
-       "positional": false,
-       "repeat": false
-      }
-     ],
-     "help": "tester le passage par Tor (contacte check.torproject.org)",
-     "name": "tor-check"
     }
    ],
    "arguments": [],

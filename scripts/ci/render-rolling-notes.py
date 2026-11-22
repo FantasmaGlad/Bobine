@@ -133,7 +133,7 @@ def render(channel: str, manifests: bool = True) -> str:
         rows.append(("", "**Intégrité**", f"{short('SHA256SUMS', 'SHA256SUMS')} · {short('SHA256SUMS.asc', 'signature')}",
                      "voir plus bas"))
 
-    lines = ["## Téléchargement", "", f"Canal {label}. Commandes en une ligne, y compris par Tor : [README](https://github.com/{REPOSITORY}/blob/main/README.fr.md#installation-en-une-commande).", "",
+    lines = ["## Téléchargement", "", f"Canal {label}. Commandes en une ligne : [README](https://github.com/{REPOSITORY}/blob/main/README.fr.md#installer-depuis-un-terminal).", "",
              "| Plateforme | Fichiers | Prérequis |", "| :--- | :--- | :--- |"]
     lines += [f"| {icon + ' ' if icon else ''}{platform} | {links} | {need} |" for icon, platform, links, need in rows]
     text = "\n".join(lines) + "\n\n" + FAMILIES

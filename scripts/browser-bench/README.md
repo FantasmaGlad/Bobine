@@ -50,4 +50,4 @@ print(wd.execute("return window.__mon"))
 - Linux uniquement ; Windows, macOS et Firefox pour Android restent à mesurer.
 - Fichiers synthétiques (`ffmpeg -f lavfi -i testsrc2`) : pas de contenu réel.
 - `performance.now()` est dégradé par `privacy.resistFingerprinting`
-  (Tor Browser, LibreWolf) : les retards inférieurs à 100 ms n'y sont pas fiables.
+  (LibreWolf) : les retards inférieurs à 100 ms n'y sont pas fiables.

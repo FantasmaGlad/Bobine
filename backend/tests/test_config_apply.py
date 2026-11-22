@@ -114,6 +114,16 @@ def test_announcements_toggle_and_machine_file_needs_consent(single_names):
         assert db.query(RadioAnnouncement).one().enabled is False
 
 
+def test_machine_file_from_an_older_version_with_tor_keys_still_applies(single_names):
+    with SessionLocal() as db:
+        machine = config_builders.build_machine(db)
+    machine["machine"].update({"update_tor": True, "update_tor_proxy": "127.0.0.1:9150"})
+    result = _apply({"machine.json": machine}, include_machine=True)
+    assert result["applied"] is True
+    with SessionLocal() as db:
+        assert db.query(Setting).filter(Setting.key.in_(("update_tor", "update_tor_proxy"))).count() == 0
+
+
 def test_api_refusal_lists_errors(single_names):
     client = TestClient(app)
     bad = copy.deepcopy(_export()["settings.json"])

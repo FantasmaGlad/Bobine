@@ -1,4 +1,4 @@
-"""Recherche des releases sur GitHub, avec cache conditionnel (ETag) et passage éventuel par Tor."""
+"""Recherche des releases sur GitHub, avec cache conditionnel (ETag)."""
 import asyncio
 import json
 import logging
@@ -7,7 +7,6 @@ import urllib.error
 import urllib.request
 from typing import Any
 from app.api.contract import GITHUB_REPO
-from app.utils import tor_proxy
 from app import release_channel
 from app.updates.versions import SHA_RE
 
@@ -46,9 +45,6 @@ RELEASE_CACHE: dict[str, dict[str, Any]] = {}
 DEDUPE_WINDOW_SECONDS = 10.0
 
 
-TOR_DEDUPE_WINDOW_SECONDS = 3600.0
-
-
 GITHUB_TIMEOUT_SECONDS = 6.0
 
 
@@ -62,7 +58,7 @@ def github_get(url: str, etag: str | None = None) -> tuple[int, dict[str, Any] |
         headers["If-None-Match"] = etag
     req = urllib.request.Request(url, headers=headers)
     try:
-        with tor_proxy.urlopen(req, timeout=tor_proxy.request_timeout(GITHUB_TIMEOUT_SECONDS)) as resp:
+        with urllib.request.urlopen(req, timeout=GITHUB_TIMEOUT_SECONDS) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8")), resp.headers.get("ETag")
     except urllib.error.HTTPError as e:
         if e.code == 304:
@@ -81,8 +77,7 @@ def classify_http_error(channel: str, e: urllib.error.HTTPError) -> str:
 def lookup_release_blocking(channel: str, force: bool) -> tuple[dict[str, Any] | None, str | None]:
     cached = RELEASE_CACHE.get(channel)
     now = time.monotonic()
-    window = TOR_DEDUPE_WINDOW_SECONDS if tor_proxy.is_enabled() else DEDUPE_WINDOW_SECONDS
-    if cached and not force and now - cached["checked_at"] < window:
+    if cached and not force and now - cached["checked_at"] < DEDUPE_WINDOW_SECONDS:
         return cached["data"], None
 
     url = ROLLING_RELEASE_URLS.get(channel, RELEASES_LATEST_URL)

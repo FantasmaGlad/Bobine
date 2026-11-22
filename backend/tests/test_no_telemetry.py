@@ -12,7 +12,6 @@ URL = re.compile(r"https?://([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 ALLOWED = {
     "api.github.com": "recherche de mise à jour",
     "github.com": "téléchargement d'une mise à jour, lien de release",
-    "check.torproject.org": "bouton « Tester Tor », jamais automatique",
     "play.google.com": "ouverture de la fiche Play Store par l'utilisateur",
     "bobine.fit": "en-tête User-Agent, aucune requête",
 }
@@ -28,7 +27,7 @@ def _runtime_hosts() -> dict[str, list[str]]:
         text = (REPO / name).read_text(encoding="utf-8", errors="ignore")
         for host in URL.findall(text):
             host = host.lower()
-            if host.endswith(".onion") or host.endswith(".local") or host in IGNORED:
+            if host.endswith(".local") or host in IGNORED:
                 continue
             hosts.setdefault(host, []).append(name)
     return hosts

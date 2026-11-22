@@ -12,8 +12,6 @@ type Translate = (key: string, vars?: Record<string, string | number>) => string
 export type AutoUpdatePatch = {
   auto_update_enabled?: "true" | "false";
   auto_update_time?: string;
-  update_tor?: "true" | "false";
-  update_tor_proxy?: string;
 };
 
 function putSettings(body: object) {

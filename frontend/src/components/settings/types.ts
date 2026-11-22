@@ -24,9 +24,6 @@ export interface SettingsData {
   auto_update_enabled: "true" | "false";
   auto_update_time: string;
   auto_update_supported?: boolean;
-  update_tor_supported?: boolean;
-  update_tor?: "true" | "false";
-  update_tor_proxy?: string;
   store_managed?: boolean;
 }
 

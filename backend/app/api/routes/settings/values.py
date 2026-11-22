@@ -20,7 +20,7 @@ from app.config import (
 )
 from app.database import get_db
 from app.models import Setting
-from app.utils import media_native, themes, tor_proxy, tor_socks, ui_language
+from app.utils import media_native, themes, ui_language
 from app.utils.deployment import (
     get_deployment_profile,
     get_profile_handler,
@@ -83,9 +83,6 @@ def _profile_settings(db: Session) -> dict[str, Any]:
         "deployment_profile": get_deployment_profile(),
         "store_managed": profile.is_store_managed(),
         "auto_update_supported": profile.can_schedule_auto_apply(),
-        "update_tor_supported": profile.supports_update_over_tor(),
-        "update_tor": _flag(db, "update_tor"),
-        "update_tor_proxy": _get_db_value(db, "update_tor_proxy") or _DEFAULTS["update_tor_proxy"],
     }
 
 
@@ -199,7 +196,7 @@ def _string_choices() -> dict[str, tuple[Any, str]]:
         "display_mode_setting": (VALID_DISPLAY_MODE_SETTINGS, "Mode d'affichage invalide (attendu 'auto', 'dual_screen' ou 'headless')"),
         "wired_display_mode": (_VALID_WIRED_DISPLAY_MODES, "Mode d'affichage câblé invalide (attendu 'dual_screen' ou 'headless')"),
         **{key: (_BOOLEAN_TEXT, f"{key} invalide (attendu 'true' ou 'false')")
-           for key in ("auto_update_enabled", "auto_web_rendition", "media_native", "update_tor")},
+           for key in ("auto_update_enabled", "auto_web_rendition", "media_native")},
     }
 
 
@@ -215,13 +212,6 @@ def _check_string(key: str, value: str) -> None:
         _refuse(422, message)
     if key == "active_logo" and value == "custom" and not _logo_path().exists():
         _refuse(409, "Aucun logo personnalisé n'a été importé")
-    if key == "update_tor" and value == "true" and not get_profile_handler().supports_update_over_tor():
-        _refuse(409, "Mises à jour par Tor indisponibles sur ce profil : une partie du téléchargement ne passerait pas par Tor.")
-    if key == "update_tor_proxy":
-        try:
-            tor_socks.parse_proxy(value)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
     if key == "auto_update_time" and not _AUTO_UPDATE_TIME_RE.match(value):
         _refuse(422, "Heure de mise à jour automatique invalide (attendu 'HH:MM')")
 
@@ -297,9 +287,6 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
 
     if "media_native" in updates:
         media_native.configure(result["media_native"])
-
-    if "update_tor" in updates or "update_tor_proxy" in updates:
-        tor_proxy.configure(result["update_tor"] == "true", result["update_tor_proxy"])
 
     if "auto_update_enabled" in updates or "auto_update_time" in updates:
         from app.scheduling.jobs import sync_auto_update_job

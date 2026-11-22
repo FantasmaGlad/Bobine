@@ -65,9 +65,9 @@ These are objectives, not contractual commitments: the project has a single main
 
 ## Scope
 
-In scope: the Bobine software and its installers (`install.ps1`, `install-tor.sh`, Windows, macOS, Linux and Android packages), the website `bobine.fit` and its server routes, the Linux package repositories `packages.bobine.fit` (APT, DNF and Pacman) and their signing chain, and the Tor mirrors of the site and of the repository.
+In scope: the Bobine software and its installers (`install.ps1`, Windows, macOS, Linux and Android packages), the website `bobine.fit` and its server routes, the Linux package repositories `packages.bobine.fit` (APT, DNF and Pacman) and their signing chain.
 
-Trust model: Bobine has no accounts; only the local network is trusted. The server refuses any connection from a public address (private networks, link-local and 100.64.0.0/10 are accepted; more can be added with `BOBINE_ALLOWED_NETWORKS`, which does not open any firewall). The check applies to the TCP peer and to every address a reverse proxy announces in `X-Forwarded-For`, `Forwarded` or similar headers; a proxy that announces nothing (Docker with NAT, for example) hides its clients and must not be exposed to the Internet. Requests relayed by a proxy or sent to a `.onion` name never get the rights of the local screen; the server refuses WebSocket connections and state-changing requests (POST, PUT, PATCH, DELETE) sent by a web page from another origin; and the installers only open the firewall to private networks. Bypassing any of these barriers is in scope.
+Trust model: Bobine has no accounts; only the local network is trusted. The server refuses any connection from a public address (private networks, link-local and 100.64.0.0/10 are accepted; more can be added with `BOBINE_ALLOWED_NETWORKS`, which does not open any firewall). The check applies to the TCP peer and to every address a reverse proxy announces in `X-Forwarded-For`, `Forwarded` or similar headers; a proxy that announces nothing (Docker with NAT, for example) hides its clients and must not be exposed to the Internet. Requests relayed by a proxy never get the rights of the local screen; the server refuses WebSocket connections and state-changing requests (POST, PUT, PATCH, DELETE) sent by a web page from another origin; and the installers only open the firewall to private networks. Bypassing any of these barriers is in scope.
 
 The remote installation tool [Bobine Deploy](https://github.com/FantasmaGlad/bobine-deploy) follows this policy and is reported through its own repository ([its SECURITY.md](https://github.com/FantasmaGlad/bobine-deploy/blob/main/SECURITY.md)).
 
@@ -87,7 +87,7 @@ curl -fsSL https://packages.bobine.fit/bobine.gpg | gpg --show-keys --fingerprin
 # signing subkey: 941B 6F52 6A72 59F4 694C  F4BC 1B5D 18A9 76FA AD15
 ```
 
-The `install-tor.sh` script pins the primary key fingerprint and stops if it differs. Automatic updates verify the SHA-256 digest of the files published on GitHub Releases.
+Automatic updates verify the SHA-256 digest of the files published on GitHub Releases.
 
 Every file published on GitHub Releases since 2026-11-18 also carries a build provenance attestation, signed through Sigstore by the release workflow. Earlier releases have none. To check that a downloaded file was built by this repository:
 

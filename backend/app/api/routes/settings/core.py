@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import (
     APIRouter,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import release_channel
@@ -15,7 +15,7 @@ from app.config import (
     settings as runtime_settings,
 )
 from app.models import Setting
-from app.utils import media_native, themes, tor_proxy, ui_language
+from app.utils import media_native, themes, ui_language
 
 
 def _get_sqlite_db_path() -> Path | None:
@@ -35,7 +35,7 @@ _WRITABLE_NUMERIC_FIELDS = {
 _WRITABLE_STRING_FIELDS = {
     "theme", "theme_mode", "language", "active_logo", "update_channel", "wired_display_mode",
     "display_mode_setting", "auto_update_enabled", "auto_update_time",
-    "auto_web_rendition", "media_native", "update_tor", "update_tor_proxy", "simplified_ui",
+    "auto_web_rendition", "media_native", "simplified_ui",
 }
 _DEFAULTS = {
     "simplified_ui": "false",
@@ -48,8 +48,6 @@ _DEFAULTS = {
     "logs_retention_days": "7",
     "auto_update_enabled": "false",
     "auto_update_time": "03:00",
-    "update_tor": "false",
-    "update_tor_proxy": tor_proxy.DEFAULT_PROXY,
     "auto_web_rendition": "false",
     "media_native": media_native.DEFAULT_VALUE,
 }
@@ -88,8 +86,6 @@ class SettingsUpdate(BaseModel):
     auto_update_time: str | None = None
     auto_web_rendition: str | None = None
     media_native: str | None = None
-    update_tor: str | None = None
-    update_tor_proxy: str | None = Field(default=None, max_length=80)
     simplified_ui: str | None = None
 
 

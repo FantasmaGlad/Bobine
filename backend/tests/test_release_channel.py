@@ -191,10 +191,6 @@ class _StoreProfile:
         return False
 
     @staticmethod
-    def supports_update_over_tor():
-        return False
-
-    @staticmethod
     def restart_is_guaranteed():
         return True
 
