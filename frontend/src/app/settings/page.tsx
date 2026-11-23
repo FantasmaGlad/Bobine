@@ -3,7 +3,6 @@ import React from "react";
 import ImportDiagnosticsPanel from "@/components/ImportDiagnosticsPanel";
 import MediaNativeSetting from "@/components/MediaNativeSetting";
 import PageNav from "@/components/PageNav";
-import PlaybackTimingSettings from "@/components/PlaybackTimingSettings";
 import BrowserCompatibility from "@/components/BrowserCompatibility";
 import StartOnBootToggle from "@/components/StartOnBootToggle";
 import AppearanceSection from "@/components/settings/AppearanceSection";
@@ -59,8 +58,7 @@ export default function SettingsPage() {
       <BrandingSection hidden={!shows("section-branding")} showToast={showToast} />
       <InputsSection hidden={!shows("section-inputs")} showToast={showToast} />
       <UpdatesSection hidden={!shows("updates-section")} t={t} data={data} setData={setData} showToast={showToast} openSection={openSection} />
-      <div id="section-playback" hidden={!shows("section-playback")}>
-      <PlaybackTimingSettings />
+      <div className="settings-stack" id="section-playback" hidden={!shows("section-playback")}>
       <BrowserCompatibility />
 
       <MediaNativeSetting />

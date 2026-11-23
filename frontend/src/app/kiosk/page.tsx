@@ -256,7 +256,7 @@ export default function KioskPage() {
 
       {state.current_video && <SeekOsd {...seekHud} visible={seekHud.visible} chapters={chapters} board={storyboard} />}
 
-      <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={seekHud.visible} />
+      {state.state === "playing" && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={seekHud.visible} />}
 
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && !backgroundIsImage ? "visible" : ""}`}>
         <video ref={bgVideoRef} className="kiosk-video" loop muted playsInline autoPlay />
