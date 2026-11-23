@@ -1,46 +1,28 @@
 "use client";
 
-import { useClientChoice } from "@/lib/useClientSnapshot";
 import React, { useCallback, useEffect, useState } from "react";
-import { useAppSettings } from "@/lib/AppSettingsContext";
-import SegmentedTabs from "@/components/SegmentedTabs";
-import AudioSection from "@/components/devices/AudioSection";
-import BluetoothSection from "@/components/devices/BluetoothSection";
-import MapSection from "@/components/devices/MapSection";
-import MixerSection from "@/components/devices/MixerSection";
-import VideoSoundSection from "@/components/devices/VideoSoundSection";
-import RoutingSection from "@/components/devices/RoutingSection";
+import DevicesSection from "@/components/devices/DevicesSection";
 import type { SectionProps } from "@/components/devices/shared/section";
+import SoundSection from "@/components/devices/SoundSection";
+import PageNav from "@/components/PageNav";
+import { useAppSettings } from "@/lib/AppSettingsContext";
 import { devicesRequest } from "@/lib/devices/request";
 import { type DevicesStatus } from "@/lib/devices/types";
+import { oneOf } from "@/lib/urlView";
 import { useRadioFeed } from "@/lib/useRadioFeed";
 import { useServerEvent } from "@/lib/useServerEvent";
 import { useToast } from "@/lib/useToast";
+import { useUrlView } from "@/lib/useUrlView";
 
-type Tab = "map" | "audio" | "bluetooth" | "routing" | "mixer" | "videosound";
-const TAB_KEY = "bobine.devices.tab";
-
-function readSavedTab(): Tab | null {
-  try {
-    const saved = window.localStorage.getItem(TAB_KEY);
-    if (saved === "map" || saved === "audio" || saved === "bluetooth" || saved === "routing" || saved === "mixer" || saved === "videosound") return saved;
-  } catch { }
-  return null;
-}
+const VIEWS = oneOf(["devices", "sound"] as const, "devices");
 
 export default function DevicesPage() {
   const { t } = useAppSettings();
   const [status, setStatus] = useState<DevicesStatus | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [tab, setTab] = useClientChoice<Tab>(readSavedTab, "map");
-  const [focus, setFocus] = useState<{ id: string | null; nonce: number }>({ id: null, nonce: 0 });
+  const [view, setView] = useUrlView("vue", VIEWS);
   const [refreshKey, setRefreshKey] = useState(0);
   const { toast, showToast: notify } = useToast();
-
-  const chooseTab = (next: Tab) => {
-    setTab(next);
-    try { window.localStorage.setItem(TAB_KEY, next); } catch { }
-  };
 
   const loadStatus = useCallback(() => devicesRequest<DevicesStatus>("/status").then((result) => {
     if (result.ok) {
@@ -56,50 +38,23 @@ export default function DevicesPage() {
 
   const refreshDevices = useCallback(() => setRefreshKey((k) => k + 1), []);
   useServerEvent("devices_changed", refreshDevices, !!status);
-
-  const radioFeed = useRadioFeed(!!status && (tab === "routing" || tab === "mixer"), !!status && tab === "mixer");
+  const radioFeed = useRadioFeed(!!status && view === "sound", !!status && view === "sound");
 
   if (loadError && !status) return <div className="rl-center-note">{t("devices.errors.network")}</div>;
   if (!status) return <div className="rl-center-note">{t("devices.loading")}</div>;
 
-  const caps = status.capabilities ?? {};
-  const section: SectionProps = { caps, local: status.local, refreshKey, notify, t, focusId: focus.id, focusNonce: focus.nonce };
+  const section: SectionProps = { caps: status.capabilities ?? {}, local: status.local, refreshKey, notify, t };
   return (
     <div className="radio-lib radio-lib--tabs dv-page">
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
-
-      <div className="live-block channel-card rl-nav-card rl-nav-card--centered">
-        <div className="channel-card-right">
-          <SegmentedTabs
-            ariaLabel={t("devices.sectionsLabel")}
-            value={tab}
-            onChange={(id) => chooseTab(id as Tab)}
-            tabs={[
-              { id: "map", icon: "hub", label: t("devices.tabs.map") },
-              { id: "audio", icon: "speaker", label: t("devices.tabs.audio") },
-              { id: "bluetooth", icon: "bluetooth", label: t("devices.tabs.bluetooth") },
-              { id: "routing", icon: "alt_route", label: t("devices.tabs.routing") },
-              { id: "mixer", icon: "instant_mix", label: t("devices.tabs.mixer") },
-              { id: "videosound", icon: "graphic_eq", label: t("devices.tabs.videosound") },
-            ]}
-          />
-        </div>
-      </div>
-
+      <PageNav
+        tabs={[{ id: "devices", icon: "devices", label: t("devices.tabs.devices") }, { id: "sound", icon: "graphic_eq", label: t("devices.tabs.sound") }]}
+        value={view}
+        onChange={(id) => setView(VIEWS(id))}
+        ariaLabel={t("devices.sectionsLabel")}
+      />
       <main className="radio-lib-main">
-        {tab === "map" ? (
-          <MapSection refreshKey={refreshKey} t={t} onOpen={(next, ref) => { chooseTab(next); setFocus((f) => ({ id: ref, nonce: f.nonce + 1 })); }} />
-        ) : tab === "audio" ? (
-          <AudioSection {...section} />
-        ) : tab === "bluetooth" ? (
-          <BluetoothSection {...section} />
-        ) : tab === "routing" ? (
-          <RoutingSection {...section} feed={radioFeed} />
-        ) : tab === "videosound" ? (
-          <VideoSoundSection {...section} />
-        ) : (
-          <MixerSection {...section} feed={radioFeed} />
-        )}
+        {view === "devices" ? <DevicesSection {...section} /> : <SoundSection {...section} feed={radioFeed} />}
       </main>
     </div>
   );

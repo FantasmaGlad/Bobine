@@ -9,21 +9,12 @@ import { AudioUnsupported, NoDefaultSwitchNote } from "./audio/AudioNotes";
 import { useAudioCalls } from "./audio/useAudioCalls";
 import { errorText, type SectionProps } from "./shared/section";
 import { useDevicesResource } from "./shared/useDevicesResource";
-import { useFocusFlash } from "./shared/useFocusFlash";
 
-export default function AudioSection({ caps, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {
+export default function AudioSection({ caps, refreshKey, notify, t }: SectionProps) {
   const { data, error, loading, reload } = useDevicesResource<AudioListing>("/audio", refreshKey);
   const calls = useAudioCalls(notify, t, reload);
   const [openId, setOpenId] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
-
-  const focusRequest = focusId ? `${focusId}|${focusNonce}` : null;
-  const [openedFor, setOpenedFor] = useState<string | null>(null);
-  if (focusId && focusRequest && focusRequest !== openedFor && data?.devices?.some((d) => d.id === focusId)) {
-    setOpenedFor(focusRequest);
-    setOpenId(focusId);
-  }
-  useFocusFlash(focusId, focusNonce, !!data?.supported);
 
   const canDefault = !!caps.audio_set_default?.supported;
   const canVolume = !!caps.audio_set_volume?.supported;

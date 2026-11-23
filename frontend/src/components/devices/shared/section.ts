@@ -7,8 +7,6 @@ export interface SectionProps {
   caps: Capabilities;
   local: boolean;
   refreshKey: number;
-  focusId?: string | null;
-  focusNonce?: number;
   notify: Notify;
   t: (key: string, params?: Record<string, string | number>) => string;
 }

@@ -20,10 +20,6 @@ export default function AnnouncementList({ announcements, loading, ...handlers }
   const [editingId, setEditingId] = useState<number | null>(null);
   return (
     <div className="ra-card">
-      <h3 className="ra-card-title">
-        <Icon name="record_voice_over" size={18} /> {t("radioAnnouncements.listTitle")}
-        {announcements.length > 0 && <span className="ra-count">{announcements.length}</span>}
-      </h3>
       {loading ? (
         <p className="live-empty">{t("radioAnnouncements.loading")}</p>
       ) : announcements.length === 0 ? (
