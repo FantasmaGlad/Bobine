@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { getApiUrl } from "@/lib/apiUrl";
 import type { PlaybackChannel } from "@/lib/usePlaybackSocket";
 
+import { occurrencesPath, upcomingOnly } from "@/lib/upcoming";
 import type { BackgroundSummary, InterruptedState, OccurrenceSummary, PlaylistSummary, VideoSummary } from "./types";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function loadList<T>(path: string, set: (items: T[]) => void) {
   fetch(getApiUrl(path), { cache: "no-store" })
@@ -31,10 +31,7 @@ export function useDashboardData(channel: PlaybackChannel) {
         .then(setInterrupted)
         .catch(() => setInterrupted(null));
     };
-    const now = new Date();
-    const horizon = new Date(now.getTime() + 14 * DAY_MS);
-    loadList<OccurrenceSummary>(`/schedule/occurrences?start=${now.toISOString()}&end=${horizon.toISOString()}&channel=${channel}`,
-      (data) => setUpcoming(data.filter((o) => o.override_action !== "cancelled").slice(0, 3)));
+    loadList<OccurrenceSummary>(occurrencesPath(channel, new Date()), (data) => setUpcoming(upcomingOnly(data, 3)));
     loadList("/backgrounds", setBackgrounds);
     loadList("/videos?sort_by=imported_at&order=desc", setVideos);
     loadList("/playlists", setPlaylists);

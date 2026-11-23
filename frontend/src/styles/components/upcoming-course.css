@@ -1,0 +1,115 @@
+.upcoming-course {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.upcoming-course__thumb {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  width: 96px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-surface-elevated);
+  color: var(--text-muted);
+}
+
+.upcoming-course__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.upcoming-course__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.upcoming-course__label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.upcoming-course__title {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upcoming-course__meta {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.upcoming-course__when {
+  flex: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.upcoming-course--row {
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+}
+
+.upcoming-course--stage {
+  gap: clamp(16px, 2vw, 28px);
+}
+
+.upcoming-course--stage .upcoming-course__thumb {
+  width: clamp(180px, 22vw, 320px);
+  border-radius: var(--radius-md);
+}
+
+.upcoming-course--stage .upcoming-course__label {
+  font-size: clamp(0.9rem, 1.3vw, 1.2rem);
+}
+
+.upcoming-course--stage .upcoming-course__title {
+  font-size: clamp(1.4rem, 2.8vw, 2.6rem);
+  white-space: normal;
+}
+
+.upcoming-course--stage .upcoming-course__meta {
+  font-size: clamp(1rem, 1.4vw, 1.3rem);
+}
+
+.upcoming-course--stage .upcoming-course__when {
+  font-size: clamp(1.6rem, 3.2vw, 3rem);
+  font-weight: 800;
+  color: var(--accent-text);
+}
+
+.upcoming-course--compact {
+  max-width: min(440px, 90vw);
+  padding: 10px 14px 10px 10px;
+  border: 1px solid var(--glass-floating-border);
+  border-radius: var(--radius-lg);
+  background: var(--glass-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-floating-blur)) saturate(var(--saturate-rich));
+  backdrop-filter: blur(var(--glass-floating-blur)) saturate(var(--saturate-rich));
+}
+
+.radio-next-course {
+  position: absolute;
+  left: clamp(16px, 3vw, 40px);
+  bottom: clamp(16px, 4vh, 40px);
+  z-index: 5;
+}

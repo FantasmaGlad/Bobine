@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { getApiUrl } from "@/lib/apiUrl";
-import type { NextCourse } from "./media";
+import { useNextCourse } from "@/lib/useNextCourse";
 
 export function useKioskClock(channel: "cable" | "network") {
   const [now, setNow] = useState(new Date());
   const clockOffsetRef = useRef<number>(0);
-  const [nextCourse, setNextCourse] = useState<NextCourse | null>(null);
+  const nextCourse = useNextCourse(channel);
 
   useEffect(() => {
     const syncClock = () => {
@@ -29,24 +29,5 @@ export function useKioskClock(channel: "cable" | "network") {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchNext = () => {
-      fetch(getApiUrl(`/schedule/next?channel=${channel}`), { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (!cancelled) setNextCourse(data);
-        })
-        .catch(() => {
-          if (!cancelled) setNextCourse(null);
-        });
-    };
-    fetchNext();
-    const id = setInterval(fetchNext, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [channel]);
   return { now, nextCourse };
 }

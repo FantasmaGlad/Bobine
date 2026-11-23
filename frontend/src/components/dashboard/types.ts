@@ -21,13 +21,7 @@ export interface PlaylistSummary {
   thumbnail_path?: string | null;
 }
 
-export interface OccurrenceSummary {
-  schedule_id: number;
-  run_at: string;
-  title: string | null;
-  program: string | null;
-  override_action: string | null;
-}
+export type { UpcomingOccurrence as OccurrenceSummary } from "@/lib/upcoming";
 
 export interface BackgroundSummary {
   id: number;

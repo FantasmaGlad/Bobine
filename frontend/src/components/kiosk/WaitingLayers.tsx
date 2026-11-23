@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import AppLogo from "@/components/AppLogo";
+import UpcomingCourse from "@/components/UpcomingCourse";
 import { formatWallClock } from "@/lib/format";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
 import { formatDuration } from "./media";
@@ -29,17 +30,8 @@ export default function WaitingLayers({ t, state, channel }: WaitingLayersProps)
           </div>
           <div className="kiosk-waiting-next">
             {nextCourse ? (
-              <>
-                <span className="kiosk-waiting-next-label">
-                  {t("kiosk.nextCourseLabel")}
-                </span>
-                <span className="kiosk-waiting-next-title">
-                  {nextCourse.title ?? t("kiosk.scheduledCourseFallback")}
-                </span>
-                <span className="kiosk-waiting-next-countdown">
-                  {formatDuration(nextCourseRemaining ?? 0)}
-                </span>
-              </>
+              <UpcomingCourse occurrence={nextCourse} variant="stage" label={t("kiosk.nextCourseLabel")}
+                fallbackTitle={t("kiosk.scheduledCourseFallback")} when={formatDuration(nextCourseRemaining ?? 0)} />
             ) : (
               <span className="kiosk-waiting-next-empty">
                 {t("kiosk.waitingForNextCourse")}
