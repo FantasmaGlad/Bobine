@@ -49,6 +49,11 @@ def _normalize_command(input_path: str, output_path: str, actions: list[str], me
     ]
 
 
+def _last_lines(stderr: str, count: int = 3) -> str:
+    lines = [line.strip() for line in (stderr or "").splitlines() if line.strip()]
+    return " ; ".join(lines[-count:]) or "erreur inconnue"
+
+
 def _has_video(path: str) -> bool:
     try:
         meta = extract_metadata(path)
@@ -100,4 +105,4 @@ def normalize_video(
         last_error_stderr = stderr
         logger.warning(f"Échec de l'encodage avec {tier['name']} ({tier['encoder_name']}) (code {ret}): {stderr}")
         _discard(output_path)
-    raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {last_error_stderr}")
+    raise ValueError(f"Échec de la normalisation de la vidéo avec ffmpeg : {_last_lines(last_error_stderr)}")

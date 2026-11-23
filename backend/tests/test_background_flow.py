@@ -126,6 +126,25 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         with Image.open(animated.file_path) as stored:
             self.assertEqual((stored.format, stored.n_frames), ("WEBP", 3))
 
+    def test_02e_without_a_webp_encoder_images_are_stored_as_png(self):
+        from PIL import Image
+
+        Image.init()
+        webp = Image.SAVE.pop("WEBP")
+        try:
+            bmp = str(Path(settings.backgrounds_watch_dir) / "temp_affiche.bmp")
+            Image.new("RGB", (40, 20), (200, 30, 30)).save(bmp)
+            still = import_asset(BACKGROUNDS, bmp, "Affiche.bmp", ImportSource.upload)
+            self.assertTrue(still.file_path.endswith(".png") and still.is_image)
+            apng = str(Path(settings.backgrounds_watch_dir) / "temp_anim2.apng")
+            frames = [Image.new("RGBA", (16, 16), color) for color in ("red", "blue")]
+            frames[0].save(apng, format="PNG", save_all=True, append_images=frames[1:], duration=100, loop=0)
+            animated = import_asset(BACKGROUNDS, apng, "Anim2.apng", ImportSource.upload)
+            with Image.open(animated.file_path) as stored:
+                self.assertEqual((stored.format, stored.n_frames), ("PNG", 2))
+        finally:
+            Image.SAVE["WEBP"] = webp
+
     def test_02d_unreadable_image_leaves_nothing_behind(self):
         broken = str(Path(settings.backgrounds_watch_dir) / "temp_broken.tga")
         Path(broken).write_bytes(b"pas une image")
