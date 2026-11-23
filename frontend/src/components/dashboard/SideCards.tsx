@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import Icon from "@/components/Icon";
+import UpcomingCourse from "@/components/UpcomingCourse";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 
 import type { OccurrenceSummary } from "./types";
@@ -63,12 +64,8 @@ export function UpcomingList({ channel, upcoming }: { channel: string; upcoming:
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {upcoming.map((o, idx) => (
-            <div key={`${o.schedule_id}-${idx}`} className="olc-card-hover" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--bg-surface-elevated)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
-              <span style={{ fontWeight: 700, fontSize: "0.9rem" }}>{o.title ?? t("dashboard.courseFallback")}</span>
-              <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontVariantNumeric: "tabular-nums" }}>
-                {new Date(o.run_at).toLocaleString(locale, { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
+            <UpcomingCourse key={`${o.schedule_id}-${idx}`} occurrence={o} fallbackTitle={t("dashboard.courseFallback")}
+              when={new Date(o.run_at).toLocaleString(locale, { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} />
           ))}
         </div>
       )}

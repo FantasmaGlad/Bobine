@@ -10,7 +10,3 @@ export function formatDuration(seconds: number) {
 
 
 
-export interface NextCourse {
-  run_at: string;
-  title: string | null;
-}

@@ -6,6 +6,9 @@ import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, RadioTrackInfo, selectRadioTarget, useRadioSocket, type RadioState } from "@/lib/useRadioSocket";
 import { useMediaClockFollower } from "@/lib/useMediaClockFollower";
 import { radioChannelId } from "@/lib/displayChannel";
+import UpcomingCourse from "@/components/UpcomingCourse";
+import { UI_LANGUAGE } from "@/lib/i18n";
+import { useNextCourse } from "@/lib/useNextCourse";
 import { createSoundChain, type SoundChain } from "@/lib/radioSoundGraph";
 import { createMixStage, type MixStage } from "@/lib/radioMixGraph";
 import { clampMix, defaultMix } from "@/lib/radioMix";
@@ -258,6 +261,7 @@ export default function RadioScreenPage() {
 
   const [displayChannel] = useState(() => getDisplayChannel("radio"));
   const radioChannel = radioChannelId(displayChannel);
+  const nextCourse = useNextCourse(displayChannel, 60000);
   const { state, connected, sendCommand, isPrimary, serverNow, displayOutputCable } = useRadioSocket(
     handleEvent,
     "kiosk",
@@ -462,6 +466,14 @@ export default function RadioScreenPage() {
         t={t} state={state} connected={connected} livePosition={livePosition}
         sendCommand={sendCommand} handlePlayPause={handlePlayPause}
       />
+
+      {nextCourse && (
+        <div className="radio-next-course">
+          <UpcomingCourse occurrence={nextCourse} variant="compact" label={t("kiosk.nextCourseLabel")}
+            fallbackTitle={t("kiosk.scheduledCourseFallback")}
+            when={new Date(nextCourse.run_at).toLocaleString(UI_LANGUAGE === "fr" ? "fr-FR" : "en-US", { weekday: "short", hour: "2-digit", minute: "2-digit" })} />
+        </div>
+      )}
     </div>
   );
 }
