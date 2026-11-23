@@ -262,15 +262,15 @@ def test_launcher_recognizes_the_imports_command():
 
 
 def test_display_reads_and_sets_outputs(recorder, capsys):
-    recorder.responses[("GET", "/api/settings/display-output")] = {"cable": "kiosk", "network": "cinema"}
-    recorder.responses[("PUT", "/api/settings/display-output")] = {"cable": "cinema", "network": "cinema"}
+    recorder.responses[("GET", "/api/settings/display-output")] = {"cable": "kiosk", "network": "cinema", "network_2": "signage"}
+    recorder.responses[("PUT", "/api/settings/display-output")] = {"cable": "cinema", "network": "cinema", "network_2": "signage"}
     assert cli.main(["display", "get"]) == cli.EXIT_OK
     assert recorder.calls[0][:2] == ("GET", "/api/settings/display-output")
-    assert capsys.readouterr().out == "câblé=kiosk  réseau=cinema\n"
+    assert capsys.readouterr().out == "câblé=kiosk  réseau 1=cinema  réseau 2=signage\n"
     assert cli.main(["display", "set", "cable", "cinema"]) == cli.EXIT_OK
     assert recorder.calls[1][:2] == ("PUT", "/api/settings/display-output")
     assert recorder.calls[1][3] == {"channel": "cable", "output": "cinema"}
-    assert capsys.readouterr().out == "câblé=cinema  réseau=cinema\n"
+    assert capsys.readouterr().out == "câblé=cinema  réseau 1=cinema  réseau 2=signage\n"
 
 
 def test_display_json_is_the_route_response(recorder, capsys):

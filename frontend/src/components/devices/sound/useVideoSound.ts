@@ -10,7 +10,9 @@ function playbackUrl(path: string): string {
 }
 
 export function useVideoSound(refreshKey: number, notify: SectionProps["notify"], t: SectionProps["t"]) {
-  const [sounds, setSounds] = useState<Record<OutputId, RadioSoundSettings>>({ cable: defaultSound(), network: defaultSound() });
+  const [sounds, setSounds] = useState<Record<OutputId, RadioSoundSettings>>(
+    () => Object.fromEntries(OUTPUT_IDS.map((id) => [id, defaultSound()])) as Record<OutputId, RadioSoundSettings>,
+  );
 
   useEffect(() => {
     let cancelled = false;

@@ -5,13 +5,14 @@ import sys
 import urllib.error
 import pytest
 from app import cli
+from app.api import contract
 import urllib.request
 from app.cli import completion as cli_completion
 from cli_support import BACKEND, _http_error
 
 
 @pytest.mark.parametrize("argv, expected", [
-    (["status"], [("GET", "/api/health"), ("GET", "/api/playback/state"), ("GET", "/api/playback/state")]),
+    (["status"], [("GET", "/api/health"), *[("GET", "/api/playback/state")] * len(contract.CHANNELS)]),
     (["diagnose"], [("GET", "/api/diagnostics/system")]),
     (["logs", "--level", "error"], [("GET", "/api/logs")]),
     (["playback", "network", "volume", "volume=40"], [("POST", "/api/playback/network/volume")]),

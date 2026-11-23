@@ -18,20 +18,23 @@ import { useUrlView } from "@/lib/useUrlView";
 import type { ChannelValue } from "@/lib/scheduleTime";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useToast } from "@/lib/useToast";
+import { OUTPUTS, isRadioChannel, outputById, type RadioChannelId } from "@/lib/outputs";
 
 const CHANNEL_TABS = [
-  { id: "cable", icon: "cable", label: "schedule.channelTabCable" },
-  { id: "network", icon: "wifi", label: "schedule.channelTabNetwork" },
+  ...OUTPUTS.map((output) => ({ id: output.id, icon: output.wired ? "cable" : "wifi", label: output.wired ? "schedule.channelTabCable" : "schedule.channelTabNetwork" })),
   { id: "radio_cable", icon: "graphic_eq", label: "schedule.channelTabRadioCable" },
   { id: "radio_network", icon: "graphic_eq", label: "schedule.channelTabRadioNetwork" },
 ];
 
-const CHANNEL_TITLES: Record<ChannelValue, string> = {
-  cable: "schedule.channelCableTitle",
-  network: "schedule.channelNetworkTitle",
+const RADIO_TITLES: Record<RadioChannelId, string> = {
   radio_cable: "schedule.channelRadioCableTitle",
   radio_network: "schedule.channelRadioNetworkTitle",
 };
+
+function channelTitle(channel: ChannelValue): string {
+  if (isRadioChannel(channel)) return RADIO_TITLES[channel];
+  return outputById(channel).wired ? "schedule.channelCableTitle" : "schedule.channelNetworkTitle";
+}
 
 function useLibraryPanel(isMobile: boolean) {
   const [libraryOpen, setLibraryOpen] = useState(true);
@@ -92,10 +95,10 @@ export default function SchedulePage() {
     <div className="schedule-page">
       {toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
       <PageNav
-        tabs={CHANNEL_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+        tabs={CHANNEL_TABS.map((tab) => ({ ...tab, label: t(tab.label, { output: t(`outputs.${tab.id}`) }) }))}
         value={channel}
         onChange={(id) => setChannel(id as ChannelValue)}
-        ariaLabel={t(CHANNEL_TITLES[channel])}
+        ariaLabel={t(channelTitle(channel), { output: t(`outputs.${channel}`) })}
       />
       <ScheduleToolbar
         view={nav.view}

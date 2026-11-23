@@ -3,6 +3,7 @@ import {
   DEFAULT_RADIO_CHANNEL,
   DISPLAY_MODES,
   NETWORK_FALLBACK,
+  OUTPUT_IDS,
   WIRED_OUTPUT,
   hasMode,
   isOutputId,
@@ -19,6 +20,8 @@ export type ChannelSource = "query" | "default";
 
 export type DisplayOutput = DisplayMode;
 
+export type DisplayOutputs = Partial<Record<OutputId, DisplayOutput | null>>;
+
 export type DisplayPage = DisplayOutput;
 
 export type LockedOutput = Exclude<DisplayOutput, "kiosk">;
@@ -29,6 +32,11 @@ export function outputsFor(channel: DisplayChannel): readonly DisplayOutput[] {
 
 export function parseDisplayOutput(channel: DisplayChannel, value: unknown): DisplayOutput | null {
   return outputsFor(channel).find((output) => output === value) ?? null;
+}
+
+export function parseDisplayOutputs(data: unknown, previous: DisplayOutputs = {}): DisplayOutputs {
+  const source = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+  return Object.fromEntries(OUTPUT_IDS.map((id) => [id, previous[id] ?? parseDisplayOutput(id, source[id])]));
 }
 
 export function lockedOutput(reason: unknown): LockedOutput | null {
@@ -73,7 +81,7 @@ export function shouldFollowInitialOutput(channel: DisplayChannel, page: Display
   return outputById(channel).wired;
 }
 
-export function radioChannelId(channel: DisplayChannel): RadioChannelId {
+export function radioChannelId(channel: DisplayChannel): RadioChannelId | null {
   return outputById(channel).radioChannel;
 }
 
@@ -86,12 +94,11 @@ export function decideOutputRedirect(
   current: DisplayPage,
   search: string,
   hostname: string,
-  cableOutput: DisplayOutput | null,
-  networkOutput: DisplayOutput | null,
+  outputs: DisplayOutputs,
   previous: DisplayOutput | null,
 ): OutputRedirectDecision {
   const { channel } = resolveChannel(search, hostname, current);
-  const target = channel === "cable" ? cableOutput : networkOutput;
+  const target = outputs[channel] ?? null;
   if (!target) return { seen: previous, to: null };
 
   const seen = target;
@@ -105,11 +112,10 @@ export function decideOutputRedirect(
 
 export function shouldEvaluateRedirect(
   channel: DisplayChannel,
-  cableOutput: DisplayOutput | null,
-  networkOutput: DisplayOutput | null,
+  outputs: DisplayOutputs,
   lastSeen: DisplayOutput | null,
 ): boolean {
-  const target = channel === "cable" ? cableOutput : networkOutput;
+  const target = outputs[channel] ?? null;
   if (!target) return false;
   return lastSeen === null || target !== lastSeen;
 }

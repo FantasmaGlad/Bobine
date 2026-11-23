@@ -10,6 +10,7 @@ import {
   shouldEvaluateRedirect,
   type DisplayChannel,
   type DisplayOutput,
+  type DisplayOutputs,
   type DisplayPage,
 } from "@/lib/displayChannel";
 
@@ -33,8 +34,7 @@ export function getDisplayChannel(page: DisplayPage): DisplayChannel {
 
 export function useDisplayOutputRedirect(
   current: DisplayPage,
-  cableOutput: DisplayOutput | null,
-  networkOutput: DisplayOutput | null,
+  outputs: DisplayOutputs,
 ) {
   const lastSeenRef = useRef<DisplayOutput | null>(null);
   const router = useRouter();
@@ -42,13 +42,12 @@ export function useDisplayOutputRedirect(
   useEffect(() => {
     const search = currentSearch();
     const { channel } = resolveChannel(search, window.location.hostname, current);
-    if (!shouldEvaluateRedirect(channel, cableOutput, networkOutput, lastSeenRef.current)) return;
+    if (!shouldEvaluateRedirect(channel, outputs, lastSeenRef.current)) return;
     const decision = decideOutputRedirect(
       current,
       search,
       window.location.hostname,
-      cableOutput,
-      networkOutput,
+      outputs,
       lastSeenRef.current,
     );
     lastSeenRef.current = decision.seen;
@@ -56,5 +55,5 @@ export function useDisplayOutputRedirect(
       pendingSearch = new URL(decision.to, window.location.origin).search;
       router.replace(decision.to);
     }
-  }, [cableOutput, networkOutput, current, router]);
+  }, [outputs, current, router]);
 }

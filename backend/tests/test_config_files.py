@@ -38,7 +38,7 @@ def test_one_file_per_kind_of_setting():
         "settings.json", "machine.json", "outputs/display.json", "outputs/radio.json", "library/videos.json",
         "library/audio.json", "library/radio.json", "library/backgrounds.json", "library/announcements.json",
         "playlists/video.json", "playlists/audio.json", "playlists/radio.json", "schedule/cable.json",
-        "schedule/network.json", "schedule/radio-cable.json", "schedule/radio-network.json", "radio/tags.json",
+        "schedule/network.json", "schedule/network-2.json", "schedule/radio-cable.json", "schedule/radio-network.json", "radio/tags.json",
         "radio/announcement-rules.json",
     ]
     assert set(config_files.KINDS) == {"manifest.json", *config_builders.BUILDERS}

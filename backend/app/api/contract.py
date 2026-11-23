@@ -10,7 +10,7 @@ GITHUB_REPO = "FantasmaGlad/Bobine"
 
 CHANNELS = tuple(output.id for output in OUTPUTS)
 DEFAULT_CHANNEL = DEFAULT_OUTPUT.id
-RADIO_CHANNELS = tuple(output.radio_channel for output in OUTPUTS)
+RADIO_CHANNELS = tuple(output.radio_channel for output in OUTPUTS if output.radio_channel)
 LEGACY_RADIO_CHANNEL = "radio"
 SCHEDULE_CHANNELS = CHANNELS + RADIO_CHANNELS
 SCHEDULE_TARGETS = ("video", "playlist", "radio_playlist")
@@ -49,7 +49,7 @@ RADIO_ACTIONS = (
     "radio_set_repeat", "radio_add_to_queue", "radio_play_next", "radio_move_in_queue", "radio_remove_from_queue",
     "radio_play_announcement",
 )
-RADIO_OUTPUTS = {output.id: output.radio_channel for output in OUTPUTS}
+RADIO_OUTPUTS = {output.id: output.radio_channel for output in OUTPUTS if output.radio_channel}
 ANNOUNCEMENT_RULE_TYPES = ("every_n_tracks", "every_x_minutes", "fixed_times")
 ANNOUNCEMENT_TARGETS = RADIO_CHANNELS + ("both",)
 STORAGE_IMPORT_KINDS = ("video", "radio", "audio_course")

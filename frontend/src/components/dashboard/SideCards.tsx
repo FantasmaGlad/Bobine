@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import Icon from "@/components/Icon";
 import UpcomingCourse from "@/components/UpcomingCourse";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { outputById, type OutputId } from "@/lib/outputs";
 
 import type { OccurrenceSummary } from "./types";
 
@@ -22,11 +23,11 @@ function ActionCard({ icon, kind, title, desc, children }: { icon: string; kind:
   );
 }
 
-export function ActionCards({ isCable, locked, onAmbiance }: { isCable: boolean; locked: boolean; onAmbiance: () => void }) {
+export function ActionCards({ channel, locked, onAmbiance }: { channel: OutputId; locked: boolean; onAmbiance: () => void }) {
   const { t } = useAppSettings();
   return (
     <div className="bento-actions-grid">
-      {isCable && (
+      {outputById(channel).coach && (
         <ActionCard icon="mic" kind="coach" title={t("dashboard.coachCardTitle")} desc={t("dashboard.coachCardDesc")}>
           <Link href="/coach/" className="btn btn-primary bento-action-btn olc-press">
             <Icon name="mic" size={16} />

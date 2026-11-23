@@ -311,7 +311,7 @@ def test_les_deux_canaux_acceptent_la_sortie_visuel_qui_coupe_la_video(client):
     asyncio.run(manager.load(1, "Cours", 600.0, None, None))
     assert _put_output(client, "cable", "signage").status_code == 200
     assert _put_output(client, "network", "signage").status_code == 200
-    assert client.get("/api/settings/display-output").json() == {"cable": "signage", "network": "signage"}
+    assert client.get("/api/settings/display-output").json() == {"cable": "signage", "network": "signage", "network_2": "kiosk"}
     assert not get_playback_manager("network").snapshot()["current_video"]
 
 

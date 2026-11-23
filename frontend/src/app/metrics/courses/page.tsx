@@ -10,9 +10,10 @@ import RatingBars from "@/components/metrics/RatingBars";
 import type { DashboardMetrics } from "@/components/metrics/types";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
+import { OUTPUTS, type OutputId } from "@/lib/outputs";
 
 type Period = "7d" | "30d" | "this_month" | "all";
-type Channel = "all" | "cable" | "network";
+type Channel = "all" | OutputId;
 
 function useDashboard(period: Period, channel: Channel) {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -52,8 +53,11 @@ export default function MetricsCoursesPage() {
         ]} />
         <FilterGroup icon="tune" label={t("metricsPage.channelLabel")} value={channel} onChange={setChannel} choices={[
           { value: "all", label: t("metricsPage.channelAll") },
-          { value: "cable", label: t("metricsPage.channelCable"), icon: "cable" },
-          { value: "network", label: t("metricsPage.channelNetwork"), icon: "wifi" },
+          ...OUTPUTS.map((output) => ({
+            value: output.id,
+            label: output.wired ? t("metricsPage.channelCable") : t("metricsPage.channelNetwork", { output: t(`outputs.${output.id}`) }),
+            icon: output.wired ? "cable" : "wifi",
+          })),
         ]} />
       </div>
 

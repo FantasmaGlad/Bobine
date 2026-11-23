@@ -1108,7 +1108,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -1269,7 +1270,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -1286,7 +1288,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -1303,7 +1306,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -2035,7 +2039,8 @@
        "choices": [
         "all",
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -2096,7 +2101,8 @@
        "choices": [
         "all",
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -2151,7 +2157,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal de diffusion",
@@ -2176,7 +2183,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal de diffusion",
@@ -2249,7 +2257,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal de diffusion",
@@ -2274,7 +2283,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal de diffusion",
@@ -2299,7 +2309,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal de diffusion",
@@ -3420,6 +3431,7 @@
        "choices": [
         "cable",
         "network",
+        "network_2",
         "radio_cable",
         "radio_network"
        ],
@@ -3455,6 +3467,7 @@
        "choices": [
         "cable",
         "network",
+        "network_2",
         "radio_cable",
         "radio_network"
        ],
@@ -3508,6 +3521,7 @@
        "choices": [
         "cable",
         "network",
+        "network_2",
         "radio_cable",
         "radio_network"
        ],
@@ -3766,6 +3780,7 @@
        "choices": [
         "cable",
         "network",
+        "network_2",
         "radio_cable",
         "radio_network"
        ],
@@ -3935,7 +3950,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "",
@@ -3960,7 +3976,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal",
@@ -3977,7 +3994,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "flag": false,
        "help": "canal",

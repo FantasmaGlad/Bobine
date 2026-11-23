@@ -3,6 +3,7 @@
 import type { NowPlaying } from "@/components/cinema/useNowPlaying";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import { outputById, type OutputId } from "@/lib/outputs";
 import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
 
 import { PlaylistBar, PlaylistWaiting } from "./KioskPlaylist";
@@ -12,7 +13,7 @@ import { thumbnailUrl } from "@/lib/thumbnail";
 import type { BackgroundSummary, Send, VideoSummary } from "./types";
 
 interface Props {
-  isCable: boolean;
+  channel: OutputId;
   cinema: boolean;
   state: PlaybackState;
   livePosition: number;
@@ -39,7 +40,7 @@ function Kiosk({ state, livePosition, backgroundThumb, sendCommand }: Pick<Props
   );
 }
 
-export default function LiveHero({ isCable, cinema, state, livePosition, remote, videos, backgrounds, sendCommand }: Props) {
+export default function LiveHero({ channel, cinema, state, livePosition, remote, videos, backgrounds, sendCommand }: Props) {
   const { t } = useAppSettings();
   const active = state.current_video !== null || state.state === "playlist_waiting" || state.state === "background";
   const live = remote.nowPlaying;
@@ -57,7 +58,7 @@ export default function LiveHero({ isCable, cinema, state, livePosition, remote,
             <Icon name="play_circle" size={18} />
             {t("dashboard.liveTitle")}
           </h3>
-          <p className="live-block-hint" style={{ margin: 0 }}>{isCable ? t("dashboard.liveChannelHintCable") : t("dashboard.liveChannelHintNetwork")}</p>
+          <p className="live-block-hint" style={{ margin: 0 }}>{outputById(channel).wired ? t("dashboard.liveChannelHintCable") : t("dashboard.liveChannelHintNetwork", { output: t(`outputs.${channel}`) })}</p>
         </div>
         {cinema ? <LiveCinema remote={remote} video={cinemaVideo} thumb={cinemaThumb} sendCommand={sendCommand} />
           : active ? <Kiosk state={state} livePosition={livePosition} backgroundThumb={backgroundThumb} sendCommand={sendCommand} />

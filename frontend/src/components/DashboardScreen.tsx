@@ -17,7 +17,7 @@ import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { getApiUrl } from "@/lib/apiUrl";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { useIsMobile } from "@/lib/useIsMobile";
-import type { OutputId } from "@/lib/outputs";
+import { hasMode, outputById, type OutputId } from "@/lib/outputs";
 import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 
 export default function DashboardScreen({ channel }: { channel: OutputId }) {
@@ -25,17 +25,17 @@ export default function DashboardScreen({ channel }: { channel: OutputId }) {
   const router = useRouter();
   const [lastCause, setLastCause] = useState("sync");
   const [ambianceOpen, setAmbianceOpen] = useState(false);
-  const { state, connected, sendCommand, displayOutputCable, displayOutputNetwork, cinemaLocked, lockedReason, cinemaState } =
+  const { state, connected, sendCommand, displayOutputs, cinemaLocked, lockedReason, cinemaState } =
     usePlaybackSocket((evt) => setLastCause(evt.cause), undefined, channel, undefined, "dashboard");
   const livePosition = useInterpolatedPosition(state.position_seconds, state.state === "playing", lastCause);
   const remote = useNowPlaying(cinemaState, sendCommand);
   const data = useDashboardData(channel);
-  const isCable = channel === "cable";
-  const displayOutput = isCable ? displayOutputCable : displayOutputNetwork;
+  const spec = outputById(channel);
+  const displayOutput = displayOutputs[channel] ?? null;
   const cinema = displayOutput === "cinema";
-  const radio = isCable && displayOutputCable === "radio";
+  const radio = hasMode(channel, "radio") && displayOutput === "radio" && spec.radioChannel !== null;
   const signage = displayOutput === "signage";
-  const coach = isCable && state.state === "coach_mode";
+  const coach = spec.coach && state.state === "coach_mode";
 
   useEffect(() => {
     if (coach) router.replace("/coach");
@@ -44,14 +44,14 @@ export default function DashboardScreen({ channel }: { channel: OutputId }) {
   if (isMobile) {
     return (
       <MobileRemote state={state} livePosition={livePosition} connected={connected} sendCommand={sendCommand} videos={data.videos} playlists={data.playlists}
-        backgrounds={data.backgrounds} getApiUrl={getApiUrl} displayOutputCable={displayOutputCable} displayOutputNetwork={displayOutputNetwork}
+        backgrounds={data.backgrounds} getApiUrl={getApiUrl} displayOutputs={displayOutputs}
         cinemaLive={remote.nowPlaying} onCinemaPlayPause={remote.playPause} onSetDisplayOutput={setDisplayOutput} channel={channel} />
     );
   }
   if (coach) return <CoachModeNotice />;
 
   const channelCard = (
-    <ChannelCard isCable={isCable} connected={connected} state={state.state} displayOutput={displayOutput}
+    <ChannelCard channel={channel} connected={connected} state={state.state} displayOutput={displayOutput}
       onSetDisplayOutput={(output) => setDisplayOutput(channel, output)} />
   );
 
@@ -59,7 +59,7 @@ export default function DashboardScreen({ channel }: { channel: OutputId }) {
     return (
       <div className="dashboard-container">
         {channelCard}
-        <RadioRemotePanel key="radio_cable" channel="radio_cable" />
+        {spec.radioChannel && <RadioRemotePanel key={spec.radioChannel} channel={spec.radioChannel} />}
       </div>
     );
   }
@@ -79,11 +79,11 @@ export default function DashboardScreen({ channel }: { channel: OutputId }) {
       {channelCard}
       <div className="dashboard-bento-grid" style={cinema ? { gridTemplateColumns: "1fr" } : undefined}>
         <div className="bento-col-main">
-          <LiveHero isCable={isCable} cinema={cinema} state={state} livePosition={livePosition} remote={remote} videos={data.videos} backgrounds={data.backgrounds} sendCommand={sendCommand} />
-          {!cinema && <ActionCards isCable={isCable} locked={cinemaLocked} onAmbiance={() => setAmbianceOpen(true)} />}
+          <LiveHero channel={channel} cinema={cinema} state={state} livePosition={livePosition} remote={remote} videos={data.videos} backgrounds={data.backgrounds} sendCommand={sendCommand} />
+          {!cinema && <ActionCards channel={channel} locked={cinemaLocked} onAmbiance={() => setAmbianceOpen(true)} />}
           {!cinema && <UpcomingList channel={channel} upcoming={data.upcoming} />}
         </div>
-        {!cinema && <LaunchPanel isCable={isCable} videos={data.videos} playlists={data.playlists} locked={cinemaLocked} lockedReason={lockedReason} sendCommand={sendCommand} />}
+        {!cinema && <LaunchPanel channel={channel} videos={data.videos} playlists={data.playlists} locked={cinemaLocked} lockedReason={lockedReason} sendCommand={sendCommand} />}
       </div>
       {ambianceOpen && (
         <AmbianceModal backgrounds={data.backgrounds} onClose={() => setAmbianceOpen(false)}

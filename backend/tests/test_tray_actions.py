@@ -10,7 +10,8 @@ class Backend:
 
     def __init__(self, states=None):
         self.states = {("playback", "cable"): "playing", ("playback", "network"): "paused",
-                       ("radio", "cable"): "waiting", ("radio", "network"): "playing", **(states or {})}
+                       ("playback", "network_2"): "idle", ("radio", "cable"): "waiting", ("radio", "network"): "playing",
+                       **(states or {})}
         self.calls = []
         self.down = False
         self.refused = set()
@@ -66,22 +67,23 @@ def test_toggle_does_nothing_while_waiting(backend):
     assert not [call for call in backend.calls if call[0] == "POST"]
 
 
-def test_stop_all_stops_the_four_outputs_even_if_one_is_refused(backend):
+def test_stop_all_stops_every_output_even_if_one_is_refused(backend):
     backend.refused.add("/api/playback/cable/stop")
     c = controls(backend)
-    assert c.stop_all() == 3
+    assert c.stop_all() == 4
     stops = sorted(url for method, url in backend.calls if method == "POST")
-    assert stops == ["/api/playback/cable/stop", "/api/playback/network/stop", "/api/radio/cable/stop", "/api/radio/network/stop"]
+    assert stops == ["/api/playback/cable/stop", "/api/playback/network/stop", "/api/playback/network_2/stop",
+                     "/api/radio/cable/stop", "/api/radio/network/stop"]
 
 
 def test_states_are_cached_briefly_and_refreshed_after_an_action(backend):
     now = [0.0]
     c = controls(backend, lambda: now[0])
     c.states(); c.states(); c.label("playback", "cable", "Câblé")
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 4
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 5
     now[0] = 5.0
     c.states()
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 8
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 10
     c.toggle("playback", "cable")
     backend.states[("playback", "cable")] = "paused"
     assert c.label("playback", "cable", "Câblé") == "Câblé : en pause — Reprendre"

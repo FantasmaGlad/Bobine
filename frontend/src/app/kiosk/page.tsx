@@ -97,7 +97,7 @@ export default function KioskPage() {
     [showOsd, showVolumeHud, showSeekHud, tryPlay]
   );
 
-  const { state, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
+  const { state, sendCommand, serverNow, isPrimary, displayOutputs } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
 
   const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);
   useApplySubtitleMode([videoRef], subtitles, state.subtitle ?? null);
@@ -116,7 +116,7 @@ export default function KioskPage() {
   useEffect(() => {
     isPrimaryRef.current = isPrimary;
   }, [isPrimary]);
-  useDisplayOutputRedirect("kiosk", displayOutputCable, displayOutputNetwork);
+  useDisplayOutputRedirect("kiosk", displayOutputs);
 
   const handleTimeUpdate = () => {
     const video = videoRef.current;

@@ -23,6 +23,7 @@ import GridStandby from "@/components/grid/GridStandby";
 import NowPlayingCard from "@/components/grid/NowPlayingCard";
 import { useNowPlaying } from "@/components/cinema/useNowPlaying";
 import { useRatingPrompt } from "@/components/grid/useRatingPrompt";
+import { WIRED_OUTPUT } from "@/lib/outputs";
 
 export default function GridPage() {
   const { t, wiredDisplayMode, setWiredDisplayMode, waitTimeBetweenCourses } = useAppSettings();
@@ -36,7 +37,8 @@ export default function GridPage() {
 
   const router = useRouter();
 
-  const { state, sendCommand, displayOutputCable, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, "cable", undefined, "grid");
+  const { state, sendCommand, displayOutputs, cinemaState, libraryVersion } = usePlaybackSocket(undefined, undefined, WIRED_OUTPUT, undefined, "grid");
+  const displayOutputCable = displayOutputs[WIRED_OUTPUT] ?? null;
 
   useEffect(() => {
     if (state.state === "coach_mode") {
