@@ -8,7 +8,8 @@ import AmbianceModal from "@/components/dashboard/AmbianceModal";
 import ChannelCard from "@/components/dashboard/ChannelCard";
 import LaunchPanel from "@/components/dashboard/LaunchPanel";
 import LiveHero from "@/components/dashboard/LiveHero";
-import { CoachModeNotice, InterruptedBanner, SignageNotice } from "@/components/dashboard/Notices";
+import { CoachModeNotice, InterruptedBanner } from "@/components/dashboard/Notices";
+import SignagePanel from "@/components/dashboard/SignagePanel";
 import { ActionCards, UpcomingList } from "@/components/dashboard/SideCards";
 import { setDisplayOutput, useDashboardData } from "@/components/dashboard/useDashboardData";
 import MobileRemote from "@/components/MobileRemote";
@@ -66,7 +67,7 @@ export default function DashboardScreen({ channel }: { channel: PlaybackChannel 
     return (
       <div className="dashboard-container">
         {channelCard}
-        <SignageNotice channel={channel} />
+        <SignagePanel channel={channel} backgrounds={data.backgrounds} />
       </div>
     );
   }

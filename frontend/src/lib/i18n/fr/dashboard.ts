@@ -40,7 +40,6 @@ export const dashboard: Dict = {
   channelSignageActive: "Visuel en boucle",
   channelSignageLockedHint: "Ce canal diffuse un visuel : les lancements y sont verrouillés. Basculez-le sur Kiosque ou Cinéma pour lancer ce cours.",
   signageNotice: "Ce canal diffuse en boucle les visuels choisis. Les lancements de cours y sont verrouillés jusqu'au retour sur Kiosque ou Cinéma.",
-  signageEdit: "Modifier la boucle",
   channelRadioActive: "Mode radio",
   cinemaNoPlayback: "Aucun cours en lecture sur l'écran cinéma de ce canal.",
   cinemaStopHint: "Arrête la lecture et ramène l'écran cinéma au menu de choix des cours.",

@@ -41,7 +41,6 @@ export function pauseMetaLine(t: Props["t"], media: PauseMedia | null, position:
 }
 
 export default function PauseScreen({ t, media, thumbnail, position, duration, kicker, accent, resumeLabel, onResume, back }: Props) {
-  const progress = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
   return (
     <div className="pause-screen" onClick={onResume}>
       {thumbnail && <img className="pause-screen-backdrop" src={thumbnail} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
@@ -65,7 +64,6 @@ export default function PauseScreen({ t, media, thumbnail, position, duration, k
           )}
         </div>
       </div>
-      <div className="pause-screen-progress"><div className="pause-screen-progress-fill" style={{ transform: `scaleX(${progress})` }} /></div>
     </div>
   );
 }

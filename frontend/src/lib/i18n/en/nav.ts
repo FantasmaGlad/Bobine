@@ -12,7 +12,6 @@ export const nav: Dict = {
   radioRemote: "Remote",
   radioLibrary: "Radio Audio Tracks",
   radioAnnouncements: "Reminders",
-  visuals: "Show a visual",
   schedule: "Schedule",
   metrics: "Metrics",
   metricsGroup: "Metrics",
