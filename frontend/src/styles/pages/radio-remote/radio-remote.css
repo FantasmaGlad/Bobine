@@ -28,3 +28,11 @@
     background: color-mix(in srgb, var(--bg-surface) 55%, transparent);
   }
 }
+
+.radio-sound-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  text-decoration: none;
+}

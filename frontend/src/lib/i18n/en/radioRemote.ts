@@ -18,6 +18,7 @@ export const radioRemote: Dict = {
   },
   emptyNowPlaying: "Nothing playing. Launch a playlist below.",
   playlistLabel: "Playlist: {{name}} [{{index}}/{{total}}]",
+  soundSettings: "Sound settings",
   loadPlaylistTitle: "Launch a playlist",
   choosePlaylist: "Choose a radio playlist...",
   shuffleOnLoad: "Shuffle on launch",

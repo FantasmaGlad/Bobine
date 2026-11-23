@@ -1,24 +1,30 @@
-export type SettingsCategoryId = "appearance" | "display" | "inputs" | "playback" | "updates" | "data" | "system" | "help" | "danger";
+export type SettingsCategoryId = "appearance" | "display" | "inputs" | "playback" | "sound" | "updates" | "data" | "system" | "help" | "danger";
+
+export type SettingsGroupId = "general" | "playback" | "system";
+
+export const SETTINGS_GROUPS: readonly SettingsGroupId[] = ["general", "playback", "system"];
 
 export type SettingsCapability = "nativeBridge";
 
 export interface SettingsCategory {
   id: SettingsCategoryId;
+  group: SettingsGroupId;
   icon: string;
   sections: readonly string[];
   requires?: SettingsCapability;
 }
 
 export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
-  { id: "appearance", icon: "palette", sections: ["section-appearance", "section-branding"] },
-  { id: "display", icon: "tv", sections: ["section-display"] },
-  { id: "inputs", icon: "sports_esports", sections: ["section-inputs"] },
-  { id: "playback", icon: "play_circle", sections: ["section-playback"] },
-  { id: "updates", icon: "system_update", sections: ["updates-section"] },
-  { id: "data", icon: "archive", sections: ["section-backup", "section-sync", "section-logs", "section-diagnostics"] },
-  { id: "system", icon: "settings_power", sections: ["section-startup"], requires: "nativeBridge" },
-  { id: "help", icon: "description", sections: ["section-docs"] },
-  { id: "danger", icon: "warning", sections: ["section-danger"] },
+  { id: "appearance", group: "general", icon: "palette", sections: ["section-appearance", "section-branding"] },
+  { id: "display", group: "general", icon: "tv", sections: ["section-display"] },
+  { id: "inputs", group: "general", icon: "sports_esports", sections: ["section-inputs"] },
+  { id: "playback", group: "playback", icon: "play_circle", sections: ["section-playback"] },
+  { id: "sound", group: "playback", icon: "graphic_eq", sections: ["section-sound"] },
+  { id: "updates", group: "system", icon: "system_update", sections: ["updates-section"] },
+  { id: "system", group: "system", icon: "settings_power", sections: ["section-startup"], requires: "nativeBridge" },
+  { id: "data", group: "system", icon: "archive", sections: ["section-backup", "section-sync", "section-logs", "section-diagnostics"] },
+  { id: "help", group: "system", icon: "description", sections: ["section-docs"] },
+  { id: "danger", group: "system", icon: "warning", sections: ["section-danger"] },
 ];
 
 export function availableCategories(capabilities: ReadonlySet<SettingsCapability>): readonly SettingsCategory[] {

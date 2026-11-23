@@ -64,6 +64,7 @@ export const settingsPage: Dict = {
   logsPurgeNow: "Nettoyer les journaux maintenant",
   logsPurging: "Nettoyage en cours…",
   logsPurgedSuccess: "Nettoyage effectué avec succès",
+  groups: { general: "Général", playback: "Lecture", system: "Système" },
   dangerSection: "Zone de danger",
   dangerHint: "Actions destructives et irréversibles. Manipulez avec précaution.",
   resetDataTitle: "Remise à zéro des données",
