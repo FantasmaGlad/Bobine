@@ -77,8 +77,18 @@ export function buildOutputUrl(target: DisplayPage, search: string, channel: Dis
   return `/${target}?${params.toString()}`;
 }
 
-export function screenUrl(channel: DisplayChannel, output: DisplayOutput | null): string {
-  return buildOutputUrl(output ?? "kiosk", "", channel);
+export function screenUrl(channel: DisplayChannel): string {
+  return `/screen?output=${channel}`;
+}
+
+export function screenOutput(search: string): DisplayChannel {
+  return parseChannelParam(search) ?? DEFAULT_OUTPUT;
+}
+
+export function screenTarget(search: string, mode: unknown): string | null {
+  const channel = screenOutput(search);
+  const output = parseDisplayOutput(channel, mode);
+  return output ? buildOutputUrl(output, search, channel) : null;
 }
 
 export function shouldFollowInitialOutput(channel: DisplayChannel, page: DisplayPage = "kiosk"): boolean {
