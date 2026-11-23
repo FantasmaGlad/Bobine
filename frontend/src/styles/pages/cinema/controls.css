@@ -31,8 +31,19 @@
 
 .cinema-controls-bottom {
   display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cinema-timeline,
+.cinema-controls-row {
+  display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.cinema-timeline {
+  width: 100%;
 }
 
 .cinema-ctl-btn {
