@@ -30,3 +30,10 @@ export function chapterJumpTarget(chapters: Chapter[], position: number, directi
   if (index >= 0 && position - chapters[index].start_seconds > 3) return chapters[index].start_seconds;
   return index >= 1 ? chapters[index - 1].start_seconds : 0;
 }
+
+export type ChapterToastPlacement = "hidden" | "lifted" | "rest";
+
+export function chapterToastPlacement({ previewing, controlsVisible }: { previewing: boolean; controlsVisible: boolean }): ChapterToastPlacement {
+  if (previewing) return "hidden";
+  return controlsVisible ? "lifted" : "rest";
+}

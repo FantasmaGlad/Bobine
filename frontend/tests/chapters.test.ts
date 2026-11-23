@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chapterJumpTarget, type Chapter } from "../src/lib/chapters.ts";
+import { chapterJumpTarget, chapterToastPlacement, type Chapter } from "../src/lib/chapters.ts";
 
 const chapters: Chapter[] = [
   { id: 1, position: 0, start_seconds: 0, end_seconds: 60, title: "Échauffement" },
@@ -22,4 +22,14 @@ test("précédent : début du chapitre en cours, puis chapitre d'avant", () => {
 
 test("sans chapitre, aucun saut", () => {
   assert.equal(chapterJumpTarget([], 50, "next"), null);
+});
+
+test("bandeau de chapitre masqué tant que l'aperçu de la timeline, qui porte le titre, est affiché", () => {
+  assert.equal(chapterToastPlacement({ previewing: true, controlsVisible: false }), "hidden");
+  assert.equal(chapterToastPlacement({ previewing: true, controlsVisible: true }), "hidden");
+});
+
+test("bandeau de chapitre levé au-dessus des commandes, en bas sinon", () => {
+  assert.equal(chapterToastPlacement({ previewing: false, controlsVisible: true }), "lifted");
+  assert.equal(chapterToastPlacement({ previewing: false, controlsVisible: false }), "rest");
 });
