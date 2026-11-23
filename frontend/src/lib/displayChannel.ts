@@ -36,6 +36,10 @@ export function buildOutputUrl(target: DisplayPage, search: string, channel: Dis
   return `/${target}?${params.toString()}`;
 }
 
+export function screenUrl(channel: DisplayChannel, output: DisplayOutput | null): string {
+  return buildOutputUrl(output ?? "kiosk", "", channel);
+}
+
 export function shouldFollowInitialOutput(channel: DisplayChannel, page: DisplayPage = "kiosk"): boolean {
   if (page === "radio") return false;
   return channel === "cable";

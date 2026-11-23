@@ -30,7 +30,7 @@ export const dashboard: Dict = {
   liveCableTitle: "En direct câblé",
   liveNetworkTitle: "En direct réseau",
   liveChannelHintCable: "Lecture du canal câblé (écran de la salle).",
-  openNetworkScreen: "Ouvrir un écran du canal réseau",
+  openScreen: "Ouvrir l'écran",
   liveChannelHintNetwork: "Lecture du canal réseau (kiosks ouverts depuis d'autres appareils).",
   channelCinemaLockedHint: "Ce canal est en mode cinéma : les lancements y sont verrouillés, les adhérents lisent leurs cours en autonomie.",
   channelRadioLockedHint: "La sortie câblée affiche la radio : aucun écran vidéo ne peut montrer ce cours. Basculez-la sur Kiosque ou Cinéma pour le lancer.",
