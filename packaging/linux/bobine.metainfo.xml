@@ -59,6 +59,12 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="5.3.0" date="2026-11-23">
+      <description>
+        <p>Version 5.3.0: a Visuals space to loop images, GIFs and videos on an output, chosen from the wired and network dashboards; a timeline preview and chapter jumps on the seek bar; Devices reduced to two clear views; reminders, settings and the pause screen reworked; AVIF and HEIC images read on every platform.</p>
+        <p xml:lang="fr">Version 5.3.0 : un espace Visuels pour diffuser en boucle images, GIF et vidéos sur une sortie, choisie depuis les tableaux de bord câblé et réseau ; aperçu de la timeline et saut de chapitre sur la barre de saut ; Périphériques réduits à deux vues claires ; rappels, réglages et écran de pause retravaillés ; images AVIF et HEIC lues sur toutes les plateformes.</p>
+      </description>
+    </release>
     <release version="5.2.2" date="2026-11-13">
       <description>
         <p>Version 5.2.2: bobine.local is published again on Android, request parameters are validated on Android as elsewhere, a failed normalization keeps the original file, and icon buttons are named for screen readers.</p>
