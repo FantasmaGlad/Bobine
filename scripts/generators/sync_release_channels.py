@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Propage le registre des canaux (backend/app/release_channel.py) vers Android et le frontend."""
+"""Propage le registre des canaux (backend/app/release_channel.py) et les actions rapides vers Android et le frontend."""
 
 from __future__ import annotations
 
@@ -13,14 +13,20 @@ REPO_DIR = Path(__file__).resolve().parents[2]
 ANDROID_JSON = REPO_DIR / "android" / "release-channels.json"
 FRONTEND_TS = REPO_DIR / "frontend" / "src" / "lib" / "releaseChannels.generated.ts"
 REGISTRY_PATH = REPO_DIR / "backend" / "app" / "release_channel.py"
+QUICK_ACTIONS_PATH = REPO_DIR / "backend" / "app" / "quick_actions.py"
+PUBLIC_DIR = REPO_DIR / "frontend" / "public"
 
 
-def load_registry():
-    spec = importlib.util.spec_from_file_location("bobine_release_channel", REGISTRY_PATH)
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def load_registry():
+    return _load("bobine_release_channel", REGISTRY_PATH)
 
 
 def render_android_json(registry) -> str:
@@ -45,9 +51,42 @@ def render_frontend_ts(registry) -> str:
     )
 
 
+def render_web_manifest(channel_id: str, default_channel: str, quick_actions) -> str:
+    name = "Bobine" if channel_id == default_channel else f"Bobine {channel_id.capitalize()}"
+    icon = f"/icon-{channel_id}"
+    payload = {
+        "name": name,
+        "short_name": name,
+        "description": "Diffusion de cours, borne cinéma et radio d'ambiance",
+        "lang": "fr",
+        "start_url": "/",
+        "display": "fullscreen",
+        "display_override": ["fullscreen", "standalone"],
+        "orientation": "portrait",
+        "background_color": "#0a0a0a",
+        "theme_color": "#0a0a0a",
+        "icons": [
+            {"src": f"{icon}-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": f"{icon}-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": f"{icon}-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+        "shortcuts": [
+            {"name": action.name, "short_name": action.name, "url": action.path,
+             "icons": [{"src": f"{icon}-192.png", "sizes": "192x192", "type": "image/png"}]}
+            for action in quick_actions
+        ],
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+
+
 def outputs() -> dict[Path, str]:
     registry = load_registry()
-    return {ANDROID_JSON: render_android_json(registry), FRONTEND_TS: render_frontend_ts(registry)}
+    quick_actions = _load("bobine_quick_actions", QUICK_ACTIONS_PATH).QUICK_ACTIONS
+    manifests = {
+        PUBLIC_DIR / f"manifest-{channel_id}.json": render_web_manifest(channel_id, registry.DEFAULT_CHANNEL, quick_actions)
+        for channel_id in registry.CHANNEL_IDS
+    }
+    return {ANDROID_JSON: render_android_json(registry), FRONTEND_TS: render_frontend_ts(registry), **manifests}
 
 
 def main(argv: list[str] | None = None) -> int:

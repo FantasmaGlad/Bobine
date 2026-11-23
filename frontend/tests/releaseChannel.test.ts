@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { dictionaries } from "../src/lib/i18n/all.ts";
 import {
   applyChannelFavicon,
+  applyChannelManifest,
   channelFaviconUrl,
   channelI18nSuffix,
   isRollingReleaseChannel,
@@ -74,6 +75,21 @@ test("aucune icône de métadonnées ne concurrence le favicon du canal", () => 
   const app = join(import.meta.dirname, "..", "src", "app");
   assert.deepEqual(readdirSync(app).filter((name) => /^(favicon|icon)\./.test(name)), []);
   assert.match(readFileSync(join(app, "layout.tsx"), "utf8"), /<link rel="icon" type="image\/png" href=\{channelFaviconUrl\(DEFAULT_RELEASE_CHANNEL\)\} \/>/);
+});
+
+test("l'application installée prend le manifeste du canal, avec ses icônes et ses actions rapides", () => {
+  const link = fakeLink("manifest");
+  applyChannelManifest({ querySelectorAll: () => [link] } as unknown as Pick<Document, "querySelectorAll">, "canary");
+  assert.equal(link.href, "/manifest-canary.json");
+  const publicDir = join(import.meta.dirname, "..", "public");
+  for (const channel of RELEASE_CHANNELS) {
+    const manifest = JSON.parse(readFileSync(join(publicDir, `manifest-${channel}.json`), "utf8"));
+    assert.ok(manifest.shortcuts.length > 0);
+    for (const icon of [...manifest.icons, ...manifest.shortcuts.flatMap((s: { icons: { src: string }[] }) => s.icons)]) {
+      assert.ok(icon.src.includes(`-${channel}-`), icon.src);
+      readFileSync(join(publicDir, icon.src));
+    }
+  }
 });
 
 test("chaque canal du registre a ses libellés dans les deux langues, et un avertissement s'il est rolling", () => {

@@ -1,0 +1,85 @@
+{
+  "name": "Bobine",
+  "short_name": "Bobine",
+  "description": "Diffusion de cours, borne cinéma et radio d'ambiance",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/icon-stable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-stable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-stable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ouvrir l'administration",
+      "short_name": "Ouvrir l'administration",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/icon-stable-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ouvrir le pupitre tactile",
+      "short_name": "Ouvrir le pupitre tactile",
+      "url": "/grid",
+      "icons": [
+        {
+          "src": "/icon-stable-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ouvrir l'écran cinéma",
+      "short_name": "Ouvrir l'écran cinéma",
+      "url": "/cinema",
+      "icons": [
+        {
+          "src": "/icon-stable-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Diffuser un visuel",
+      "short_name": "Diffuser un visuel",
+      "url": "/visuals",
+      "icons": [
+        {
+          "src": "/icon-stable-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

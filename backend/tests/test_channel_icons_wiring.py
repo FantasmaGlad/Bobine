@@ -163,3 +163,30 @@ def test_preparation_des_specs_avec_les_globales_documentees_de_pyinstaller(plat
     exec(compile(prefix, f"{platform}.spec", "exec"), namespace)
     staged = tmp_path / f"bobine.{extension}"
     assert staged.read_bytes() == (REPO / f"packaging/{platform}/bobine-stable.{extension}").read_bytes()
+
+
+def test_les_actions_rapides_sont_les_memes_partout():
+    import configparser
+    import json
+
+    from app.cli.control import OPEN_PAGES
+    from app.quick_actions import QUICK_ACTIONS
+
+    desktop = configparser.ConfigParser(interpolation=None, strict=False)
+    desktop.optionxform = str
+    desktop.read_string(_read("packaging/linux/bobine.desktop"))
+    listed = [name for name in desktop["Desktop Entry"]["Actions"].split(";") if name]
+    assert listed == [action.id for action in QUICK_ACTIONS] + ["stop"]
+    for action in QUICK_ACTIONS:
+        entry = desktop[f"Desktop Action {action.id}"]
+        assert entry["Exec"] == f"/usr/bin/bobine open {action.id}"
+        assert (entry["Name"], entry["Name[fr]"]) == (action.name_en, action.name)
+        assert OPEN_PAGES[action.id] == action.path
+    for channel in CHANNELS:
+        manifest = json.loads(_read(f"frontend/public/manifest-{channel}.json"))
+        assert [(s["name"], s["url"]) for s in manifest["shortcuts"]] == [(a.name, a.path) for a in QUICK_ACTIONS]
+
+
+def test_plus_de_manifeste_ni_d_icone_web_sans_canal():
+    for legacy in ("frontend/public/manifest.json", "frontend/public/icon-192.png", "frontend/public/icon-512.png"):
+        assert not (REPO / legacy).exists(), f"{legacy} est remplacé par les fichiers par canal"
