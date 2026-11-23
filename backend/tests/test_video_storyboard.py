@@ -90,6 +90,20 @@ def test_route_answers_404_until_the_mosaic_exists(video_id, tmp_path, monkeypat
 
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg absent")
+def test_a_video_shorter_than_the_interval_gets_its_single_tile(tmp_path, monkeypatch):
+    from PIL import Image
+
+    source = tmp_path / "short.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=640x360:rate=30",
+                    "-t", "3", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)], check=True)
+    monkeypatch.setattr(storyboard.settings, "thumbnails_dir", str(tmp_path / "thumbs"))
+    assert storyboard.generate_storyboard(8, str(source), 3.0)
+    with Image.open(storyboard.sheet_path(8, 0)) as img:
+        assert img.size == (320, 180)
+    assert not storyboard.is_stale(8, str(source))
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg absent")
 def test_a_long_video_is_split_into_full_sheets(tmp_path, monkeypatch):
     from PIL import Image
 
