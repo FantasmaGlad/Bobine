@@ -60,10 +60,10 @@ export function useDashboardData(channel: OutputId) {
 
 export type DashboardData = ReturnType<typeof useDashboardData>;
 
-export function setDisplayOutput(channel: string, output: string) {
-  fetch(getApiUrl("/settings/display-output"), {
+export function setDisplayOutput(channel: string, mode: string) {
+  fetch(getApiUrl(`/outputs/${channel}/mode`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channel, output }),
+    body: JSON.stringify({ mode }),
   }).catch(() => {});
 }

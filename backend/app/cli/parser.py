@@ -5,10 +5,8 @@ from __future__ import annotations
 import argparse
 
 from app.api.contract import (
-    CHANNELS,
     DASHBOARD_CHANNELS,
     DASHBOARD_PERIODS,
-    DISPLAY_OUTPUTS,
     HISTORY_PERIODS,
     LOG_LEVELS,
     LOG_SOURCES,
@@ -20,11 +18,12 @@ from app.api.contract import (
 from .client import Client, local_version
 from .completion import completion_script
 from .config import cmd_backup, cmd_config, cmd_restore, cmd_settings
-from .control import OPEN_PAGES, cmd_api, cmd_diagnose, cmd_open, cmd_playback, cmd_update, cmd_update_status
+from .control import OPEN_PAGES, cmd_api, cmd_diagnose, cmd_open, cmd_update, cmd_update_status
 from .core import DEFAULT_TIMEOUT, EXIT_OK, Output
 from .declared import add_import_commands, add_spec_commands
 from .paging import paged
-from .read import cmd_devices, cmd_display, cmd_imports, cmd_library, cmd_logs, cmd_metrics, cmd_playlists, cmd_schedule, cmd_status, cmd_storage, cmd_version
+from .output import add_output_command
+from .read import cmd_devices, cmd_imports, cmd_library, cmd_logs, cmd_metrics, cmd_playlists, cmd_schedule, cmd_status, cmd_storage, cmd_version
 
 
 def _add_common_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool = False) -> None:
@@ -126,13 +125,6 @@ def _add_activity(sub, common: argparse.ArgumentParser) -> None:
     imports_cancel.add_argument("job_id")
     imports_sub.add_parser("diagnose", parents=[common], help="diagnostic de la chaîne d'import")
     imports.set_defaults(run=cmd_imports)
-    display = sub.add_parser("display", parents=[common], help="sortie affichée par canal")
-    display_sub = display.add_subparsers(dest="display_action", required=True)
-    display_sub.add_parser("get", parents=[common], help="lire les sorties câblé et réseau")
-    display_set = display_sub.add_parser("set", parents=[common], help="basculer un canal")
-    display_set.add_argument("channel", choices=CHANNELS)
-    display_set.add_argument("output", choices=DISPLAY_OUTPUTS)
-    display.set_defaults(run=cmd_display)
 
 
 def _add_live(sub, common: argparse.ArgumentParser) -> None:
@@ -143,14 +135,7 @@ def _add_live(sub, common: argparse.ArgumentParser) -> None:
     logs.add_argument("--limit", type=int, default=200)
     logs.set_defaults(run=cmd_logs)
 
-    for name, target, help_text in (("playback", "canal (cable, network)", "commande de lecture d'un canal"),
-                                    ("radio", "sortie (cable, network)", "commande d'une sortie radio")):
-        command = sub.add_parser(name, parents=[common], help=help_text,
-                                 description="Mêmes actions que le WebSocket de l'interface ; paramètres en clé=valeur.")
-        command.add_argument("target", metavar="cible", help=target)
-        command.add_argument("action", help="ex. play, pause, stop, seek, volume, load")
-        command.add_argument("params", nargs="*", metavar="clé=valeur")
-        command.set_defaults(run=cmd_playback)
+    add_output_command(sub, common)
 
 
 def _add_settings(sub, common: argparse.ArgumentParser) -> None:

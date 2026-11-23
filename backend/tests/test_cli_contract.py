@@ -115,11 +115,11 @@ def test_the_api_refuses_what_the_contract_does_not_list(client):
 def test_display_outputs_follow_the_contract(client):
     for channel, outputs in contract.DISPLAY_OUTPUTS_BY_CHANNEL.items():
         for output in outputs:
-            assert client.put("/api/settings/display-output", json={"channel": channel, "output": output}).status_code == 200, (channel, output)
-    refused = client.put("/api/settings/display-output", json={"channel": "network", "output": "zzz"})
+            assert client.put(f"/api/outputs/{channel}/mode", json={"mode": output}).status_code == 200, (channel, output)
+    refused = client.put("/api/outputs/network/mode", json={"mode": "zzz"})
     assert refused.status_code in (400, 409, 422)
     for channel in contract.CHANNELS:
-        client.put("/api/settings/display-output", json={"channel": channel, "output": "kiosk"})
+        client.put(f"/api/outputs/{channel}/mode", json={"mode": "kiosk"})
 
 
 def test_frontend_offers_exactly_the_contract_outputs():
@@ -159,19 +159,18 @@ def test_openapi_publishes_the_contract_patterns():
 def test_engines_and_routers_share_the_contract_values():
     from app.radio import manager as radio_manager
     from app.playback import manager as playback_manager
-    from app.api.routes import logs, playback
+    from app.api.routes import logs, outputs
     from app.api.routes.schedule import validation as schedule_validation
 
     assert playback_manager.CHANNELS == contract.CHANNELS and radio_manager.RADIO_CHANNELS == contract.RADIO_CHANNELS
     assert logs.LEVELS == contract.LOG_LEVELS and schedule_validation._CHANNELS == contract.SCHEDULE_CHANNELS
-    assert playback.facade.PLAYBACK_ACTIONS is contract.PLAYBACK_ACTIONS and playback.facade.RADIO_ACTIONS is contract.RADIO_ACTIONS
-    assert playback.facade.RADIO_OUTPUTS is contract.RADIO_OUTPUTS
+    assert outputs.PLAYBACK_ACTIONS is contract.PLAYBACK_ACTIONS and outputs.RADIO_ACTIONS is contract.RADIO_ACTIONS
 
 
 def test_the_facade_knows_every_action_of_the_contract(client):
     for action in contract.PLAYBACK_ACTIONS:
-        answer = client.post(f"/api/playback/cable/{action}", json={})
+        answer = client.post(f"/api/outputs/cable/playback/{action}", json={})
         detail = answer.json().get("detail") if answer.headers.get("content-type", "").startswith("application/json") else None
         assert not (answer.status_code == 404 and isinstance(detail, dict) and detail.get("kind") == "action"), action
-    assert client.post("/api/playback/cable/zzz_inconnue", json={}).status_code == 404
-    assert client.post("/api/playback/cable/stop", json={}).status_code in (200, 409)
+    assert client.post("/api/outputs/cable/playback/zzz_inconnue", json={}).status_code == 404
+    assert client.post("/api/outputs/cable/playback/stop", json={}).status_code in (200, 409)

@@ -1589,6 +1589,107 @@
    ]
   },
   {
+   "name": "outputs",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/outputs",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Chaque sortie avec son mode affiché, l'état de sa lecture et celui de sa radio."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/outputs/{output_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "output_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Get Output State"
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "mode",
+        "required": true,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/outputs/{output_id}/mode",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "output_id",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Bascule le mode affiché d'une sortie (kiosque, cinéma, radio, visuel), sans toucher aux autres."
+    },
+    {
+     "body": {
+      "fields": [],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/outputs/{output_id}/playback/{action}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "output_id",
+       "required": true,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "action",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Commande de lecture d'une sortie ; corps JSON : les paramètres de la commande WebSocket."
+    },
+    {
+     "body": {
+      "fields": [],
+      "format": "json"
+     },
+     "method": "POST",
+     "path": "/api/outputs/{output_id}/radio/{action}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "output_id",
+       "required": true,
+       "type": "string"
+      },
+      {
+       "choices": null,
+       "name": "action",
+       "required": true,
+       "type": "string"
+      }
+     ],
+     "query": [],
+     "summary": "Commande de la radio d'une sortie ; même contrat que la lecture."
+    }
+   ]
+  },
+  {
    "name": "playback",
    "routes": [
     {
@@ -1635,45 +1736,6 @@
       }
      ],
      "summary": "Relance l'action différée du canal : reprise à la position exacte pour une interruption par programmation, relance depuis zéro de la cible reportée par le mode coach."
-    },
-    {
-     "body": null,
-     "method": "GET",
-     "path": "/api/playback/state",
-     "path_parameters": [],
-     "query": [
-      {
-       "choices": null,
-       "name": "channel",
-       "required": false,
-       "type": "string"
-      }
-     ],
-     "summary": "Snapshot ponctuel de l'état de lecture d'UN canal (utile au premier rendu, avant connexion WebSocket)."
-    },
-    {
-     "body": {
-      "fields": [],
-      "format": "json"
-     },
-     "method": "POST",
-     "path": "/api/playback/{channel}/{action}",
-     "path_parameters": [
-      {
-       "choices": null,
-       "name": "channel",
-       "required": true,
-       "type": "string"
-      },
-      {
-       "choices": null,
-       "name": "action",
-       "required": true,
-       "type": "string"
-      }
-     ],
-     "query": [],
-     "summary": "Commande de lecture d'un canal (`cable`, `network`) ; corps JSON : les paramètres de la commande WebSocket."
     }
    ]
   },
@@ -2346,21 +2408,6 @@
     {
      "body": null,
      "method": "GET",
-     "path": "/api/radio/state",
-     "path_parameters": [],
-     "query": [
-      {
-       "choices": null,
-       "name": "channel",
-       "required": false,
-       "type": "string"
-      }
-     ],
-     "summary": "Snapshot ponctuel de l'état d'UNE sortie radio."
-    },
-    {
-     "body": null,
-     "method": "GET",
      "path": "/api/radio/tags",
      "path_parameters": [],
      "query": [],
@@ -2674,30 +2721,6 @@
      ],
      "query": [],
      "summary": "Flux audio d'un morceau radio."
-    },
-    {
-     "body": {
-      "fields": [],
-      "format": "json"
-     },
-     "method": "POST",
-     "path": "/api/radio/{output}/{action}",
-     "path_parameters": [
-      {
-       "choices": null,
-       "name": "output",
-       "required": true,
-       "type": "string"
-      },
-      {
-       "choices": null,
-       "name": "action",
-       "required": true,
-       "type": "string"
-      }
-     ],
-     "query": [],
-     "summary": "Commande d'une sortie radio (`cable`, `network`) ; même contrat que `/api/playback/{channel}/{action}`."
     }
    ]
   },
@@ -3209,38 +3232,6 @@
      "path_parameters": [],
      "query": [],
      "summary": "Restaure une sauvegarde depuis une archive ZIP uploadée."
-    },
-    {
-     "body": null,
-     "method": "GET",
-     "path": "/api/settings/display-output",
-     "path_parameters": [],
-     "query": [],
-     "summary": "Sortie active des deux canaux : câblé (écran branché à la machine) et réseau (tout autre appareil du LAN)."
-    },
-    {
-     "body": {
-      "fields": [
-       {
-        "choices": null,
-        "name": "channel",
-        "required": true,
-        "type": "string"
-       },
-       {
-        "choices": null,
-        "name": "output",
-        "required": true,
-        "type": "string"
-       }
-      ],
-      "format": "json"
-     },
-     "method": "PUT",
-     "path": "/api/settings/display-output",
-     "path_parameters": [],
-     "query": [],
-     "summary": "Bascule la sortie d'un canal (câblé ou réseau), indépendamment de l'autre."
     },
     {
      "body": null,

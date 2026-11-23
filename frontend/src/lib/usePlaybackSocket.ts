@@ -375,9 +375,10 @@ export function usePlaybackSocket(
     let cancelled = false;
     const resync = () => {
       if (cancelled) return;
-      fetch(getApiUrl(`/playback/state?channel=${channel}`), { cache: "no-store" })
+      fetch(getApiUrl(`/outputs/${channel}`), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
-        .then((data: PlaybackState | null) => {
+        .then((output: { playback: PlaybackState } | null) => {
+          const data = output?.playback ?? null;
           if (cancelled || !data) return;
           if (JSON.stringify(stateRef.current) === JSON.stringify(data)) return;
           setState(data);
@@ -394,7 +395,7 @@ export function usePlaybackSocket(
 
   useEffect(() => {
     let cancelled = false;
-    fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
+    fetch(getApiUrl("/outputs"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;

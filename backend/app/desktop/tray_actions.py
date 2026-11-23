@@ -25,10 +25,10 @@ STATE_LABELS = {
 STATE_TTL_SECONDS = 1.5
 HTTP_TIMEOUT_SECONDS = 3.0
 
-Transport = Callable[[str, str, float], dict | None]
+Transport = Callable[[str, str, float], dict | list | None]
 
 
-def _http(method: str, url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> dict | None:
+def _http(method: str, url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> dict | list | None:
     request = urllib.request.Request(url, method=method, data=b"{}" if method == "POST" else None,
                                      headers={"Accept": "application/json", "Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -36,12 +36,20 @@ def _http(method: str, url: str, timeout: float = HTTP_TIMEOUT_SECONDS) -> dict 
     return json.loads(raw) if raw else None
 
 
-def _state_path(kind: str, target: str) -> str:
-    return f"/api/playback/state?channel={target}" if kind == "playback" else f"/api/radio/state?channel=radio_{target}"
+STATES_PATH = "/api/outputs"
 
 
 def _action_path(kind: str, target: str, action: str) -> str:
-    return f"/api/{kind}/{target}/{action}"
+    return f"/api/outputs/{target}/{kind}/{action}"
+
+
+def _states_of(payload: list | None) -> dict[tuple[str, str], str | None]:
+    outputs = {output.get("id"): output for output in payload or [] if isinstance(output, dict)}
+    result: dict[tuple[str, str], str | None] = {}
+    for kind, target, _ in TARGETS:
+        state = (outputs.get(target, {}).get(kind) or {}).get("state")
+        result[(kind, target)] = state if isinstance(state, str) else "idle"
+    return result
 
 
 class Controls:
@@ -57,14 +65,10 @@ class Controls:
         with self._lock:
             if self._cache and self._clock() - self._cache[0] < STATE_TTL_SECONDS:
                 return self._cache[1]
-        result: dict[tuple[str, str], str | None] = {}
-        for kind, target, _ in TARGETS:
-            try:
-                payload = self._transport("GET", self._admin_url() + _state_path(kind, target), HTTP_TIMEOUT_SECONDS)
-                state = (payload or {}).get("state")
-                result[(kind, target)] = state if isinstance(state, str) else "idle"
-            except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
-                result[(kind, target)] = None
+        try:
+            result = _states_of(self._transport("GET", self._admin_url() + STATES_PATH, HTTP_TIMEOUT_SECONDS))
+        except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
+            result = {(kind, target): None for kind, target, _ in TARGETS}
         with self._lock:
             self._cache = (self._clock(), result)
         return result
@@ -98,7 +102,7 @@ class Controls:
         return ok
 
     def stop_all(self) -> int:
-        """Arrête les quatre sorties ; renvoie le nombre d'arrêts acceptés (un échec n'empêche pas les autres)."""
+        """Arrête la lecture et la radio de chaque sortie ; renvoie le nombre d'arrêts acceptés (un échec n'empêche pas les autres)."""
         accepted = sum(self._send(kind, target, "stop") for kind, target, _ in TARGETS)
         self.invalidate()
         return accepted

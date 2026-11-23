@@ -4,19 +4,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.responses import DefaultPlaylists, RadioSnapshot, RadioSound
+from app.api.responses import DefaultPlaylists, RadioSound
 from app.database import get_db
 from app.models import RadioPlaylist
 
 router = APIRouter()
-
-
-@router.get("/state", response_model=RadioSnapshot)
-def get_radio_state(channel: str | None = None):
-    """Snapshot ponctuel de l'état d'UNE sortie radio."""
-    from app.radio.manager import get_radio_manager
-
-    return get_radio_manager(channel).snapshot()
 
 
 @router.get("/sound", response_model=RadioSound)

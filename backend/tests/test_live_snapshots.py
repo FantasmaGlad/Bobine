@@ -10,8 +10,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 LIVE = (
-    "/api/playback/state?channel=cable", "/api/playback/state?channel=network",
-    "/api/radio/state?channel=radio_cable", "/api/radio/state?channel=radio_network",
+    "/api/outputs", "/api/outputs/cable", "/api/outputs/network", "/api/outputs/network_2",
     "/api/radio/sound?channel=radio_network", "/api/radio/default-playlist", "/api/health", "/api/time",
     "/api/radio/artists", "/api/radio/albums", "/api/radio/tags", "/api/settings/laptop-lid", "/api/metrics/ratings",
 )
