@@ -30,7 +30,7 @@ def sheet_path(video_id: int, sheet: int) -> Path:
 def _command(source: str, folder: Path, layout: StoryboardLayout) -> list[str]:
     tile = f"scale={layout.tile_width}:{layout.tile_height}:force_original_aspect_ratio=decrease," \
            f"pad={layout.tile_width}:{layout.tile_height}:(ow-iw)/2:(oh-ih)/2"
-    filters = f"fps=1/{layout.interval_seconds},{tile},tile={layout.columns}x{layout.rows}"
+    filters = f"fps=1/{layout.interval_seconds}:eof_action=pass,{tile},tile={layout.columns}x{layout.rows}"
     return [FFMPEG_BIN, "-hide_banner", "-loglevel", "error", "-y", "-skip_frame", "nokey", "-i", source,
             "-an", "-vf", filters, "-fps_mode", "vfr", "-q:v", "3", "-start_number", "0", str(folder / "sheet-%d.jpg")]
 
