@@ -15,7 +15,7 @@ from app.radio.manager import get_all_radio_managers
 from app.api.routes import (
     videos, playback, schedule, playlists, backgrounds, audio, audio_playlists,
     radio, radio_playlists, radio_announcements, settings as settings_router, logs, import_jobs,
-    updates, metrics, display, uploads, chapters, devices, diagnostics, storage, health, catalog, signage,
+    updates, metrics, display, uploads, chapters, devices, diagnostics, storage, health, catalog, signage, visuals,
 )
 from app.api.routes.videos.streams import reset_stale_web_rendition_status
 from app.api.static_files import mount_static_files
@@ -147,6 +147,7 @@ app.include_router(playback.router)
 app.include_router(playlists.router)
 app.include_router(schedule.router)
 app.include_router(backgrounds.router)
+app.include_router(visuals.router)
 app.include_router(audio.router)
 app.include_router(audio_playlists.router)
 app.include_router(radio.router)

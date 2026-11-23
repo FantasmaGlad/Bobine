@@ -7,6 +7,7 @@ from .runtime import ActivityLog, CourseRating, PlaybackSession, PlaybackState, 
 from .schedule import Schedule, ScheduleOverride
 from .storage import ExternalVolume, StorageImport
 from .video import Playlist, PlaylistItem, Video, VideoChapter, VideoSubtitle
+from .visual import Visual
 
 __all__ = [
     "Base",
@@ -25,6 +26,7 @@ __all__ = [
     "Playlist",
     "PlaylistItem",
     "Background",
+    "Visual",
     "AudioCourse",
     "AudioTrack",
     "AudioPlaylist",

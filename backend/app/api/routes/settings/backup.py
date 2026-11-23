@@ -250,6 +250,8 @@ def _wipe_data() -> None:
         runtime_settings.thumbnails_dir,
         runtime_settings.backgrounds_dir,
         runtime_settings.backgrounds_watch_dir,
+        runtime_settings.visuals_dir,
+        runtime_settings.visuals_watch_dir,
         runtime_settings.audio_dir,
         runtime_settings.audio_watch_dir,
         runtime_settings.radio_dir,

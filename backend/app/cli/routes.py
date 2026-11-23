@@ -50,6 +50,8 @@ COVERED: dict[str, str] = {
     "POST /api/audio/upload-zip": "audio",
     "POST /api/backgrounds/upload": "backgrounds",
     "POST /api/backgrounds/upload-zip": "backgrounds",
+    "POST /api/visuals/upload": "visuals",
+    "POST /api/visuals/upload-zip": "visuals",
     "POST /api/videos/upload-zip": "library",
     "POST /api/radio/tracks/upload": "radio-library",
     "POST /api/radio/tracks/upload-zip": "radio-library",
@@ -69,7 +71,7 @@ class Exemption(NamedTuple):
 
 
 EXEMPT: tuple[Exemption, ...] = (
-    Exemption(r"GET /api/(videos/\{video_id\}|audio/tracks/\{track_id\}|backgrounds/\{background_id\}|radio/tracks/\{track_id\}|radio/announcements/\{announcement_id\})/stream", "flux média pour un lecteur"),
+    Exemption(r"GET /api/(videos/\{video_id\}|audio/tracks/\{track_id\}|backgrounds/\{background_id\}|visuals/\{visual_id\}|radio/tracks/\{track_id\}|radio/announcements/\{announcement_id\})/stream", "flux média pour un lecteur"),
     Exemption(r"GET /api/(radio/tracks/\{track_id\}/cover|videos/\{video_id\}/subtitles/\{subtitle_id\}/vtt)", "contenu pour un lecteur ou un navigateur"),
     Exemption(r"GET /api/logs/technical/download", "téléchargement du journal : `bobine logs` lit le même journal"),
     Exemption(r"POST /api/metrics/(sessions/(start|end)|ratings)", "rapport émis par un lecteur"),

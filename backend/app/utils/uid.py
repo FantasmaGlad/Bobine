@@ -5,7 +5,7 @@ import re
 import uuid
 
 PREFIXES = {
-    "vid": "vidéo", "crs": "cours audio", "trk": "piste de cours", "rtk": "morceau radio", "bg": "fond",
+    "vid": "vidéo", "crs": "cours audio", "trk": "piste de cours", "rtk": "morceau radio", "bg": "fond", "vis": "visuel",
     "pl": "playlist vidéo", "apl": "playlist audio", "rpl": "playlist radio", "tag": "étiquette radio",
     "ann": "annonce", "rul": "règle d'annonce", "sch": "programmation", "ovr": "exception de planning",
 }
