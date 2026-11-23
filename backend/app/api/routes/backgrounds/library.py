@@ -93,7 +93,7 @@ def upload_background(
 def _run_background_archive_job(job_id: str, archive_path: str) -> None:
     try:
         backgrounds = import_media_archive(
-            archive_path, job_id, media_formats.VIDEO | {".webm"} | media_formats.IMAGE,
+            archive_path, job_id, media_formats.VIDEO | {".webm"} | media_formats.BACKGROUND_IMAGE,
             lambda path, name: import_background(path, name, ImportSource.upload, job_id=job_id), "d'ambiance",
         )
         update_job(job_id, stage="done", result_id=backgrounds[0].id)

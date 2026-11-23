@@ -18,11 +18,12 @@ _IMAGE_CONTENT_TYPES = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
+    ".gif": "image/gif",
 }
 
 
 @router.head("/api/backgrounds/{background_id}/stream", include_in_schema=False)
-@router.get("/api/backgrounds/{background_id}/stream", **binary("video/mp4", "image/jpeg", "image/png", "image/webp"))
+@router.get("/api/backgrounds/{background_id}/stream", **binary("video/mp4", "image/jpeg", "image/png", "image/webp", "image/gif"))
 async def stream_background(
     background_id: int,
     request: Request,

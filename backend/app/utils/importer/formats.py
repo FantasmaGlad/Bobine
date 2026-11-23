@@ -6,7 +6,7 @@ from app.utils import media_formats
 SUPPORTED_EXTENSIONS = media_formats.VIDEO
 
 
-IMAGE_EXTENSIONS = media_formats.IMAGE
+IMAGE_EXTENSIONS = media_formats.BACKGROUND_IMAGE
 
 
 BACKGROUND_SUPPORTED_EXTENSIONS = SUPPORTED_EXTENSIONS | {".webm"} | IMAGE_EXTENSIONS
