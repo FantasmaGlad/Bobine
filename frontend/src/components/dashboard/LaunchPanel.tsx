@@ -6,13 +6,14 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { LockedOutput } from "@/lib/displayChannel";
+import { outputById, type OutputId } from "@/lib/outputs";
 import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
 import { formatMinutes } from "@/lib/format";
 
 import type { PlaylistSummary, Send, VideoSummary } from "./types";
 
 interface Props {
-  isCable: boolean;
+  channel: OutputId;
   videos: VideoSummary[];
   playlists: PlaylistSummary[];
   locked: boolean;
@@ -42,19 +43,21 @@ const LOCK_HINT: Record<LockedOutput, string> = {
   signage: "dashboard.channelSignageLockedHint",
 };
 
-export default function LaunchPanel({ isCable, videos, playlists, locked, lockedReason, sendCommand }: Props) {
+export default function LaunchPanel({ channel, videos, playlists, locked, lockedReason, sendCommand }: Props) {
   const { t } = useAppSettings();
   const [videoId, setVideoId] = useState("");
   const [playlistId, setPlaylistId] = useState("");
   const lockHint = t(LOCK_HINT[lockedReason ?? "cinema"]);
+  const wired = outputById(channel).wired;
+  const output = t(`outputs.${channel}`);
   return (
     <div className="bento-col-side">
       <div className="launch-block">
         <h3>
-          <Icon name={isCable ? "cable" : "wifi"} size={18} />
-          {isCable ? t("dashboard.launchCourseCableTitle") : t("dashboard.launchCourseNetworkTitle")}
+          <Icon name={wired ? "cable" : "wifi"} size={18} />
+          {wired ? t("dashboard.launchCourseCableTitle") : t("dashboard.launchCourseNetworkTitle", { output })}
         </h3>
-        <p className="launch-block-hint">{isCable ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}</p>
+        <p className="launch-block-hint">{wired ? t("dashboard.launchCourseCableHint") : t("dashboard.launchCourseNetworkHint")}</p>
         <Launcher
           value={videoId} onChange={setVideoId} placeholder={t("dashboard.chooseVideo")} icon="play_arrow"
           disabled={!videoId || locked} title={locked ? lockHint : undefined}

@@ -94,14 +94,14 @@ export default function CinemaPage() {
   const chapters = useVideoChapters(selected?.id, getApiUrl);
   const storyboard = useStoryboard(selected?.id);
   const hideControls = wiredDisplayMode === "dual_screen" && isWiredDisplay();
-  const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion, serverNow } = usePlaybackSocket(
+  const { state, displayOutputs, sendCommand, cinemaState, libraryVersion, serverNow } = usePlaybackSocket(
     undefined, undefined, channel, (action, positionSeconds, videoId, extra) => cinemaCmd.current?.(action, positionSeconds, videoId, extra), "cinema",
   );
   const videos = useCinemaVideos(libraryVersion);
   const remote = useNowPlaying(cinemaState, sendCommand);
   useMediaSound(deckA, state.sound);
   useMediaSound(deckB, state.sound);
-  useDisplayOutputRedirect("cinema", displayOutputCable, displayOutputNetwork);
+  useDisplayOutputRedirect("cinema", displayOutputs);
 
   useEffect(() => {
     activeDeckRef.current = activeDeck;

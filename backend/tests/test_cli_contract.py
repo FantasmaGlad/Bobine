@@ -118,8 +118,8 @@ def test_display_outputs_follow_the_contract(client):
             assert client.put("/api/settings/display-output", json={"channel": channel, "output": output}).status_code == 200, (channel, output)
     refused = client.put("/api/settings/display-output", json={"channel": "network", "output": "radio"})
     assert refused.status_code in (400, 409, 422)
-    client.put("/api/settings/display-output", json={"channel": "cable", "output": "kiosk"})
-    client.put("/api/settings/display-output", json={"channel": "network", "output": "kiosk"})
+    for channel in contract.CHANNELS:
+        client.put("/api/settings/display-output", json={"channel": channel, "output": "kiosk"})
 
 
 def test_frontend_offers_exactly_the_contract_outputs():
@@ -131,9 +131,9 @@ def test_frontend_offers_exactly_the_contract_outputs():
     if not source.exists():
         pytest.skip("frontend absent de cette arborescence")
     text = source.read_text(encoding="utf-8")
-    pattern = r'\{ id: "([^"]+)", radioChannel: "([^"]+)", modes: \[([^\]]*)\], wired: (true|false), coach: (true|false) \}'
+    pattern = r'\{ id: "([^"]+)", radioChannel: (?:"([^"]+)"|null), modes: \[([^\]]*)\], wired: (true|false), coach: (true|false) \}'
     listed = [
-        (output_id, radio, tuple(re.findall(r'"([^"]+)"', modes)), wired == "true", coach == "true")
+        (output_id, radio or None, tuple(re.findall(r'"([^"]+)"', modes)), wired == "true", coach == "true")
         for output_id, radio, modes, wired, coach in re.findall(pattern, text)
     ]
     assert listed == [(o.id, o.radio_channel, o.modes, o.wired, o.coach) for o in OUTPUTS]

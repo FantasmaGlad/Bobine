@@ -5,7 +5,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
-import type { OutputId } from "@/lib/outputs";
+import { DEFAULT_OUTPUT, outputById, type OutputId } from "@/lib/outputs";
 
 const STOP_HOLD_MS = 650;
 
@@ -96,7 +96,7 @@ export default function KioskControls({ state, isActive, channel, sendCommand, o
             {t("mobileRemote.launchQuickBtn")}
           </button>
         )}
-        {channel !== "network" && (
+        {outputById(channel ?? DEFAULT_OUTPUT).coach && (
           <Link href="/coach/" className="btn btn-primary mobile-remote-quick-btn" style={{ textDecoration: "none" }}>
             <Icon name="mic" size={18} />
             {t("mobileRemote.coachQuickBtn")}
@@ -104,7 +104,7 @@ export default function KioskControls({ state, isActive, channel, sendCommand, o
         )}
       </div>
 
-      <a href={`/schedule/?channel=${channel ?? "cable"}`} className="btn btn-secondary" style={{ textDecoration: "none", width: "100%", minHeight: "50px", flexShrink: 0, marginTop: "4px" }}>
+      <a href={`/schedule/?channel=${channel ?? DEFAULT_OUTPUT}`} className="btn btn-secondary" style={{ textDecoration: "none", width: "100%", minHeight: "50px", flexShrink: 0, marginTop: "4px" }}>
         <Icon name="calendar_month" size={18} />
         {t("dashboard.viewSchedule")}
       </a>

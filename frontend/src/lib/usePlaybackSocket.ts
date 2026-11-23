@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
-import { createPageClientId, lockedOutput, parseDisplayOutput, type DisplayOutput, type LockedOutput } from "@/lib/displayChannel";
+import { createPageClientId, lockedOutput, parseDisplayOutput, parseDisplayOutputs, type DisplayOutputs, type LockedOutput } from "@/lib/displayChannel";
 import { DEFAULT_OUTPUT, isOutputId, type OutputId } from "@/lib/outputs";
 import { type ClockAnchor } from "@/lib/playbackClock";
 import type { RadioSoundSettings } from "@/lib/radioSound";
@@ -158,8 +158,7 @@ export function usePlaybackSocket(
   const [state, setState] = useState<PlaybackState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
   const [cinemaState, setCinemaState] = useState<CinemaRemoteState | null>(null);
-  const [displayOutputCable, setDisplayOutputCable] = useState<DisplayOutput | null>(null);
-  const [displayOutputNetwork, setDisplayOutputNetwork] = useState<DisplayOutput | null>(null);
+  const [displayOutputs, setDisplayOutputs] = useState<DisplayOutputs>({});
   const [cinemaLocked, setCinemaLocked] = useState(false);
   const [lockedReason, setLockedReason] = useState<LockedOutput | null>(null);
   const cinemaLockedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,9 +255,9 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "display_output") {
-            const output = isOutputId(parsed.channel) ? parseDisplayOutput(parsed.channel, parsed.output) : null;
-            if (output && parsed.channel === "cable") setDisplayOutputCable(output);
-            else if (output) setDisplayOutputNetwork(output);
+            const channel = isOutputId(parsed.channel) ? parsed.channel : null;
+            const output = channel ? parseDisplayOutput(channel, parsed.output) : null;
+            if (channel && output) setDisplayOutputs((prev) => ({ ...prev, [channel]: output }));
             return;
           }
           if (parsed.event === "command_rejected") {
@@ -399,10 +398,7 @@ export function usePlaybackSocket(
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        const cable = parseDisplayOutput("cable", data.cable);
-        const network = parseDisplayOutput("network", data.network);
-        if (cable) setDisplayOutputCable((prev) => prev ?? cable);
-        if (network) setDisplayOutputNetwork((prev) => prev ?? network);
+        setDisplayOutputs((prev) => parseDisplayOutputs(data, prev));
       })
       .catch(() => {});
     return () => {
@@ -424,7 +420,7 @@ export function usePlaybackSocket(
   }, [channel]);
 
   return {
-    state, connected, sendCommand, serverNow, isPrimary, displayOutputCable, displayOutputNetwork,
+    state, connected, sendCommand, serverNow, isPrimary, displayOutputs,
     cinemaLocked, lockedReason, cinemaState, libraryVersion,
   };
 }

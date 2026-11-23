@@ -1418,7 +1418,8 @@
        "choices": [
         "all",
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "name": "channel",
        "required": false,
@@ -3456,7 +3457,8 @@
       {
        "choices": [
         "cable",
-        "network"
+        "network",
+        "network_2"
        ],
        "name": "channel",
        "required": false,

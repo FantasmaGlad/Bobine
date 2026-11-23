@@ -1,6 +1,7 @@
 import type { Dict } from "../core.ts";
 
 import { nav } from "./nav.ts";
+import { outputs } from "./outputs.ts";
 import { storage } from "./storage/index.ts";
 import { devices } from "./devices.ts";
 import { radioLibrary } from "./radioLibrary.ts";
@@ -38,6 +39,7 @@ import { visuals } from "./visuals.ts";
 
 export const dictionary: Dict = {
   nav,
+  outputs,
   storage,
   devices,
   radioLibrary,

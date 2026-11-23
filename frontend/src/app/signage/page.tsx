@@ -13,7 +13,7 @@ export default function SignagePage() {
   const { t } = useAppSettings();
   const channel = useClientSnapshot<DisplayChannel>(() => getDisplayChannel("signage"), DEFAULT_OUTPUT);
   const outputs = useDisplayOutputs();
-  useDisplayOutputRedirect("signage", outputs.cable, outputs.network);
+  useDisplayOutputRedirect("signage", outputs);
   const { entries } = useSignageLoop(channel);
   return <SignagePlayer entries={entries ?? []} emptyLabel={entries === null ? "" : t("signage.empty")} />;
 }

@@ -7,16 +7,16 @@ import CinemaNowCard from "@/components/mobile-remote/CinemaNowCard";
 import KioskNowCard from "@/components/mobile-remote/KioskNowCard";
 import type { VideoSummary } from "@/components/dashboard/LaunchSheet";
 import type { useVideoChapters } from "@/lib/chapters";
-import type { DisplayOutput } from "@/lib/displayChannel";
+import type { DisplayOutput, DisplayOutputs } from "@/lib/displayChannel";
 import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
-import type { OutputId } from "@/lib/outputs";
+import { OUTPUTS, type OutputId, type RadioChannelId } from "@/lib/outputs";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 type Chapters = ReturnType<typeof useVideoChapters>;
 
 interface MainProps {
   connected: boolean;
-  channelRadio: boolean;
+  radioChannel: RadioChannelId | null;
   channelCinema: boolean;
   isActive: boolean;
   cinemaLive: CinemaRemoteState | null;
@@ -56,9 +56,9 @@ function idleMain({ onLaunch, t }: MainProps) {
 }
 
 export function RemoteMain(props: MainProps) {
-  const { connected, channelRadio, channelCinema, isActive, state, livePosition, getApiUrl, kioskChapters, sendCommand, t } = props;
+  const { connected, radioChannel, channelCinema, isActive, state, livePosition, getApiUrl, kioskChapters, sendCommand, t } = props;
   if (!connected) return <div className="mobile-remote-empty">{t("mobileRemote.connectingHint")}</div>;
-  if (channelRadio) return <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />;
+  if (radioChannel) return <RadioRemotePanel key={radioChannel} channel={radioChannel} variant="compact" />;
   if (channelCinema) return cinemaMain(props);
   if (!isActive) return idleMain(props);
   return <KioskNowCard state={state} livePosition={livePosition} getApiUrl={getApiUrl} chapters={kioskChapters} sendCommand={sendCommand} />;
@@ -66,31 +66,23 @@ export function RemoteMain(props: MainProps) {
 
 interface SwitchProps {
   channel?: OutputId;
-  displayOutputCable: DisplayOutput | null;
-  displayOutputNetwork: DisplayOutput | null;
+  displayOutputs: DisplayOutputs;
   onSetDisplayOutput: (channel: OutputId, output: DisplayOutput) => void;
   t: T;
 }
 
-export function OutputSwitches({ channel, displayOutputCable, displayOutputNetwork, onSetDisplayOutput, t }: SwitchProps) {
+export function OutputSwitches({ channel, displayOutputs, onSetDisplayOutput, t }: SwitchProps) {
   return (
     <div className="mobile-remote-output olc-anim-in">
-      {(!channel || channel === "cable") && (
+      {OUTPUTS.filter((output) => !channel || channel === output.id).map((output) => (
         <DisplayOutputSwitch
-          channel="cable"
-          displayOutput={displayOutputCable}
-          onSetDisplayOutput={(output) => onSetDisplayOutput("cable", output)}
-          label={t("dashboard.displayOutputCableLabel")}
+          key={output.id}
+          channel={output.id}
+          displayOutput={displayOutputs[output.id] ?? null}
+          onSetDisplayOutput={(mode) => onSetDisplayOutput(output.id, mode)}
+          label={output.wired ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel", { output: t(`outputs.${output.id}`) })}
         />
-      )}
-      {(!channel || channel === "network") && (
-        <DisplayOutputSwitch
-          channel="network"
-          displayOutput={displayOutputNetwork}
-          onSetDisplayOutput={(output) => onSetDisplayOutput("network", output)}
-          label={t("dashboard.displayOutputNetworkLabel")}
-        />
-      )}
+      ))}
     </div>
   );
 }

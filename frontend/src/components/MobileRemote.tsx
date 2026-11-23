@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useVideoChapters } from "@/lib/chapters";
-import type { DisplayOutput } from "@/lib/displayChannel";
+import type { DisplayOutput, DisplayOutputs } from "@/lib/displayChannel";
 import KioskControls from "@/components/mobile-remote/KioskControls";
 import { OutputSwitches, RemoteMain } from "@/components/mobile-remote/RemoteMain";
 import SignagePanel from "@/components/dashboard/SignagePanel";
 import LaunchSheet, { type BackgroundSummary, type PlaylistSummary, type VideoSummary } from "@/components/dashboard/LaunchSheet";
-import type { OutputId } from "@/lib/outputs";
+import { DEFAULT_OUTPUT, hasMode, outputById, type OutputId } from "@/lib/outputs";
 
 interface MobileRemoteProps {
   state: PlaybackState;
@@ -20,8 +20,7 @@ interface MobileRemoteProps {
   playlists: PlaylistSummary[];
   backgrounds: BackgroundSummary[];
   getApiUrl: (path: string) => string;
-  displayOutputCable: DisplayOutput | null;
-  displayOutputNetwork: DisplayOutput | null;
+  displayOutputs: DisplayOutputs;
   cinemaLive: CinemaRemoteState | null;
   onCinemaPlayPause: () => void;
   onSetDisplayOutput: (channel: OutputId, output: DisplayOutput) => void;
@@ -37,8 +36,7 @@ export default function MobileRemote({
   playlists,
   backgrounds,
   getApiUrl,
-  displayOutputCable,
-  displayOutputNetwork,
+  displayOutputs,
   cinemaLive,
   onCinemaPlayPause,
   onSetDisplayOutput,
@@ -47,10 +45,12 @@ export default function MobileRemote({
   const { t } = useAppSettings();
   const [sheet, setSheet] = useState<"none" | "launch">("none");
 
-  const channelOutput = channel === "network" ? displayOutputNetwork : displayOutputCable;
+  const current = channel ?? DEFAULT_OUTPUT;
+  const channelOutput = displayOutputs[current] ?? null;
   const channelCinema = channelOutput === "cinema";
   const channelSignage = channelOutput === "signage";
-  const channelRadio = channel !== "network" && displayOutputCable === "radio";
+  const radioChannel = hasMode(current, "radio") && channelOutput === "radio" ? outputById(current).radioChannel : null;
+  const channelRadio = radioChannel !== null;
 
   if ((channelCinema || channelRadio || channelSignage) && sheet !== "none") setSheet("none");
 
@@ -58,9 +58,9 @@ export default function MobileRemote({
   const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
   const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
 
-  const main = connected && channelSignage ? <SignagePanel channel={channel ?? "cable"} /> : (
+  const main = connected && channelSignage ? <SignagePanel channel={current} /> : (
     <RemoteMain
-      connected={connected} channelRadio={channelRadio} channelCinema={channelCinema} isActive={isActive}
+      connected={connected} radioChannel={radioChannel} channelCinema={channelCinema} isActive={isActive}
       cinemaLive={cinemaLive} cinemaChapters={cinemaChapters} kioskChapters={kioskChapters} state={state} livePosition={livePosition}
       videos={videos} getApiUrl={getApiUrl} sendCommand={sendCommand} onCinemaPlayPause={onCinemaPlayPause} onLaunch={() => setSheet("launch")} t={t}
     />
@@ -69,7 +69,7 @@ export default function MobileRemote({
   return (
     <div className="mobile-remote">
       {connected && (
-        <OutputSwitches channel={channel} displayOutputCable={displayOutputCable} displayOutputNetwork={displayOutputNetwork} onSetDisplayOutput={onSetDisplayOutput} t={t} />
+        <OutputSwitches channel={channel} displayOutputs={displayOutputs} onSetDisplayOutput={onSetDisplayOutput} t={t} />
       )}
       {main}
       {!channelCinema && !channelSignage && (

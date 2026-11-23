@@ -28,7 +28,7 @@ export const metricsPage: Dict = {
   channelLabel: "Channel",
   channelAll: "All channels",
   channelCable: "Wired (HDMI)",
-  channelNetwork: "Network (LAN)",
+  channelNetwork: "{{output}} (LAN)",
   kpiSatisfaction: "Average Satisfaction",
   kpiSatisfactionCount: "{{count}} ratings submitted",
   kpiCompletionRate: "Completion Rate",

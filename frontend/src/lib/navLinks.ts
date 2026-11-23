@@ -1,3 +1,5 @@
+import { OUTPUTS, type OutputId } from "./outputs.ts";
+
 export interface NavLinkConfig {
   href: string;
   labelKey: string;
@@ -18,9 +20,16 @@ export function isNavGroup(entry: NavEntry): entry is NavGroupConfig {
   return (entry as NavGroupConfig).children !== undefined;
 }
 
+export function dashboardHref(id: OutputId): string {
+  return `/dashboard-${id.replace("_", "-")}`;
+}
+
 export const navEntries: NavEntry[] = [
-  { href: "/dashboard-cable", labelKey: "nav.dashboardCable", iconName: "cable" },
-  { href: "/dashboard-network", labelKey: "nav.dashboardNetwork", iconName: "wifi" },
+  ...OUTPUTS.map((output) => ({
+    href: dashboardHref(output.id),
+    labelKey: `nav.dashboardOutputs.${output.id}`,
+    iconName: output.wired ? "cable" : "wifi",
+  })),
   {
     groupKey: "nav.radioGroup",
     iconName: "radio",

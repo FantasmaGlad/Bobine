@@ -4,9 +4,10 @@ import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { screenUrl, type DisplayOutput, type LockedOutput } from "@/lib/displayChannel";
+import { outputById, type OutputId } from "@/lib/outputs";
 
 interface Props {
-  isCable: boolean;
+  channel: OutputId;
   connected: boolean;
   state: string;
   displayOutput: DisplayOutput | null;
@@ -31,25 +32,26 @@ function pillClass(connected: boolean, locked: LockedOutput | null, state: strin
   return state === "waiting" ? "waiting state-waiting" : `ok state-${state}`;
 }
 
-export default function ChannelCard({ isCable, connected, state, displayOutput, onSetDisplayOutput }: Props) {
+export default function ChannelCard({ channel, connected, state, displayOutput, onSetDisplayOutput }: Props) {
   const { t } = useAppSettings();
   const locked = lockedBy(displayOutput);
   const label = !connected ? t("dashboard.disconnected")
     : locked ? t(ACTIVE_LABEL[locked])
     : STATES.includes(state) ? t(`dashboard.stateLabels.${state}`) : state;
-  const channel = isCable ? "cable" : "network";
+  const wired = outputById(channel).wired;
+  const output = t(`outputs.${channel}`);
   return (
     <div className="live-block channel-card">
       <div className="channel-card-left">
         <h3>
-          <Icon name={isCable ? "cable" : "wifi"} size={18} />
-          {isCable ? t("dashboard.liveCableTitle") : t("dashboard.liveNetworkTitle")}
+          <Icon name={wired ? "cable" : "wifi"} size={18} />
+          {wired ? t("dashboard.liveCableTitle") : t("dashboard.liveNetworkTitle", { output })}
         </h3>
         <span className={`status-pill ${pillClass(connected, locked, state)}`}>{label}</span>
       </div>
       <div className="channel-card-right">
         <DisplayOutputSwitch channel={channel} displayOutput={displayOutput} onSetDisplayOutput={onSetDisplayOutput}
-          label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")} />
+          label={wired ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel", { output })} />
         <a href={screenUrl(channel, displayOutput)} target="_blank" rel="noopener noreferrer" className="status-pill channel-card-open">
           <Icon name="open_in_new" size={14} />
           {t("dashboard.openScreen")}

@@ -2,8 +2,11 @@ import type { Dict } from "../core.ts";
 
 export const nav: Dict = {
   dashboard: "Dashboard",
-  dashboardCable: "Wired Output",
-  dashboardNetwork: "Network Output",
+  dashboardOutputs: {
+    cable: "Wired Output",
+    network: "Network 1 Output",
+    network_2: "Network 2 Output",
+  },
   library: "Library",
   audio: "Audio Courses",
   backgrounds: "Backgrounds",
