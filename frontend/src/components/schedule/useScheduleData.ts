@@ -6,7 +6,6 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 import { addDays, isSameLocalDay, type ChannelValue, type Occurrence, type PlaylistSummary, type RadioPlaylistSummary, type VideoSummary } from "@/lib/scheduleTime";
 import type { ShowToast } from "@/lib/useToast";
-import { isRadioChannel, outputOfRadio } from "@/lib/outputs";
 
 const byRunAt = (a: Occurrence, b: Occurrence) => new Date(a.run_at).getTime() - new Date(b.run_at).getTime();
 
@@ -31,18 +30,16 @@ export function useScheduleCatalog() {
 
 export type ScheduleCatalog = ReturnType<typeof useScheduleCatalog>;
 
-export function useRadioLaneOutput(channel: ChannelValue) {
+export function useOutputMode(channel: ChannelValue) {
   const [read, setRead] = useState<{ channel: ChannelValue; mode: string } | null>(null);
   useEffect(() => {
-    if (!isRadioChannel(channel)) return;
-    const output = outputOfRadio(channel).id;
     let cancelled = false;
-    fetch(getApiUrl(`/outputs/${output}`), { cache: "no-store" })
+    fetch(getApiUrl(`/outputs/${channel}`), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data && typeof data.mode === "string") setRead({ channel, mode: data.mode });
       })
-      .catch(() => {});
+      .catch((error) => console.warn("Mode de la sortie illisible", error));
     return () => {
       cancelled = true;
     };

@@ -5,7 +5,6 @@ import React, { useState } from "react";
 import { errorMessage } from "@/lib/apiError";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
-import { isRadioLane } from "@/lib/scheduleChannels";
 import { toDatetimeLocalValue, type ChannelValue, type ScheduleDetail, type ScheduleTypeValue, type TargetType } from "@/lib/scheduleTime";
 import type { ShowToast } from "@/lib/useToast";
 
@@ -22,9 +21,9 @@ export interface ScheduleForm {
   is24_7: boolean;
 }
 
-function blankForm(channel: ChannelValue): ScheduleForm {
+function blankForm(): ScheduleForm {
   return {
-    targetType: isRadioLane(channel) ? "radio_playlist" : "video",
+    targetType: "video",
     targetId: "", targetSearch: "", scheduleType: "once", dateTime: "", daysOfWeek: [],
     time: "18:00", active: true, endTime: "20:00", is24_7: false,
   };
@@ -69,8 +68,8 @@ function missingField(form: ScheduleForm): string | null {
   return null;
 }
 
-function presetForm(channel: ChannelValue, presetDate?: Date, preset?: { type: TargetType; id: number }, exactTime = false): ScheduleForm {
-  const next = blankForm(channel);
+function presetForm(presetDate?: Date, preset?: { type: TargetType; id: number }, exactTime = false): ScheduleForm {
+  const next = blankForm();
   if (presetDate) {
     const withTime = new Date(presetDate);
     if (!exactTime) withTime.setHours(withTime.getHours() + 1, 0, 0, 0);
@@ -144,7 +143,7 @@ function useScheduleWrite(form: ScheduleForm, channel: ChannelValue, editingId: 
 
 export function useScheduleForm(channel: ChannelValue, showToast: ShowToast, onChanged: () => void) {
   const { t } = useAppSettings();
-  const [form, setForm] = useState<ScheduleForm>(() => blankForm(channel));
+  const [form, setForm] = useState<ScheduleForm>(blankForm);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [overrideCount, setOverrideCount] = useState(0);
@@ -152,7 +151,7 @@ export function useScheduleForm(channel: ChannelValue, showToast: ShowToast, onC
   const patch = (changes: Partial<ScheduleForm>) => setForm((prev) => ({ ...prev, ...changes }));
 
   const openCreate = (presetDate?: Date, preset?: { type: TargetType; id: number }, exactTime = false) => {
-    setForm(presetForm(channel, presetDate, preset, exactTime));
+    setForm(presetForm(presetDate, preset, exactTime));
     setOverrideCount(0);
     setEditingId(null);
     setOpen(true);

@@ -7,6 +7,7 @@ from .registry import (
     display_modes,
     get_output,
     output_of_radio,
+    radio_channel_of,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "display_modes",
     "get_output",
     "output_of_radio",
+    "radio_channel_of",
 ]

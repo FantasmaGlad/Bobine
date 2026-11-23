@@ -72,13 +72,11 @@ def _set_timing(ctx: _Context, file: str, entry: dict, wanted: Schedule, radio: 
     return True
 
 
-def _wanted_schedule(ctx: _Context, file: str, entry: dict, channel: str, radio: bool) -> Schedule | None:
+def _wanted_schedule(ctx: _Context, file: str, entry: dict, channel: str) -> Schedule | None:
     target = _schedule_target(ctx, file, entry.get("target"))
     if target is None:
         return None
-    if (target[0] == ScheduleTargetType.radio_playlist) != radio:
-        ctx.fail(file, f"cible {target[0].value} impossible sur le canal {channel}")
-        return None
+    radio = target[0] == ScheduleTargetType.radio_playlist
     wanted = Schedule(target_type=target[0], target_id=target[1], channel=channel,
                       active=_flag(ctx, file, "« active » de la programmation", entry.get("active", True)))
     return wanted if _set_timing(ctx, file, entry, wanted, radio) else None
@@ -120,7 +118,6 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
     if document.get("channel", channel) != channel:
         ctx.fail(file, f"« channel » doit valoir {channel}")
         return
-    radio = channel.startswith("radio_")
     existing = ctx.db.query(Schedule).filter(Schedule.channel == channel).all()
     by_uid = {s.uid: s for s in existing}
     unused = list(existing)
@@ -130,7 +127,7 @@ def _apply_schedule(ctx: _Context, file: str, document: dict, channel: str) -> N
         ctx.fail(file, f"uid {uid} présent deux fois")
     for entry in entries:
         entry = entry or {}
-        wanted = _wanted_schedule(ctx, file, entry, channel, radio)
+        wanted = _wanted_schedule(ctx, file, entry, channel)
         if wanted is None:
             continue
         overrides = _entry_overrides(ctx, file, entry)

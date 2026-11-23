@@ -20,8 +20,7 @@ from app.models import (
 )
 from app.playback.constants import PlaybackStateEnum
 from app.playback.manager import get_playback_manager
-from app.outputs import DEFAULT_OUTPUT, get_output, output_of_radio
-from app.radio.channels import normalize_radio_channel
+from app.outputs import DEFAULT_OUTPUT, get_output, output_of_radio, radio_channel_of
 from app.scheduling import launch_store as scheduled_launch_store
 from app.scheduling.offsets import playback_offset, playlist_resume_point
 from app.videos.describe import video_details, video_item
@@ -49,7 +48,7 @@ def scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, t
 
 
 async def _launch_radio(db: Session, target_id: int, channel: str) -> None:
-    radio_channel = normalize_radio_channel(channel)
+    radio_channel = radio_channel_of(channel)
     screen = output_of_radio(radio_channel).id
     paused = False
     if not _radio_output_is_audible(db, radio_channel):
@@ -192,6 +191,6 @@ async def fire_schedule_end(schedule_id: int) -> None:
         schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
         if not schedule or not schedule.active:
             return
-        await _revert_radio_to_default(db, normalize_radio_channel(schedule.channel))
+        await _revert_radio_to_default(db, radio_channel_of(schedule.channel))
     finally:
         db.close()

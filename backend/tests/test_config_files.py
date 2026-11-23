@@ -38,8 +38,7 @@ def test_one_file_per_kind_of_setting():
         "settings.json", "machine.json", "outputs/display.json", "outputs/radio.json", "library/videos.json",
         "library/audio.json", "library/radio.json", "library/backgrounds.json", "library/announcements.json",
         "playlists/video.json", "playlists/audio.json", "playlists/radio.json", "schedule/cable.json",
-        "schedule/network.json", "schedule/network-2.json", "schedule/radio-cable.json", "schedule/radio-network.json",
-        "schedule/radio-network-2.json", "radio/tags.json",
+        "schedule/network.json", "schedule/network-2.json", "radio/tags.json",
         "radio/announcement-rules.json",
     ]
     assert set(config_files.KINDS) == {"manifest.json", *config_builders.BUILDERS}
@@ -80,7 +79,7 @@ def test_objects_are_referenced_by_readable_keys(library):
 def test_api_exports_all_files_or_one(library):
     client = TestClient(app)
     everything = client.get("/api/config/export").json()
-    assert everything["schema"] == 2 and "schedule/radio-network.json" in everything["files"] and "manifest.json" in everything["files"]
+    assert everything["schema"] == 2 and "schedule/network-2.json" in everything["files"] and "manifest.json" in everything["files"]
     assert client.get("/api/config/export/library/announcements.json").json()["announcements"][0]["description"] == (
         "Pensez à votre bouteille"
     )
