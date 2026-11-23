@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { dictionaries } from "../src/lib/i18n/all.ts";
 import {
   applyChannelFavicon,
@@ -66,6 +68,12 @@ test("sans lien d'icône dans la page, un lien est créé", () => {
   assert.equal(head.length, 1);
   assert.equal(head[0].rel, "icon");
   assert.equal(head[0].href, "/favicon-canary.png");
+});
+
+test("aucune icône de métadonnées ne concurrence le favicon du canal", () => {
+  const app = join(import.meta.dirname, "..", "src", "app");
+  assert.deepEqual(readdirSync(app).filter((name) => /^(favicon|icon)\./.test(name)), []);
+  assert.match(readFileSync(join(app, "layout.tsx"), "utf8"), /<link rel="icon" type="image\/png" href=\{channelFaviconUrl\(DEFAULT_RELEASE_CHANNEL\)\} \/>/);
 });
 
 test("chaque canal du registre a ses libellés dans les deux langues, et un avertissement s'il est rolling", () => {
