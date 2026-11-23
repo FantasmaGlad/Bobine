@@ -21,6 +21,18 @@ export function entryDurationMs(entry: SignageEntry): number | null {
   return entry.play_seconds === null ? null : entry.play_seconds * 1000;
 }
 
+export interface SlotPlan {
+  holdMs: number | null;
+  loop: boolean;
+  advances: boolean;
+}
+
+export function planSlot(entry: SignageEntry, alone: boolean): SlotPlan {
+  const holdMs = entryDurationMs(entry);
+  if (alone) return { holdMs: null, loop: true, advances: false };
+  return { holdMs, loop: !entry.is_image && holdMs !== null, advances: true };
+}
+
 export function nextIndex(index: number, length: number): number {
   return length === 0 ? 0 : (index + 1) % length;
 }
