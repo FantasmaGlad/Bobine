@@ -15,7 +15,8 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_background_thumbnails"
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.models import Background, ImportSource
-from app.utils.importer.background import import_background
+from app.media_assets.importer import import_asset
+from app.media_assets.registry import BACKGROUNDS
 from app.playback.manager import PlaybackManager
 
 
@@ -74,7 +75,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         temp_src = str(Path(settings.backgrounds_watch_dir) / "temp_ambience_import.mp4")
         shutil.copy(self.dummy_mp4_path, temp_src)
 
-        bg = import_background(temp_src, "Ambience Loop.mp4", ImportSource.upload)
+        bg = import_asset(BACKGROUNDS, temp_src, "Ambience Loop.mp4", ImportSource.upload)
         self.assertIsNotNone(bg.id)
         self.assertEqual(bg.title, "Ambience Loop")
         self.assertTrue(os.path.exists(bg.file_path))
@@ -85,7 +86,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         temp_src = str(Path(settings.backgrounds_watch_dir) / "temp_ambience_mkv.mkv")
         shutil.copy(self.dummy_mkv_path, temp_src)
 
-        bg = import_background(temp_src, "Ambience MKV.mkv", ImportSource.watched_folder)
+        bg = import_asset(BACKGROUNDS, temp_src, "Ambience MKV.mkv", ImportSource.watched_folder)
         self.assertIsNotNone(bg.id)
         self.assertTrue(bg.file_path.endswith(".mp4"))
         self.assertTrue(os.path.exists(bg.file_path))
@@ -98,7 +99,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         frames = [Image.new("RGB", (64, 36), color) for color in ("red", "blue", "green")]
         frames[0].save(temp_src, save_all=True, append_images=frames[1:], duration=100, loop=0)
 
-        bg = import_background(temp_src, "Boucle animee.gif", ImportSource.upload)
+        bg = import_asset(BACKGROUNDS, temp_src, "Boucle animee.gif", ImportSource.upload)
         self.assertTrue(bg.file_path.endswith(".gif"))
         self.assertTrue(is_image_background(bg.file_path))
         self.assertTrue(bg.is_image)
@@ -111,7 +112,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
 
         tiff = str(Path(settings.backgrounds_watch_dir) / "temp_scan.tiff")
         Image.new("I;16", (80, 40), 40000).save(tiff)
-        bg = import_background(tiff, "Scan 16 bits.tiff", ImportSource.upload)
+        bg = import_asset(BACKGROUNDS, tiff, "Scan 16 bits.tiff", ImportSource.upload)
         self.assertTrue(bg.file_path.endswith(".webp") and bg.is_image)
         with Image.open(bg.file_path) as stored:
             self.assertEqual(stored.size, (80, 40))
@@ -121,7 +122,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         apng = str(Path(settings.backgrounds_watch_dir) / "temp_anim.apng")
         frames = [Image.new("RGBA", (32, 32), color) for color in ("red", "blue", "green")]
         frames[0].save(apng, format="PNG", save_all=True, append_images=frames[1:], duration=100, loop=0)
-        animated = import_background(apng, "Anim.apng", ImportSource.upload)
+        animated = import_asset(BACKGROUNDS, apng, "Anim.apng", ImportSource.upload)
         with Image.open(animated.file_path) as stored:
             self.assertEqual((stored.format, stored.n_frames), ("WEBP", 3))
 
@@ -130,7 +131,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         Path(broken).write_bytes(b"pas une image")
         before = set(os.listdir(settings.backgrounds_dir))
         with self.assertRaises(ValueError):
-            import_background(broken, "Casse.tga", ImportSource.upload)
+            import_asset(BACKGROUNDS, broken, "Casse.tga", ImportSource.upload)
         self.assertEqual(set(os.listdir(settings.backgrounds_dir)), before)
 
     async def test_03_playback_manager_background_flow(self):

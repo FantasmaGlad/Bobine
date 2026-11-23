@@ -3,25 +3,24 @@ import logging
 from pathlib import Path
 from app.config import settings
 from app.database import SessionLocal
-from app.models import Background, Video
+from app.models import Video
 
 
 logger = logging.getLogger(__name__)
 
 
 def reconcile_orphaned_media() -> None:
-    """Filet de sécurité au démarrage : import_video/import_background déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec un nettoyage sur exception Python."""
+    """Filet de sécurité au démarrage : import_video/import_asset déplacent déjà le fichier vers son dossier final AVANT le commit DB, avec un nettoyage sur exception Python."""
+    from app.media_assets.registry import COLLECTIONS
+
     db = SessionLocal()
     try:
-        known_video_paths = {row[0] for row in db.query(Video.file_path).all()}
-        known_background_paths = {row[0] for row in db.query(Background.file_path).all()}
+        folders = [(Path(settings.media_dir), {row[0] for row in db.query(Video.file_path).all()})]
+        folders += [(Path(c.directory()), {row[0] for row in db.query(c.model.file_path).all()}) for c in COLLECTIONS]
     finally:
         db.close()
 
-    for directory, known_paths in (
-        (Path(settings.media_dir), known_video_paths),
-        (Path(settings.backgrounds_dir), known_background_paths),
-    ):
+    for directory, known_paths in folders:
         if not directory.is_dir():
             continue
         for entry in directory.iterdir():

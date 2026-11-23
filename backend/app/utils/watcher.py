@@ -10,7 +10,6 @@ except ImportError:
 from app.config import settings
 from app.models import ImportSource
 from app.utils.importer.video import import_video
-from app.utils.importer.background import import_background
 from app.utils.importer.staging import wait_for_file_to_copy
 from app.utils.importer.formats import SUPPORTED_EXTENSIONS, BACKGROUND_SUPPORTED_EXTENSIONS
 from app.utils.audio_importer import import_audio_course_from_watched_folder, wait_for_folder_to_stabilize
@@ -72,21 +71,27 @@ class VideoWatchHandler(_BaseWatchHandler):
             update_job(job_id, stage="error", error=str(e))
 
 
-class BackgroundWatchHandler(_BaseWatchHandler):
+class AssetWatchHandler(_BaseWatchHandler):
     supported_extensions = BACKGROUND_SUPPORTED_EXTENSIONS
-    kind_label = "Fond animé"
+
+    def __init__(self, collection):
+        super().__init__()
+        self.collection = collection
+        self.kind_label = collection.label
 
     def _safe_import(self, file_path: str):
+        from app.media_assets.importer import import_asset
+
         path = Path(file_path)
         if not path.exists():
             return
-        job_id = create_job("background", path.name, source="watched_folder")
+        job_id = create_job(self.collection.job_kind, path.name, source="watched_folder")
         try:
-            logger.info(f"Watcher : Lancement de l'import du fond animé pour {path.name}")
-            background = import_background(file_path, path.name, ImportSource.watched_folder, job_id=job_id)
-            update_job(job_id, stage="done", result_id=background.id)
+            logger.info("Watcher : import %s de %s", self.collection.key, path.name)
+            asset = import_asset(self.collection, file_path, path.name, ImportSource.watched_folder, job_id=job_id)
+            update_job(job_id, stage="done", result_id=asset.id)
         except Exception as e:
-            logger.error(f"Watcher : Échec de l'import automatique du fond {path.name} : {e}")
+            logger.error("Watcher : échec de l'import %s de %s : %s", self.collection.key, path.name, e)
             update_job(job_id, stage="error", error=str(e))
 
 
@@ -158,9 +163,11 @@ def start_watcher():
     global _observer
     _observer = Observer()
 
+    from app.media_assets.registry import COLLECTIONS
+
     for watch_dir, handler in (
         (settings.watch_dir, VideoWatchHandler()),
-        (settings.backgrounds_watch_dir, BackgroundWatchHandler()),
+        *((collection.watch_directory(), AssetWatchHandler(collection)) for collection in COLLECTIONS),
         (settings.audio_watch_dir, AudioCourseWatchHandler()),
         (settings.radio_watch_dir, RadioTrackWatchHandler()),
     ):

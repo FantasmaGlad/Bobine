@@ -6,7 +6,7 @@ import pytest
 
 from app.utils import image_decode
 from app.utils.image_decode import android, ffmpeg_still, registry
-from app.utils.importer import background
+from app.media_assets import importer as background
 
 
 def test_heif_needs_ffmpeg_7_1_or_a_development_build():

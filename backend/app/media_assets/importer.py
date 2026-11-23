@@ -1,21 +1,24 @@
-"""Import d'un fond (vidéo ou image)."""
+"""Import d'un média visuel (vidéo ou image) dans son espace."""
 import logging
 import shutil
 import uuid
 from pathlib import Path
 
 from app.config import settings
-from app.models import Background, ImportSource
+from app.models import ImportSource
 from app.utils.import_jobs import update_job
 from app.utils.importer.formats import IMAGE_EXTENSIONS, is_image_background
-from app.utils.media_formats import PLATFORM_DECODED_IMAGE as PLATFORM_DECODED
 from app.utils.importer.pipeline import Target, import_media, save, thumbnail_or_placeholder, wait_if_watched
+from app.utils.media_formats import PLATFORM_DECODED_IMAGE as PLATFORM_DECODED
+
+from .collection import AssetCollection
 
 logger = logging.getLogger(__name__)
 
 
-_BACKGROUND = Target(directory=lambda: settings.backgrounds_dir, prefix="bg", label="Fond animé",
-                     strict_codec=True, placeholder=True)
+def _target(collection: AssetCollection) -> Target:
+    return Target(directory=collection.directory, prefix=collection.file_prefix, label=collection.label,
+                  strict_codec=True, placeholder=True)
 
 
 def _title(original_filename: str) -> str:
@@ -40,14 +43,15 @@ def _flat(img):
     return img.convert("RGBA" if alpha else "RGB")
 
 
-def _store_image(source: Path, original_filename: str, file_id: str) -> Path:
+def _store_image(collection: AssetCollection, source: Path, original_filename: str, file_id: str) -> Path:
     from PIL import Image
 
+    stem = Path(collection.directory()) / f"{collection.file_prefix}_{file_id}"
     if is_image_background(original_filename):
-        dest = Path(settings.backgrounds_dir) / f"bg_{file_id}{Path(original_filename).suffix.lower()}"
+        dest = stem.with_suffix(Path(original_filename).suffix.lower())
         shutil.move(source, dest)
         return dest
-    dest = Path(settings.backgrounds_dir) / f"bg_{file_id}.webp"
+    dest = stem.with_suffix(".webp")
     try:
         with Image.open(source) as img:
             if getattr(img, "n_frames", 1) > 1:
@@ -58,7 +62,7 @@ def _store_image(source: Path, original_filename: str, file_id: str) -> Path:
         dest.unlink(missing_ok=True)
         raise
     source.unlink()
-    logger.info("Fond %s converti en WebP pour l'affichage", original_filename)
+    logger.info("%s %s converti en WebP pour l'affichage", collection.label, original_filename)
     return dest
 
 
@@ -76,12 +80,12 @@ def _decoded_by_platform(source: Path, original_filename: str, pillow_error: Exc
     return decoded
 
 
-def import_background_image(src_path: str, original_filename: str, job_id: str | None = None) -> Background:
-    """Fond image : pipeline dédié, sans ffmpeg ; un format que les navigateurs n'affichent pas est converti en WebP."""
+def import_asset_image(collection: AssetCollection, src_path: str, original_filename: str, job_id: str | None = None):
+    """Image : pipeline dédié, sans ffmpeg ; un format que les navigateurs n'affichent pas est converti en WebP."""
     from PIL import Image, UnidentifiedImageError
 
     update_job(job_id, stage="probing")
-    Path(settings.backgrounds_dir).mkdir(parents=True, exist_ok=True)
+    Path(collection.directory()).mkdir(parents=True, exist_ok=True)
     Path(settings.thumbnails_dir).mkdir(parents=True, exist_ok=True)
 
     source = Path(src_path)
@@ -93,7 +97,7 @@ def import_background_image(src_path: str, original_filename: str, job_id: str |
 
     file_id = uuid.uuid4().hex
     try:
-        dest_path = _store_image(source, original_filename, file_id)
+        dest_path = _store_image(collection, source, original_filename, file_id)
     except (OSError, ValueError, Image.DecompressionBombError) as e:
         raise ValueError(f"Le fichier {original_filename} n'a pas pu être converti : {e}")
 
@@ -101,23 +105,22 @@ def import_background_image(src_path: str, original_filename: str, job_id: str |
     thumbnail_path = thumbnail_or_placeholder(lambda: _image_thumbnail(dest_path, file_id), dest_path,
                                               original_filename, True, settings.thumbnails_dir)
     update_job(job_id, stage="saving")
-    background = Background(file_path=str(dest_path), title=_title(original_filename), duration_seconds=None,
-                            thumbnail_path=thumbnail_path)
-    return save(background, "background_imported", lambda row: row.title, [dest_path, thumbnail_path],
-                "Fond animé (image)", original_filename)
+    asset = collection.model(file_path=str(dest_path), title=_title(original_filename), duration_seconds=None,
+                             thumbnail_path=thumbnail_path)
+    return save(asset, collection.imported_event, lambda row: row.title, [dest_path, thumbnail_path],
+                f"{collection.label} (image)", original_filename)
 
 
-def import_background(
-    src_path: str, original_filename: str, source: ImportSource, job_id: str | None = None
-) -> Background:
-    """Importe un fond animé : même chaîne que import_video, image traitée à part."""
+def import_asset(collection: AssetCollection, src_path: str, original_filename: str, source: ImportSource,
+                 job_id: str | None = None):
+    """Importe un média visuel dans son espace : même chaîne que import_video, image traitée à part."""
     wait_if_watched(src_path, original_filename, source)
     if Path(src_path).suffix.lower() in IMAGE_EXTENSIONS:
-        return import_background_image(src_path, original_filename, job_id=job_id)
+        return import_asset_image(collection, src_path, original_filename, job_id=job_id)
     title = _title(original_filename)
 
-    def build(dest: Path, meta: dict, thumbnail: str | None) -> Background:
-        return Background(file_path=str(dest), title=title, duration_seconds=meta["duration_seconds"], thumbnail_path=thumbnail)
+    def build(dest: Path, meta: dict, thumbnail: str | None):
+        return collection.model(file_path=str(dest), title=title, duration_seconds=meta["duration_seconds"], thumbnail_path=thumbnail)
 
-    return import_media(src_path, original_filename, source, job_id, _BACKGROUND, settings.thumbnails_dir, build,
-                        "background_imported", lambda background: background.title)
+    return import_media(src_path, original_filename, source, job_id, _target(collection), settings.thumbnails_dir, build,
+                        collection.imported_event, lambda asset: asset.title)
