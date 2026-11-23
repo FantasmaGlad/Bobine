@@ -17,5 +17,4 @@ QUICK_ACTIONS: tuple[QuickAction, ...] = (
     QuickAction("admin", "/", "Ouvrir l'administration", "Open the administration"),
     QuickAction("grid", "/grid", "Ouvrir le pupitre tactile", "Open the touch panel"),
     QuickAction("cinema", "/cinema", "Ouvrir l'écran cinéma", "Open the cinema screen"),
-    QuickAction("visuals", "/visuals", "Diffuser un visuel", "Show a visual"),
 )

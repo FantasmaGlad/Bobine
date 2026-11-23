@@ -6,14 +6,15 @@ import type { BackgroundItem } from "@/components/backgrounds/types";
 import { thumbnailUrl } from "@/lib/thumbnail";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
+type LoopBackground = Pick<BackgroundItem, "id" | "title"> & Partial<Pick<BackgroundItem, "thumbnail_path" | "is_image">>;
 
-function Thumb({ background }: { background: BackgroundItem | undefined }) {
+function Thumb({ background }: { background: LoopBackground | undefined }) {
   const src = thumbnailUrl(background?.thumbnail_path);
   return <span className="signage-thumb">{src ? <img src={src} alt="" /> : <Icon name={background?.is_image ? "image" : "movie"} size={18} />}</span>;
 }
 
 function LoopRow({ entry, index, last, background, t, onMove, onSeconds, onRemove }: {
-  entry: SignageEntry; index: number; last: boolean; background: BackgroundItem | undefined; t: Translate;
+  entry: SignageEntry; index: number; last: boolean; background: LoopBackground | undefined; t: Translate;
   onMove: (to: number) => void; onSeconds: (seconds: number | null) => void; onRemove: () => void;
 }) {
   return (
@@ -39,7 +40,7 @@ function LoopRow({ entry, index, last, background, t, onMove, onSeconds, onRemov
 }
 
 export default function LoopEditor({ entries, backgrounds, t, onMove, onSeconds, onRemove, onAdd }: {
-  entries: SignageEntry[]; backgrounds: BackgroundItem[]; t: Translate;
+  entries: SignageEntry[]; backgrounds: LoopBackground[]; t: Translate;
   onMove: (from: number, to: number) => void; onSeconds: (index: number, seconds: number | null) => void;
   onRemove: (index: number) => void; onAdd: (backgroundId: number) => void;
 }) {
