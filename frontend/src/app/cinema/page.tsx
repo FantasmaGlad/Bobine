@@ -384,7 +384,7 @@ export default function CinemaPage() {
           <PauseScreen t={t} media={selected} thumbnail={selected ? thumbnailUrl(selected) : null} position={shownPosition} duration={duration}
             kicker={t("cinema.pause")} resumeLabel={t("cinema.play")} onResume={playPause} back={{ label: t("cinema.backToMenu"), onBack: backToMenu }} />
         )}
-        <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={!hideControls && playingLayer && (controlsVisible || !isPlaying)} />
+        {isPlaying && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={!hideControls && playingLayer && controlsVisible} />}
         {!hideControls && (
           <CinemaControls visible={playingLayer && (controlsVisible || !isPlaying)} playing={isPlaying} position={shownPosition} duration={duration} chapters={chapters}
             board={storyboard} scrubbing={seekDrag !== null}

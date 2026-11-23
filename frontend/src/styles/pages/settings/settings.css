@@ -56,27 +56,6 @@
   border-radius: 4px;
 }
 
-.settings-timing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 4px 24px;
-}
-
-.settings-timing-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.settings-timing-field .form-control {
-  max-width: 160px;
-}
-
-.settings-timing-unit {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
 .settings-search {
   display: flex;
   align-items: center;
