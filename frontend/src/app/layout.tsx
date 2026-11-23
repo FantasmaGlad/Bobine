@@ -8,6 +8,7 @@ import { translate, UI_LANGUAGE } from "@/lib/i18n";
 import { AppSettingsProvider } from "@/lib/AppSettingsContext";
 import { InlineScript } from "@/components/InlineScript";
 import { UploadManagerProvider } from "@/lib/UploadManager";
+import { channelFaviconUrl, DEFAULT_RELEASE_CHANNEL } from "@/lib/releaseChannel";
 import { DEFAULT_MODE, DEFAULT_THEME, LEGACY_THEMES, paletteOf, THEME_IDS } from "@/lib/themePalettes";
 
 const THEME_INIT_SCRIPT = `(function(){try{var d=document.documentElement,ids=${JSON.stringify(THEME_IDS)},legacy=${JSON.stringify(LEGACY_THEMES)},t=localStorage.getItem('olc-theme'),m=localStorage.getItem('olc-theme-mode'),l=t&&legacy[t];if(l&&(ids.indexOf(t)<0||(m!=='light'&&m!=='dark'&&m!=='auto'))){t=l.theme;m=(m==='light'||m==='dark')?m:l.mode;}if(ids.indexOf(t)<0)t=${JSON.stringify(DEFAULT_THEME)};if(m!=='light'&&m!=='dark'&&m!=='auto')m=${JSON.stringify(DEFAULT_MODE)};if(m==='auto')m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';d.setAttribute('data-theme',t);d.setAttribute('data-mode',m);}catch(e){}})();`;
@@ -53,6 +54,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="icon" type="image/png" href={channelFaviconUrl(DEFAULT_RELEASE_CHANNEL)} />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <InlineScript html={THEME_INIT_SCRIPT} />
       </head>
