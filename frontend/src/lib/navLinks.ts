@@ -41,7 +41,6 @@ export const navEntries: NavEntry[] = [
   },
   { href: "/library", labelKey: "nav.library", iconName: "video_library" },
   { href: "/schedule", labelKey: "nav.schedule", iconName: "calendar_month" },
-  { href: "/visuals", labelKey: "nav.visuals", iconName: "slideshow" },
   {
     groupKey: "nav.metricsGroup",
     iconName: "analytics",
