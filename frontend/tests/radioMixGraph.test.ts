@@ -49,17 +49,18 @@ function build(mix = defaultMix()) {
   return { ctx, destination, stage };
 }
 
-test("câblage : musique et rappels → sortie → limiteur → porte de route → destination", () => {
+test("câblage : musique et rappels → sortie → limiteur → compensation → porte de route → destination", () => {
   const { ctx, destination, stage } = build();
   const [musicBus, announcementsBus, masterBus] = ctx.gains as unknown as FakeNode[];
   assert.ok((stage.musicInput as unknown as FakeNode) === musicBus);
   assert.ok(musicBus.targets.includes(masterBus) && announcementsBus.targets.includes(masterBus));
   const limiter = ctx.compressors[0];
   assert.ok(masterBus.targets.includes(limiter));
-  const routeGate = limiter.targets[0];
+  const trim = limiter.targets[0];
+  const routeGate = trim.targets[0];
   assert.ok(routeGate.targets.includes(destination as unknown as FakeNode));
   const announcementsLimiter = ctx.compressors[1];
-  assert.ok(announcementsLimiter.targets.includes(announcementsBus));
+  assert.ok(announcementsLimiter.targets[0].targets.includes(announcementsBus));
   assert.equal(stage.announcementsInput === (stage.musicInput as unknown), false);
 });
 
@@ -86,7 +87,7 @@ test("limiteur de sortie : transparent à plat, actif quand un fader relève", (
 test("sourdine de repli : porte de route seule, mixage intact", () => {
   const { ctx, stage } = build();
   const limiter = ctx.compressors[0];
-  const routeGate = limiter.targets[0] as unknown as FakeGain;
+  const routeGate = limiter.targets[0].targets[0] as unknown as FakeGain;
   const masterBus = ctx.gains[2];
   assert.equal(routeGate.gain.value, 1);
   stage.setRouteMuted(true);

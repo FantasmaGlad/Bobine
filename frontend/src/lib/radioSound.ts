@@ -37,7 +37,6 @@ export function isNeutralSound(sound: RadioSoundSettings): boolean {
   return !sound.enabled || (sound.bands.every((gain) => gain === 0) && sound.bass_boost === 0 && !sound.loudness);
 }
 
-const PREAMP_MAX_CUT_DB = 18;
 
 export interface SoundPreset {
   id: string;
@@ -130,11 +129,10 @@ export function peakBoostDb(sound: RadioSoundSettings): number {
 }
 
 export function computePreamp(sound: RadioSoundSettings): number {
-  const cut = Math.min(PREAMP_MAX_CUT_DB, peakBoostDb(sound));
-  return Math.pow(10, -cut / 20);
+  return Math.pow(10, -peakBoostDb(sound) / 20);
 }
 
-export const LIMITER_ON: LimiterParams = { threshold: -3, knee: 2, ratio: 20, attack: 0.003, release: 0.15 };
+export const LIMITER_ON: LimiterParams = { threshold: -1, knee: 0, ratio: 20, attack: 0.01, release: 0.25 };
 export const LIMITER_OFF: LimiterParams = { threshold: 0, knee: 0, ratio: 1, attack: 0.003, release: 0.25 };
 
 export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
@@ -154,3 +152,12 @@ export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
     limiter: active && sound.limiter && peakBoostDb(sound) > 0 ? LIMITER_ON : LIMITER_OFF,
   };
 }
+
+export function limiterMakeupDb(limiter: LimiterParams): number {
+  return -0.6 * limiter.threshold * (1 - 1 / limiter.ratio);
+}
+
+export function limiterTrim(limiter: LimiterParams): number {
+  return Math.pow(10, -limiterMakeupDb(limiter) / 20);
+}
+

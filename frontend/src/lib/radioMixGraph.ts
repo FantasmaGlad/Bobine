@@ -1,5 +1,5 @@
 import { meterLevel, toMixerParams, type MeterId, type RadioMix } from "./radioMix.ts";
-import { createSoundChain, setParam, type SoundChain } from "./radioSoundGraph.ts";
+import { applyLimiter, createSoundChain, setParam, type SoundChain } from "./radioSoundGraph.ts";
 
 export type MeterLevels = Record<MeterId, number>;
 
@@ -18,11 +18,13 @@ export function createMixStage(ctx: AudioContext, destination: AudioNode, initia
   const announcementsBus = ctx.createGain();
   const masterBus = ctx.createGain();
   const limiter = ctx.createDynamicsCompressor();
+  const trim = ctx.createGain();
   const routeGate = ctx.createGain();
   musicBus.connect(masterBus);
   announcementsBus.connect(masterBus);
   masterBus.connect(limiter);
-  limiter.connect(routeGate);
+  limiter.connect(trim);
+  trim.connect(routeGate);
   routeGate.connect(destination);
 
   const announcementsChain: SoundChain = createSoundChain(ctx, announcementsBus, params.announcementsSound);
@@ -33,11 +35,7 @@ export function createMixStage(ctx: AudioContext, destination: AudioNode, initia
     setParam(musicBus.gain, p.music, now, smooth);
     setParam(announcementsBus.gain, p.announcements, now, smooth);
     setParam(masterBus.gain, p.master, now, smooth);
-    setParam(limiter.threshold, p.limiter.threshold, now, smooth);
-    setParam(limiter.knee, p.limiter.knee, now, smooth);
-    setParam(limiter.ratio, p.limiter.ratio, now, smooth);
-    setParam(limiter.attack, p.limiter.attack, now, smooth);
-    setParam(limiter.release, p.limiter.release, now, smooth);
+    applyLimiter(limiter, trim, p.limiter, now, smooth);
     announcementsChain.apply(p.announcementsSound, smooth);
   };
   apply(initial, false);
