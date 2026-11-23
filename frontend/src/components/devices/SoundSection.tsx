@@ -50,7 +50,7 @@ export default function SoundSection({ caps, refreshKey, notify, t, feed }: Prop
   const needsLabels = outputs.some((o) => summarizeRouting(o).key === "needsLabels");
 
   return (
-    <div className="dv-section sd-table" role="table" aria-label={t("devices.tabs.sound")}>
+    <div className="dv-section sd-table" role="table" aria-label={t("settingsPage.cat.sound.label")}>
       {RADIO_OUTPUTS.map((channel) => {
         const { mix, sound, playing } = mixer.current(channel);
         const levels = playing ? feed.levels[channel] : undefined;

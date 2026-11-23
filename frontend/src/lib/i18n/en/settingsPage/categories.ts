@@ -2,6 +2,7 @@ import type { Dict } from "../../core.ts";
 
 export const cat: Dict = {
   playback: { label: "Playback and media", desc: "Browser compatibility, video version and native audio component", keywords: "playback video media browser compatibility codec h264 hevc compatible original native audio web rendition" },
+  sound: { label: "Sound", desc: "Output, volume, reminders and equalizer of each radio; video equalizer", keywords: "sound audio radio volume equalizer bass loudness limiter reminders output mix video" },
   system: { label: "System", desc: "Start Bobine with the computer", keywords: "system startup automatic computer session boot launch" },
   appearance: { label: "Appearance", desc: "Theme, light or dark mode, language, logo and glass quality", keywords: "theme color mode light dark automatic language french english logo glass blur transparency brand" },
   display: { label: "Display", desc: "Wired output, physical screen, HDMI and dual screen", keywords: "screen hdmi projector television wired output dual screen kiosk cinema display" },
