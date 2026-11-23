@@ -3,7 +3,7 @@
 import DisplayOutputSwitch from "@/components/DisplayOutputSwitch";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import type { DisplayOutput } from "@/lib/displayChannel";
+import { screenUrl, type DisplayOutput } from "@/lib/displayChannel";
 
 interface Props {
   isCable: boolean;
@@ -42,14 +42,10 @@ export default function ChannelCard(props: Props) {
       <div className="channel-card-right">
         <DisplayOutputSwitch displayOutput={displayOutput} onSetDisplayOutput={onSetDisplayOutput}
           label={isCable ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel")} allowRadio={isCable} />
-        {radio && (
-          <a href="/radio?channel=cable" target="_blank" rel="noopener noreferrer" className="status-pill" style={{ textDecoration: "none" }}>{t("radioRemote.openPlayer")}</a>
-        )}
-        {!isCable && (
-          <a href={`/${displayOutput === "cinema" ? "cinema" : "kiosk"}?channel=network`} target="_blank" rel="noopener noreferrer" className="status-pill" style={{ textDecoration: "none" }}>
-            {t("dashboard.openNetworkScreen")}
-          </a>
-        )}
+        <a href={screenUrl(isCable ? "cable" : "network", displayOutput)} target="_blank" rel="noopener noreferrer" className="status-pill channel-card-open">
+          <Icon name="open_in_new" size={14} />
+          {t("dashboard.openScreen")}
+        </a>
       </div>
     </div>
   );

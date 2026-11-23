@@ -6,6 +6,7 @@ import {
   isLoopbackHost,
   parseChannelParam,
   resolveChannel,
+  screenUrl,
   shouldFollowInitialOutput,
 } from "../src/lib/displayChannel.ts";
 
@@ -158,4 +159,10 @@ test("un changement de sortie de l'AUTRE canal ne fait jamais naviguer un écran
   assert.equal(toCinema.to, "/cinema?channel=network");
   assert.equal(shouldEvaluateRedirect("cable", "cinema", null, null), true);
   assert.equal(shouldEvaluateRedirect("cable", null, "cinema", null), false);
+});
+
+test("le bouton d'ouverture suit la sortie du canal, kiosque par défaut", () => {
+  assert.equal(screenUrl("cable", null), "/kiosk?channel=cable");
+  assert.equal(screenUrl("cable", "radio"), "/radio?channel=cable");
+  assert.equal(screenUrl("network", "cinema"), "/cinema?channel=network");
 });

@@ -30,7 +30,7 @@ export const dashboard: Dict = {
   liveCableTitle: "Live — wired",
   liveNetworkTitle: "Live — network",
   liveChannelHintCable: "Wired channel playback (the room's screen).",
-  openNetworkScreen: "Open a network-channel screen",
+  openScreen: "Open the screen",
   liveChannelHintNetwork: "Network channel playback (kiosks opened from other devices).",
   channelCinemaLockedHint: "This channel is in cinema mode: launches are locked here, members play their classes on their own.",
   channelRadioLockedHint: "The wired output shows the radio: no video screen can show this class. Switch it to Kiosk or Cinema to launch it.",
