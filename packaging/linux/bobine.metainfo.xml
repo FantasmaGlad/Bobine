@@ -59,10 +59,10 @@
   </categories>
   <content_rating type="oars-1.1" />
   <releases>
-    <release version="5.3.0" date="2026-11-23">
+    <release version="6.0.0" date="2026-11-23">
       <description>
-        <p>Version 5.3.0: a Visuals space to loop images, GIFs and videos on an output, chosen from the wired and network dashboards; a timeline preview and chapter jumps on the seek bar; Devices reduced to two clear views; reminders, settings and the pause screen reworked; AVIF and HEIC images read on every platform.</p>
-        <p xml:lang="fr">Version 5.3.0 : un espace Visuels pour diffuser en boucle images, GIF et vidéos sur une sortie, choisie depuis les tableaux de bord câblé et réseau ; aperçu de la timeline et saut de chapitre sur la barre de saut ; Périphériques réduits à deux vues claires ; rappels, réglages et écran de pause retravaillés ; images AVIF et HEIC lues sur toutes les plateformes.</p>
+        <p>Version 6.0.0: three separate outputs (wired, Network 1, Network 2), each with its own radio and one display mode at a time; the network radio becomes Network 2's; a Visuals space to loop images, GIFs and videos on an output; a timeline preview and chapter jumps on the seek bar; settings as a tree with sound grouped in one place; AVIF and HEIC images read on every platform. The HTTP API and the bobine command change: outputs are driven under /api/outputs and with bobine output.</p>
+        <p xml:lang="fr">Version 6.0.0 : trois sorties cloisonnées (câblé, Réseau 1, Réseau 2), chacune avec sa radio et un seul mode affiché à la fois ; la radio réseau devient celle de Réseau 2 ; un espace Visuels pour diffuser en boucle images, GIF et vidéos sur une sortie ; aperçu de la timeline et saut de chapitre sur la barre de saut ; réglages en arborescence avec le son regroupé ; images AVIF et HEIC lues sur toutes les plateformes. L'API HTTP et la commande bobine changent : les sorties se pilotent sous /api/outputs et avec bobine output.</p>
       </description>
     </release>
     <release version="5.2.2" date="2026-11-13">
