@@ -4616,6 +4616,21 @@
     {
      "body": null,
      "method": "GET",
+     "path": "/api/videos/{video_id}/storyboard",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "video_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Mosaïque d'aperçu (une vignette par intervalle, lignes de gauche à droite) ; 404 tant qu'elle n'est pas prête."
+    },
+    {
+     "body": null,
+     "method": "GET",
      "path": "/api/videos/{video_id}/stream",
      "path_parameters": [
       {

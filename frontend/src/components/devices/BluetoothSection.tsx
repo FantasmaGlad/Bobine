@@ -5,18 +5,16 @@ import { splitBluetooth } from "@/lib/devices/wireless";
 import { type BluetoothDevice, type BluetoothStatus } from "@/lib/devices/types";
 import { errorText, type SectionProps } from "./shared/section";
 import { useDevicesResource } from "./shared/useDevicesResource";
-import { useFocusFlash } from "./shared/useFocusFlash";
 import { BluetoothPermission, BluetoothUnsupported } from "./bluetooth/BluetoothFallbacks";
 import BluetoothDeviceRow from "./bluetooth/BluetoothDeviceRow";
 import BluetoothNotes from "./bluetooth/BluetoothNotes";
 import BluetoothToolbar from "./bluetooth/BluetoothToolbar";
 import { useBluetoothCall, useDiscoveryPolling } from "./bluetooth/useBluetoothCall";
 
-export default function BluetoothSection({ caps, refreshKey, notify, t, focusId, focusNonce }: SectionProps) {
+export default function BluetoothSection({ caps, refreshKey, notify, t }: SectionProps) {
   const { data, error, loading, reload } = useDevicesResource<BluetoothStatus>("/bluetooth", refreshKey);
   const [forgetting, setForgetting] = useState<string | null>(null);
   const { busy, call } = useBluetoothCall(notify, t, reload);
-  useFocusFlash(focusId, focusNonce, !!data?.supported);
   const discovering = data?.discovering === true;
   useDiscoveryPolling(discovering, reload);
 

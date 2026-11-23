@@ -3,10 +3,12 @@
 import { useState } from "react";
 
 import ChapterTicks from "@/components/ChapterTicks";
+import SeekPreview from "@/components/SeekPreview";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import type { Chapter } from "@/lib/chapters";
+import { chapterIndexAt, type Chapter } from "@/lib/chapters";
 import { formatTime } from "@/lib/format";
+import type { Storyboard } from "@/lib/storyboard";
 import type { SubtitleTrack } from "@/lib/subtitles";
 
 interface Props {
@@ -15,6 +17,8 @@ interface Props {
   position: number;
   duration: number;
   chapters: Chapter[];
+  board: Storyboard | null;
+  scrubbing: boolean;
   subtitles: SubtitleTrack[];
   activeSubtitle: number | "off";
   onSubtitle: (id: number | "off") => void;
@@ -51,7 +55,8 @@ function SubtitleMenu({ subtitles, activeSubtitle, onSubtitle }: Pick<Props, "su
 
 export default function CinemaControls(props: Props) {
   const { t } = useAppSettings();
-  const { visible, playing, position, duration, chapters, subtitles, onPlayPause, onBack, onDrag, onSeek } = props;
+  const { visible, playing, position, duration, chapters, board, scrubbing, subtitles, onPlayPause, onBack, onDrag, onSeek } = props;
+  const chapter = chapterIndexAt(chapters, position);
   const release = (e: { target: EventTarget }) => onSeek(Number((e.target as HTMLInputElement).value));
   return (
     <div className={`cinema-controls ${visible ? "visible" : ""}`}>
@@ -70,6 +75,9 @@ export default function CinemaControls(props: Props) {
           <input type="range" className="cinema-seek" min={0} max={duration || 0} step={1} value={Math.min(position, duration || 0)}
             onChange={(e) => onDrag(Number(e.target.value))} onMouseUp={release} onTouchEnd={release} style={{ accentColor: "var(--accent-primary)" }} />
           <ChapterTicks chapters={chapters} duration={duration} />
+          {scrubbing && duration > 0 && (
+            <SeekPreview ratio={Math.min(1, Math.max(0, position / duration))} seconds={position} title={chapter >= 0 ? chapters[chapter].title : ""} board={board} />
+          )}
         </div>
         <span className="cinema-time">{formatTime(duration)}</span>
         {subtitles.length > 0 && <SubtitleMenu {...props} />}

@@ -16,6 +16,7 @@ from app.models import ScheduleTargetType, Video
 from app.scheduling.targets import drop_schedules_targeting, remove_jobs
 from app.utils import chapters as chapter_utils
 from app.utils.web_rendition import remove_web_file
+from app.videos.storyboard import storyboard_path
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ def _owned_files(video: Video) -> list[tuple[str, str]]:
         files.append(("fichier média", video.file_path))
     if video.thumbnail_path:
         files.append(("miniature", video.thumbnail_path))
+    files.append(("mosaïque d'aperçu", str(storyboard_path(video.id))))
     return files + [("fichier de sous-titres", sub.file_path) for sub in video.subtitles]
 
 
