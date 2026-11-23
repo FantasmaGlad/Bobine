@@ -1,0 +1,134 @@
+.dv-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.dv-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.sd-table {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sd-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--glass-card-bg);
+  border: 1px solid var(--glass-card-border);
+  box-shadow: var(--glass-card-shadow);
+}
+
+.sd-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+}
+
+.sd-row--nested {
+  margin-left: 28px;
+}
+
+.sd-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sd-output-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sd-fallback {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.sd-fader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sd-fader input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+.sd-meter {
+  flex: 0 0 56px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg-main);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-main) 22%, transparent);
+}
+
+.sd-meter-fill {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: var(--accent-text);
+  transition: transform var(--dur-fast) linear;
+}
+
+.sd-meter-fill.is-hot {
+  background: var(--accent-error-text);
+}
+
+.sd-row.is-silent .sd-meter-fill {
+  opacity: 0.35;
+}
+
+.sd-mute.is-on {
+  color: var(--accent-error-text);
+}
+
+.sd-eq-btn.is-on {
+  border-color: var(--accent-text);
+}
+
+.sd-eq {
+  grid-column: 1 / -1;
+}
+
+.sd-eq .radio-sound-panel {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .sd-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .sd-output,
+  .sd-fader {
+    grid-column: 1 / -1;
+  }
+
+  .sd-row--nested {
+    margin-left: 12px;
+  }
+}
