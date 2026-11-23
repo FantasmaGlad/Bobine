@@ -7,11 +7,12 @@ interface ChapterToastProps {
   chapters: Chapter[];
   videoRef: RefObject<HTMLVideoElement | null>;
   label: string;
+  lifted?: boolean;
 }
 
 const VISIBLE_MS = 6000;
 
-export default function ChapterToast({ chapters, videoRef, label }: ChapterToastProps) {
+export default function ChapterToast({ chapters, videoRef, label, lifted = false }: ChapterToastProps) {
   const [shown, setShown] = useState<{ index: number; title: string } | null>(null);
   const lastIndex = useRef(-2);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -44,7 +45,7 @@ export default function ChapterToast({ chapters, videoRef, label }: ChapterToast
 
   if (!shown) return null;
   return (
-    <div className="chapter-toast" role="status" key={shown.index}>
+    <div className={`chapter-toast ${lifted ? "is-lifted" : ""}`} role="status" key={shown.index}>
       <span className="chapter-toast__num">
         {label} {shown.index + 1}
       </span>
