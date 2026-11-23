@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shlex
 import stat
 import subprocess
 import tempfile
@@ -155,13 +156,30 @@ def _detach(mount_point: str) -> None:
         logger.warning(f"Échec du démontage de l'image disque ({mount_point}) : {e}")
 
 
+def admin_command(command: list[str]) -> list[str]:
+    """Commande lancée avec l'invite d'administrateur de macOS, comme pkexec sous Linux."""
+    script = shlex.join(command).replace("\\", "\\\\").replace('"', '\\"')
+    return ["osascript", "-e", f'do shell script "{script}" with prompt "Bobine installe sa mise à jour." with administrator privileges']
+
+
+def _replace_application(source_app: Path) -> None:
+    try:
+        run_checked(admin_command(["rsync", "-a", "--delete", f"{source_app}/", f"{_APP_PATH}/"]), timeout=600)
+    except RuntimeError as e:
+        if "-128" in str(e):
+            raise UpdateUnsupported("Mise à jour annulée : l'autorisation administrateur a été refusée.") from e
+        raise
+
+
 def _install_from_image(dmg_path: Path, report: Callable[..., None]) -> None:
     mount_point = _attach(dmg_path)
     try:
         source_app = Path(mount_point) / "Bobine.app"
         if not source_app.exists():
             raise RuntimeError(f"Bobine.app introuvable dans l'image montée ({mount_point}).")
-        report("installing", message="Remplacement de l'application…")
-        run_checked(["rsync", "-a", "--delete", f"{source_app}/", f"{_APP_PATH}/"], timeout=120)
+        report("verifying", message="Vérification de la signature de l'application…")
+        run_checked(["codesign", "--verify", "--deep", "--strict", str(source_app)], timeout=120)
+        report("installing", message="Remplacement de l'application (autorisation administrateur demandée)…")
+        _replace_application(source_app)
     finally:
         _detach(mount_point)
