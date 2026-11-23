@@ -2113,7 +2113,7 @@
     {
      "choices": null,
      "flag": false,
-     "help": "admin, grid, cinema, visuals, kiosk, radio, signage",
+     "help": "admin, grid, cinema, kiosk, radio, signage",
      "name": "page",
      "positional": true,
      "repeat": false

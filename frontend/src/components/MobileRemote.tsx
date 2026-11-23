@@ -7,6 +7,7 @@ import { useVideoChapters } from "@/lib/chapters";
 import type { DisplayOutput } from "@/lib/displayChannel";
 import KioskControls from "@/components/mobile-remote/KioskControls";
 import { OutputSwitches, RemoteMain } from "@/components/mobile-remote/RemoteMain";
+import SignagePanel from "@/components/dashboard/SignagePanel";
 import LaunchSheet, { type BackgroundSummary, type PlaylistSummary, type VideoSummary } from "@/components/dashboard/LaunchSheet";
 
 interface MobileRemoteProps {
@@ -56,9 +57,9 @@ export default function MobileRemote({
   const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
   const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
 
-  const main = (
+  const main = connected && channelSignage ? <SignagePanel channel={channel ?? "cable"} backgrounds={backgrounds} /> : (
     <RemoteMain
-      connected={connected} channelRadio={channelRadio} channelCinema={channelCinema} channelSignage={channelSignage} isActive={isActive}
+      connected={connected} channelRadio={channelRadio} channelCinema={channelCinema} isActive={isActive}
       cinemaLive={cinemaLive} cinemaChapters={cinemaChapters} kioskChapters={kioskChapters} state={state} livePosition={livePosition}
       videos={videos} getApiUrl={getApiUrl} sendCommand={sendCommand} onCinemaPlayPause={onCinemaPlayPause} onLaunch={() => setSheet("launch")} t={t}
     />

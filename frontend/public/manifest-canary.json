@@ -68,18 +68,6 @@
           "type": "image/png"
         }
       ]
-    },
-    {
-      "name": "Diffuser un visuel",
-      "short_name": "Diffuser un visuel",
-      "url": "/visuals",
-      "icons": [
-        {
-          "src": "/icon-canary-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
     }
   ]
 }
