@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
+from app.api.contract import DEFAULT_CHANNEL
 from app.models import PlaybackSession, Video
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 def start_playback_session(
     db: Session,
     video_id: int,
-    channel: str = "cable",
+    channel: str = DEFAULT_CHANNEL,
     launch_type: str = "kiosk",
     total_duration_seconds: float = 0.0,
 ) -> int | None:

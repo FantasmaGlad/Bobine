@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { getApiUrl } from "@/lib/apiUrl";
-import type { PlaybackChannel } from "@/lib/usePlaybackSocket";
+import type { OutputId } from "@/lib/outputs";
 
 import { occurrencesPath, upcomingOnly } from "@/lib/upcoming";
 import type { BackgroundSummary, InterruptedState, OccurrenceSummary, PlaylistSummary, VideoSummary } from "./types";
@@ -16,7 +16,7 @@ function loadList<T>(path: string, set: (items: T[]) => void) {
     .catch(() => set([]));
 }
 
-export function useDashboardData(channel: PlaybackChannel) {
+export function useDashboardData(channel: OutputId) {
   const [videos, setVideos] = useState<VideoSummary[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [upcoming, setUpcoming] = useState<OccurrenceSummary[]>([]);

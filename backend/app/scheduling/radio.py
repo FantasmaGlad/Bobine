@@ -10,6 +10,7 @@ from app.models import (
     RadioTrack,
     Setting,
 )
+from app.outputs import output_of_radio
 from app.radio.channels import DEFAULT_RADIO_CHANNEL, normalize_radio_channel
 from app.radio.manager import get_all_radio_managers, get_radio_manager
 
@@ -70,17 +71,14 @@ def resolve_radio_default_playlist(db: Session, radio_channel: str) -> RadioPlay
     return db.query(RadioPlaylist).filter(RadioPlaylist.is_default == True).first()
 
 
-def is_cable_output_radio(db: Session) -> bool:
-    """Vrai si la sortie câblée est actuellement basculée sur la radio."""
+def _radio_output_is_audible(db: Session, radio_channel: str) -> bool:
+    """Vrai si la radio s'entend : sortie sans mode radio à l'écran, ou écran basculé sur la radio."""
     from app.api.routes.settings.display import get_display_output_value
 
-    return get_display_output_value(db, "cable") == "radio"
-
-
-def _radio_output_is_audible(db: Session, radio_channel: str) -> bool:
-    if normalize_radio_channel(radio_channel) != "radio_cable":
+    output = output_of_radio(normalize_radio_channel(radio_channel))
+    if "radio" not in output.modes:
         return True
-    return is_cable_output_radio(db)
+    return get_display_output_value(db, output.id) == "radio"
 
 
 async def _launch_radio_target(

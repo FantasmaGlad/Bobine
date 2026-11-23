@@ -3,7 +3,7 @@
 import { useClientSnapshot } from "@/lib/useClientSnapshot";
 import React, { useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import type { RadioChannelId } from "@/lib/displayChannel";
+import { DEFAULT_RADIO_CHANNEL, isOutputId, isRadioChannel, outputById, type RadioChannelId } from "@/lib/outputs";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
 import Icon from "@/components/Icon";
 
@@ -12,17 +12,15 @@ const STORAGE_KEY = "bobine.radioRemote.channel";
 function readStoredChannel(): RadioChannelId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "radio_cable" || stored === "radio_network") return stored;
+    if (isRadioChannel(stored)) return stored;
   } catch {
   }
-  return "radio_network";
+  return DEFAULT_RADIO_CHANNEL;
 }
 
 function readRequestedChannel(): RadioChannelId | null {
   const requested = new URLSearchParams(window.location.search).get("channel");
-  if (requested === "cable") return "radio_cable";
-  if (requested === "network") return "radio_network";
-  return null;
+  return isOutputId(requested) ? outputById(requested).radioChannel : null;
 }
 
 export default function RadioRemotePage() {

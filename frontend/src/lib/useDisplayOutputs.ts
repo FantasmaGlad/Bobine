@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getApiUrl } from "./apiUrl.ts";
 import { parseDisplayOutput, type DisplayOutput } from "./displayChannel.ts";
+import { isOutputId } from "./outputs.ts";
 import { useServerEvent, type ServerMessage } from "./useServerEvent.ts";
 
 export interface DisplayOutputs {
@@ -31,7 +32,7 @@ export function useDisplayOutputs(): DisplayOutputs {
   }, []);
 
   const onChange = useCallback((message: ServerMessage) => {
-    const channel = message.channel === "cable" || message.channel === "network" ? message.channel : null;
+    const channel = isOutputId(message.channel) ? message.channel : null;
     const output = channel ? parseDisplayOutput(channel, message.output) : null;
     if (channel && output) setOutputs((prev) => ({ ...prev, [channel]: output }));
   }, []);

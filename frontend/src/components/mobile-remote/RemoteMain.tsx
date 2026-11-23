@@ -9,6 +9,7 @@ import type { VideoSummary } from "@/components/dashboard/LaunchSheet";
 import type { useVideoChapters } from "@/lib/chapters";
 import type { DisplayOutput } from "@/lib/displayChannel";
 import type { CinemaRemoteState, PlaybackState } from "@/lib/usePlaybackSocket";
+import type { OutputId } from "@/lib/outputs";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 type Chapters = ReturnType<typeof useVideoChapters>;
@@ -64,10 +65,10 @@ export function RemoteMain(props: MainProps) {
 }
 
 interface SwitchProps {
-  channel?: "cable" | "network";
+  channel?: OutputId;
   displayOutputCable: DisplayOutput | null;
   displayOutputNetwork: DisplayOutput | null;
-  onSetDisplayOutput: (channel: "cable" | "network", output: DisplayOutput) => void;
+  onSetDisplayOutput: (channel: OutputId, output: DisplayOutput) => void;
   t: T;
 }
 

@@ -35,12 +35,12 @@ def test_media_list_filters_through_the_catalog(rec, capsys):
 @pytest.mark.parametrize("kind", list(contract.PLAYABLE_MEDIA))
 def test_play_sends_the_load_action_of_each_kind(rec, kind):
     family, action, param = contract.PLAYABLE_MEDIA[kind]
-    channel = "cable" if kind in contract.CABLE_ONLY_MEDIA else "network"
+    channel = "cable" if kind in contract.COACH_MEDIA else "network"
     assert cli.main(["play", kind, "12", "--channel", channel]) == cli.EXIT_OK
     assert rec.calls == [("POST", f"/api/{family}/{channel}/{action}", None, {param: 12})]
 
 
-@pytest.mark.parametrize("kind", contract.CABLE_ONLY_MEDIA)
+@pytest.mark.parametrize("kind", contract.COACH_MEDIA)
 def test_coach_media_only_play_on_the_wired_screen(rec, kind):
     assert cli.main(["play", kind, "12", "--channel", "network"]) == cli.EXIT_USAGE
     assert rec.calls == []

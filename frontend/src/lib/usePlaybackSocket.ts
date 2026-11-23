@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import { createPageClientId, lockedOutput, parseDisplayOutput, type DisplayOutput, type LockedOutput } from "@/lib/displayChannel";
+import { DEFAULT_OUTPUT, isOutputId, type OutputId } from "@/lib/outputs";
 import { type ClockAnchor } from "@/lib/playbackClock";
 import type { RadioSoundSettings } from "@/lib/radioSound";
 import { ServerClockSync } from "@/lib/serverClockSync";
@@ -86,7 +87,6 @@ export interface PlaybackState {
   audio_clock?: ClockAnchor | null;
 }
 
-export type PlaybackChannel = "cable" | "network";
 
 export interface CinemaRemoteState {
   title: string | null;
@@ -111,7 +111,7 @@ export interface PlaybackEvent {
   event: "state_change" | "position_tick";
   cause: string;
   client_ts?: number;
-  channel?: PlaybackChannel;
+  channel?: OutputId;
   data: PlaybackState;
   tick_seq?: number;
 }
@@ -151,7 +151,7 @@ function getPageKioskClientId(): string {
 export function usePlaybackSocket(
   onEvent?: (evt: PlaybackEvent) => void,
   role?: "kiosk",
-  channel: PlaybackChannel = "cable",
+  channel: OutputId = DEFAULT_OUTPUT,
   onCinemaCommand?: (action: CinemaCommandAction, positionSeconds: number, videoId?: number, extra?: CinemaCommandExtra) => void,
   page?: string,
 ) {
@@ -256,7 +256,7 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "display_output") {
-            const output = parsed.channel === "cable" || parsed.channel === "network" ? parseDisplayOutput(parsed.channel, parsed.output) : null;
+            const output = isOutputId(parsed.channel) ? parseDisplayOutput(parsed.channel, parsed.output) : null;
             if (output && parsed.channel === "cable") setDisplayOutputCable(output);
             else if (output) setDisplayOutputNetwork(output);
             return;
@@ -272,12 +272,12 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "cinema_state") {
-            if ((parsed.channel ?? "cable") !== channel) return;
+            if ((parsed.channel ?? DEFAULT_OUTPUT) !== channel) return;
             setCinemaState(parsed.data ?? null);
             return;
           }
           if (parsed.event === "cinema_command") {
-            if ((parsed.channel ?? "cable") !== channel) return;
+            if ((parsed.channel ?? DEFAULT_OUTPUT) !== channel) return;
             onCinemaCommandRef.current?.(
               parsed.action,
               parsed.position_seconds ?? 0,
@@ -299,7 +299,7 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "state_change" || parsed.event === "position_tick") {
-            if ((parsed.channel ?? "cable") !== channel) return;
+            if ((parsed.channel ?? DEFAULT_OUTPUT) !== channel) return;
             if (parsed.cause === "position_tick" && typeof parsed.tick_seq === "number") {
               const previous = lastTickSeqRef.current;
               if (previous !== null && parsed.tick_seq > previous + 1) {

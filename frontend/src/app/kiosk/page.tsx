@@ -26,10 +26,11 @@ import WaitingLayers from "@/components/kiosk/WaitingLayers";
 import { applyKioskEvent } from "@/components/kiosk/kioskEvents";
 import type { OsdContent } from "@/lib/kioskFeedback";
 import { useStallWatchdog } from "@/components/kiosk/useStallWatchdog";
+import { outputById, type OutputId } from "@/lib/outputs";
 
 export default function KioskPage() {
   const { t } = useAppSettings();
-  const [channel] = useState<"cable" | "network">(() => getDisplayChannel("kiosk"));
+  const [channel] = useState<OutputId>(() => getDisplayChannel("kiosk"));
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const bgVideoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -65,7 +66,7 @@ export default function KioskPage() {
   const tryPlay = useCallback((el: HTMLMediaElement | null | undefined) => {
     if (!el) return;
     el.play().catch(() => {
-      if (channel === "network") {
+      if (!outputById(channel).wired) {
         el.muted = true;
         el.play().catch(() => {});
         setNeedsAudioUnlock(true);

@@ -4,7 +4,8 @@ import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import type { SelectOption } from "@/components/select/options";
 import { audioDisplayName } from "@/lib/devices/audio";
-import { RADIO_OUTPUTS, summarizeRouting, type RadioOutputId, type RoutingRoute } from "@/lib/devices/routing";
+import { summarizeRouting, type RoutingRoute } from "@/lib/devices/routing";
+import { OUTPUT_IDS, RADIO_CHANNELS, type RadioChannelId } from "@/lib/outputs";
 import { hasSolo } from "@/lib/radioMix";
 import type { RadioFeed } from "@/lib/useRadioFeed";
 import { useRadioMixer } from "./mixer/useRadioMixer";
@@ -12,12 +13,12 @@ import { UnlockLabelsNote } from "./routing/RoutingNotes";
 import { useRoutingModel, useRoutingSave, type RoutingSave } from "./routing/useRouting";
 import { errorText, type SectionProps } from "./shared/section";
 import SoundRow from "./sound/SoundRow";
-import { useVideoSound, VIDEO_CHANNELS } from "./sound/useVideoSound";
+import { useVideoSound } from "./sound/useVideoSound";
 
 type Props = SectionProps & { feed: RadioFeed };
 
 function OutputCell({ channel, route, options, saver, disabled, t }: {
-  channel: RadioOutputId; route: RoutingRoute | null; options: SelectOption[]; saver: RoutingSave; disabled: boolean; t: SectionProps["t"];
+  channel: RadioChannelId; route: RoutingRoute | null; options: SelectOption[]; saver: RoutingSave; disabled: boolean; t: SectionProps["t"];
 }) {
   return (
     <div className="sd-output-cell">
@@ -51,7 +52,7 @@ export default function SoundSection({ caps, refreshKey, notify, t, feed }: Prop
 
   return (
     <div className="dv-section sd-table" role="table" aria-label={t("settingsPage.cat.sound.label")}>
-      {RADIO_OUTPUTS.map((channel) => {
+      {RADIO_CHANNELS.map((channel) => {
         const { mix, sound, playing } = mixer.current(channel);
         const levels = playing ? feed.levels[channel] : undefined;
         const output = outputs.find((o) => o.channel === channel);
@@ -92,7 +93,7 @@ export default function SoundSection({ caps, refreshKey, notify, t, feed }: Prop
         );
       })}
       <section className="sd-group" aria-label={t("devices.videoSound.title")}>
-        {VIDEO_CHANNELS.map((channel) => (
+        {OUTPUT_IDS.map((channel) => (
           <SoundRow key={channel} icon="movie" title={t(`devices.sound.video.${channel}`)} t={t}
             sound={video.sounds[channel]} onSound={(next) => video.save(channel, next)} />
         ))}

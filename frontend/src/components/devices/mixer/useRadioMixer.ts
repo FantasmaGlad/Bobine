@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { type MixerView, type RadioOutputId } from "@/lib/devices/routing";
+import { type MixerView } from "@/lib/devices/routing";
+import type { RadioChannelId } from "@/lib/outputs";
 import { clampMix, defaultMix, type RadioMix } from "@/lib/radioMix";
 import { clampSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { RadioFeed } from "@/lib/useRadioFeed";
@@ -13,8 +14,8 @@ export function useRadioMixer(refreshKey: number, feed: RadioFeed, notify: Secti
   const [drafts, setDrafts] = useState<MixDrafts>({});
   const { pendingRef, schedule } = useMixerWrites(setDrafts, notify, t);
 
-  const savedOf = (channel: RadioOutputId) => stored.data?.outputs.find((o) => o.channel === channel);
-  const current = (channel: RadioOutputId): { mix: RadioMix; sound: RadioSoundSettings; playing: boolean } => {
+  const savedOf = (channel: RadioChannelId) => stored.data?.outputs.find((o) => o.channel === channel);
+  const current = (channel: RadioChannelId): { mix: RadioMix; sound: RadioSoundSettings; playing: boolean } => {
     const draft = drafts[channel];
     const live = feed.channels[channel];
     const saved = savedOf(channel);
@@ -25,7 +26,7 @@ export function useRadioMixer(refreshKey: number, feed: RadioFeed, notify: Secti
     };
   };
 
-  const patchMix = (channel: RadioOutputId, patch: MixPatch) => {
+  const patchMix = (channel: RadioChannelId, patch: MixPatch) => {
     const next = clampMix(patch as Partial<RadioMix>, current(channel).mix);
     setDrafts((d) => ({ ...d, [channel]: { ...d[channel], mix: next } }));
     const entry = pendingRef.current[channel] ?? {};
@@ -33,7 +34,7 @@ export function useRadioMixer(refreshKey: number, feed: RadioFeed, notify: Secti
     schedule(channel);
   };
 
-  const patchSound = (channel: RadioOutputId, sound: RadioSoundSettings) => {
+  const patchSound = (channel: RadioChannelId, sound: RadioSoundSettings) => {
     setDrafts((d) => ({ ...d, [channel]: { ...d[channel], sound } }));
     pendingRef.current[channel] = { ...pendingRef.current[channel], sound };
     schedule(channel);

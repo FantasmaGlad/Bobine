@@ -7,6 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 from tzlocal import get_localzone
 
+from app.api.contract import DEFAULT_CHANNEL
 from app.models import (
     OverrideAction,
     Playlist,
@@ -106,7 +107,7 @@ def _occurrence(db: Session, schedule: Schedule, run_at: datetime, override: Sch
     end_time, is_24_7 = _window(schedule)
     return {
         "schedule_id": schedule.id,
-        "channel": schedule.channel or "cable",
+        "channel": schedule.channel or DEFAULT_CHANNEL,
         "schedule_type": schedule.schedule_type,
         "run_at": run_at,
         "target_type": target_type,

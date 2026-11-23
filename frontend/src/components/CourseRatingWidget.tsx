@@ -4,11 +4,12 @@ import React from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { RatingConfirmed, RatingHeader, RatingProgress, RatingStars } from "./course-rating/RatingParts";
 import { useCourseRating } from "./course-rating/useCourseRating";
+import type { OutputId } from "@/lib/outputs";
 
 export interface CourseRatingWidgetProps {
   videoId: number;
   courseTitle: string;
-  channel?: "cable" | "network";
+  channel?: OutputId;
   autoCloseSeconds?: number;
   onClose?: () => void;
   onRated?: (score: number) => void;

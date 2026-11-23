@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_OUTPUT, DEFAULT_RADIO_CHANNEL, outputOfRadio } from "@/lib/outputs";
 import {
   decideOutputRedirect,
   isLoopbackHost,
@@ -26,7 +27,7 @@ function currentSearch(): string {
 }
 
 export function getDisplayChannel(page: DisplayPage): DisplayChannel {
-  if (typeof window === "undefined") return page === "radio" ? "network" : "cable";
+  if (typeof window === "undefined") return page === "radio" ? outputOfRadio(DEFAULT_RADIO_CHANNEL).id : DEFAULT_OUTPUT;
   return resolveChannel(currentSearch(), window.location.hostname, page).channel;
 }
 

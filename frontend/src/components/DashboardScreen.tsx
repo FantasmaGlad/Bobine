@@ -17,9 +17,10 @@ import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { getApiUrl } from "@/lib/apiUrl";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { useIsMobile } from "@/lib/useIsMobile";
-import { usePlaybackSocket, type PlaybackChannel } from "@/lib/usePlaybackSocket";
+import type { OutputId } from "@/lib/outputs";
+import { usePlaybackSocket } from "@/lib/usePlaybackSocket";
 
-export default function DashboardScreen({ channel }: { channel: PlaybackChannel }) {
+export default function DashboardScreen({ channel }: { channel: OutputId }) {
   const isMobile = useIsMobile();
   const router = useRouter();
   const [lastCause, setLastCause] = useState("sync");

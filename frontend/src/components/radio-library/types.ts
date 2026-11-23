@@ -44,5 +44,4 @@ export type Filter = { type: "artist" | "album" | "genre" | "tag" | "playlist"; 
 export type Section = "tracks" | "playlists" | "artists" | "tags" | "import";
 export type SortKey = "recent" | "title" | "artist" | "duration";
 export type ViewMode = "grid" | "list";
-export type RadioOutput = "radio_cable" | "radio_network";
 export type OutputDefaults = Record<string, { override_playlist_id: number | null; effective_playlist_id: number | null }>;

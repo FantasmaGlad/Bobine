@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { devicesRequest } from "@/lib/devices/request";
-import { type RadioOutputId, type RoutingView } from "@/lib/devices/routing";
+import { type RoutingView } from "@/lib/devices/routing";
+import type { RadioChannelId } from "@/lib/outputs";
 import { type AudioListing } from "@/lib/devices/types";
 import { errorText, type SectionProps } from "../shared/section";
 import { useDevicesResource } from "../shared/useDevicesResource";
 
 export interface Assignment {
-  channel: RadioOutputId;
+  channel: RadioChannelId;
   sinkId: string | null;
 }
 

@@ -10,13 +10,13 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 
+from app.outputs import OUTPUTS
+
 logger = logging.getLogger(__name__)
 
-OUTPUTS = (
-    ("playback", "cable", "Câblé"),
-    ("playback", "network", "Réseau"),
-    ("radio", "cable", "Radio câblée"),
-    ("radio", "network", "Radio réseau"),
+TARGETS = (
+    *(("playback", output.id, output.label) for output in OUTPUTS),
+    *(("radio", output.id, output.radio_label) for output in OUTPUTS),
 )
 STATE_LABELS = {
     "playing": "lecture", "paused": "en pause", "waiting": "en attente", "playlist_waiting": "en attente", "idle": "arrêtée",
@@ -58,7 +58,7 @@ class Controls:
             if self._cache and self._clock() - self._cache[0] < STATE_TTL_SECONDS:
                 return self._cache[1]
         result: dict[tuple[str, str], str | None] = {}
-        for kind, target, _ in OUTPUTS:
+        for kind, target, _ in TARGETS:
             try:
                 payload = self._transport("GET", self._admin_url() + _state_path(kind, target), HTTP_TIMEOUT_SECONDS)
                 state = (payload or {}).get("state")
@@ -99,7 +99,7 @@ class Controls:
 
     def stop_all(self) -> int:
         """Arrête les quatre sorties ; renvoie le nombre d'arrêts acceptés (un échec n'empêche pas les autres)."""
-        accepted = sum(self._send(kind, target, "stop") for kind, target, _ in OUTPUTS)
+        accepted = sum(self._send(kind, target, "stop") for kind, target, _ in TARGETS)
         self.invalidate()
         return accepted
 

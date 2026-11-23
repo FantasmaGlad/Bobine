@@ -8,9 +8,10 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from app.api.contract import LOCKED_OUTPUTS
+from app.api.contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL, LOCKED_OUTPUTS
 from app.database import get_db
 from app.models import Setting
+from app.outputs import OUTPUTS, WIRED_OUTPUT, get_output
 from app.playback.manager import get_playback_manager
 from app.radio.manager import get_radio_manager
 from app.scheduling.radio import activate_radio_output
@@ -20,7 +21,7 @@ from app.utils.deployment import (
 )
 from app.utils.ws_manager import manager as ws_manager
 
-from .core import _DISPLAY_CHANNELS, _DISPLAY_OUTPUT_KEYS, _DISPLAY_OUTPUTS_BY_CHANNEL, DisplayOutputUpdate, _get_db_value, router
+from .core import _DISPLAY_OUTPUT_KEYS, DisplayOutputUpdate, _get_db_value, router
 from .values import get_settings
 from .wired_mode import get_effective_wired_display_mode
 
@@ -40,16 +41,16 @@ async def broadcast_display_mode(db: Session) -> str:
         "active_logo": snapshot["active_logo"],
         "wired_display_mode": mode,
     })
-    await ws_manager.broadcast({"event": "display_mode_change", "channel": "cable", "mode": mode})
+    await ws_manager.broadcast({"event": "display_mode_change", "channel": WIRED_OUTPUT.id, "mode": mode})
     return mode
 
 
-def get_display_output_value(db: Session, channel: str = "cable") -> str:
+def get_display_output_value(db: Session, channel: str = WIRED_OUTPUT.id) -> str:
     """Valeur de sortie active pour un canal, réutilisable hors endpoint (verrouillage cinéma dans api/routes/playback/)."""
     value = _get_db_value(db, _DISPLAY_OUTPUT_KEYS[channel])
-    if value in _DISPLAY_OUTPUTS_BY_CHANNEL[channel]:
+    if value in DISPLAY_OUTPUTS_BY_CHANNEL[channel]:
         return value
-    if channel == "cable":
+    if get_output(channel).wired:
         if get_deployment_profile() == "android" or get_effective_wired_display_mode(db) == "dual_screen":
             return "cinema"
     return "kiosk"
@@ -58,26 +59,25 @@ def get_display_output_value(db: Session, channel: str = "cable") -> str:
 @router.get("/display-output")
 def get_display_output(db: Session = Depends(get_db)) -> dict[str, str]:
     """Sortie active des deux canaux : câblé (écran branché à la machine) et réseau (tout autre appareil du LAN)."""
-    return {
-        "cable": get_display_output_value(db, "cable"),
-        "network": get_display_output_value(db, "network"),
-    }
+    return _display_outputs(db)
+
+
+def _display_outputs(db: Session) -> dict[str, str]:
+    return {output.id: get_display_output_value(db, output.id) for output in OUTPUTS}
 
 
 @router.put("/display-output")
 async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends(get_db)) -> dict[str, str]:
     """Bascule la sortie d'un canal (câblé ou réseau), indépendamment de l'autre."""
-    if payload.channel not in _DISPLAY_CHANNELS:
-        raise HTTPException(status_code=422, detail="Canal invalide (attendu 'cable' ou 'network')")
-    if payload.output not in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel]:
-        allowed = " ou ".join(f"'{o}'" for o in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel])
+    if payload.channel not in CHANNELS:
+        expected = " ou ".join(f"'{c}'" for c in CHANNELS)
+        raise HTTPException(status_code=422, detail=f"Canal invalide (attendu {expected})")
+    if payload.output not in DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel]:
+        allowed = " ou ".join(f"'{o}'" for o in DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel])
         raise HTTPException(status_code=422, detail=f"Sortie invalide pour ce canal (attendu {allowed})")
 
     await apply_display_output(db, payload.channel, payload.output)
-    return {
-        "cable": get_display_output_value(db, "cable"),
-        "network": get_display_output_value(db, "network"),
-    }
+    return _display_outputs(db)
 
 
 async def apply_display_output(db: Session, channel: str, output: str, *, activate_radio: bool = True) -> None:
@@ -106,12 +106,13 @@ async def apply_display_output(db: Session, channel: str, output: str, *, activa
             log_activity(db, "playback_stopped", title)
         await manager.stop()
 
-    if channel == "cable":
+    spec = get_output(channel)
+    if "radio" in spec.modes:
         if output == "radio":
             if activate_radio:
-                await activate_radio_output(db, "radio_cable")
+                await activate_radio_output(db, spec.radio_channel)
         elif previous_output == "radio":
-            await get_radio_manager("radio_cable").pause()
+            await get_radio_manager(spec.radio_channel).pause()
 
     await ws_manager.broadcast({"event": "display_output", "channel": channel, "output": output})
     logger.info(f"Sortie {channel} basculée sur /{output}")

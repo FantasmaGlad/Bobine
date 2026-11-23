@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import SessionLocal
+from app.api.contract import DEFAULT_CHANNEL
 from app.models import (
     OverrideAction,
     PlaybackState,
@@ -19,6 +20,7 @@ from app.models import (
 )
 from app.playback.constants import PlaybackStateEnum
 from app.playback.manager import get_playback_manager
+from app.outputs import DEFAULT_OUTPUT, get_output, output_of_radio
 from app.radio.channels import normalize_radio_channel
 from app.scheduling import launch_store as scheduled_launch_store
 from app.scheduling.offsets import playback_offset, playlist_resume_point
@@ -48,9 +50,10 @@ def scheduled_target_unavailable(db: Session, target_type: ScheduleTargetType, t
 
 async def _launch_radio(db: Session, target_id: int, channel: str) -> None:
     radio_channel = normalize_radio_channel(channel)
+    screen = output_of_radio(radio_channel).id
     paused = False
     if not _radio_output_is_audible(db, radio_channel):
-        if get_playback_manager("cable").snapshot()["state"] == PlaybackStateEnum.coach_mode.value:
+        if get_playback_manager(screen).snapshot()["state"] == PlaybackStateEnum.coach_mode.value:
             paused = True
             logger.info(f"Programmation radio ({radio_channel}) : mode coach actif, playlist chargée en pause "
                         "sans basculer l'écran câblé")
@@ -58,7 +61,7 @@ async def _launch_radio(db: Session, target_id: int, channel: str) -> None:
             from app.api.routes.settings.display import apply_display_output
 
             logger.info(f"Programmation radio ({radio_channel}) : l'écran câblé passe sur Radio")
-            await apply_display_output(db, "cable", "radio", activate_radio=False)
+            await apply_display_output(db, screen, "radio", activate_radio=False)
     await _launch_radio_target(db, target_id, radio_channel, start_paused=paused)
 
 
@@ -119,7 +122,7 @@ async def _launch_playlist(db: Session, manager, target_id: int, channel: str, r
 
 
 async def launch_target(
-    db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = "cable",
+    db: Session, target_type: ScheduleTargetType, target_id: int, channel: str = DEFAULT_CHANNEL,
     resumed_from: datetime | None = None,
 ) -> None:
     """Lance la cible d'une programmation sur l'état de lecture de SON canal (un planning par canal, zéro interférence entre les deux lectures)."""
@@ -140,7 +143,7 @@ async def launch_target(
         logger.info(f"Programmation ({label}) reportée : mode audio coach actif")
         return
     if _manual_video_active(current):
-        if channel == "network":
+        if not (get_output(channel) or DEFAULT_OUTPUT).schedule_first:
             logger.info(f"Programmation ({label}) annulée : lecture manuelle en cours sur le canal réseau (priorité au manuel)")
             return
         _replace_saved_state(db, channel, video_id=current["current_video"]["id"],
@@ -177,7 +180,7 @@ async def fire_schedule(schedule_id: int) -> None:
             schedule.active = False
             db.commit()
 
-        await launch_target(db, target_type, target_id, schedule.channel or "cable")
+        await launch_target(db, target_type, target_id, schedule.channel or DEFAULT_CHANNEL)
     finally:
         db.close()
 

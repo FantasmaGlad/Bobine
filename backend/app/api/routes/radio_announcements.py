@@ -20,7 +20,7 @@ from app.utils._pydantic_compat import fields_set
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
 from app.api.contract import LEGACY_RADIO_CHANNEL
-from app.radio.channels import RULE_TARGETS, normalize_rule_target
+from app.radio.channels import DEFAULT_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
 from app.radio.importer import import_radio_announcement, import_radio_announcements_from_files
@@ -96,10 +96,15 @@ def _rule_response(rule: RadioAnnouncementRule) -> dict:
     }
 
 
+def _expected(values: tuple[str, ...]) -> str:
+    quoted = [f"'{value}'" for value in values]
+    return ", ".join(quoted[:-1]) + " ou " + quoted[-1]
+
+
 def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
     if data.target is not None and data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
         raise HTTPException(
-            status_code=422, detail="target invalide (attendu 'radio_cable', 'radio_network' ou 'both')"
+            status_code=422, detail=f"target invalide (attendu {_expected(RULE_TARGETS)})"
         )
     if data.rule_type == RadioAnnouncementRuleType.every_n_tracks and not data.n_tracks:
         raise HTTPException(status_code=422, detail="n_tracks est requis pour une règle « toutes les N musiques »")
@@ -242,7 +247,7 @@ def create_rule(payload: RadioAnnouncementRuleInput, db: Session = Depends(get_d
         interval_minutes=payload.interval_minutes,
         times_of_day=json.dumps(payload.times_of_day) if payload.times_of_day else None,
         enabled=payload.enabled,
-        target=normalize_rule_target(payload.target or "radio_network"),
+        target=normalize_rule_target(payload.target or DEFAULT_RADIO_CHANNEL),
     )
     db.add(rule)
     db.commit()

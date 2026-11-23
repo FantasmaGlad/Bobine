@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from app.api.contract import CHANNELS
+from app.outputs import OUTPUTS, get_output
 
 from .client import Client, local_version
 from .core import EXIT_ERROR, EXIT_OK, EXIT_USAGE, CliError, Output, segment
@@ -214,12 +215,13 @@ def cmd_display(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.display_action == "get":
         payload = client.request("GET", "/api/settings/display-output")
     else:
-        if args.channel == "network" and args.output == "radio":
-            raise CliError("la sortie radio n'est disponible que sur le canal câblé", EXIT_USAGE)
+        if args.output not in get_output(args.channel).modes:
+            hosts = ", ".join(output.label.lower() for output in OUTPUTS if args.output in output.modes)
+            raise CliError(f"la sortie {args.output} n'est disponible que sur le canal {hosts}", EXIT_USAGE)
         payload = client.request("PUT", "/api/settings/display-output", body={
             "channel": args.channel, "output": args.output,
         })
-    out.result(payload, f"câblé={payload.get('cable')}  réseau={payload.get('network')}")
+    out.result(payload, "  ".join(f"{output.label.lower()}={payload.get(output.id)}" for output in OUTPUTS))
     return EXIT_OK
 
 

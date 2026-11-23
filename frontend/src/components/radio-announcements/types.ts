@@ -1,3 +1,5 @@
+import type { RadioChannelId } from "@/lib/outputs";
+
 export interface Announcement {
   id: number;
   description: string;
@@ -7,7 +9,7 @@ export interface Announcement {
 
 export type RuleType = "every_n_tracks" | "every_x_minutes" | "fixed_times";
 
-export type RuleTarget = "radio_cable" | "radio_network" | "both";
+export type RuleTarget = RadioChannelId | "both";
 
 export interface Rule {
   id: number;

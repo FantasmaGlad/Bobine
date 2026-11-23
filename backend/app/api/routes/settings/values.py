@@ -15,6 +15,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import release_channel
 from app.api.contract import SETTING_BOUNDS
+from app.outputs import WIRED_OUTPUT
 from app.config import (
     settings as runtime_settings,
 )
@@ -302,7 +303,7 @@ async def after_settings_change(updates: dict[str, Any], db: Session) -> dict[st
     if "wired_display_mode" in updates or "display_mode_setting" in updates:
         await ws_manager.broadcast({
             "event": "display_mode_change",
-            "channel": "cable",
+            "channel": WIRED_OUTPUT.id,
             "mode": result["wired_display_mode"],
         })
 

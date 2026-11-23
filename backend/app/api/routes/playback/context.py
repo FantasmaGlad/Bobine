@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.api.contract import LOCKED_OUTPUTS
 from app.api.routes.settings.display import get_display_output_value
+from app.outputs import get_output
 from app.utils.activity_log import log_activity
 from app.utils.ws_manager import manager as ws_manager
 
@@ -54,6 +55,7 @@ class Command:
                               f"Le canal {self.channel} affiche le mode {output} : aucun écran vidéo ne montrerait ce lancement.")
 
     def ensure_cable(self) -> None:
-        if self.channel != "cable":
+        spec = get_output(self.channel)
+        if spec is None or not spec.coach:
             logger.info(f"Commande {self.name} ignorée : le mode coach est réservé au canal câblé")
             raise CommandRejected("coach_cable_only", self.channel, "Le mode coach est réservé au canal câblé.")

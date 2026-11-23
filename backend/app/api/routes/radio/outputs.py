@@ -64,7 +64,8 @@ def set_default_playlist(payload: DefaultPlaylistInput, db: Session = Depends(ge
     from app.scheduling.radio import set_radio_default_playlist_override
 
     if payload.channel not in RADIO_CHANNELS:
-        raise HTTPException(status_code=422, detail="Sortie radio invalide (attendu 'radio_cable' ou 'radio_network')")
+        expected = " ou ".join(f"'{channel}'" for channel in RADIO_CHANNELS)
+        raise HTTPException(status_code=422, detail=f"Sortie radio invalide (attendu {expected})")
     if payload.playlist_id is not None:
         if not db.query(RadioPlaylist).filter(RadioPlaylist.id == payload.playlist_id).first():
             raise HTTPException(status_code=404, detail="Playlist radio non trouvée")

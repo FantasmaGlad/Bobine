@@ -125,13 +125,20 @@ def test_display_outputs_follow_the_contract(client):
 def test_frontend_offers_exactly_the_contract_outputs():
     import re
 
-    source = (Path(__file__).resolve().parents[2] / "frontend/src/lib/displayChannel.ts")
+    from app.outputs import OUTPUTS
+
+    source = (Path(__file__).resolve().parents[2] / "frontend/src/lib/outputs.ts")
     if not source.exists():
         pytest.skip("frontend absent de cette arborescence")
     text = source.read_text(encoding="utf-8")
-    for channel, name in (("cable", "CABLE_OUTPUTS"), ("network", "NETWORK_OUTPUTS")):
-        listed = re.search(rf"export const {name} = \[(.*?)\]", text, re.S).group(1)
-        assert tuple(re.findall(r'"([^"]+)"', listed)) == contract.DISPLAY_OUTPUTS_BY_CHANNEL[channel]
+    pattern = r'\{ id: "([^"]+)", radioChannel: "([^"]+)", modes: \[([^\]]*)\], wired: (true|false), coach: (true|false) \}'
+    listed = [
+        (output_id, radio, tuple(re.findall(r'"([^"]+)"', modes)), wired == "true", coach == "true")
+        for output_id, radio, modes, wired, coach in re.findall(pattern, text)
+    ]
+    assert listed == [(o.id, o.radio_channel, o.modes, o.wired, o.coach) for o in OUTPUTS]
+    for channel, modes in contract.DISPLAY_OUTPUTS_BY_CHANNEL.items():
+        assert next(entry for entry in listed if entry[0] == channel)[2] == modes
     assert set(contract.LOCKED_OUTPUTS) == set(contract.DISPLAY_OUTPUTS) - {"kiosk"}
 
 

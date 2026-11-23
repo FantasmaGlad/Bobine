@@ -6,11 +6,12 @@ import { formatWallClock } from "@/lib/format";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
 import { formatDuration } from "./media";
 import { useKioskClock } from "./useKioskClock";
+import type { OutputId } from "@/lib/outputs";
 
 interface WaitingLayersProps {
   t: (key: string, vars?: Record<string, string | number>) => string;
   state: PlaybackState;
-  channel: "cable" | "network";
+  channel: OutputId;
 }
 
 export default function WaitingLayers({ t, state, channel }: WaitingLayersProps) {
