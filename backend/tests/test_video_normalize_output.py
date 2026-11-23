@@ -44,3 +44,17 @@ def test_import_fails_when_no_encoder_produces_a_video(encoders):
     with pytest.raises(ValueError, match="sans piste vidéo"):
         normalize.normalize_video(str(tmp_path / "in.wmv"), str(out), ["recode_video"], SOURCE)
     assert not out.exists()
+
+
+def test_error_message_keeps_the_last_ffmpeg_lines_not_its_banner(monkeypatch, tmp_path):
+    banner = "ffmpeg version 8.1.1 Copyright (c) 2000-2026 the FFmpeg developers\n  built with Android clang\n  configuration: --disable-gpl\n"
+
+    def run(cmd, job_id, duration, encoder_name=None, width=None, height=None):
+        return 1, banner + "Unknown encoder 'libx264'\nError selecting an encoder\n"
+
+    monkeypatch.setattr(normalize, "get_transcode_pipeline", lambda *args: TIERS[1:])
+    monkeypatch.setattr(normalize, "run_ffmpeg_with_progress", run)
+    with pytest.raises(ValueError) as error:
+        normalize.normalize_video(str(tmp_path / "in.wmv"), str(tmp_path / "out.mp4"), ["recode_video"], SOURCE)
+    assert "Unknown encoder 'libx264'" in str(error.value)
+    assert "Copyright" not in str(error.value)
