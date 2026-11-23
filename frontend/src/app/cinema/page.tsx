@@ -264,6 +264,12 @@ export default function CinemaPage() {
         setCinemaSync(null);
         if (videoRef.current) videoRef.current.currentTime = seconds;
       },
+      onChapter: (dir, from) => {
+        const target = chapterJumpTarget(chapters, from, dir === 1 ? "next" : "prev");
+        if (target === null) return false;
+        seekBy(target - (videoRef.current?.currentTime || 0));
+        return true;
+      },
     });
   };
 
@@ -376,7 +382,7 @@ export default function CinemaPage() {
           <PauseScreen t={t} media={selected} thumbnail={selected ? thumbnailUrl(selected) : null} position={shownPosition} duration={duration}
             kicker={t("cinema.pause")} resumeLabel={t("cinema.play")} onResume={playPause} back={{ label: t("cinema.backToMenu"), onBack: backToMenu }} />
         )}
-        <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} />
+        <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={!hideControls && playingLayer && (controlsVisible || !isPlaying)} />
         {!hideControls && (
           <CinemaControls visible={playingLayer && (controlsVisible || !isPlaying)} playing={isPlaying} position={shownPosition} duration={duration} chapters={chapters}
             subtitles={subtitles} activeSubtitle={activeSubtitle} onSubtitle={setActiveSubtitle} onPlayPause={playPause} onBack={backToMenu} onDrag={setSeekDrag} onSeek={seekTo} />
