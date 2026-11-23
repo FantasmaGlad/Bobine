@@ -78,6 +78,20 @@ class RemoteInputs(BaseModel):
     bindings: Dict[str, List[str]]
 
 
+class SignageEntry(BaseModel):
+    background_id: int
+    seconds: Optional[int]
+    title: str
+    is_image: bool
+    play_seconds: Optional[int]
+    duration_seconds: Optional[float]
+
+
+class SignageLoop(BaseModel):
+    channel: str
+    items: List[SignageEntry]
+
+
 class OpenedPath(BaseModel):
     status: str
     path: str

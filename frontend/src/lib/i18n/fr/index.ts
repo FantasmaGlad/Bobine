@@ -33,6 +33,7 @@ import { telemetryDrawer } from "./telemetryDrawer.ts";
 import { audioBadge } from "./audioBadge.ts";
 import { app } from "./app.ts";
 import { uploadManager } from "./uploadManager.ts";
+import { signage } from "./signage.ts";
 
 export const dictionary: Dict = {
   nav,
@@ -68,4 +69,5 @@ export const dictionary: Dict = {
   audioBadge,
   app,
   uploadManager,
+  signage,
 };
