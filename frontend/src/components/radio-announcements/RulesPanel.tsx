@@ -1,6 +1,5 @@
 "use client";
 import React from "react";
-import Icon from "@/components/Icon";
 import type { ShowToast } from "@/lib/useToast";
 import AddRuleForm from "./rules/AddRuleForm";
 import RuleRow, { useRuleActions } from "./rules/RuleRow";
@@ -21,23 +20,22 @@ export default function RulesPanel({ t, rules, setRules, fetchAll, showToast, ta
   const { toggleRuleEnabled, handleDeleteRule } = useRuleActions(t, showToast, setRules);
 
   return (
-        <section className="ra-col">
-          <div className="ra-card">
-            <h3 className="ra-card-title"><Icon name="schedule" size={18} /> {t("radioAnnouncements.rulesTitle")}</h3>
-            <p className="ra-card-hint">{t("radioAnnouncements.rulesHint")}</p>
-
-            {rules.length === 0 ? (
-              <p className="live-empty" style={{ marginBottom: "12px" }}>{t("radioAnnouncements.noRules")}</p>
-            ) : (
-              <div className="ra-list" style={{ marginBottom: "16px" }}>
-                {rules.map((rule) => (
-                  <RuleRow key={rule.id} t={t} rule={rule} onToggle={() => toggleRuleEnabled(rule)} onDelete={() => handleDeleteRule(rule.id)} />
-                ))}
-              </div>
-            )}
-
-            <AddRuleForm t={t} rule={newRule} targetOptions={targetOptions} />
+    <>
+      <section className="ra-card">
+        <p className="ra-card-hint">{t("radioAnnouncements.rulesHint")}</p>
+        {rules.length === 0 ? (
+          <p className="live-empty">{t("radioAnnouncements.noRules")}</p>
+        ) : (
+          <div className="ra-list">
+            {rules.map((rule) => (
+              <RuleRow key={rule.id} t={t} rule={rule} onToggle={() => toggleRuleEnabled(rule)} onDelete={() => handleDeleteRule(rule.id)} />
+            ))}
           </div>
-        </section>
+        )}
+      </section>
+      <section className="ra-card">
+        <AddRuleForm t={t} rule={newRule} targetOptions={targetOptions} />
+      </section>
+    </>
   );
 }
