@@ -474,7 +474,7 @@
        "type": "integer"
       }
      ],
-     "summary": "List Backgrounds"
+     "summary": "Fonds animés, du plus récent au plus ancien."
     },
     {
      "body": {
@@ -504,7 +504,7 @@
      "path": "/api/backgrounds/upload",
      "path_parameters": [],
      "query": [],
-     "summary": "Upload web d'un fond animé — traité en arrière-plan, voir `_run_background_import_job` et `GET /api/import-jobs`."
+     "summary": "Envoi d'un fond animé, traité en arrière-plan : suivi par `GET /api/import-jobs`."
     },
     {
      "body": {
@@ -528,7 +528,7 @@
      "path": "/api/backgrounds/upload-zip",
      "path_parameters": [],
      "query": [],
-     "summary": "Import d'une archive (ZIP ou tar) de fonds animés et d'images : un fond par fichier, en une seule tâche."
+     "summary": "Import d'une archive (ZIP ou tar) d'images et de vidéos : un fond animé par fichier, en une seule tâche."
     },
     {
      "body": null,
@@ -543,7 +543,7 @@
       }
      ],
      "query": [],
-     "summary": "Delete Background"
+     "summary": "Supprime un fond animé, son fichier et sa miniature."
     },
     {
      "body": null,
@@ -558,7 +558,7 @@
       }
      ],
      "query": [],
-     "summary": "Get Background"
+     "summary": "Fiche d'un fond animé."
     },
     {
      "body": {
@@ -583,7 +583,7 @@
       }
      ],
      "query": [],
-     "summary": "Update Background"
+     "summary": "Renomme un fond animé."
     },
     {
      "body": null,
@@ -598,7 +598,7 @@
       }
      ],
      "query": [],
-     "summary": "Stream Background"
+     "summary": "Flux d'un fond animé, image ou vidéo."
     }
    ]
   },

@@ -1,9 +1,6 @@
-"""API des fonds animés : bibliothèque, envois et flux."""
+"""API des fonds animés du coach : bibliothèque, envois et flux (routes communes des espaces visuels)."""
 
-from fastapi import APIRouter
+from app.media_assets.registry import BACKGROUNDS
+from app.media_assets.routes import asset_router
 
-from . import library, streams
-
-router = APIRouter()
-router.include_router(library.router)
-router.include_router(streams.router)
+router = asset_router(BACKGROUNDS)
