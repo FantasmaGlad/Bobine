@@ -11,16 +11,10 @@ tzlocal
 aiofiles
 pillow
 psutil
-# Onglet Périphériques (Linux uniquement) : BlueZ par D-Bus, Python pur asynchrone. Chargé à la demande —
-# son absence rend simplement le Bluetooth « non pris en charge » (jamais une erreur au démarrage).
 dbus-fast; sys_platform == "linux"
-# Profils desktop : BobineTray (icône de zone de notification) et répondeur
-# mDNS embarqué, sans dépendance native (python-xlib est un client X11 pur Python).
 pystray
 zeroconf==0.154.0
 
-# pystray sur macOS (Lot 3) s'appuie sur AppKit/Foundation via pyobjc — sans
-# effet sur Windows/Linux (marqueur sys_platform), cf. packaging/macos/bobine.spec.
 pyobjc-core; sys_platform == "darwin"
 pyobjc-framework-Cocoa; sys_platform == "darwin"
 pyobjc-framework-Quartz; sys_platform == "darwin"

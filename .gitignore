@@ -1,48 +1,35 @@
-# Python
-backend/.venv/
 .venv/
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
 
-# Node / Next.js
-frontend/node_modules/
 frontend/.next/
 frontend/out/
 node_modules/
 
-# Données locales, médias et logs
 *.db
 *.db-shm
 *.db-wal
 *.sqlite3
 *.log
-/videos/
 /logs/
 /data/
 backend/data/
 backend/backend-runtime.json
-backend/update-pending.json
-/VideoTest/
 
-# IDE & Éditeurs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Packaging & Build
 dist/
 build/
-backend/dist/
-backend/build/
 dist-deb/
 dist-installer/
 dist-dmg/
 
-# Android
 android/.gradle/
 android/local.properties
 android/app/build/
@@ -54,20 +41,14 @@ android/app/src/main/jniLibs/
 *.apk
 *.aab
 
-# Système & Divers
 .DS_Store
 Thumbs.db
-docs/patch.md
 
-
-# Composants natifs Rust
 projector/target/
 devices/target/
 
-# Banc de compatibilité navigateurs : session geckodriver locale
 scripts/browser-bench/.wd_session
 
-# Composant natif de métadonnées audio
 media/target/
 media/fuzz/target/
 media/fuzz/corpus/

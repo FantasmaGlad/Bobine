@@ -42,7 +42,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [InstallDelete]
-; modules compiles d'une ancienne installation retires avant extraction
 Type: files; Name: "{app}\*.pyd"
 Type: files; Name: "{app}\*.dll"
 
@@ -59,7 +58,6 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Tasks: des
 Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\BobineTray.exe"; Parameters: "--startup"
 
 [Run]
-; regle liee au programme : couvre aussi le port de repli ; l'ancienne est retiree d'abord
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Bobine"""; Flags: runhidden
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""Bobine"" dir=in action=allow program=""{app}\BobineBackend.exe"" enable=yes profile=any remoteip=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16,100.64.0.0/10,fc00::/7,fe80::/10"; Flags: runhidden; StatusMsg: "Configuration du pare-feu…"
 Filename: "{app}\BobineTray.exe"; Description: "Lancer Bobine"; Flags: postinstall nowait skipifsilent

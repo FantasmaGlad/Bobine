@@ -1,6 +1,8 @@
 use super::*;
 use std::io::Cursor;
 
+const BLOCKSIZES_256_AND_2048: u8 = 0xb8;
+
 fn page(flags: u8, granule: u64, serial: u32, packets: &[&[u8]], open: bool) -> Vec<u8> {
     let mut segments = Vec::new();
     let mut body = Vec::new();
@@ -71,7 +73,7 @@ fn ident() -> Vec<u8> {
     bytes.push(1);
     bytes.extend_from_slice(&44_100_u32.to_le_bytes());
     bytes.extend_from_slice(&[0; 12]);
-    bytes.push(0xb8); // blocksizes 256 and 2048
+    bytes.push(BLOCKSIZES_256_AND_2048);
     bytes.push(1);
     bytes
 }

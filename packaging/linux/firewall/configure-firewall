@@ -21,7 +21,7 @@ fi
 if command -v firewall-cmd >/dev/null 2>&1 || command -v firewall-offline-cmd >/dev/null 2>&1; then
     if firewall-cmd --state >/dev/null 2>&1; then
         tool="firewall-cmd --permanent"
-        firewall-cmd --reload >/dev/null 2>&1 || true  # charge le service bobine fraîchement installé
+        firewall-cmd --reload >/dev/null 2>&1 || true
     else
         tool="firewall-offline-cmd"
         command -v firewall-offline-cmd >/dev/null 2>&1 || exit "$failed"

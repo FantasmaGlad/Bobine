@@ -7,7 +7,6 @@ import unittest
 SCRIPT = Path(__file__).with_name("publish-rolling-release.sh")
 
 FAKE_GH = r"""#!/usr/bin/env bash
-# Fake gh: records every call; `release view` answers from $FAKE_GH_ASSETS (one name per line) or fails with $FAKE_GH_VIEW_ERROR.
 echo "$*" >> "$FAKE_GH_LOG"
 if [ "$1 $2" = "release view" ]; then
     if [ -n "${FAKE_GH_VIEW_ERROR:-}" ]; then echo "$FAKE_GH_VIEW_ERROR" >&2; exit 1; fi

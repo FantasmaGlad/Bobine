@@ -1,11 +1,11 @@
-# sentinelle de la mise à jour interne lue dans les scriptlets
+# scriptlets read the in-app update sentinel in /run or /tmp
 addFilter("use-tmp-in-")
 addFilter("dangerous-command-in-")
 addFilter("spelling-error")
-# nom de fichier fixe par canal (bobine-canary.x86_64.rpm)
+# fixed per-channel file name (bobine-canary.x86_64.rpm)
 addFilter("non-coherent-filename")
 addFilter("no-manual-page-for-binary")
-# stub du chargeur PyInstaller et icônes sous deux noms
+# PyInstaller loader stub and icons installed under two names
 addFilter("files-duplicate")
-# base_library.zip : produite sans compression par PyInstaller
+# PyInstaller writes base_library.zip uncompressed
 addFilter(r"uncompressed-zip /usr/lib/bobine/base_library\.zip$")
