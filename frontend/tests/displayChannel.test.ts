@@ -163,10 +163,20 @@ test("un changement de sortie de l'AUTRE canal ne fait jamais naviguer un écran
   assert.equal(shouldEvaluateRedirect("cable", { cable: null, network: "cinema" }, null), false);
 });
 
-test("le bouton d'ouverture suit la sortie du canal, kiosque par défaut", () => {
-  assert.equal(screenUrl("cable", null), "/kiosk?output=cable");
-  assert.equal(screenUrl("cable", "radio"), "/radio?output=cable");
-  assert.equal(screenUrl("network", "cinema"), "/cinema?output=network");
+test("le bouton d'ouverture mène à l'adresse unique de la sortie", () => {
+  assert.equal(screenUrl("cable"), "/screen?output=cable");
+  assert.equal(screenUrl("network_2"), "/screen?output=network_2");
+});
+
+test("l'adresse unique ouvre l'écran du mode courant de sa sortie", async () => {
+  const { screenOutput, screenTarget } = await import("../src/lib/displayChannel.ts");
+  assert.equal(screenOutput("?output=network_2"), "network_2");
+  assert.equal(screenOutput("?channel=network"), "network");
+  assert.equal(screenOutput(""), "cable");
+  assert.equal(screenTarget("?output=network_2", "radio"), "/radio?output=network_2");
+  assert.equal(screenTarget("?output=network&zoom=1", "signage"), "/signage?output=network&zoom=1");
+  assert.equal(screenTarget("?output=cable", "inconnu"), null);
+  assert.equal(screenTarget("?output=cable", undefined), null);
 });
 
 import { lockedOutput, outputsFor, parseDisplayOutput } from "../src/lib/displayChannel.ts";
