@@ -94,7 +94,7 @@ class PlayUpdateProvider : StoreUpdateProvider {
     }
 
     override fun complete(context: Context): String = try {
-        manager(context).completeUpdate() // restarts the app once installed
+        manager(context).completeUpdate()
         JSONObject().put("ok", true).toString()
     } catch (e: Exception) {
         Log.w(TAG, "Installation de la mise a jour Google Play impossible", e)

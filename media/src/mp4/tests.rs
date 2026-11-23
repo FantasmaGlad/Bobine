@@ -88,7 +88,8 @@ fn scanned(bytes: &[u8]) -> Result<Layout> {
 #[test]
 fn years_from_unix_time() {
     assert_eq!(year_of(0), 1970);
-    assert_eq!(year_of(951_782_400), 2000); // 2000-02-29
+    const LEAP_DAY_2000: u64 = 951_782_400;
+    assert_eq!(year_of(LEAP_DAY_2000), 2000);
     assert_eq!(year_of(1_704_067_199), 2023);
     assert_eq!(year_of(1_704_067_200), 2024);
     assert_eq!(creation_year(0).unwrap(), None);

@@ -117,7 +117,7 @@ object BluetoothBridge {
                 .put("supported", true).put("powered", powered).put("discovering", discovering)
                 .put("adapter_name", adapter.name ?: "")
                 .put("devices", devices)
-                .put("pending_pairing", JSONObject.NULL) // Android confirms pairing in its own system dialog
+                .put("pending_pairing", JSONObject.NULL)
                 .put("pairing", pairing ?: JSONObject.NULL)
                 .toString()
         } catch (e: Exception) {

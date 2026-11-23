@@ -60,7 +60,6 @@ if ($exitCode -ne 0) {{
     exit $exitCode
 }}
 
-# Relance du tray : 5 essais espaces de 3 s (antivirus, verrou de fichier).
 $launched = $false
 for ($i = 0; $i -lt 5; $i++) {{
     if (Test-Path $tray) {{
