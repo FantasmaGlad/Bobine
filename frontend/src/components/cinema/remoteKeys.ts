@@ -1,4 +1,4 @@
-import { activateDomFocus, moveDomFocus2D, selectRemoteTarget } from "@/lib/useKioskRemote";
+import { activateDomFocus, moveDomFocus2D, selectRemoteTarget } from "@/lib/input/focusNavigation";
 import { VOLUME_STEP } from "@/lib/volumeHud";
 
 export const CINEMA_GRID_CARDS = ".cinema-grid-layer .cinema-hero-play, .cinema-grid-layer .cinema-card, .cinema-grid-layer .cinema-all-item";

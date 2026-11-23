@@ -12,7 +12,7 @@ import { isFullscreenPath } from "@/lib/fullscreenRoutes";
 import { visibleFooterLinks, visibleNavEntries } from "@/lib/navLinks";
 import { useAutoFullscreen } from "@/lib/useAutoFullscreen";
 import { useClickSound } from "@/lib/useClickSound";
-import { useDpadNavigation } from "@/lib/useDpadNavigation";
+import { useDpadNavigation } from "@/lib/input/useDpadNavigation";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useScreenSafeMargin } from "@/lib/useScreenSafeMargin";
 import { useScreenWakeLock } from "@/lib/useScreenWakeLock";

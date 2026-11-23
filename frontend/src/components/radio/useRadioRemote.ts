@@ -1,4 +1,4 @@
-import { useKioskRemote } from "@/lib/useKioskRemote";
+import { useKioskRemote } from "@/lib/input/useKioskRemote";
 
 interface RadioRemoteOptions {
   unlocked: boolean;
