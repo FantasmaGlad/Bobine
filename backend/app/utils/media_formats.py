@@ -8,8 +8,11 @@ SUPPORT_AUDIO = RADIO_AUDIO - {".mp4", ".webm"}
 VIDEO = frozenset({".mp4", ".m4v", ".mkv", ".avi", ".mov"})
 IMAGE = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 BACKGROUND_IMAGE = IMAGE | {".gif"}
-CONVERTED_IMAGE = frozenset({".avif", ".apng", ".bmp", ".dib", ".tif", ".tiff", ".tga", ".ico", ".cur", ".icns", ".pcx",
-                             ".ppm", ".pgm", ".pbm", ".pnm", ".qoi", ".sgi", ".dds", ".jfif", ".jpe", ".jp2", ".j2k"})
+PLATFORM_DECODED_IMAGE = frozenset({".avif", ".heic", ".heif"})
+CONVERTED_IMAGE = PLATFORM_DECODED_IMAGE | frozenset({
+    ".apng", ".bmp", ".dib", ".tif", ".tiff", ".tga", ".ico", ".cur", ".icns", ".pcx",
+    ".ppm", ".pgm", ".pbm", ".pnm", ".qoi", ".sgi", ".dds", ".jfif", ".jpe", ".jp2", ".j2k",
+})
 BACKGROUND_IMAGE_SOURCES = BACKGROUND_IMAGE | CONVERTED_IMAGE
 BACKGROUND_VIDEO = VIDEO | {".webm", ".wmv", ".flv", ".mpg", ".mpeg", ".ts", ".m2ts", ".mts", ".3gp", ".ogv"}
 SUBTITLE = frozenset({".srt", ".vtt"})

@@ -8,6 +8,7 @@ from app.config import settings
 from app.models import Background, ImportSource
 from app.utils.import_jobs import update_job
 from app.utils.importer.formats import IMAGE_EXTENSIONS, is_image_background
+from app.utils.media_formats import PLATFORM_DECODED_IMAGE as PLATFORM_DECODED
 from app.utils.importer.pipeline import Target, import_media, save, thumbnail_or_placeholder, wait_if_watched
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,20 @@ def _store_image(source: Path, original_filename: str, file_id: str) -> Path:
     return dest
 
 
+def _decoded_by_platform(source: Path, original_filename: str, pillow_error: Exception) -> Path:
+    from app.utils.image_decode import decode_to_png
+
+    if Path(original_filename).suffix.lower() not in PLATFORM_DECODED:
+        raise ValueError(f"Le fichier {original_filename} n'est pas une image valide : {pillow_error}")
+    try:
+        decoded = decode_to_png(source, original_filename)
+    except ValueError as e:
+        raise ValueError(f"Le fichier {original_filename} n'a pas pu être lu : {e}") from e
+    source.unlink(missing_ok=True)
+    logger.info("Image %s décodée par la plateforme", original_filename)
+    return decoded
+
+
 def import_background_image(src_path: str, original_filename: str, job_id: str | None = None) -> Background:
     """Fond image : pipeline dédié, sans ffmpeg ; un format que les navigateurs n'affichent pas est converti en WebP."""
     from PIL import Image, UnidentifiedImageError
@@ -69,15 +84,16 @@ def import_background_image(src_path: str, original_filename: str, job_id: str |
     Path(settings.backgrounds_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.thumbnails_dir).mkdir(parents=True, exist_ok=True)
 
+    source = Path(src_path)
     try:
-        with Image.open(src_path) as img:
+        with Image.open(source) as img:
             img.verify()
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
-        raise ValueError(f"Le fichier {original_filename} n'est pas une image valide : {e}")
+        source = _decoded_by_platform(source, original_filename, e)
 
     file_id = uuid.uuid4().hex
     try:
-        dest_path = _store_image(Path(src_path), original_filename, file_id)
+        dest_path = _store_image(source, original_filename, file_id)
     except (OSError, ValueError, Image.DecompressionBombError) as e:
         raise ValueError(f"Le fichier {original_filename} n'a pas pu être converti : {e}")
 
