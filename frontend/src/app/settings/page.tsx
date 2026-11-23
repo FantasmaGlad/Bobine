@@ -50,8 +50,8 @@ export default function SettingsPage() {
         value={searching && matched.size > 0 ? [...matched][0] : category}
         onChange={(id) => chooseCategory(id as SettingsCategoryId)}
         ariaLabel={t("settingsPage.categoriesLabel")}
+        actions={<SettingsSearch query={query} setQuery={setQuery} placeholder={t("settingsPage.searchPlaceholder")} />}
       />
-      <SettingsSearch query={query} setQuery={setQuery} placeholder={t("settingsPage.searchPlaceholder")} />
       {searching && matched.size === 0 && <div className="live-empty">{t("settingsPage.searchNone")}</div>}
 
       <AppearanceSection hidden={!shows("section-appearance")} data={data} />

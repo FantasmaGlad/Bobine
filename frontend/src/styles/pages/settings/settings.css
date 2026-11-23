@@ -77,20 +77,14 @@
   font-size: 0.9rem;
 }
 
-.settings-search-row {
-  display: flex;
-  justify-content: center;
-  margin: 4px 0 18px;
-}
-
 .settings-search {
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: min(100%, 520px);
+  gap: 8px;
+  width: clamp(11rem, 20vw, 17rem);
   box-sizing: border-box;
-  padding: 0 16px;
-  min-height: 48px;
+  padding: 0 14px;
+  min-height: 40px;
   border-radius: var(--radius-full);
   background: var(--glass-card-bg);
   border: 1px solid var(--glass-card-border);
@@ -107,13 +101,13 @@
 .settings-search input {
   flex: 1;
   min-width: 0;
-  height: 46px;
+  height: 38px;
   border: 0;
   outline: 0;
   background: transparent;
   color: var(--text-main);
   font: inherit;
-  font-size: 1rem;
+  font-size: 0.92rem;
 }
 
 .settings-search input::placeholder {
