@@ -88,13 +88,13 @@ def _seed_library(playlists=("Ambiance",), default=None):
 
 
 def _put_output(client, channel, output):
-    return client.put("/api/settings/display-output", json={"channel": channel, "output": output})
+    return client.put(f"/api/outputs/{channel}/mode", json={"mode": output})
 
 
 def test_chaque_sortie_accepte_la_radio_et_refuse_un_mode_inconnu(client):
     for channel in ("cable", "network", "network_2"):
         assert _put_output(client, channel, "radio").status_code == 200
-        assert client.get("/api/settings/display-output").json()[channel] == "radio"
+        assert client.get(f"/api/outputs/{channel}").json()["mode"] == "radio"
         assert _put_output(client, channel, "kiosk").status_code == 200
     assert _put_output(client, "cable", "n'importe quoi").status_code == 422
 
@@ -103,7 +103,7 @@ def test_la_valeur_radio_stockee_l_emporte_sur_la_regle_dual_screen(client):
     client.put("/api/settings", json={"display_mode_setting": "dual_screen"})
     try:
         _put_output(client, "cable", "radio")
-        assert client.get("/api/settings/display-output").json()["cable"] == "radio"
+        assert client.get("/api/outputs/cable").json()["mode"] == "radio"
     finally:
         client.put("/api/settings", json={"display_mode_setting": "auto"})
 
@@ -313,7 +313,7 @@ def test_les_deux_canaux_acceptent_la_sortie_visuel_qui_coupe_la_video(client):
     asyncio.run(manager.load(1, "Cours", 600.0, None, None))
     assert _put_output(client, "cable", "signage").status_code == 200
     assert _put_output(client, "network", "signage").status_code == 200
-    outputs = client.get("/api/settings/display-output").json()
+    outputs = {o["id"]: o["mode"] for o in client.get("/api/outputs").json()}
     assert (outputs["cable"], outputs["network"]) == ("signage", "signage")
     assert not get_playback_manager("network").snapshot()["current_video"]
 

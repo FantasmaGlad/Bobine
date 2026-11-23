@@ -155,12 +155,11 @@ def client():
         yield c
 
 
-def test_etat_rest_par_sortie_avec_defaut_et_alias(client):
-    assert client.get("/api/radio/state").json()["channel"] == "radio_network_2"
-    assert client.get("/api/radio/state?channel=radio").json()["channel"] == "radio_network_2"
-    assert client.get("/api/radio/state?channel=radio_network_2").json()["channel"] == "radio_network_2"
-    assert client.get("/api/radio/state?channel=radio_cable").json()["channel"] == "radio_cable"
-    assert client.get("/api/radio/state?channel=zzz").json()["channel"] == "radio_network_2"
+def test_etat_rest_de_la_radio_de_chaque_sortie(client):
+    for output, radio in (("cable", "radio_cable"), ("network", "radio_network"), ("network_2", "radio_network_2")):
+        assert client.get(f"/api/outputs/{output}").json()["radio"]["channel"] == radio
+    assert [o["radio"]["channel"] for o in client.get("/api/outputs").json()] == ["radio_cable", "radio_network", "radio_network_2"]
+    assert client.get("/api/outputs/zzz").status_code == 404
 
 
 def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):

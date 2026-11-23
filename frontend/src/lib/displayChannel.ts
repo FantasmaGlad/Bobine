@@ -34,9 +34,9 @@ export function parseDisplayOutput(channel: DisplayChannel, value: unknown): Dis
   return outputsFor(channel).find((output) => output === value) ?? null;
 }
 
-export function parseDisplayOutputs(data: unknown, previous: DisplayOutputs = {}): DisplayOutputs {
-  const source = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
-  return Object.fromEntries(OUTPUT_IDS.map((id) => [id, previous[id] ?? parseDisplayOutput(id, source[id])]));
+export function parseDisplayOutputs(outputs: unknown, previous: DisplayOutputs = {}): DisplayOutputs {
+  const modes = new Map((Array.isArray(outputs) ? outputs : []).map((output) => [output?.id, output?.mode]));
+  return Object.fromEntries(OUTPUT_IDS.map((id) => [id, previous[id] ?? parseDisplayOutput(id, modes.get(id))]));
 }
 
 export function lockedOutput(reason: unknown): LockedOutput | null {

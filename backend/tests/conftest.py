@@ -47,7 +47,7 @@ def recorder(monkeypatch):
 
     rec = Recorder({
         ("GET", "/api/health"): {"status": "ok"},
-        ("GET", "/api/playback/state"): {"state": "waiting"},
+        ("GET", "/api/outputs"): [{"id": "cable", "label": "Câblé", "mode": "kiosk", "playback": {"state": "waiting"}, "radio": {"state": "idle"}}],
         ("GET", "/api/diagnostics/system"): {"status": "warning", "checks": [], "problems": [
             {"code": "port_fallback", "severity": "warning", "message": "port", "remedy": "libérer"},
         ]},

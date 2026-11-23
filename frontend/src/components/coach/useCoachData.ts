@@ -5,6 +5,7 @@ import { getApiUrl } from "@/lib/apiUrl";
 import { anchorPosition } from "@/lib/playbackClock";
 import { usePlaybackSocket, type PlaybackState } from "@/lib/usePlaybackSocket";
 import type { AudioCourseSummary, AudioPlaylistSummary, BackgroundSummary } from "./types";
+import { WIRED_OUTPUT } from "@/lib/outputs";
 
 function getList<T>(path: string, set: (value: T[]) => void) {
   return fetch(getApiUrl(path), { cache: "no-store" })
@@ -15,14 +16,14 @@ function getList<T>(path: string, set: (value: T[]) => void) {
 
 export function useCoachState() {
   const [hasSynced, setHasSynced] = useState(false);
-  const socket = usePlaybackSocket(() => setHasSynced(true), undefined, "cable", undefined, "coach");
+  const socket = usePlaybackSocket(() => setHasSynced(true), undefined, WIRED_OUTPUT, undefined, "coach");
   const [snapshotState, setSnapshotState] = useState<PlaybackState | null>(null);
 
   useEffect(() => {
-    fetch(getApiUrl("/playback/state"), { cache: "no-store" })
+    fetch(getApiUrl(`/outputs/${WIRED_OUTPUT}`), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: PlaybackState | null) => {
-        if (data && data.state) setSnapshotState(data);
+      .then((output: { playback: PlaybackState } | null) => {
+        if (output?.playback?.state) setSnapshotState(output.playback);
       })
       .catch(() => { });
   }, []);

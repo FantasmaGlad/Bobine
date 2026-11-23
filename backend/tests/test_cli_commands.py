@@ -261,44 +261,45 @@ def test_launcher_recognizes_the_imports_command():
     assert run_tray._is_cli_invocation(["imports", "list"])
 
 
-def test_display_reads_and_sets_outputs(recorder, capsys):
-    recorder.responses[("GET", "/api/settings/display-output")] = {"cable": "kiosk", "network": "cinema", "network_2": "signage"}
-    recorder.responses[("PUT", "/api/settings/display-output")] = {"cable": "cinema", "network": "cinema", "network_2": "signage"}
-    assert cli.main(["display", "get"]) == cli.EXIT_OK
-    assert recorder.calls[0][:2] == ("GET", "/api/settings/display-output")
-    assert capsys.readouterr().out == "câblé=kiosk  réseau 1=cinema  réseau 2=signage\n"
-    assert cli.main(["display", "set", "cable", "cinema"]) == cli.EXIT_OK
-    assert recorder.calls[1][:2] == ("PUT", "/api/settings/display-output")
-    assert recorder.calls[1][3] == {"channel": "cable", "output": "cinema"}
-    assert capsys.readouterr().out == "câblé=cinema  réseau 1=cinema  réseau 2=signage\n"
+CABLE = {"id": "cable", "label": "Câblé", "mode": "kiosk", "playback": {"state": "paused", "current_video": {"title": "RPM"}}, "radio": {"state": "idle"}}
+NETWORK_2 = {"id": "network_2", "label": "Réseau 2", "mode": "radio", "playback": {"state": "waiting"},
+             "radio": {"state": "playing", "current_track": {"title": "Ambiance"}}}
 
 
-def test_display_json_is_the_route_response(recorder, capsys):
-    payload = {"cable": "kiosk", "network": "cinema"}
-    recorder.responses[("GET", "/api/settings/display-output")] = payload
-    assert cli.main(["display", "get", "--json"]) == cli.EXIT_OK
-    assert json.loads(capsys.readouterr().out) == payload
+def test_output_lists_reads_and_switches_the_mode(recorder, capsys):
+    recorder.responses[("GET", "/api/outputs")] = [CABLE, NETWORK_2]
+    recorder.responses[("PUT", "/api/outputs/cable/mode")] = {**CABLE, "mode": "cinema"}
+    assert cli.main(["output", "list"]) == cli.EXIT_OK
+    assert recorder.calls[0][:2] == ("GET", "/api/outputs")
+    assert capsys.readouterr().out == ("cable (Câblé) : mode kiosk, lecture paused RPM, radio idle -\n"
+                                       "network_2 (Réseau 2) : mode radio, lecture waiting -, radio playing Ambiance\n")
+    assert cli.main(["output", "mode", "cable", "cinema"]) == cli.EXIT_OK
+    assert recorder.calls[1][:2] == ("PUT", "/api/outputs/cable/mode") and recorder.calls[1][3] == {"mode": "cinema"}
+    assert capsys.readouterr().out.startswith("cable (Câblé) : mode cinema")
 
 
-def test_display_rejects_an_unknown_output():
-    assert cli.main(["display", "set", "network", "zzz"]) == cli.EXIT_USAGE
+def test_output_json_is_the_route_response(recorder, capsys):
+    recorder.responses[("GET", "/api/outputs/network_2")] = NETWORK_2
+    assert cli.main(["output", "get", "network_2", "--json"]) == cli.EXIT_OK
+    assert json.loads(capsys.readouterr().out) == NETWORK_2
 
 
-def test_launcher_recognizes_the_display_command():
+def test_output_rejects_an_unknown_mode_or_output():
+    assert cli.main(["output", "mode", "network", "zzz"]) == cli.EXIT_USAGE
+    assert cli.main(["output", "get", "salle"]) == cli.EXIT_USAGE
+
+
+def test_launcher_recognizes_the_output_command():
     import run_tray
 
-    assert run_tray._is_cli_invocation(["display", "get"])
+    assert run_tray._is_cli_invocation(["output", "list"])
 
 
-def test_playback_and_radio_status_read_the_snapshot(recorder, capsys):
-    recorder.responses[("GET", "/api/playback/state")] = {"state": "paused"}
-    recorder.responses[("GET", "/api/radio/state")] = {"playing": True}
-    assert cli.main(["playback", "cable", "status"]) == cli.EXIT_OK
-    assert recorder.calls[0][:3] == ("GET", "/api/playback/state", {"channel": "cable"})
-    assert capsys.readouterr().out == "cable : paused\n"
-    assert cli.main(["radio", "network", "status", "--json"]) == cli.EXIT_OK
-    assert recorder.calls[1][:3] == ("GET", "/api/radio/state", {"channel": "radio_network"})
-    assert json.loads(capsys.readouterr().out) == {"playing": True}
+def test_output_playback_and_radio_post_their_action(recorder, capsys):
+    recorder.responses[("POST", "/api/outputs/network_2/radio/radio_next_track")] = NETWORK_2
+    assert cli.main(["output", "radio", "network_2", "radio_next_track"]) == cli.EXIT_OK
+    assert recorder.calls[0][:2] == ("POST", "/api/outputs/network_2/radio/radio_next_track")
+    assert capsys.readouterr().out.startswith("network_2 (Réseau 2) : mode radio")
 
 
 def test_settings_set_json_is_the_server_answer(monkeypatch, capsys):

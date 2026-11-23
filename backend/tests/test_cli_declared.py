@@ -37,7 +37,7 @@ def test_play_sends_the_load_action_of_each_kind(rec, kind):
     family, action, param = contract.PLAYABLE_MEDIA[kind]
     channel = "cable" if kind in contract.COACH_MEDIA else "network"
     assert cli.main(["play", kind, "12", "--channel", channel]) == cli.EXIT_OK
-    assert rec.calls == [("POST", f"/api/{family}/{channel}/{action}", None, {param: 12})]
+    assert rec.calls == [("POST", f"/api/outputs/{channel}/{family}/{action}", None, {param: 12})]
 
 
 @pytest.mark.parametrize("kind", contract.COACH_MEDIA)

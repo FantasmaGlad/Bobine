@@ -19,15 +19,14 @@ class Backend:
     def __call__(self, method, url, timeout):
         if self.down:
             raise urllib.error.URLError("refusé")
-        self.calls.append((method, url.replace("http://x", "")))
         path = url.replace("http://x", "")
+        self.calls.append((method, path))
         if method == "GET":
-            kind = "playback" if path.startswith("/api/playback") else "radio"
-            target = path.rsplit("=", 1)[1].removeprefix("radio_")
-            return {"state": self.states[(kind, target)]}
+            return [{"id": output, "playback": {"state": self.states[("playback", output)]}, "radio": {"state": self.states[("radio", output)]}}
+                    for output in ("cable", "network", "network_2")]
         if path in self.refused:
             raise urllib.error.HTTPError(url, 409, "verrouillé", {}, None)
-        return {"state": {"state": "ok"}}
+        return {"id": "cable"}
 
 
 @pytest.fixture()
@@ -56,9 +55,9 @@ def test_offline_backend(backend):
 
 def test_toggle_pauses_what_plays_and_resumes_what_is_paused(backend):
     c = controls(backend)
-    assert c.toggle("playback", "cable") and backend.calls[-1] == ("POST", "/api/playback/cable/pause")
-    assert c.toggle("playback", "network") and backend.calls[-1] == ("POST", "/api/playback/network/play")
-    assert c.toggle("radio", "network") and backend.calls[-1] == ("POST", "/api/radio/network/pause")
+    assert c.toggle("playback", "cable") and backend.calls[-1] == ("POST", "/api/outputs/cable/playback/pause")
+    assert c.toggle("playback", "network") and backend.calls[-1] == ("POST", "/api/outputs/network/playback/play")
+    assert c.toggle("radio", "network") and backend.calls[-1] == ("POST", "/api/outputs/network/radio/pause")
 
 
 def test_toggle_does_nothing_while_waiting(backend):
@@ -68,22 +67,22 @@ def test_toggle_does_nothing_while_waiting(backend):
 
 
 def test_stop_all_stops_every_output_even_if_one_is_refused(backend):
-    backend.refused.add("/api/playback/cable/stop")
+    backend.refused.add("/api/outputs/cable/playback/stop")
     c = controls(backend)
     assert c.stop_all() == 5
     stops = sorted(url for method, url in backend.calls if method == "POST")
-    assert stops == ["/api/playback/cable/stop", "/api/playback/network/stop", "/api/playback/network_2/stop",
-                     "/api/radio/cable/stop", "/api/radio/network/stop", "/api/radio/network_2/stop"]
+    assert stops == ["/api/outputs/cable/playback/stop", "/api/outputs/cable/radio/stop", "/api/outputs/network/playback/stop",
+                     "/api/outputs/network/radio/stop", "/api/outputs/network_2/playback/stop", "/api/outputs/network_2/radio/stop"]
 
 
 def test_states_are_cached_briefly_and_refreshed_after_an_action(backend):
     now = [0.0]
     c = controls(backend, lambda: now[0])
     c.states(); c.states(); c.label("playback", "cable", "Câblé")
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 6
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 1
     now[0] = 5.0
     c.states()
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 12
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 2
     c.toggle("playback", "cable")
     backend.states[("playback", "cable")] = "paused"
     assert c.label("playback", "cable", "Câblé") == "Câblé : en pause — Reprendre"
@@ -95,9 +94,8 @@ def test_unknown_state_is_shown_as_is(backend):
 
 
 def test_routes_are_the_ones_of_the_rest_facade():
-    assert tray_actions._action_path("radio", "cable", "stop") == "/api/radio/cable/stop"
-    assert tray_actions._state_path("radio", "network") == "/api/radio/state?channel=radio_network"
-    assert tray_actions._state_path("playback", "cable") == "/api/playback/state?channel=cable"
+    assert tray_actions._action_path("radio", "cable", "stop") == "/api/outputs/cable/radio/stop"
+    assert tray_actions.STATES_PATH == "/api/outputs"
 
 
 def test_update_outcome_notification_is_recent_new_and_unacknowledged():

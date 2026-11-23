@@ -49,7 +49,6 @@ RADIO_ACTIONS = (
     "radio_set_repeat", "radio_add_to_queue", "radio_play_next", "radio_move_in_queue", "radio_remove_from_queue",
     "radio_play_announcement",
 )
-RADIO_OUTPUTS = {output.id: output.radio_channel for output in OUTPUTS}
 ANNOUNCEMENT_RULE_TYPES = ("every_n_tracks", "every_x_minutes", "fixed_times")
 ANNOUNCEMENT_TARGETS = RADIO_CHANNELS
 STORAGE_IMPORT_KINDS = ("video", "radio", "audio_course")

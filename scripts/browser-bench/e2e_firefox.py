@@ -168,7 +168,7 @@ def check_cinema_seek_preview() -> None:
         return statuses and all(code == 200 for code in statuses)
 
     check("planches d'aperçu prêtes", bool(wait_for(boards_ready, 120, 2)))
-    api("/settings/display-output", "PUT", {"channel": "cable", "output": "cinema"})
+    api("/outputs/cable/mode", "PUT", {"mode": "cinema"})
     wd.navigate(BASE + "/cinema/")
     time.sleep(3)
     wd.execute("document.querySelector('.cinema-hero-play').click()")

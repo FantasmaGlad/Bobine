@@ -37,10 +37,10 @@ export function useRadioLaneOutput(channel: ChannelValue) {
     if (!isRadioChannel(channel)) return;
     const output = outputOfRadio(channel).id;
     let cancelled = false;
-    fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
+    fetch(getApiUrl(`/outputs/${output}`), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data && typeof data[output] === "string") setRead({ channel, mode: data[output] });
+        if (!cancelled && data && typeof data.mode === "string") setRead({ channel, mode: data.mode });
       })
       .catch(() => {});
     return () => {

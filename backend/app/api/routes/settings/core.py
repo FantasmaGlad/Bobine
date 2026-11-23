@@ -61,10 +61,6 @@ _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 _DISPLAY_OUTPUT_KEYS = {channel: f"display_output_{channel}" for channel in CHANNELS}
 
 
-class DisplayOutputUpdate(BaseModel):
-    channel: str
-    output: str
-
 
 class SettingsUpdate(BaseModel):
     wait_time_between_courses: int | None = None

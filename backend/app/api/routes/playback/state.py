@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.responses import Message, PlaybackSnapshot
+from app.api.responses import Message
 from app.database import get_db
 from app.models import (
     PlaybackState,
@@ -40,12 +40,6 @@ def _latest_state(db: Session, channel: str) -> PlaybackState | None:
 def _discard(db: Session, state: PlaybackState) -> None:
     db.delete(state)
     db.commit()
-
-
-@router.get("/api/playback/state", response_model=PlaybackSnapshot)
-def get_playback_state(channel: str = DEFAULT_CHANNEL):
-    """Snapshot ponctuel de l'état de lecture d'UN canal (utile au premier rendu, avant connexion WebSocket)."""
-    return get_playback_manager(_resolve_channel(channel)).snapshot()
 
 
 @router.get("/api/playback/interrupted", response_model=InterruptedStateResponse | None)

@@ -60,20 +60,6 @@ def cmd_diagnose(client: Client, out: Output, args: argparse.Namespace) -> int:
     return EXIT_OK if report["status"] == "ok" else EXIT_ERROR
 
 
-def cmd_playback(client: Client, out: Output, args: argparse.Namespace) -> int:
-    prefix = "/api/playback" if args.command == "playback" else "/api/radio"
-    channel = args.target if args.command == "playback" else f"radio_{args.target}"
-    if args.action == "status":
-        payload = client.request("GET", f"{prefix}/state", query={"channel": channel})
-        state = payload.get("state") or payload.get("playing")
-        out.result(payload, f"{args.target} : {state if state is not None else 'inconnu'}")
-        return EXIT_OK
-    payload = client.request("POST", f"{prefix}/{segment(args.target)}/{segment(args.action)}", body=parse_params(args.params))
-    state = payload.get("state") or {}
-    out.result(payload, f"{args.target} : {state.get('state', 'ok')}")
-    return EXIT_OK
-
-
 def cmd_update(client: Client, out: Output, args: argparse.Namespace) -> int:
     if args.update_action == "check":
         info = client.request("GET", "/api/updates/check", query={"refresh": 1})

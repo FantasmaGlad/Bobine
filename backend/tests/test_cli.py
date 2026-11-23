@@ -5,18 +5,17 @@ import sys
 import urllib.error
 import pytest
 from app import cli
-from app.api import contract
 import urllib.request
 from app.cli import completion as cli_completion
 from cli_support import BACKEND, _http_error
 
 
 @pytest.mark.parametrize("argv, expected", [
-    (["status"], [("GET", "/api/health"), *[("GET", "/api/playback/state")] * len(contract.CHANNELS)]),
+    (["status"], [("GET", "/api/health"), ("GET", "/api/outputs")]),
     (["diagnose"], [("GET", "/api/diagnostics/system")]),
     (["logs", "--level", "error"], [("GET", "/api/logs")]),
-    (["playback", "network", "volume", "volume=40"], [("POST", "/api/playback/network/volume")]),
-    (["radio", "cable", "radio_next_track"], [("POST", "/api/radio/cable/radio_next_track")]),
+    (["output", "playback", "network", "volume", "volume=40"], [("POST", "/api/outputs/network/playback/volume")]),
+    (["output", "radio", "cable", "radio_next_track"], [("POST", "/api/outputs/cable/radio/radio_next_track")]),
     (["settings", "set", "theme=ciel"], [("PUT", "/api/settings")]),
     (["update", "check"], [("GET", "/api/updates/check")]),
 ])
@@ -28,7 +27,7 @@ def test_each_command_calls_the_interface_route(recorder, argv, expected):
 
 
 def test_parameters_reach_the_route_typed(recorder):
-    cli.main(["playback", "cable", "load", "video_id=12", "title=Lundi soir", "loop=true"])
+    cli.main(["output", "playback", "cable", "load", "video_id=12", "title=Lundi soir", "loop=true"])
     assert recorder.calls[0][3] == {"video_id": 12, "title": "Lundi soir", "loop": True}
     cli.main(["settings", "set", "auto_web_rendition=true"])
     assert recorder.calls[1][3] == {"auto_web_rendition": "true"}
@@ -79,7 +78,7 @@ def test_server_answers_map_to_exit_codes(monkeypatch, capsys, raised, code, mes
 
     monkeypatch.setattr(urllib.request, "urlopen", fail)
     monkeypatch.setenv("BOBINE_PORT", "1903")
-    assert cli.main(["playback", "cable", "play"]) == code
+    assert cli.main(["output", "playback", "cable", "play"]) == code
     captured = capsys.readouterr()
     assert captured.out == "" and message in captured.err
 
@@ -88,12 +87,12 @@ def test_validation_errors_are_printed_once_as_text(monkeypatch, capsys):
     detail = {"code": "invalid", "message": "volume : valeur trop grande", "errors": [{"loc": ["body", "volume"], "msg": "valeur trop grande"}]}
     monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(_http_error(422, detail)))
     monkeypatch.setenv("BOBINE_PORT", "1903")
-    assert cli.main(["playback", "cable", "play"]) == cli.EXIT_USAGE
+    assert cli.main(["output", "playback", "cable", "play"]) == cli.EXIT_USAGE
     assert capsys.readouterr().err.strip() == "bobine : Refusé (422) : volume : valeur trop grande"
 
 
 def test_health_503_reports_a_problem_not_a_refusal(monkeypatch, capsys):
-    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"status": "degraded"} if path == "/api/health" else {"state": "waiting"})
+    monkeypatch.setattr(cli.Client, "request", lambda self, method, path, **kw: {"status": "degraded"} if path == "/api/health" else [])
     assert cli.main(["status", "--port", "1903"]) == cli.EXIT_ERROR
     assert "degraded" in capsys.readouterr().out
 
@@ -150,8 +149,8 @@ def test_launcher_dispatches_without_loading_the_tray():
 def test_path_segments_are_quoted(recorder):
     cli.main(["imports", "cancel", "../playlists/1?x=1"])
     assert recorder.calls[0][1] == "/api/import-jobs/..%2Fplaylists%2F1%3Fx%3D1"
-    cli.main(["playback", "cable", "pa/use"])
-    assert recorder.calls[1][1] == "/api/playback/cable/pa%2Fuse"
+    cli.main(["output", "playback", "cable", "pa/use"])
+    assert recorder.calls[1][1] == "/api/outputs/cable/playback/pa%2Fuse"
 
 
 def test_unexpected_response_shape_is_a_message_not_a_traceback(monkeypatch, capsys):

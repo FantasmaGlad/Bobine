@@ -11,7 +11,7 @@ export function useDisplayOutputs(): DisplayOutputs {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
+    fetch(getApiUrl("/outputs"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data) => {
         if (cancelled) return;

@@ -4,23 +4,18 @@ from __future__ import annotations
 
 import argparse
 
-from app.api.contract import CHANNELS
-from app.outputs import OUTPUTS
-
 from .client import Client, local_version
 from .core import EXIT_ERROR, EXIT_OK, CliError, Output, segment
+from .output import output_line
 from .paging import window
 from .specs.render import minutes, value_text
 
 
 def cmd_status(client: Client, out: Output, args: argparse.Namespace) -> int:
     health = client.request("GET", "/api/health", accept_status={503})
-    playback = {channel: client.request("GET", "/api/playback/state", query={"channel": channel}) for channel in CHANNELS}
-    payload = {"health": health, "playback": playback}
-    lines = [f"Bobine sur {client.base} : {health.get('status')}"]
-    for channel, data in playback.items():
-        current = (data.get("current_video") or data.get("current_audio_course") or data.get("current_background") or {}).get("title") or "-"
-        lines.append(f"  {channel} : {data.get('state')}, {current}")
+    outputs = client.request("GET", "/api/outputs")
+    payload = {"health": health, "outputs": outputs}
+    lines = [f"Bobine sur {client.base} : {health.get('status')}", *(f"  {output_line(output)}" for output in outputs or [])]
     out.result(payload, "\n".join(lines))
     return EXIT_OK if health.get("status") == "ok" else EXIT_ERROR
 
@@ -209,17 +204,6 @@ def cmd_imports(client: Client, out: Output, args: argparse.Namespace) -> int:
     lines = [f"constat : {problem}" for problem in problems] or ["Aucun problème détecté."]
     out.result(report, "\n".join(lines))
     return EXIT_ERROR if problems else EXIT_OK
-
-
-def cmd_display(client: Client, out: Output, args: argparse.Namespace) -> int:
-    if args.display_action == "get":
-        payload = client.request("GET", "/api/settings/display-output")
-    else:
-        payload = client.request("PUT", "/api/settings/display-output", body={
-            "channel": args.channel, "output": args.output,
-        })
-    out.result(payload, "  ".join(f"{output.label.lower()}={payload.get(output.id)}" for output in OUTPUTS))
-    return EXIT_OK
 
 
 def cmd_logs(client: Client, out: Output, args: argparse.Namespace) -> int:
