@@ -13,7 +13,6 @@ import { getAudioQualityBadge, getResolutionBadge } from "@/lib/videoBadges";
 
 interface Props {
   featured: CinemaVideo;
-  scrolled: boolean;
   onSelect: (video: CinemaVideo) => void;
   children?: React.ReactNode;
 }
@@ -33,7 +32,7 @@ function Meta({ featured }: { featured: CinemaVideo }) {
   );
 }
 
-export default function CinemaHero({ featured, scrolled, onSelect, children }: Props) {
+export default function CinemaHero({ featured, onSelect, children }: Props) {
   const { t } = useAppSettings();
   const themeFg = useThemeAccentForeground();
   const backdrop = thumbnailUrl(featured);
@@ -57,11 +56,6 @@ export default function CinemaHero({ featured, scrolled, onSelect, children }: P
           </button>
         </div>
       </div>
-      <button type="button" className="cinema-scroll-hint" tabIndex={-1} hidden={scrolled}
-        onClick={() => document.querySelector(".cinema-sections")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-        <span>{t("cinema.discoverCourses")}</span>
-        <Icon name="expand_more" size={26} />
-      </button>
       {children}
     </section>
   );
@@ -70,7 +64,18 @@ export default function CinemaHero({ featured, scrolled, onSelect, children }: P
 export function useHeroScroll() {
   const [scrolled, setScrolled] = useState(false);
   const onScroll = (e: React.UIEvent<HTMLElement>) => {
-    if (!scrolled && e.currentTarget.scrollTop > 24) setScrolled(true);
+    const away = e.currentTarget.scrollTop > 24;
+    if (away !== scrolled) setScrolled(away);
   };
   return { scrolled, onScroll };
+}
+
+export function CinemaScrollTab({ away, onOpen }: { away: boolean; onOpen: () => void }) {
+  const { t } = useAppSettings();
+  return (
+    <button type="button" className={`cinema-scroll-hint${away ? " is-away" : ""}`} tabIndex={-1} aria-hidden={away} onClick={onOpen}>
+      <span>{t("cinema.discoverCourses")}</span>
+      <Icon name="expand_less" size={24} />
+    </button>
+  );
 }
