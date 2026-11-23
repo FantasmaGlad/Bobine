@@ -43,6 +43,27 @@ def _flat(img):
     return img.convert("RGBA" if alpha else "RGB")
 
 
+def web_image_format() -> tuple[str, str]:
+    """WebP quand Pillow sait l'écrire, sinon PNG (APNG pour une animation), lu par tous les navigateurs."""
+    from PIL import Image
+
+    Image.init()
+    return ("WEBP", ".webp") if "WEBP" in Image.SAVE else ("PNG", ".png")
+
+
+def _save_web(img, dest: Path, image_format: str) -> None:
+    animated = getattr(img, "n_frames", 1) > 1
+    if image_format == "WEBP":
+        if animated:
+            img.save(dest, "WEBP", save_all=True, quality=90, method=4, loop=img.info.get("loop", 0))
+        else:
+            _flat(img).save(dest, "WEBP", quality=92, method=4)
+    elif animated:
+        img.save(dest, "PNG", save_all=True, loop=img.info.get("loop", 0))
+    else:
+        _flat(img).save(dest, "PNG", optimize=True)
+
+
 def _store_image(collection: AssetCollection, source: Path, original_filename: str, file_id: str) -> Path:
     from PIL import Image
 
@@ -51,18 +72,16 @@ def _store_image(collection: AssetCollection, source: Path, original_filename: s
         dest = stem.with_suffix(Path(original_filename).suffix.lower())
         shutil.move(source, dest)
         return dest
-    dest = stem.with_suffix(".webp")
+    image_format, suffix = web_image_format()
+    dest = stem.with_suffix(suffix)
     try:
         with Image.open(source) as img:
-            if getattr(img, "n_frames", 1) > 1:
-                img.save(dest, "WEBP", save_all=True, quality=90, method=4, loop=img.info.get("loop", 0))
-            else:
-                _flat(img).save(dest, "WEBP", quality=92, method=4)
+            _save_web(img, dest, image_format)
     except Exception:
         dest.unlink(missing_ok=True)
         raise
     source.unlink()
-    logger.info("%s %s converti en WebP pour l'affichage", collection.label, original_filename)
+    logger.info("%s %s converti en %s pour l'affichage", collection.label, original_filename, image_format)
     return dest
 
 
