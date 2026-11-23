@@ -15,6 +15,7 @@ export const audio: Dict = {
   plainScreen: "Show a plain screen without a visual loop",
   coursesTab: "Courses",
   playlistsTab: "Playlists",
+  backgroundsTab: "Animated backgrounds",
   programPlaceholder: "e.g. RPM, yoga… (free text)",
   noProgram: "No category",
   fetchError: "Error while fetching audio courses",

@@ -5,7 +5,7 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { isNavGroup, type NavEntry, type NavGroupConfig } from "@/lib/navLinks";
-import { isEntryActive, isNavLinkActive } from "./navActive";
+import { activeChildHref, isEntryActive } from "./navActive";
 import { entryDelayMs } from "@/lib/entryDelay";
 
 
@@ -19,7 +19,8 @@ interface NavEntriesProps {
 
 function NavGroup({ entry, pathname, open, onToggle, onNavigate }: { entry: NavGroupConfig; pathname: string; open: boolean; onToggle: () => void; onNavigate?: () => void }) {
   const { t } = useAppSettings();
-  const groupActive = entry.children.some((c) => isNavLinkActive(pathname, c.href));
+  const activeHref = activeChildHref(entry.children, pathname);
+  const groupActive = activeHref !== null;
   const groupLabel = t(entry.groupKey);
   return (
     <div>
@@ -33,7 +34,7 @@ function NavGroup({ entry, pathname, open, onToggle, onNavigate }: { entry: NavG
           {entry.children.map((child) => {
             const childLabel = t(child.labelKey);
             return (
-              <Link key={child.href} href={child.href} onClick={onNavigate} className={`nav-link olc-press ${isNavLinkActive(pathname, child.href) ? "active" : ""}`} title={childLabel}>
+              <Link key={child.href} href={child.href} onClick={onNavigate} className={`nav-link olc-press ${child.href === activeHref ? "active" : ""}`} title={childLabel}>
                 <Icon name={child.iconName} size={20} weight={500} />
                 <span>{childLabel}</span>
               </Link>

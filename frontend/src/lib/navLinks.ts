@@ -31,24 +31,16 @@ export const navEntries: NavEntry[] = [
     iconName: output.wired ? "cable" : "wifi",
   })),
   {
-    groupKey: "nav.radioGroup",
-    iconName: "radio",
+    groupKey: "nav.libraryGroup",
+    iconName: "video_library",
     children: [
-      { href: "/radio-remote", labelKey: "nav.radioRemote", iconName: "graphic_eq" },
-      { href: "/radio-library", labelKey: "nav.radioLibrary", iconName: "album" },
-      { href: "/radio-announcements", labelKey: "nav.radioAnnouncements", iconName: "campaign" },
+      { href: "/library", labelKey: "nav.libraryCourses", iconName: "video_library" },
+      { href: "/library/coach", labelKey: "nav.libraryCoach", iconName: "fitness_center", advanced: true },
+      { href: "/library/radio", labelKey: "nav.libraryRadio", iconName: "album" },
+      { href: "/library/reminders", labelKey: "nav.libraryReminders", iconName: "campaign" },
+      { href: "/library/visuals", labelKey: "nav.libraryVisuals", iconName: "slideshow" },
     ],
   },
-  {
-    groupKey: "nav.coachGroup",
-    iconName: "fitness_center",
-    advanced: true,
-    children: [
-      { href: "/audio", labelKey: "nav.audio", iconName: "library_music" },
-      { href: "/backgrounds", labelKey: "nav.backgrounds", iconName: "gradient" },
-    ],
-  },
-  { href: "/library", labelKey: "nav.library", iconName: "video_library" },
   { href: "/schedule", labelKey: "nav.schedule", iconName: "calendar_month" },
   {
     groupKey: "nav.metricsGroup",
@@ -73,7 +65,10 @@ export const navLinks: NavLinkConfig[] = navEntries.flatMap((entry) =>
 );
 
 export function visibleNavEntries(simplified: boolean): NavEntry[] {
-  return simplified ? navEntries.filter((entry) => !entry.advanced) : navEntries;
+  if (!simplified) return navEntries;
+  return navEntries
+    .filter((entry) => !entry.advanced)
+    .map((entry) => (isNavGroup(entry) ? { ...entry, children: entry.children.filter((child) => !child.advanced) } : entry));
 }
 
 export function visibleFooterLinks(simplified: boolean): NavLinkConfig[] {
