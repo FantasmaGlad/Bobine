@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_SETTINGS_CATEGORY, categoryOfSection, matchCategories, type SettingsCategoryId } from "@/lib/settingsCategories";
+import { DEFAULT_SETTINGS_CATEGORY, SETTINGS_CATEGORIES, categoryOfSection, matchCategories, type SettingsCategoryId } from "@/lib/settingsCategories";
+import { useUrlView } from "@/lib/useUrlView";
 import { useClientSnapshot } from "@/lib/useClientSnapshot";
+
+const CATEGORY_IDS: readonly string[] = SETTINGS_CATEGORIES.map((category) => category.id);
+const parseCategory = (raw: string | null): SettingsCategoryId | "" => (raw !== null && CATEGORY_IDS.includes(raw) ? (raw as SettingsCategoryId) : "");
 
 type Translate = (key: string) => string;
 
 export function useSettingsNavigation(t: Translate) {
   const linkedSection = useClientSnapshot(() => window.location.hash.replace(/^#/, ""), "");
-  const [chosenCategory, setCategory] = useState<SettingsCategoryId | null>(null);
-  const category = chosenCategory ?? categoryOfSection(linkedSection) ?? DEFAULT_SETTINGS_CATEGORY;
+  const [chosenCategory, setCategory] = useUrlView<SettingsCategoryId | "">("vue", parseCategory);
+  const category = chosenCategory || categoryOfSection(linkedSection) || DEFAULT_SETTINGS_CATEGORY;
   const [query, setQuery] = useState("");
   const searching = query.trim().length > 0;
   const matched = useMemo(
@@ -31,7 +35,7 @@ export function useSettingsNavigation(t: Translate) {
       setCategory(owner);
     }
     window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-  }, []);
+  }, [setCategory]);
   useEffect(() => {
     if (!linkedSection || !categoryOfSection(linkedSection)) return;
     window.setTimeout(() => document.getElementById(linkedSection)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);

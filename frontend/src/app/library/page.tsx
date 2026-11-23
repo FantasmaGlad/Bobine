@@ -1,19 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import Icon from "@/components/Icon";
 import LibraryMedia from "@/components/library/LibraryMedia";
 import { useLibraryUploads } from "@/components/library/useLibraryUploads";
 import PageNav from "@/components/PageNav";
+import { oneOf } from "@/lib/urlView";
+import { useUrlView } from "@/lib/useUrlView";
 import VideoPlaylistManager from "@/components/library/VideoPlaylistManager";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { ARCHIVE_ACCEPT, VIDEO_ACCEPT } from "@/lib/mediaFiles";
 import { useToast } from "@/lib/useToast";
 
+const LIBRARY_VIEWS = oneOf(["media", "playlists"] as const, "media");
+
 export default function LibraryPage() {
   const { t } = useAppSettings();
-  const [mode, setMode] = useState<"media" | "playlists">("media");
+  const [mode, setMode] = useUrlView("vue", LIBRARY_VIEWS);
   const fileInput = useRef<HTMLInputElement>(null);
   const programs = useRef<string[]>([]);
   const { toast, showToast } = useToast();

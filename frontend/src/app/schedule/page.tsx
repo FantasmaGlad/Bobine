@@ -14,6 +14,7 @@ import { useScheduleForm } from "@/components/schedule/useScheduleForm";
 import { useScheduleNavigation, ZOOM_LEVELS } from "@/components/schedule/useScheduleNavigation";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { isRadioLane, parseScheduleChannel } from "@/lib/scheduleChannels";
+import { useUrlView } from "@/lib/useUrlView";
 import type { ChannelValue } from "@/lib/scheduleTime";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useToast } from "@/lib/useToast";
@@ -31,11 +32,6 @@ const CHANNEL_TITLES: Record<ChannelValue, string> = {
   radio_cable: "schedule.channelRadioCableTitle",
   radio_network: "schedule.channelRadioNetworkTitle",
 };
-
-function initialChannel(): ChannelValue {
-  if (typeof window === "undefined") return "cable";
-  return parseScheduleChannel(new URLSearchParams(window.location.search).get("channel"));
-}
 
 function useLibraryPanel(isMobile: boolean) {
   const [libraryOpen, setLibraryOpen] = useState(true);
@@ -59,7 +55,7 @@ function ScheduleBody({ loading, label, view, day, scroll, viewProps }: {
 export default function SchedulePage() {
   const isMobile = useIsMobile();
   const { t } = useAppSettings();
-  const [channel, setChannel] = useState<ChannelValue>(initialChannel);
+  const [channel, setChannel] = useUrlView("channel", parseScheduleChannel);
   const scroll = useRef<HTMLDivElement | null>(null);
   const { toast, showToast } = useToast();
   const nav = useScheduleNavigation(isMobile);
