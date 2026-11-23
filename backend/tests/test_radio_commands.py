@@ -81,9 +81,9 @@ def test_put_sound_and_the_facade_give_the_same_state_and_persistence():
         assert put.status_code == 200
         via_put = put.json()
         manager.state["sound"] = {**via_put, "bass_boost": 0, "bands": [0] * 5}
-        facade = client.post("/api/radio/network/radio_set_sound", json={"sound": {"bass_boost": 99, "bands": [50, 0, 0, 0, -50]}})
+        facade = client.post("/api/outputs/network/radio/radio_set_sound", json={"sound": {"bass_boost": 99, "bands": [50, 0, 0, 0, -50]}})
         assert facade.status_code == 200
-        via_facade = facade.json()["state"]["sound"]
+        via_facade = facade.json()["radio"]["sound"]
         assert via_put == via_facade and via_put["bass_boost"] == 12 and via_put["bands"] == [12, 0, 0, 0, -12]
         with SessionLocal() as db:
             assert load_sound(db, "radio_network") == via_put
@@ -111,7 +111,7 @@ def test_play_now_and_the_facade_reach_the_same_players():
     try:
         with TestClient(app) as client:
             assert client.post("/api/radio/announcements/play-now", json={"announcement_id": announcement_id, "target": "radio_network"}).status_code == 200
-            assert client.post("/api/radio/network/radio_play_announcement", json={"announcement_id": announcement_id}).status_code == 200
+            assert client.post("/api/outputs/network/radio/radio_play_announcement", json={"announcement_id": announcement_id}).status_code == 200
     finally:
         for manager, original in zip(managers, originals):
             manager.play_announcement = original

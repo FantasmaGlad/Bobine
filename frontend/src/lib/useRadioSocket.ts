@@ -5,7 +5,7 @@ import { clearCachesAndReload } from "@/lib/cacheReload";
 import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
 import { parseDisplayOutput, parseDisplayOutputs, type DisplayOutputs } from "@/lib/displayChannel";
-import { DEFAULT_RADIO_CHANNEL, isOutputId, type RadioChannelId } from "@/lib/outputs";
+import { DEFAULT_RADIO_CHANNEL, isOutputId, outputOfRadio, type RadioChannelId } from "@/lib/outputs";
 import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
@@ -228,10 +228,10 @@ export function useRadioSocket(
     let cancelled = false;
     const resync = () => {
       if (document.visibilityState !== "visible") return;
-      fetch(getApiUrl(`/radio/state?channel=${channel}`), { cache: "no-store" })
+      fetch(getApiUrl(`/outputs/${outputOfRadio(channel).id}`), { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
-        .then((data: RadioState | null) => {
-          if (!cancelled && data) applyState(data, { event: "state_change", cause: "sync", channel });
+        .then((output: { radio: RadioState } | null) => {
+          if (!cancelled && output?.radio) applyState(output.radio, { event: "state_change", cause: "sync", channel });
         })
         .catch((err) => console.warn("Relecture de l'état radio impossible", err));
     };
@@ -244,7 +244,7 @@ export function useRadioSocket(
 
   useEffect(() => {
     let cancelled = false;
-    fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
+    fetch(getApiUrl("/outputs"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;

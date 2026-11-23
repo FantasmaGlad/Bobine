@@ -1100,49 +1100,6 @@
   {
    "actions": [
     {
-     "arguments": [],
-     "help": "lire les sorties câblé et réseau",
-     "name": "get"
-    },
-    {
-     "arguments": [
-      {
-       "choices": [
-        "cable",
-        "network",
-        "network_2"
-       ],
-       "flag": false,
-       "help": "",
-       "name": "channel",
-       "positional": true,
-       "repeat": false
-      },
-      {
-       "choices": [
-        "kiosk",
-        "cinema",
-        "radio",
-        "signage"
-       ],
-       "flag": false,
-       "help": "",
-       "name": "output",
-       "positional": true,
-       "repeat": false
-      }
-     ],
-     "help": "basculer un canal",
-     "name": "set"
-    }
-   ],
-   "arguments": [],
-   "help": "sortie affichée par canal",
-   "name": "display"
-  },
-  {
-   "actions": [
-    {
      "arguments": [
       {
        "choices": null,
@@ -2146,6 +2103,135 @@
   {
    "actions": [
     {
+     "arguments": [],
+     "help": "chaque sortie : mode, lecture et radio",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network",
+        "network_2"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "output",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "état complet d'une sortie",
+     "name": "get"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network",
+        "network_2"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "output",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": [
+        "kiosk",
+        "cinema",
+        "radio",
+        "signage"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "mode",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "basculer le mode affiché d'une sortie",
+     "name": "mode"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network",
+        "network_2"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "output",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ex. play, pause, stop, seek, volume, load",
+       "name": "action",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "params",
+       "positional": true,
+       "repeat": true
+      }
+     ],
+     "help": "commande de lecture d'une sortie",
+     "name": "playback"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network",
+        "network_2"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "output",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ex. play, pause, stop, seek, volume, load",
+       "name": "action",
+       "positional": true,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": false,
+       "help": "",
+       "name": "params",
+       "positional": true,
+       "repeat": true
+      }
+     ],
+     "help": "commande de la radio d'une sortie",
+     "name": "radio"
+    }
+   ],
+   "arguments": [],
+   "help": "sorties de diffusion : état, mode affiché, lecture et radio",
+   "name": "output"
+  },
+  {
+   "actions": [
+    {
      "arguments": [
       {
        "choices": null,
@@ -2329,37 +2415,6 @@
    "name": "play"
   },
   {
-   "actions": [],
-   "arguments": [
-    {
-     "choices": null,
-     "flag": false,
-     "help": "canal (cable, network)",
-     "name": "target",
-     "positional": true,
-     "repeat": false
-    },
-    {
-     "choices": null,
-     "flag": false,
-     "help": "ex. play, pause, stop, seek, volume, load",
-     "name": "action",
-     "positional": true,
-     "repeat": false
-    },
-    {
-     "choices": null,
-     "flag": false,
-     "help": "",
-     "name": "params",
-     "positional": true,
-     "repeat": true
-    }
-   ],
-   "help": "commande de lecture d'un canal",
-   "name": "playback"
-  },
-  {
    "actions": [
     {
      "arguments": [
@@ -2497,37 +2552,6 @@
    "arguments": [],
    "help": "playlists vidéo",
    "name": "playlists"
-  },
-  {
-   "actions": [],
-   "arguments": [
-    {
-     "choices": null,
-     "flag": false,
-     "help": "sortie (cable, network)",
-     "name": "target",
-     "positional": true,
-     "repeat": false
-    },
-    {
-     "choices": null,
-     "flag": false,
-     "help": "ex. play, pause, stop, seek, volume, load",
-     "name": "action",
-     "positional": true,
-     "repeat": false
-    },
-    {
-     "choices": null,
-     "flag": false,
-     "help": "",
-     "name": "params",
-     "positional": true,
-     "repeat": true
-    }
-   ],
-   "help": "commande d'une sortie radio",
-   "name": "radio"
   },
   {
    "actions": [

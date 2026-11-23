@@ -22,7 +22,7 @@ def client():
 def test_a_seek_with_an_unknown_key_is_refused_and_moves_nothing(client):
     manager = get_playback_manager("cable")
     manager.state["position_seconds"] = 42.0
-    response = client.post("/api/playback/cable/seek", json={"position": 120})
+    response = client.post("/api/outputs/cable/playback/seek", json={"position": 120})
     assert response.status_code == 422
     assert "position_seconds" in response.text
     assert manager.state["position_seconds"] == 42.0
@@ -32,12 +32,12 @@ def test_a_seek_with_an_unknown_key_is_refused_and_moves_nothing(client):
 def test_a_volume_without_a_valid_number_is_refused(client, body):
     manager = get_playback_manager("cable")
     manager.state["volume"] = 37
-    assert client.post("/api/playback/cable/volume", json=body).status_code == 422
+    assert client.post("/api/outputs/cable/playback/volume", json=body).status_code == 422
     assert manager.state["volume"] == 37
 
 
 def test_a_radio_seek_without_position_is_refused(client):
-    assert client.post("/api/radio/cable/radio_seek", json={"position": 30}).status_code == 422
+    assert client.post("/api/outputs/cable/radio/radio_seek", json={"position": 30}).status_code == 422
 
 
 def test_the_websocket_reports_the_refusal(client):

@@ -2,16 +2,11 @@
 
 import logging
 
-from fastapi import (
-    Depends,
-    HTTPException,
-)
 from sqlalchemy.orm import Session
 
-from app.api.contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL, LOCKED_OUTPUTS
-from app.database import get_db
+from app.api.contract import DISPLAY_OUTPUTS_BY_CHANNEL, LOCKED_OUTPUTS
 from app.models import Setting
-from app.outputs import OUTPUTS, WIRED_OUTPUT, get_output
+from app.outputs import WIRED_OUTPUT, get_output
 from app.playback.manager import get_playback_manager
 from app.radio.manager import get_radio_manager
 from app.scheduling.radio import activate_radio_output
@@ -21,7 +16,7 @@ from app.utils.deployment import (
 )
 from app.utils.ws_manager import manager as ws_manager
 
-from .core import _DISPLAY_OUTPUT_KEYS, DisplayOutputUpdate, _get_db_value, router
+from .core import _DISPLAY_OUTPUT_KEYS, _get_db_value
 from .values import get_settings
 from .wired_mode import get_effective_wired_display_mode
 
@@ -56,32 +51,8 @@ def get_display_output_value(db: Session, channel: str = WIRED_OUTPUT.id) -> str
     return "kiosk"
 
 
-@router.get("/display-output")
-def get_display_output(db: Session = Depends(get_db)) -> dict[str, str]:
-    """Sortie active des deux canaux : câblé (écran branché à la machine) et réseau (tout autre appareil du LAN)."""
-    return _display_outputs(db)
-
-
-def _display_outputs(db: Session) -> dict[str, str]:
-    return {output.id: get_display_output_value(db, output.id) for output in OUTPUTS}
-
-
-@router.put("/display-output")
-async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Bascule la sortie d'un canal (câblé ou réseau), indépendamment de l'autre."""
-    if payload.channel not in CHANNELS:
-        expected = " ou ".join(f"'{c}'" for c in CHANNELS)
-        raise HTTPException(status_code=422, detail=f"Canal invalide (attendu {expected})")
-    if payload.output not in DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel]:
-        allowed = " ou ".join(f"'{o}'" for o in DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel])
-        raise HTTPException(status_code=422, detail=f"Sortie invalide pour ce canal (attendu {allowed})")
-
-    await apply_display_output(db, payload.channel, payload.output)
-    return _display_outputs(db)
-
-
 async def apply_display_output(db: Session, channel: str, output: str, *, activate_radio: bool = True) -> None:
-    """Applique une bascule de sortie DÉJÀ validée : persistance, arrêt de ce qui jouait sur le canal, reprise ou pause du moteur radio câblé, diffusion aux clients."""
+    """Applique une bascule de mode DÉJÀ validée : persistance, arrêt de ce qui jouait sur la sortie, reprise ou pause de sa radio, diffusion aux clients."""
     previous_output = get_display_output_value(db, channel)
     key = _DISPLAY_OUTPUT_KEYS[channel]
     row = db.query(Setting).filter(Setting.key == key).first()

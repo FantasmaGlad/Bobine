@@ -89,10 +89,10 @@ def test_validation_des_valeurs(client):
 
 def test_sortie_cable_par_defaut_cinema_en_dual_screen(client):
     client.put("/api/display/state", json={"external_count": 0, "source": "linux"})
-    assert client.get("/api/settings/display-output").json()["cable"] == "kiosk"
+    assert client.get("/api/outputs/cable").json()["mode"] == "kiosk"
 
     client.put("/api/display/state", json={"external_count": 1, "source": "linux"})
-    assert client.get("/api/settings/display-output").json()["cable"] == "cinema"
+    assert client.get("/api/outputs/cable").json()["mode"] == "cinema"
 
-    client.put("/api/settings/display-output", json={"channel": "cable", "output": "kiosk"})
-    assert client.get("/api/settings/display-output").json()["cable"] == "kiosk"
+    client.put("/api/outputs/cable/mode", json={"mode": "kiosk"})
+    assert client.get("/api/outputs/cable").json()["mode"] == "kiosk"

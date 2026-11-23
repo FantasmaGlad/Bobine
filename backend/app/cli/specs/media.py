@@ -17,9 +17,9 @@ def _play(kind: str) -> Spec:
     family, action, param = PLAYABLE_MEDIA[kind]
 
     def request(client, args) -> Call:
-        return Call("POST", f"/api/{family}/{args.channel}/{action}", {param: args.id})
+        return Call("POST", f"/api/outputs/{args.channel}/{family}/{action}", {param: args.id})
 
-    route_key = "POST /api/playback/{channel}/{action}" if family == "playback" else "POST /api/radio/{output}/{action}"
+    route_key = f"POST /api/outputs/{{output_id}}/{family}/{{action}}"
     return Spec("play", kind, f"lire un média de type {kind}", request, (route_key,),
                 (Arg(("id",), "identifiant (bobine media list)", int),
                  Arg(("--channel",), "canal de diffusion", choices=COACH_CHANNELS if kind in COACH_MEDIA else CHANNELS,

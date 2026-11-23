@@ -18,9 +18,9 @@ export function useVideoSound(refreshKey: number, notify: SectionProps["notify"]
     let cancelled = false;
     Promise.all(
       OUTPUT_IDS.map((c) =>
-        fetch(playbackUrl(`/playback/state?channel=${c}`), { cache: "no-store" })
+        fetch(playbackUrl(`/outputs/${c}`), { cache: "no-store" })
           .then((res) => (res.ok ? res.json() : null))
-          .then((state) => [c, clampSound(state?.sound)] as const)
+          .then((output) => [c, clampSound(output?.playback?.sound)] as const)
           .catch(() => [c, defaultSound()] as const),
       ),
     ).then((entries) => {

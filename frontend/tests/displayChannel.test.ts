@@ -198,7 +198,8 @@ test("Réseau 2 suit sa propre sortie, jamais celle de Réseau 1", async () => {
   assert.equal(parseChannelParam(search), "network_2");
   assert.equal(decideOutputRedirect("kiosk", search, "192.0.2.7", { network: "cinema", network_2: "kiosk" }, "kiosk").to, null);
   assert.equal(decideOutputRedirect("kiosk", search, "192.0.2.7", { network: "kiosk", network_2: "cinema" }, "kiosk").to, "/cinema?output=network_2");
-  assert.deepEqual(parseDisplayOutputs({ cable: "radio", network: "signage", network_2: "radio" }, { network: "kiosk" }),
+  const listed = [{ id: "cable", mode: "radio" }, { id: "network", mode: "signage" }, { id: "network_2", mode: "radio" }];
+  assert.deepEqual(parseDisplayOutputs(listed, { network: "kiosk" }),
     { cable: "radio", network: "kiosk", network_2: "radio" });
   assert.equal(radioChannelId("network_2"), "radio_network_2");
 });

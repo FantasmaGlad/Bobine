@@ -41,9 +41,9 @@ def test_every_channel_starts_flat(client):
 
 
 def test_sound_is_bounded_per_channel_and_persisted(client):
-    answer = client.post("/api/playback/cable/set_sound", json={"sound": {"bands": [99, -99, 3, "x", 0], "bass_boost": 50, "loudness": True}})
+    answer = client.post("/api/outputs/cable/playback/set_sound", json={"sound": {"bands": [99, -99, 3, "x", 0], "bass_boost": 50, "loudness": True}})
     assert answer.status_code == 200
-    sound = answer.json()["state"]["sound"]
+    sound = answer.json()["playback"]["sound"]
     assert sound["bands"] == [12, -12, 3, 0, 0] and sound["bass_boost"] == 12 and sound["loudness"] is True
     with SessionLocal() as db:
         assert load_video_sound(db, "cable") == sound
@@ -52,18 +52,18 @@ def test_sound_is_bounded_per_channel_and_persisted(client):
 
 
 def test_absent_fields_keep_their_value(client):
-    client.post("/api/playback/network/set_sound", json={"sound": {"bands": [1, 2, 3, 4, 5], "limiter": False}})
-    sound = client.post("/api/playback/network/set_sound", json={"sound": {"loudness": True}}).json()["state"]["sound"]
+    client.post("/api/outputs/network/playback/set_sound", json={"sound": {"bands": [1, 2, 3, 4, 5], "limiter": False}})
+    sound = client.post("/api/outputs/network/playback/set_sound", json={"sound": {"loudness": True}}).json()["playback"]["sound"]
     assert sound["bands"] == [1, 2, 3, 4, 5] and sound["limiter"] is False and sound["loudness"] is True
 
 
 def test_garbage_never_fails(client):
     for payload in ({"sound": None}, {"sound": "abc"}, {"sound": {"bands": "x", "enabled": 3}}, {}):
-        assert client.post("/api/playback/cable/set_sound", json=payload).status_code == 200
+        assert client.post("/api/outputs/cable/playback/set_sound", json=payload).status_code == 200
 
 
 def test_settings_are_reloaded_at_startup(client):
-    client.post("/api/playback/cable/set_sound", json={"sound": {"bass_boost": 7}})
+    client.post("/api/outputs/cable/playback/set_sound", json={"sound": {"bass_boost": 7}})
     get_playback_manager("cable").state["sound"] = default_sound()
     with SessionLocal() as db:
         load_all_video_sounds_into_managers(db)
@@ -84,7 +84,7 @@ def test_state_change_carries_the_sound(client):
 
 def test_sound_travels_in_the_display_config_file(client):
     from app import config_builders
-    client.post("/api/playback/cable/set_sound", json={"sound": {"bass_boost": 4}})
+    client.post("/api/outputs/cable/playback/set_sound", json={"sound": {"bass_boost": 4}})
     with SessionLocal() as db:
         document = config_builders.build_display_outputs(db)
     assert document["sound"]["cable"]["bass_boost"] == 4 and document["sound"]["network"] == default_sound()

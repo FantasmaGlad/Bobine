@@ -63,10 +63,10 @@ def test_api_get_prints_the_answer(rec, capsys):
 
 
 def test_api_write_needs_yes_and_a_valid_path(rec, capsys):
-    assert cli.main(["api", "POST", "/api/playback/cable/stop"]) == cli.EXIT_USAGE
+    assert cli.main(["api", "POST", "/api/outputs/cable/playback/stop"]) == cli.EXIT_USAGE
     assert cli.main(["api", "GET", "/api/../etc"]) == cli.EXIT_USAGE
     assert cli.main(["api", "GET", "/api/x?y=1"]) == cli.EXIT_USAGE
-    assert cli.main(["api", "POST", "/api/playback/cable/stop", "--yes", "--body", "{pas du json"]) == cli.EXIT_USAGE
+    assert cli.main(["api", "POST", "/api/outputs/cable/playback/stop", "--yes", "--body", "{pas du json"]) == cli.EXIT_USAGE
     assert rec.calls == []
 
 

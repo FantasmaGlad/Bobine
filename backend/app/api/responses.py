@@ -163,6 +163,17 @@ class RadioSnapshot(OpenModel):
     clock: Any = None
 
 
+
+class OutputState(BaseModel):
+    id: str
+    label: str
+    wired: bool
+    coach: bool
+    modes: list[str]
+    mode: str
+    playback: PlaybackSnapshot
+    radio: RadioSnapshot
+
 class UploadState(BaseModel):
     upload_id: str
     offset: int

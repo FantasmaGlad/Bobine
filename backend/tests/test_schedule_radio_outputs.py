@@ -131,7 +131,7 @@ def test_filtres_de_liste_par_voie_avec_alias(client):
 
 def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_radio(client):
     pid = _playlist()
-    assert client.get("/api/settings/display-output").json()["cable"] != "radio"
+    assert client.get("/api/outputs/cable").json()["mode"] != "radio"
     db = SessionLocal()
     try:
         asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network_2"))
@@ -140,9 +140,9 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_
         db.close()
     network, cable = get_radio_manager("radio_network_2"), get_radio_manager("radio_cable")
     assert network.state["state"] == "playing"
-    assert client.get("/api/settings/display-output").json()["cable"] == "radio"
+    assert client.get("/api/outputs/cable").json()["mode"] == "radio"
     assert cable.state["state"] == "playing" and cable.state["playlist_id"] == pid
-    assert client.get("/api/settings/display-output").json()["network"] != "radio"
+    assert client.get("/api/outputs/network").json()["mode"] != "radio"
 
 
 def test_la_bascule_planifiee_coupe_la_video_du_cable(client):
@@ -179,14 +179,14 @@ def test_le_mode_coach_garde_la_priorite_sur_une_programmation_radio_cable(clien
             db.close()
     finally:
         manager.snapshot = original  # type: ignore[method-assign]
-    assert client.get("/api/settings/display-output").json()["cable"] != "radio"
+    assert client.get("/api/outputs/cable").json()["mode"] != "radio"
     cable = get_radio_manager("radio_cable")
     assert cable.state["state"] == "paused" and cable.state["playlist_id"] == pid
 
 
 def test_lancement_radio_cable_joue_quand_la_sortie_cable_est_sur_radio(client):
     pid = _playlist()
-    client.put("/api/settings/display-output", json={"channel": "cable", "output": "radio"})
+    client.put("/api/outputs/cable/mode", json={"mode": "radio"})
     db = SessionLocal()
     try:
         asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
