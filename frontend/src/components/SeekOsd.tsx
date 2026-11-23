@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Chapter } from "@/lib/chapters";
 import { chapterIndexAt } from "@/lib/chapters";
 import ChapterTicks from "@/components/ChapterTicks";
+import SeekPreview from "@/components/SeekPreview";
+import type { Storyboard } from "@/lib/storyboard";
 import type { SeekHud } from "@/lib/kioskFeedback";
 
 
@@ -26,7 +28,7 @@ export function useSeekHud(): [SeekHud & { visible: boolean }, (next: SeekHud) =
   return [hud, show];
 }
 
-export default function SeekOsd({ position, duration, visible, chapters }: SeekHud & { visible: boolean; chapters: Chapter[] }) {
+export default function SeekOsd({ position, duration, visible, chapters, board }: SeekHud & { visible: boolean; chapters: Chapter[]; board: Storyboard | null }) {
   const index = chapterIndexAt(chapters, position);
   const title = index >= 0 ? chapters[index].title : "";
   const ratio = duration > 0 ? Math.min(1, Math.max(0, position / duration)) : 0;
@@ -35,7 +37,7 @@ export default function SeekOsd({ position, duration, visible, chapters }: SeekH
       <div className="seek-osd-line">
         <span className="seek-osd-time">{formatTime(position)}</span>
         <div className="seek-osd-track">
-          {title && <span className="seek-osd-chapter" style={{ left: `${ratio * 100}%`, transform: `translateX(-${ratio * 100}%)` }}>{title}</span>}
+          <SeekPreview ratio={ratio} seconds={position} title={title} board={board} />
           <span className="seek-osd-fill" style={{ transform: `scaleX(${ratio})` }} />
           <ChapterTicks chapters={chapters} duration={duration} />
         </div>

@@ -12,6 +12,7 @@ import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subt
 import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
 import SeekOsd, { useSeekHud } from "@/components/SeekOsd";
 import { useScrubber } from "@/lib/useScrubber";
+import { useStoryboard } from "@/lib/useStoryboard";
 import { useMediaSound } from "@/lib/useMediaSound";
 import ChapterToast from "@/components/ChapterToast";
 import VolumeOsd from "@/components/VolumeOsd";
@@ -100,6 +101,7 @@ export default function KioskPage() {
   const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);
   useApplySubtitleMode([videoRef], subtitles, state.subtitle ?? null);
   const chapters = useVideoChapters(state.current_video?.id, getApiUrl);
+  const storyboard = useStoryboard(state.current_video?.id);
   useVideoClockFollower({
     videoRef,
     state,
@@ -252,7 +254,7 @@ export default function KioskPage() {
         </video>
       </div>
 
-      {state.current_video && <SeekOsd {...seekHud} visible={seekHud.visible} chapters={chapters} />}
+      {state.current_video && <SeekOsd {...seekHud} visible={seekHud.visible} chapters={chapters} board={storyboard} />}
 
       <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={seekHud.visible} />
 
