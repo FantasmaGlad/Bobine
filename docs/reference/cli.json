@@ -3969,7 +3969,7 @@
        "repeat": false
       }
      ],
-     "help": "remplacer la boucle de visuels d'un canal (fonds, dans l'ordre)",
+     "help": "remplacer la boucle de visuels d'un canal (visuels, dans l'ordre)",
      "name": "set"
     },
     {
@@ -3999,7 +3999,7 @@
     }
    ],
    "arguments": [],
-   "help": "boucle de visuels diffusée (images et vidéos des fonds)",
+   "help": "boucle de visuels diffusée sur un canal",
    "name": "signage"
   },
   {

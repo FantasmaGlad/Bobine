@@ -25,6 +25,7 @@ export const library: Dict = {
   filters: "Filtres",
   mediaTab: "Médiathèque",
   playlistsTab: "Playlists",
+  visualsTab: "Visuels",
   fetchError: "Erreur lors de la récupération des vidéos",
   connectionError: "Impossible de se connecter au serveur",
   bulkDeletedPartial: "{{ok}}/{{total}} vidéos supprimées",

@@ -34,6 +34,7 @@ import { audioBadge } from "./audioBadge.ts";
 import { app } from "./app.ts";
 import { uploadManager } from "./uploadManager.ts";
 import { signage } from "./signage.ts";
+import { visuals } from "./visuals.ts";
 
 export const dictionary: Dict = {
   nav,
@@ -70,4 +71,5 @@ export const dictionary: Dict = {
   app,
   uploadManager,
   signage,
+  visuals,
 };

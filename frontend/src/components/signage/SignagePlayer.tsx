@@ -7,7 +7,7 @@ import { Compositor } from "./engine/compositor";
 import { SignageEngine } from "./engine/engine";
 import { prepareSlide } from "./engine/prepare";
 
-const prepare = (entry: SignageEntry, loop: boolean) => prepareSlide(entry, getApiUrl(streamPath(entry.background_id)), loop);
+const prepare = (entry: SignageEntry, loop: boolean) => prepareSlide(entry, getApiUrl(streamPath(entry.visual_id)), loop);
 
 export default function SignagePlayer({ entries, emptyLabel }: { entries: SignageEntry[]; emptyLabel: string }) {
   const first = useRef<HTMLDivElement>(null);

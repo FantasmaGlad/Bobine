@@ -10,9 +10,11 @@ export const UPLOAD_ENDPOINTS: Record<UploadKind, string> = {
   radio_files: "/radio/tracks/upload",
   radio_zip: "/radio/tracks/upload-zip",
   radio_announcement_files: "/radio/announcements/upload-batch",
+  visual: "/visuals/upload",
+  visual_zip: "/visuals/upload-zip",
 };
 
-export const CHUNKED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "background", "video_zip", "background_zip", "audio_zip", "radio_zip"]);
+export const CHUNKED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "background", "video_zip", "background_zip", "audio_zip", "radio_zip", "visual", "visual_zip"]);
 
 const MULTI_FILE_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["audio_files", "radio_files", "radio_announcement_files"]);
 const DESCRIBED_KINDS: ReadonlySet<UploadKind> = new Set<UploadKind>(["video", "audio_files", "audio_zip"]);
