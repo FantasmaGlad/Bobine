@@ -23,8 +23,8 @@ def test_uid_format():
 
 def test_every_mixin_class_has_a_known_prefix():
     classes = [m.class_ for m in Base.registry.mappers if issubclass(m.class_, UidMixin)]
-    assert len(classes) == 13
-    assert {c.__uid_prefix__ for c in classes} <= set(PREFIXES) and len({c.__uid_prefix__ for c in classes}) == 13
+    assert len(classes) == 14
+    assert {c.__uid_prefix__ for c in classes} <= set(PREFIXES) and len({c.__uid_prefix__ for c in classes}) == 14
 
 
 def test_new_rows_get_a_stable_uid():

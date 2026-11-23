@@ -109,6 +109,8 @@ def init_db():
         settings.thumbnails_dir,
         settings.backgrounds_dir,
         settings.backgrounds_watch_dir,
+        settings.visuals_dir,
+        settings.visuals_watch_dir,
         settings.audio_dir,
         settings.audio_watch_dir,
         settings.radio_dir,

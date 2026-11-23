@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     backgrounds_dir: str = "data/backgrounds"
     backgrounds_watch_dir: str = "data/backgrounds_watched"
 
+    visuals_dir: str = "data/visuals"
+    visuals_watch_dir: str = "data/visuals_watched"
+
     audio_dir: str = "data/audio"
     audio_watch_dir: str = "data/audio_watched"
 
@@ -98,7 +101,8 @@ class Settings(BaseSettings):
 
 
 DATA_DIRS = (
-    "media_dir", "watch_dir", "thumbnails_dir", "backgrounds_dir", "backgrounds_watch_dir", "audio_dir", "audio_watch_dir",
+    "media_dir", "watch_dir", "thumbnails_dir", "backgrounds_dir", "backgrounds_watch_dir", "visuals_dir", "visuals_watch_dir",
+    "audio_dir", "audio_watch_dir",
     "radio_dir", "radio_covers_dir", "radio_announcements_dir", "radio_watch_dir", "branding_dir", "logs_dir", "subtitles_dir",
 )
 

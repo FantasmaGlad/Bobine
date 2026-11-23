@@ -84,7 +84,7 @@ class MonitorMixin:
 
         candidates = [
             settings.media_dir, settings.watch_dir, settings.thumbnails_dir, settings.backgrounds_dir,
-            settings.backgrounds_watch_dir, settings.audio_dir, settings.audio_watch_dir, settings.radio_dir,
+            settings.backgrounds_watch_dir, settings.visuals_dir, settings.visuals_watch_dir, settings.audio_dir, settings.audio_watch_dir, settings.radio_dir,
             settings.radio_covers_dir, settings.radio_announcements_dir, settings.radio_watch_dir,
             settings.branding_dir, settings.logs_dir, settings.subtitles_dir, str(DATA_ROOT),
         ]
