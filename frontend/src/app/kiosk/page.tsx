@@ -153,6 +153,12 @@ export default function KioskPage() {
       if (state.current_video) seekVideoTo(seconds);
       else if (state.current_audio_course) sendCommand("seek", { position_seconds: seconds });
     },
+    onChapter: (direction: 1 | -1, from: number) => {
+      const target = state.current_video ? chapterJumpTarget(chapters, from, direction === 1 ? "next" : "prev") : null;
+      if (target === null) return false;
+      seekVideoTo(target);
+      return true;
+    },
   };
   const scrub = (direction: 1 | -1) => {
     if (state.current_video) scrubber.press(direction, videoRef.current?.currentTime || state.position_seconds || 0, mediaDuration(), scrubTarget);
@@ -248,7 +254,7 @@ export default function KioskPage() {
 
       {state.current_video && <SeekOsd {...seekHud} visible={seekHud.visible} chapters={chapters} />}
 
-      <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} />
+      <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={seekHud.visible} />
 
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && !backgroundIsImage ? "visible" : ""}`}>
         <video ref={bgVideoRef} className="kiosk-video" loop muted playsInline autoPlay />

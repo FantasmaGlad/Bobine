@@ -1715,6 +1715,20 @@
       {
        "choices": null,
        "flag": false,
+       "help": "video_id",
+       "name": "video_id",
+       "positional": true,
+       "repeat": false
+      }
+     ],
+     "help": "mosaïque d'aperçu de la barre de lecture",
+     "name": "storyboard"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
        "help": "",
        "name": "files",
        "positional": true,
@@ -2113,7 +2127,7 @@
     {
      "choices": null,
      "flag": false,
-     "help": "admin, grid, cinema, visuals, kiosk, radio, signage",
+     "help": "admin, grid, cinema, kiosk, radio, signage",
      "name": "page",
      "positional": true,
      "repeat": false

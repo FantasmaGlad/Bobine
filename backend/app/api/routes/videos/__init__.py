@@ -2,10 +2,10 @@
 
 from fastapi import APIRouter
 
-from . import library, streams, subtitles, uploads
+from . import library, storyboard, streams, subtitles, uploads
 
 router = APIRouter()
 
-for module in (uploads, library, subtitles):
+for module in (uploads, library, subtitles, storyboard):
     router.include_router(module.router, prefix="/api/videos", tags=["videos"])
 router.include_router(streams.router)

@@ -40,7 +40,6 @@ export const dashboard: Dict = {
   channelSignageActive: "Visual loop",
   channelSignageLockedHint: "This channel shows a visual: launches are locked here. Switch it to Kiosk or Cinema to launch this class.",
   signageNotice: "This channel loops the chosen visuals. Class launches are locked until it switches back to Kiosk or Cinema.",
-  signageEdit: "Edit the loop",
   channelRadioActive: "Radio mode",
   cinemaNoPlayback: "No class currently playing on this channel's cinema screen.",
   cinemaStopHint: "Stops playback and returns the cinema screen to the class menu.",
