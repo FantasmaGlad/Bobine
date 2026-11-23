@@ -90,6 +90,21 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(bg.file_path.endswith(".mp4"))
         self.assertTrue(os.path.exists(bg.file_path))
 
+    def test_02b_import_animated_gif_keeps_animation(self):
+        from PIL import Image
+        from app.utils.importer.formats import is_image_background
+
+        temp_src = str(Path(settings.backgrounds_watch_dir) / "temp_loop.gif")
+        frames = [Image.new("RGB", (64, 36), color) for color in ("red", "blue", "green")]
+        frames[0].save(temp_src, save_all=True, append_images=frames[1:], duration=100, loop=0)
+
+        bg = import_background(temp_src, "Boucle animee.gif", ImportSource.upload)
+        self.assertTrue(bg.file_path.endswith(".gif"))
+        self.assertTrue(is_image_background(bg.file_path))
+        with Image.open(bg.file_path) as stored:
+            self.assertEqual(stored.n_frames, 3)
+        self.assertTrue(bg.thumbnail_path.endswith(".jpg"))
+
     async def test_03_playback_manager_background_flow(self):
         broadcast_payloads = []
 

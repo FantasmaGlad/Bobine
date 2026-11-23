@@ -7,5 +7,6 @@ COURSE_AUDIO = frozenset({".mp3", ".m4a", ".wav", ".aac", ".flac", ".ogg", ".oga
 SUPPORT_AUDIO = RADIO_AUDIO - {".mp4", ".webm"}
 VIDEO = frozenset({".mp4", ".m4v", ".mkv", ".avi", ".mov"})
 IMAGE = frozenset({".png", ".jpg", ".jpeg", ".webp"})
+BACKGROUND_IMAGE = IMAGE | {".gif"}
 SUBTITLE = frozenset({".srt", ".vtt"})
 ARCHIVE = (".zip", ".tar", ".tar.gz", ".tgz", ".tar.xz", ".txz", ".tar.bz2", ".tbz2")
