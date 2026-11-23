@@ -5,6 +5,7 @@ import { useState } from "react";
 import Icon from "@/components/Icon";
 import ResponsiveSelect from "@/components/ResponsiveSelect";
 import { useAppSettings } from "@/lib/AppSettingsContext";
+import type { LockedOutput } from "@/lib/displayChannel";
 import { courseThumbSrc, formatClock } from "@/lib/courseMeta";
 import { formatMinutes } from "@/lib/format";
 
@@ -15,7 +16,7 @@ interface Props {
   videos: VideoSummary[];
   playlists: PlaylistSummary[];
   locked: boolean;
-  lockedReason: string | null | undefined;
+  lockedReason: LockedOutput | null | undefined;
   sendCommand: Send;
 }
 
@@ -35,11 +36,17 @@ function Launcher({ value, onChange, placeholder, options, disabled, title, icon
   );
 }
 
+const LOCK_HINT: Record<LockedOutput, string> = {
+  cinema: "dashboard.channelCinemaLockedHint",
+  radio: "dashboard.channelRadioLockedHint",
+  signage: "dashboard.channelSignageLockedHint",
+};
+
 export default function LaunchPanel({ isCable, videos, playlists, locked, lockedReason, sendCommand }: Props) {
   const { t } = useAppSettings();
   const [videoId, setVideoId] = useState("");
   const [playlistId, setPlaylistId] = useState("");
-  const lockHint = t(lockedReason === "radio" ? "dashboard.channelRadioLockedHint" : "dashboard.channelCinemaLockedHint");
+  const lockHint = t(LOCK_HINT[lockedReason ?? "cinema"]);
   return (
     <div className="bento-col-side">
       <div className="launch-block">

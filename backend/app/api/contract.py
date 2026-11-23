@@ -14,8 +14,9 @@ SCHEDULE_CHANNELS = CHANNELS + RADIO_CHANNELS
 SCHEDULE_TARGETS = ("video", "playlist", "radio_playlist")
 OVERRIDE_ACTIONS = ("cancelled", "replaced")
 
-DISPLAY_OUTPUTS_BY_CHANNEL = {"cable": ("kiosk", "cinema", "radio"), "network": ("kiosk", "cinema")}
-DISPLAY_OUTPUTS = ("kiosk", "cinema", "radio")
+DISPLAY_OUTPUTS_BY_CHANNEL = {"cable": ("kiosk", "cinema", "radio", "signage"), "network": ("kiosk", "cinema", "signage")}
+DISPLAY_OUTPUTS = ("kiosk", "cinema", "radio", "signage")
+LOCKED_OUTPUTS = ("cinema", "radio", "signage")
 
 DASHBOARD_PERIODS = ("7d", "30d", "this_month", "all")
 HISTORY_PERIODS = ("1h", "6h", "24h", "7d", "30d", "this_month", "all")

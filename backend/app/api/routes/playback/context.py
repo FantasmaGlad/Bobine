@@ -8,6 +8,7 @@ from fastapi import WebSocket
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
+from app.api.contract import LOCKED_OUTPUTS
 from app.api.routes.settings.display import get_display_output_value
 from app.utils.activity_log import log_activity
 from app.utils.ws_manager import manager as ws_manager
@@ -45,9 +46,9 @@ class Command:
 
     async def ensure_not_locked(self) -> None:
         output = await run_in_threadpool(get_display_output_value, self.db, self.channel)
-        if output not in ("cinema", "radio"):
+        if output not in LOCKED_OUTPUTS:
             return
-        reason = "cinema_locked" if output == "cinema" else "radio_locked"
+        reason = f"{output}_locked"
         logger.info(f"Commande {self.name} ignorée : le canal '{self.channel}' est en mode {output} (verrouillé)")
         raise CommandRejected(reason, self.channel,
                               f"Le canal {self.channel} affiche le mode {output} : aucun écran vidéo ne montrerait ce lancement.")

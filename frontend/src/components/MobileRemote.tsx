@@ -19,7 +19,7 @@ interface MobileRemoteProps {
   backgrounds: BackgroundSummary[];
   getApiUrl: (path: string) => string;
   displayOutputCable: DisplayOutput | null;
-  displayOutputNetwork: "kiosk" | "cinema" | null;
+  displayOutputNetwork: DisplayOutput | null;
   cinemaLive: CinemaRemoteState | null;
   onCinemaPlayPause: () => void;
   onSetDisplayOutput: (channel: "cable" | "network", output: DisplayOutput) => void;
@@ -45,10 +45,12 @@ export default function MobileRemote({
   const { t } = useAppSettings();
   const [sheet, setSheet] = useState<"none" | "launch">("none");
 
-  const channelCinema = (channel === "network" ? displayOutputNetwork : displayOutputCable) === "cinema";
+  const channelOutput = channel === "network" ? displayOutputNetwork : displayOutputCable;
+  const channelCinema = channelOutput === "cinema";
+  const channelSignage = channelOutput === "signage";
   const channelRadio = channel !== "network" && displayOutputCable === "radio";
 
-  if ((channelCinema || channelRadio) && sheet !== "none") setSheet("none");
+  if ((channelCinema || channelRadio || channelSignage) && sheet !== "none") setSheet("none");
 
   const isActive = state.current_video !== null || state.state === "playlist_waiting" || state.state === "background";
   const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
@@ -56,7 +58,7 @@ export default function MobileRemote({
 
   const main = (
     <RemoteMain
-      connected={connected} channelRadio={channelRadio} channelCinema={channelCinema} isActive={isActive}
+      connected={connected} channelRadio={channelRadio} channelCinema={channelCinema} channelSignage={channelSignage} isActive={isActive}
       cinemaLive={cinemaLive} cinemaChapters={cinemaChapters} kioskChapters={kioskChapters} state={state} livePosition={livePosition}
       videos={videos} getApiUrl={getApiUrl} sendCommand={sendCommand} onCinemaPlayPause={onCinemaPlayPause} onLaunch={() => setSheet("launch")} t={t}
     />
@@ -68,7 +70,7 @@ export default function MobileRemote({
         <OutputSwitches channel={channel} displayOutputCable={displayOutputCable} displayOutputNetwork={displayOutputNetwork} onSetDisplayOutput={onSetDisplayOutput} t={t} />
       )}
       {main}
-      {!channelCinema && (
+      {!channelCinema && !channelSignage && (
         <KioskControls state={state} isActive={isActive} channel={channel} sendCommand={sendCommand} onLaunch={() => setSheet("launch")} />
       )}
       <LaunchSheet

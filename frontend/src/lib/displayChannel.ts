@@ -2,9 +2,27 @@ export type DisplayChannel = "cable" | "network";
 
 export type ChannelSource = "query" | "default";
 
-export type DisplayPage = "kiosk" | "cinema" | "radio";
+export const CABLE_OUTPUTS = ["kiosk", "cinema", "radio", "signage"] as const;
+export const NETWORK_OUTPUTS = ["kiosk", "cinema", "signage"] as const;
 
-export type DisplayOutput = "kiosk" | "cinema" | "radio";
+export type DisplayOutput = (typeof CABLE_OUTPUTS)[number];
+
+export type DisplayPage = DisplayOutput;
+
+export type LockedOutput = Exclude<DisplayOutput, "kiosk">;
+
+export function outputsFor(channel: DisplayChannel): readonly DisplayOutput[] {
+  return channel === "cable" ? CABLE_OUTPUTS : NETWORK_OUTPUTS;
+}
+
+export function parseDisplayOutput(channel: DisplayChannel, value: unknown): DisplayOutput | null {
+  return outputsFor(channel).find((output) => output === value) ?? null;
+}
+
+export function lockedOutput(reason: unknown): LockedOutput | null {
+  const output = typeof reason === "string" && reason.endsWith("_locked") ? reason.slice(0, -"_locked".length) : null;
+  return CABLE_OUTPUTS.find((candidate): candidate is LockedOutput => candidate !== "kiosk" && candidate === output) ?? null;
+}
 
 export type RadioChannelId = "radio_cable" | "radio_network";
 

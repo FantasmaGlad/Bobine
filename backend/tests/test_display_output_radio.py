@@ -302,3 +302,25 @@ def test_play_now_cible_une_sortie_ou_les_deux(client):
     _reset_engines()
     assert client.post("/api/radio/announcements/play-now", json={"target": "both"}).status_code == 200
     assert cable.state["current_announcement"] and network.state["current_announcement"]
+
+
+def test_les_deux_canaux_acceptent_la_sortie_visuel_qui_coupe_la_video(client):
+    from app.playback.manager import get_playback_manager
+
+    manager = get_playback_manager("network")
+    asyncio.run(manager.load(1, "Cours", 600.0, None, None))
+    assert _put_output(client, "cable", "signage").status_code == 200
+    assert _put_output(client, "network", "signage").status_code == 200
+    assert client.get("/api/settings/display-output").json() == {"cable": "signage", "network": "signage"}
+    assert not get_playback_manager("network").snapshot()["current_video"]
+
+
+def test_un_lancement_video_est_verrouille_quand_le_canal_diffuse_un_visuel(client):
+    _put_output(client, "network", "signage")
+    with client.websocket_connect("/ws/playback") as ws:
+        ws.send_json({"command": "load", "params": {"channel": "network", "video_id": 1}})
+        message = ws.receive_json()
+        while message.get("event") != "command_rejected":
+            message = ws.receive_json()
+        assert message["reason"] == "signage_locked"
+        assert message["channel"] == "network"

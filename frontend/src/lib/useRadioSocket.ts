@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
-import type { DisplayOutput, RadioChannelId } from "@/lib/displayChannel";
+import { parseDisplayOutput, type DisplayOutput, type RadioChannelId } from "@/lib/displayChannel";
 import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
@@ -174,12 +174,8 @@ export function useRadioSocket(
             return;
           }
           if (parsed.event === "display_output") {
-            if (
-              parsed.channel === "cable" &&
-              (parsed.output === "kiosk" || parsed.output === "cinema" || parsed.output === "radio")
-            ) {
-              setDisplayOutputCable(parsed.output);
-            }
+            const output = parsed.channel === "cable" ? parseDisplayOutput("cable", parsed.output) : null;
+            if (output) setDisplayOutputCable(output);
             return;
           }
           if (parsed.event === "inputs_change") {
@@ -250,9 +246,8 @@ export function useRadioSocket(
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        if (data.cable === "kiosk" || data.cable === "cinema" || data.cable === "radio") {
-          setDisplayOutputCable((prev) => prev ?? data.cable);
-        }
+        const cable = parseDisplayOutput("cable", data.cable);
+        if (cable) setDisplayOutputCable((prev) => prev ?? cable);
       })
       .catch(() => {});
     return () => {

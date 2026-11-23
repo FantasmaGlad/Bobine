@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 
 os.environ["BOBINE_DATABASE_URL"] = "sqlite:///data/test_database.db"
 os.environ["BOBINE_MEDIA_DIR"] = "data/test_videos"
@@ -119,6 +120,19 @@ def test_display_outputs_follow_the_contract(client):
     assert refused.status_code in (400, 409, 422)
     client.put("/api/settings/display-output", json={"channel": "cable", "output": "kiosk"})
     client.put("/api/settings/display-output", json={"channel": "network", "output": "kiosk"})
+
+
+def test_frontend_offers_exactly_the_contract_outputs():
+    import re
+
+    source = (Path(__file__).resolve().parents[2] / "frontend/src/lib/displayChannel.ts")
+    if not source.exists():
+        pytest.skip("frontend absent de cette arborescence")
+    text = source.read_text(encoding="utf-8")
+    for channel, name in (("cable", "CABLE_OUTPUTS"), ("network", "NETWORK_OUTPUTS")):
+        listed = re.search(rf"export const {name} = \[(.*?)\]", text, re.S).group(1)
+        assert tuple(re.findall(r'"([^"]+)"', listed)) == contract.DISPLAY_OUTPUTS_BY_CHANNEL[channel]
+    assert set(contract.LOCKED_OUTPUTS) == set(contract.DISPLAY_OUTPUTS) - {"kiosk"}
 
 
 def test_openapi_publishes_the_contract_patterns():

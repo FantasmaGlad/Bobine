@@ -166,3 +166,27 @@ test("le bouton d'ouverture suit la sortie du canal, kiosque par défaut", () =>
   assert.equal(screenUrl("cable", "radio"), "/radio?channel=cable");
   assert.equal(screenUrl("network", "cinema"), "/cinema?channel=network");
 });
+
+import { lockedOutput, outputsFor, parseDisplayOutput } from "../src/lib/displayChannel.ts";
+
+test("visuel : sortie offerte aux deux canaux, la radio reste câblée seulement", () => {
+  assert.deepEqual(outputsFor("cable"), ["kiosk", "cinema", "radio", "signage"]);
+  assert.deepEqual(outputsFor("network"), ["kiosk", "cinema", "signage"]);
+  assert.equal(parseDisplayOutput("network", "signage"), "signage");
+  assert.equal(parseDisplayOutput("network", "radio"), null);
+  assert.equal(parseDisplayOutput("cable", "autre"), null);
+});
+
+test("visuel : le motif du verrou nomme la sortie qui l'impose", () => {
+  assert.equal(lockedOutput("signage_locked"), "signage");
+  assert.equal(lockedOutput("radio_locked"), "radio");
+  assert.equal(lockedOutput("kiosk_locked"), null);
+  assert.equal(lockedOutput("coach_cable_only"), null);
+});
+
+test("visuel : le kiosque câblé passe sur /signage et la page du visuel revient au kiosque", () => {
+  const toSignage = decideOutputRedirect("kiosk", "", "127.0.0.1", "signage", null, "kiosk");
+  assert.equal(toSignage.to, "/signage?channel=cable");
+  const back = decideOutputRedirect("signage", "?channel=network", "192.0.2.5", null, "kiosk", "signage");
+  assert.equal(back.to, "/kiosk?channel=network");
+});
