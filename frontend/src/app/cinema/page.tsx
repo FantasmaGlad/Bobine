@@ -30,6 +30,7 @@ import { useKioskRemote } from "@/lib/input/useKioskRemote";
 import { useMediaClockFollower, type ClockTarget } from "@/lib/useMediaClockFollower";
 import { useMediaSound } from "@/lib/useMediaSound";
 import { useScrubber } from "@/lib/useScrubber";
+import { useStoryboard } from "@/lib/useStoryboard";
 import { usePlaybackSocket, type CinemaCommandExtra } from "@/lib/usePlaybackSocket";
 import { adjustMediaVolume, useVolumeHud } from "@/lib/volumeHud";
 
@@ -89,6 +90,7 @@ export default function CinemaPage() {
   const subtitles = useVideoSubtitles(selected?.id, getApiUrl);
   useApplySubtitleMode([deckA, deckB], subtitles, activeSubtitle);
   const chapters = useVideoChapters(selected?.id, getApiUrl);
+  const storyboard = useStoryboard(selected?.id);
   const hideControls = wiredDisplayMode === "dual_screen" && isWiredDisplay();
   const { state, displayOutputCable, displayOutputNetwork, sendCommand, cinemaState, libraryVersion, serverNow } = usePlaybackSocket(
     undefined, undefined, channel, (action, positionSeconds, videoId, extra) => cinemaCmd.current?.(action, positionSeconds, videoId, extra), "cinema",
@@ -385,6 +387,7 @@ export default function CinemaPage() {
         <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={!hideControls && playingLayer && (controlsVisible || !isPlaying)} />
         {!hideControls && (
           <CinemaControls visible={playingLayer && (controlsVisible || !isPlaying)} playing={isPlaying} position={shownPosition} duration={duration} chapters={chapters}
+            board={storyboard} scrubbing={seekDrag !== null}
             subtitles={subtitles} activeSubtitle={activeSubtitle} onSubtitle={setActiveSubtitle} onPlayPause={playPause} onBack={backToMenu} onDrag={setSeekDrag} onSeek={seekTo} />
         )}
       </div>
