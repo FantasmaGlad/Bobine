@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import release_channel
-from app.api.contract import CHANNELS, DISPLAY_OUTPUTS_BY_CHANNEL
+from app.api.contract import CHANNELS
 from app.config import (
     settings as runtime_settings,
 )
@@ -58,9 +58,7 @@ _VALID_THEME_MODES = set(themes.MODES)
 _VALID_ACTIVE_LOGOS = {"default", "custom"}
 _VALID_WIRED_DISPLAY_MODES = {"dual_screen", "headless"}
 
-_DISPLAY_OUTPUT_KEYS = {"cable": "display_output_cable", "network": "display_output_network"}
-_DISPLAY_OUTPUTS_BY_CHANNEL = DISPLAY_OUTPUTS_BY_CHANNEL
-_DISPLAY_CHANNELS = CHANNELS
+_DISPLAY_OUTPUT_KEYS = {channel: f"display_output_{channel}" for channel in CHANNELS}
 
 
 class DisplayOutputUpdate(BaseModel):

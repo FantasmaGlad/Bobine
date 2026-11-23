@@ -33,6 +33,7 @@ import { useScrubber } from "@/lib/useScrubber";
 import { useStoryboard } from "@/lib/useStoryboard";
 import { usePlaybackSocket, type CinemaCommandExtra } from "@/lib/usePlaybackSocket";
 import { adjustMediaVolume, useVolumeHud } from "@/lib/volumeHud";
+import type { OutputId } from "@/lib/outputs";
 
 const CONTROLS_HIDE_MS = 3000;
 
@@ -79,7 +80,7 @@ export default function CinemaPage() {
   const [upNext, setUpNext] = useState<CinemaVideo | null>(null);
   const [upNextRemaining, setUpNextRemaining] = useState(UP_NEXT_AUTOPLAY_SECONDS);
   const [cinemaSync, setCinemaSync] = useState<CinemaSync | null>(null);
-  const [channel] = useState<"cable" | "network">(() => getDisplayChannel("cinema"));
+  const [channel] = useState<OutputId>(() => getDisplayChannel("cinema"));
   const lastPositionUpdate = useRef(0);
   const lastSeek = useRef(0);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

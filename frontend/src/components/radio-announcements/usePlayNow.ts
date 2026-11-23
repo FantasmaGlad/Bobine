@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { getApiUrl } from "@/lib/apiUrl";
+import { DEFAULT_RADIO_CHANNEL } from "@/lib/outputs";
 import type { ShowToast } from "@/lib/useToast";
 import type { RuleTarget } from "./types";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
 export function usePlayNow(t: Translate, showToast: ShowToast) {
-  const [playNowTarget, setPlayNowTarget] = useState<RuleTarget>("radio_network");
+  const [playNowTarget, setPlayNowTarget] = useState<RuleTarget>(DEFAULT_RADIO_CHANNEL);
 
   const handlePlayNow = async (announcementId?: number) => {
     const res = await fetch(getApiUrl("/radio/announcements/play-now"), {

@@ -143,7 +143,7 @@ def _apply_machine(ctx: _Context, file: str, document: dict) -> None:
 
 
 def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
-    from app.api.routes.settings.core import _DISPLAY_OUTPUTS_BY_CHANNEL
+    from app.api.contract import DISPLAY_OUTPUTS_BY_CHANNEL
     from app.api.routes.settings.display import apply_display_output, get_display_output_value
 
     outputs = document.get("outputs")
@@ -151,7 +151,7 @@ def _apply_display_outputs(ctx: _Context, file: str, document: dict) -> None:
         ctx.fail(file, "« outputs » doit être un objet")
         return
     for channel, output in outputs.items():
-        if output not in _DISPLAY_OUTPUTS_BY_CHANNEL.get(channel, ()):
+        if output not in DISPLAY_OUTPUTS_BY_CHANNEL.get(channel, ()):
             ctx.fail(file, f"sortie invalide pour {channel} : {output!r}")
         elif output != get_display_output_value(ctx.db, channel):
 

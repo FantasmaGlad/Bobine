@@ -5,8 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.api.contract import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS
-
-DEFAULT_RADIO_CHANNEL = "radio_network"
+from app.outputs import DEFAULT_RADIO_CHANNEL
 
 
 def normalize_radio_channel(value: Any) -> str:

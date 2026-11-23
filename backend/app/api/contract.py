@@ -3,19 +3,21 @@ from __future__ import annotations
 
 import re
 
+from app.outputs import DEFAULT_OUTPUT, OUTPUTS, display_modes
+
 DEFAULT_PORT = 1903
 GITHUB_REPO = "FantasmaGlad/Bobine"
 
-CHANNELS = ("cable", "network")
-DEFAULT_CHANNEL = "cable"
-RADIO_CHANNELS = ("radio_cable", "radio_network")
+CHANNELS = tuple(output.id for output in OUTPUTS)
+DEFAULT_CHANNEL = DEFAULT_OUTPUT.id
+RADIO_CHANNELS = tuple(output.radio_channel for output in OUTPUTS)
 LEGACY_RADIO_CHANNEL = "radio"
 SCHEDULE_CHANNELS = CHANNELS + RADIO_CHANNELS
 SCHEDULE_TARGETS = ("video", "playlist", "radio_playlist")
 OVERRIDE_ACTIONS = ("cancelled", "replaced")
 
-DISPLAY_OUTPUTS_BY_CHANNEL = {"cable": ("kiosk", "cinema", "radio", "signage"), "network": ("kiosk", "cinema", "signage")}
-DISPLAY_OUTPUTS = ("kiosk", "cinema", "radio", "signage")
+DISPLAY_OUTPUTS_BY_CHANNEL = {output.id: output.modes for output in OUTPUTS}
+DISPLAY_OUTPUTS = display_modes()
 LOCKED_OUTPUTS = ("cinema", "radio", "signage")
 
 DASHBOARD_PERIODS = ("7d", "30d", "this_month", "all")
@@ -47,15 +49,15 @@ RADIO_ACTIONS = (
     "radio_set_repeat", "radio_add_to_queue", "radio_play_next", "radio_move_in_queue", "radio_remove_from_queue",
     "radio_play_announcement",
 )
-RADIO_OUTPUTS = {"cable": "radio_cable", "network": "radio_network"}
+RADIO_OUTPUTS = {output.id: output.radio_channel for output in OUTPUTS}
 ANNOUNCEMENT_RULE_TYPES = ("every_n_tracks", "every_x_minutes", "fixed_times")
 ANNOUNCEMENT_TARGETS = RADIO_CHANNELS + ("both",)
 STORAGE_IMPORT_KINDS = ("video", "radio", "audio_course")
 MOUNT_MODES = ("ro", "rw")
 AUDIO_TEST_CHANNELS = ("left", "right", "both")
 ROUTING_FALLBACKS = ("default", "mute")
-CABLE_ONLY_MEDIA = ("audio", "audio-playlist")
-COACH_CHANNELS = (DEFAULT_CHANNEL,)
+COACH_MEDIA = ("audio", "audio-playlist")
+COACH_CHANNELS = tuple(output.id for output in OUTPUTS if output.coach)
 MEDIA_KINDS = ("video", "playlist", "audio", "audio-playlist", "background", "radio-track", "radio-playlist")
 PLAYABLE_MEDIA = {
     "video": ("playback", "load", "video_id"),

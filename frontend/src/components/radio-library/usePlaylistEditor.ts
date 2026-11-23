@@ -6,7 +6,8 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { ShowToast } from "@/lib/useToast";
 
 import { fetchJson, sendJson } from "./api";
-import type { OutputDefaults, PlaylistDetail, PlaylistSummary, RadioOutput } from "./types";
+import type { RadioChannelId } from "@/lib/outputs";
+import type { OutputDefaults, PlaylistDetail, PlaylistSummary } from "./types";
 import type { RadioCatalog } from "./useRadioCatalog";
 
 function useOutputDefaults(current: React.RefObject<PlaylistDetail | null>, fail: () => void) {
@@ -15,7 +16,7 @@ function useOutputDefaults(current: React.RefObject<PlaylistDetail | null>, fail
     fetchJson<OutputDefaults | null>("/radio/default-playlist", null).then((data) => data && setOutputDefaults(data));
   }, []);
 
-  const toggleOutput = async (output: RadioOutput) => {
+  const toggleOutput = async (output: RadioChannelId) => {
     const p = current.current;
     if (!p) return;
     const chosen = outputDefaults?.[output]?.override_playlist_id === p.id;

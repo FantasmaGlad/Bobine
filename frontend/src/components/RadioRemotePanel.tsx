@@ -7,7 +7,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import NowPlayingCard from "@/components/radio/remote/NowPlayingCard";
 import PlaylistLauncher from "@/components/radio/remote/PlaylistLauncher";
 import QueuePanel from "@/components/radio/remote/QueuePanel";
-import type { RadioChannelId } from "@/lib/displayChannel";
+import type { RadioChannelId } from "@/lib/outputs";
 import { useInterpolatedPosition } from "@/lib/useInterpolatedPosition";
 import { RadioEvent, useRadioSocket } from "@/lib/useRadioSocket";
 

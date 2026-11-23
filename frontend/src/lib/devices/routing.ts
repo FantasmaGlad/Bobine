@@ -1,8 +1,5 @@
+import type { RadioChannelId } from "../outputs.ts";
 import type { AudioKind, CapabilityInfo } from "./types.ts";
-
-export type RadioOutputId = "radio_cable" | "radio_network";
-
-export const RADIO_OUTPUTS: RadioOutputId[] = ["radio_cable", "radio_network"];
 
 export interface RoutingRoute {
   sink_id: string;
@@ -26,7 +23,7 @@ export interface RoutingServerStatus {
 }
 
 export interface RoutingOutput {
-  channel: RadioOutputId;
+  channel: RadioChannelId;
   route: RoutingRoute | null;
   state: "default" | "routed" | "missing" | "unknown";
   sink_id: string | null;
@@ -81,7 +78,7 @@ export function outputLabelsHidden(devices: Array<{ kind: string; label: string 
 }
 
 export interface MixerOutput {
-  channel: RadioOutputId;
+  channel: RadioChannelId;
   mix: unknown;
   sound: unknown;
   playing: boolean;

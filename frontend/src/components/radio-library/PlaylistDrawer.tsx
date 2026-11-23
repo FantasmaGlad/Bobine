@@ -8,7 +8,8 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { formatMediaDuration } from "@/lib/format";
 
 import { AddableTracks, PlaylistItems } from "./PlaylistTracks";
-import type { PlaylistDetail, RadioOutput, RadioTrack } from "./types";
+import { RADIO_CHANNELS } from "@/lib/outputs";
+import type { PlaylistDetail, RadioTrack } from "./types";
 import type { PlaylistEditor } from "./usePlaylistEditor";
 
 interface Props {
@@ -19,7 +20,6 @@ interface Props {
   coverUrl: (id: number) => string;
 }
 
-const OUTPUTS: RadioOutput[] = ["radio_cable", "radio_network"];
 
 function Meta({ editor, playlist }: Pick<Props, "editor" | "playlist">) {
   const { t } = useAppSettings();
@@ -48,7 +48,7 @@ function Outputs({ editor, playlist }: Pick<Props, "editor" | "playlist">) {
   return (
     <div className="rl-pl-outputs" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", padding: "0 16px 10px" }}>
       <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }} title={t("radioLibrary.outputDefaultHint")}>{t("radioLibrary.outputDefaultLabel")}</span>
-      {OUTPUTS.map((output) => {
+      {RADIO_CHANNELS.map((output) => {
         const chosen = editor.outputDefaults?.[output]?.override_playlist_id === playlist.id;
         return (
           <button key={output} type="button" className={`btn ${chosen ? "btn-primary" : "btn-secondary"}`} style={{ height: "30px", padding: "0 12px", fontSize: "0.78rem" }}

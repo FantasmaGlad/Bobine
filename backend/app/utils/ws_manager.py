@@ -4,7 +4,7 @@ import time
 
 from fastapi import WebSocket
 
-from app.api.contract import LEGACY_RADIO_CHANNEL
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL, LEGACY_RADIO_CHANNEL, RADIO_CHANNELS
 from app.radio.channels import normalize_radio_channel
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[WebSocket, asyncio.Task] = {}
         self._last_pong: dict[WebSocket, float] = {}
-        self._kiosk_connections: dict[str, list[WebSocket]] = {"cable": [], "network": [], "radio_cable": [], "radio_network": []}
+        self._kiosk_connections: dict[str, list[WebSocket]] = {channel: [] for channel in (*CHANNELS, *RADIO_CHANNELS)}
         self._kiosk_channel: dict[WebSocket, str] = {}
         self._kiosk_client_id: dict[WebSocket, str] = {}
         self._kiosk_primary_status: dict[WebSocket, bool] = {}
@@ -98,12 +98,12 @@ class ConnectionManager:
         if self._primary_client_id.get(channel) == client_id:
             del self._primary_client_id[channel]
 
-    async def register_kiosk(self, websocket: WebSocket, channel: str = "cable", client_id: str = "") -> bool:
+    async def register_kiosk(self, websocket: WebSocket, channel: str = DEFAULT_CHANNEL, client_id: str = "") -> bool:
         """Enregistre un kiosk sur SON canal et (ré)évalue son statut primaire/miroir."""
         if channel == LEGACY_RADIO_CHANNEL:
             channel = normalize_radio_channel(channel)
         if channel not in self._kiosk_connections:
-            channel = "cable"
+            channel = DEFAULT_CHANNEL
         kiosks = self._kiosk_connections[channel]
         if websocket not in kiosks:
             kiosks.append(websocket)
@@ -120,8 +120,8 @@ class ConnectionManager:
 
     def register_viewer(self, websocket: WebSocket, channel: str, page: str) -> None:
         """Déclare une page qui suit un canal sans être son écran (cinéma, grille, tableau de bord)."""
-        if channel not in ("cable", "network"):
-            channel = "cable"
+        if channel not in CHANNELS:
+            channel = DEFAULT_CHANNEL
         self._viewers[websocket] = {"channel": channel, "page": page[:24]}
 
     def set_kiosk_page(self, websocket: WebSocket, page: str | None) -> None:

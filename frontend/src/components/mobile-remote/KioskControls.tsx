@@ -5,13 +5,14 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import type { PlaybackState } from "@/lib/usePlaybackSocket";
+import type { OutputId } from "@/lib/outputs";
 
 const STOP_HOLD_MS = 650;
 
 interface KioskControlsProps {
   state: PlaybackState;
   isActive: boolean;
-  channel?: "cable" | "network";
+  channel?: OutputId;
   sendCommand: (command: string, params?: Record<string, unknown>) => void;
   onLaunch: () => void;
 }

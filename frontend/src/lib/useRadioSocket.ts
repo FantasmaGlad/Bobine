@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
-import { parseDisplayOutput, type DisplayOutput, type RadioChannelId } from "@/lib/displayChannel";
+import { parseDisplayOutput, type DisplayOutput } from "@/lib/displayChannel";
+import { DEFAULT_RADIO_CHANNEL, type RadioChannelId } from "@/lib/outputs";
 import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
@@ -95,7 +96,7 @@ export interface RadioEvent {
 export function useRadioSocket(
   onEvent?: (evt: RadioEvent) => void,
   role?: "kiosk",
-  channel: RadioChannelId = "radio_network",
+  channel: RadioChannelId = DEFAULT_RADIO_CHANNEL,
 ) {
   const [state, setState] = useState<RadioState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);

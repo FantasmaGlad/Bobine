@@ -9,6 +9,7 @@ import KioskControls from "@/components/mobile-remote/KioskControls";
 import { OutputSwitches, RemoteMain } from "@/components/mobile-remote/RemoteMain";
 import SignagePanel from "@/components/dashboard/SignagePanel";
 import LaunchSheet, { type BackgroundSummary, type PlaylistSummary, type VideoSummary } from "@/components/dashboard/LaunchSheet";
+import type { OutputId } from "@/lib/outputs";
 
 interface MobileRemoteProps {
   state: PlaybackState;
@@ -23,8 +24,8 @@ interface MobileRemoteProps {
   displayOutputNetwork: DisplayOutput | null;
   cinemaLive: CinemaRemoteState | null;
   onCinemaPlayPause: () => void;
-  onSetDisplayOutput: (channel: "cable" | "network", output: DisplayOutput) => void;
-  channel?: "cable" | "network";
+  onSetDisplayOutput: (channel: OutputId, output: DisplayOutput) => void;
+  channel?: OutputId;
 }
 
 export default function MobileRemote({

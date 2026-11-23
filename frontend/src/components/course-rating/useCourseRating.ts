@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getApiUrl } from "@/lib/apiUrl";
+import type { OutputId } from "@/lib/outputs";
 
 interface Options {
   videoId: number;
-  channel: "cable" | "network";
+  channel: OutputId;
   duration: number;
   isCinemaMode: boolean;
   onClose?: () => void;

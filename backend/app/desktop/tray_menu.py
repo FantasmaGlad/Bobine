@@ -29,10 +29,10 @@ def _output_items(controls: "tray_actions.Controls") -> list:
 
     def on_stop_all(icon, item):
         accepted = controls.stop_all()
-        if accepted < len(tray_actions.OUTPUTS):
-            _notify_best_effort(icon, "Bobine", f"Diffusion arrêtée sur {accepted} sortie(s) sur {len(tray_actions.OUTPUTS)}.")
+        if accepted < len(tray_actions.TARGETS):
+            _notify_best_effort(icon, "Bobine", f"Diffusion arrêtée sur {accepted} sortie(s) sur {len(tray_actions.TARGETS)}.")
 
-    return [*[item_for(kind, target, name) for kind, target, name in tray_actions.OUTPUTS],
+    return [*[item_for(kind, target, name) for kind, target, name in tray_actions.TARGETS],
             pystray.MenuItem("Couper la diffusion", on_stop_all)]
 
 

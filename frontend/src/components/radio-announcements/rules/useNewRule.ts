@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { errorMessage } from "@/lib/apiError";
 import { getApiUrl } from "@/lib/apiUrl";
+import { DEFAULT_RADIO_CHANNEL } from "@/lib/outputs";
 import type { ShowToast } from "@/lib/useToast";
 import type { RuleTarget, RuleType } from "../types";
 
@@ -10,7 +11,7 @@ type Translate = (key: string, vars?: Record<string, string | number>) => string
 
 export function useNewRule(t: Translate, showToast: ShowToast, fetchAll: () => void) {
   const [newRuleType, setNewRuleType] = useState<RuleType>("every_n_tracks");
-  const [newRuleTarget, setNewRuleTarget] = useState<RuleTarget>("radio_network");
+  const [newRuleTarget, setNewRuleTarget] = useState<RuleTarget>(DEFAULT_RADIO_CHANNEL);
   const [newNTracks, setNewNTracks] = useState("5");
   const [newIntervalMinutes, setNewIntervalMinutes] = useState("30");
   const [newTimes, setNewTimes] = useState<string[]>([]);

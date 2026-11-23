@@ -1,18 +1,30 @@
-export type DisplayChannel = "cable" | "network";
+import {
+  DEFAULT_OUTPUT,
+  DEFAULT_RADIO_CHANNEL,
+  DISPLAY_MODES,
+  NETWORK_FALLBACK,
+  WIRED_OUTPUT,
+  hasMode,
+  isOutputId,
+  outputById,
+  outputOfRadio,
+  type DisplayMode,
+  type OutputId,
+  type RadioChannelId,
+} from "./outputs.ts";
+
+export type DisplayChannel = OutputId;
 
 export type ChannelSource = "query" | "default";
 
-export const CABLE_OUTPUTS = ["kiosk", "cinema", "radio", "signage"] as const;
-export const NETWORK_OUTPUTS = ["kiosk", "cinema", "signage"] as const;
-
-export type DisplayOutput = (typeof CABLE_OUTPUTS)[number];
+export type DisplayOutput = DisplayMode;
 
 export type DisplayPage = DisplayOutput;
 
 export type LockedOutput = Exclude<DisplayOutput, "kiosk">;
 
 export function outputsFor(channel: DisplayChannel): readonly DisplayOutput[] {
-  return channel === "cable" ? CABLE_OUTPUTS : NETWORK_OUTPUTS;
+  return outputById(channel).modes;
 }
 
 export function parseDisplayOutput(channel: DisplayChannel, value: unknown): DisplayOutput | null {
@@ -21,10 +33,8 @@ export function parseDisplayOutput(channel: DisplayChannel, value: unknown): Dis
 
 export function lockedOutput(reason: unknown): LockedOutput | null {
   const output = typeof reason === "string" && reason.endsWith("_locked") ? reason.slice(0, -"_locked".length) : null;
-  return CABLE_OUTPUTS.find((candidate): candidate is LockedOutput => candidate !== "kiosk" && candidate === output) ?? null;
+  return DISPLAY_MODES.find((candidate): candidate is LockedOutput => candidate !== "kiosk" && candidate === output) ?? null;
 }
-
-export type RadioChannelId = "radio_cable" | "radio_network";
 
 export interface ResolvedChannel {
   channel: DisplayChannel;
@@ -37,15 +47,15 @@ export function isLoopbackHost(hostname: string): boolean {
 
 export function parseChannelParam(search: string): DisplayChannel | null {
   const value = new URLSearchParams(search).get("channel");
-  return value === "cable" || value === "network" ? value : null;
+  return isOutputId(value) ? value : null;
 }
 
 export function resolveChannel(search: string, hostname: string, page: DisplayPage): ResolvedChannel {
   const explicit = parseChannelParam(search);
   if (explicit) return { channel: explicit, source: "query" };
-  if (page === "kiosk") return { channel: "cable", source: "default" };
-  if (page === "radio") return { channel: "network", source: "default" };
-  return { channel: isLoopbackHost(hostname) ? "cable" : "network", source: "default" };
+  if (page === "kiosk") return { channel: DEFAULT_OUTPUT, source: "default" };
+  if (page === "radio") return { channel: outputOfRadio(DEFAULT_RADIO_CHANNEL).id, source: "default" };
+  return { channel: isLoopbackHost(hostname) ? WIRED_OUTPUT : NETWORK_FALLBACK, source: "default" };
 }
 
 export function buildOutputUrl(target: DisplayPage, search: string, channel: DisplayChannel): string {
@@ -60,11 +70,11 @@ export function screenUrl(channel: DisplayChannel, output: DisplayOutput | null)
 
 export function shouldFollowInitialOutput(channel: DisplayChannel, page: DisplayPage = "kiosk"): boolean {
   if (page === "radio") return false;
-  return channel === "cable";
+  return outputById(channel).wired;
 }
 
 export function radioChannelId(channel: DisplayChannel): RadioChannelId {
-  return channel === "cable" ? "radio_cable" : "radio_network";
+  return outputById(channel).radioChannel;
 }
 
 export interface OutputRedirectDecision {
@@ -85,8 +95,8 @@ export function decideOutputRedirect(
   if (!target) return { seen: previous, to: null };
 
   const seen = target;
-  if (target === "radio" && channel !== "cable") return { seen, to: null };
-  if (current === "radio" && channel !== "cable") return { seen, to: null };
+  if (target === "radio" && !hasMode(channel, "radio")) return { seen, to: null };
+  if (current === "radio" && !hasMode(channel, "radio")) return { seen, to: null };
   if (target === current) return { seen, to: null };
   if (current === "radio" && previous !== "radio") return { seen, to: null };
   if (!shouldFollowInitialOutput(channel, current) && previous === null) return { seen, to: null };

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { devicesRequest } from "@/lib/devices/request";
-import { RADIO_OUTPUTS, type MixerView, type RadioOutputId } from "@/lib/devices/routing";
+import { type MixerView } from "@/lib/devices/routing";
+import { RADIO_CHANNELS, type RadioChannelId } from "@/lib/outputs";
 import { type RadioMix } from "@/lib/radioMix";
 import { type RadioSoundSettings } from "@/lib/radioSound";
 import { errorText, type SectionProps } from "../shared/section";
@@ -8,16 +9,16 @@ import { type MixPatch } from "./mixPatch";
 
 const SEND_DELAY_MS = 150;
 
-export type MixDrafts = Partial<Record<RadioOutputId, { mix?: RadioMix; sound?: RadioSoundSettings }>>;
-type Pending = Partial<Record<RadioOutputId, { mix?: MixPatch; sound?: RadioSoundSettings }>>;
+export type MixDrafts = Partial<Record<RadioChannelId, { mix?: RadioMix; sound?: RadioSoundSettings }>>;
+type Pending = Partial<Record<RadioChannelId, { mix?: MixPatch; sound?: RadioSoundSettings }>>;
 
 export function useMixerWrites(setDrafts: Dispatch<SetStateAction<MixDrafts>>, notify: SectionProps["notify"], t: SectionProps["t"]) {
   const pending = useRef<Pending>({});
-  const timers = useRef<Partial<Record<RadioOutputId, ReturnType<typeof setTimeout>>>>({});
-  const writes = useRef<Partial<Record<RadioOutputId, Promise<void>>>>({});
-  const revision = useRef<Partial<Record<RadioOutputId, number>>>({});
+  const timers = useRef<Partial<Record<RadioChannelId, ReturnType<typeof setTimeout>>>>({});
+  const writes = useRef<Partial<Record<RadioChannelId, Promise<void>>>>({});
+  const revision = useRef<Partial<Record<RadioChannelId, number>>>({});
 
-  const flush = useCallback(async (channel: RadioOutputId) => {
+  const flush = useCallback(async (channel: RadioChannelId) => {
     const body = pending.current[channel];
     pending.current[channel] = undefined;
     if (!body) return;
@@ -36,10 +37,10 @@ export function useMixerWrites(setDrafts: Dispatch<SetStateAction<MixDrafts>>, n
   useEffect(() => { flushRef.current = flush; }, [flush]);
   useEffect(() => () => {
     Object.values(timers.current).forEach((id) => id && clearTimeout(id));
-    for (const channel of RADIO_OUTPUTS) void flushRef.current(channel);
+    for (const channel of RADIO_CHANNELS) void flushRef.current(channel);
   }, []);
 
-  const schedule = useCallback((channel: RadioOutputId) => {
+  const schedule = useCallback((channel: RadioChannelId) => {
     const previous = timers.current[channel];
     if (previous) clearTimeout(previous);
     timers.current[channel] = setTimeout(() => void flush(channel), SEND_DELAY_MS);

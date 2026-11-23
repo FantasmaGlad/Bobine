@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { RadioOutputId } from "@/lib/devices/routing";
+import { RADIO_CHANNELS, type RadioChannelId } from "@/lib/outputs";
 import { clampMix, smoothLevel, type MeterId, type RadioMix } from "@/lib/radioMix";
 import { clampSound, type RadioSoundSettings } from "@/lib/radioSound";
 import type { RadioRoute } from "@/lib/audioRoute";
@@ -19,11 +19,10 @@ export type FeedLevels = Partial<Record<MeterId, number>>;
 
 export interface RadioFeed {
   connected: boolean;
-  channels: Partial<Record<RadioOutputId, RadioFeedChannel>>;
-  levels: Partial<Record<RadioOutputId, FeedLevels>>;
+  channels: Partial<Record<RadioChannelId, RadioFeedChannel>>;
+  levels: Partial<Record<RadioChannelId, FeedLevels>>;
 }
 
-const OUTPUTS: RadioOutputId[] = ["radio_cable", "radio_network"];
 const METER_RENEW_MS = 5000;
 const LEVEL_STALE_MS = 600;
 const DECAY_TICK_MS = 150;
@@ -32,7 +31,7 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
   const [connected, setConnected] = useState(false);
   const [channels, setChannels] = useState<RadioFeed["channels"]>({});
   const [levels, setLevels] = useState<RadioFeed["levels"]>({});
-  const stampsRef = useRef<Partial<Record<RadioOutputId, number>>>({});
+  const stampsRef = useRef<Partial<Record<RadioChannelId, number>>>({});
   const meteringRef = useRef(metering);
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -40,7 +39,7 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
     meteringRef.current = metering;
     const ws = socketRef.current;
     if (metering && ws && ws.readyState === WebSocket.OPEN) {
-      for (const channel of OUTPUTS) ws.send(JSON.stringify({ command: "radio_meter", params: { channel } }));
+      for (const channel of RADIO_CHANNELS) ws.send(JSON.stringify({ command: "radio_meter", params: { channel } }));
     }
   }, [metering]);
 
@@ -53,17 +52,17 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
 
     const requestMeters = (ws: WebSocket) => {
       if (!meteringRef.current || ws.readyState !== WebSocket.OPEN) return;
-      for (const channel of OUTPUTS) ws.send(JSON.stringify({ command: "radio_meter", params: { channel } }));
+      for (const channel of RADIO_CHANNELS) ws.send(JSON.stringify({ command: "radio_meter", params: { channel } }));
     };
 
     const connect = () => {
       if (cancelled) return;
-      const ws = new WebSocket(getPlaybackWsUrl(OUTPUTS));
+      const ws = new WebSocket(getPlaybackWsUrl(RADIO_CHANNELS));
       socketRef.current = ws;
       ws.onopen = () => {
         delay = 1000;
         setConnected(true);
-        ws.send(JSON.stringify({ command: "subscribe", params: { channels: OUTPUTS } }));
+        ws.send(JSON.stringify({ command: "subscribe", params: { channels: RADIO_CHANNELS } }));
         requestMeters(ws);
         renew = setInterval(() => requestMeters(ws), METER_RENEW_MS);
       };
@@ -72,7 +71,7 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
           const message = JSON.parse(event.data);
           if (message.event === "ping") {
             ws.send(JSON.stringify({ command: "pong" }));
-          } else if (message.event === "state_change" && OUTPUTS.includes(message.channel)) {
+          } else if (message.event === "state_change" && RADIO_CHANNELS.includes(message.channel)) {
             const data = message.data ?? {};
             setChannels((current) => ({
               ...current,
@@ -84,9 +83,9 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
                 route: data.route ?? null,
               },
             }));
-          } else if (message.event === "radio_levels" && OUTPUTS.includes(message.channel)) {
-            stampsRef.current[message.channel as RadioOutputId] = Date.now();
-            setLevels((current) => ({ ...current, [message.channel]: { ...current[message.channel as RadioOutputId], ...message.levels } }));
+          } else if (message.event === "radio_levels" && RADIO_CHANNELS.includes(message.channel)) {
+            stampsRef.current[message.channel as RadioChannelId] = Date.now();
+            setLevels((current) => ({ ...current, [message.channel]: { ...current[message.channel as RadioChannelId], ...message.levels } }));
           }
         } catch {
         }
@@ -118,7 +117,7 @@ export function useRadioFeed(enabled: boolean, metering: boolean): RadioFeed {
       setLevels((current) => {
         let changed = false;
         const next: RadioFeed["levels"] = {};
-        for (const channel of OUTPUTS) {
+        for (const channel of RADIO_CHANNELS) {
           const meters = current[channel];
           if (!meters) continue;
           const stale = now - (stampsRef.current[channel] ?? 0) > LEVEL_STALE_MS;

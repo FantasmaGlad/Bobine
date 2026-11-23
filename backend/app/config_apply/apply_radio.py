@@ -148,7 +148,7 @@ def _apply_announcements(ctx: _Context, file: str, document: dict) -> None:
 
 
 def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
-    from app.radio.channels import RULE_TARGETS
+    from app.radio.channels import DEFAULT_RADIO_CHANNEL, RULE_TARGETS
 
     rules = []
     for entry in _list(ctx, file, document, "rules"):
@@ -157,7 +157,7 @@ def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
         except (ValueError, AttributeError):
             ctx.fail(file, f"type de règle invalide : {entry!r}")
             continue
-        target = entry.get("target", "radio_network")
+        target = entry.get("target", DEFAULT_RADIO_CHANNEL)
         times = entry.get("times_of_day")
         if target not in RULE_TARGETS:
             ctx.fail(file, f"sortie de règle invalide : {target!r}")
