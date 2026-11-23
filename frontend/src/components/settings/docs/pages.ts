@@ -1,4 +1,4 @@
-import { buildOutputUrl } from "@/lib/displayChannel";
+import { screenUrl } from "@/lib/displayChannel";
 import { OUTPUTS, type OutputId } from "@/lib/outputs";
 
 export interface PageKey {
@@ -8,13 +8,8 @@ export interface PageKey {
 }
 
 export const PUBLIC_PAGE_KEYS: PageKey[] = [
-  { path: "/kiosk", labelKey: "settingsPage.paths.pageKiosk" },
-  ...OUTPUTS.filter((output) => !output.wired).map((output) => ({
-    path: buildOutputUrl("kiosk", "", output.id), labelKey: "settingsPage.paths.pageKioskNetwork", output: output.id,
-  })),
-  { path: "/cinema", labelKey: "settingsPage.paths.pageCinema" },
+  ...OUTPUTS.map((output) => ({ path: screenUrl(output.id), labelKey: "settingsPage.paths.pageScreen", output: output.id })),
   { path: "/coach", labelKey: "settingsPage.paths.pageCoach" },
-  ...OUTPUTS.map((output) => ({ path: buildOutputUrl("radio", "", output.id), labelKey: "settingsPage.paths.pageRadio", output: output.id })),
 ];
 
 export const ANDROID_PAGE_KEYS: PageKey[] = [

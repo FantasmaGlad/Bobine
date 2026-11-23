@@ -52,7 +52,7 @@ export default function ChannelCard({ channel, connected, state, displayOutput, 
       <div className="channel-card-right">
         <DisplayOutputSwitch channel={channel} displayOutput={displayOutput} onSetDisplayOutput={onSetDisplayOutput}
           label={wired ? t("dashboard.displayOutputCableLabel") : t("dashboard.displayOutputNetworkLabel", { output })} />
-        <a href={screenUrl(channel, displayOutput)} target="_blank" rel="noopener noreferrer" className="status-pill channel-card-open">
+        <a href={screenUrl(channel)} target="_blank" rel="noopener noreferrer" className="status-pill channel-card-open">
           <Icon name="open_in_new" size={14} />
           {t("dashboard.openScreen")}
         </a>

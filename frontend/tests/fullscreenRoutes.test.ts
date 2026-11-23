@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { isFullscreenPath } from "../src/lib/fullscreenRoutes.ts";
 
 test("les écrans de diffusion sont plein écran, avec ou sans slash final", () => {
-  for (const path of ["/kiosk", "/kiosk/", "/cinema", "/cinema/", "/coach", "/coach/", "/grid", "/grid/", "/radio", "/radio/", "/signage", "/signage/"]) {
+  for (const path of ["/kiosk", "/kiosk/", "/cinema", "/cinema/", "/coach", "/coach/", "/grid", "/grid/", "/radio", "/radio/", "/screen", "/screen/", "/signage", "/signage/"]) {
     assert.equal(isFullscreenPath(path), true, path);
   }
 });
