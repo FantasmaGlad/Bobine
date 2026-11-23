@@ -13,6 +13,7 @@ export default function AddRuleForm({ t, rule, targetOptions }: {
   return (
   <div className="ra-add-rule">
     <span className="ra-field-label">{t("radioAnnouncements.addRuleTitle")}</span>
+    <div className="ra-add-rule-row">
     <ResponsiveSelect
       className="form-control"
       value={newRuleType}
@@ -46,6 +47,7 @@ export default function AddRuleForm({ t, rule, targetOptions }: {
     <button className="btn btn-primary" style={{ height: "44px" }} onClick={handleAddRule} disabled={newRuleType === "fixed_times" && newTimes.length === 0}>
       <Icon name="add" size={16} /> {t("radioAnnouncements.addRule")}
     </button>
+    </div>
   </div>
   );
 }
