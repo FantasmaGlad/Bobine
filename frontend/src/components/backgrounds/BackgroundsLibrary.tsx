@@ -15,7 +15,7 @@ import type { BackgroundItem } from "@/components/backgrounds/types";
 import { useBackgroundLibrary } from "@/components/backgrounds/useBackgroundLibrary";
 import { usePendingBackgrounds } from "@/components/backgrounds/usePendingBackgrounds";
 
-export default function BackgroundsPage() {
+export default function BackgroundsLibrary() {
   const { t } = useAppSettings();
   const { state: cableState, sendCommand: sendCableCommand } = usePlaybackSocket(undefined, undefined, "cable");
   const { state: networkState, sendCommand: sendNetworkCommand } = usePlaybackSocket(undefined, undefined, "network");
@@ -48,7 +48,7 @@ export default function BackgroundsPage() {
   const isNetworkBgActive = networkState.state === "background";
 
   return (
-    <div className="library-container" onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}>
+    <div onDragEnter={handleDrag} onDragOver={handleDrag} onDragLeave={handleDrag} onDrop={handleDrop}>
       {toast && (
         <div className={`toast ${toast.type}`}>
           <span>{toast.message}</span>
