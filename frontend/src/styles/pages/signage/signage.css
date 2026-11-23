@@ -155,7 +155,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .signage-row {
     flex-wrap: wrap;
     gap: 6px;
