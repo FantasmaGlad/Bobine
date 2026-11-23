@@ -3445,6 +3445,53 @@
    ]
   },
   {
+   "name": "signage",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/signage",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "name": "channel",
+       "required": false,
+       "type": "string"
+      }
+     ],
+     "summary": "Boucle de visuels du canal, dans l'ordre de diffusion ; un fond supprimé n'y figure plus."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "channel",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "items",
+        "required": true,
+        "type": "object[]"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/signage",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Remplace la boucle du canal ; `seconds` null : 10 s pour une image, la vidéo entière pour une vidéo."
+    }
+   ]
+  },
+  {
    "name": "storage",
    "routes": [
     {

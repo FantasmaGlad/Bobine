@@ -3914,6 +3914,80 @@
    "name": "settings"
   },
   {
+   "actions": [
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "boucle de visuels diffusée sur un canal",
+     "name": "list"
+    },
+    {
+     "arguments": [
+      {
+       "choices": null,
+       "flag": false,
+       "help": "ID ou ID:SECONDES (sans durée : 10 s pour une image, la vidéo entière)",
+       "name": "items",
+       "positional": true,
+       "repeat": true
+      },
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "remplacer la boucle de visuels d'un canal (fonds, dans l'ordre)",
+     "name": "set"
+    },
+    {
+     "arguments": [
+      {
+       "choices": [
+        "cable",
+        "network"
+       ],
+       "flag": false,
+       "help": "canal",
+       "name": "--channel",
+       "positional": false,
+       "repeat": false
+      },
+      {
+       "choices": null,
+       "flag": true,
+       "help": "confirmer (sinon rien n'est modifié)",
+       "name": "--yes",
+       "positional": false,
+       "repeat": false
+      }
+     ],
+     "help": "vider la boucle de visuels d'un canal",
+     "name": "clear"
+    }
+   ],
+   "arguments": [],
+   "help": "boucle de visuels diffusée (images et vidéos des fonds)",
+   "name": "signage"
+  },
+  {
    "actions": [],
    "arguments": [],
    "help": "santé et lecture en cours",

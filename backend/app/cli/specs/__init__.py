@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from . import (
     audio, backgrounds, devices, inputs, library, logs, media, playlists, radio, radio_announcements, radio_playlists,
-    radio_settings, radio_tags, schedule, storage, system, updates,
+    radio_settings, radio_tags, schedule, signage, storage, system, updates,
 )
 from .model import Arg, Call, Spec, UsageError
 
 MODULES = (
     media, library, playlists, schedule, audio, backgrounds, radio, radio_tags, radio_playlists, radio_announcements,
-    radio_settings, devices, inputs, storage, logs, system, updates,
+    radio_settings, devices, inputs, signage, storage, logs, system, updates,
 )
 SPECS: tuple[Spec, ...] = tuple(spec for module in MODULES for spec in module.SPECS)
 COMMAND_HELP = {
@@ -26,6 +26,7 @@ COMMAND_HELP = {
     "logs-admin": "journal d'activité et journal technique",
     "interrupted": "lecture interrompue par un redémarrage",
     "inputs": "touches du clavier, de la télécommande et de la manette",
+    "signage": "boucle de visuels diffusée (images et vidéos des fonds)",
 }
 
 __all__ = ["Arg", "COMMAND_HELP", "Call", "SPECS", "Spec", "UsageError"]

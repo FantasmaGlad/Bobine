@@ -1,4 +1,4 @@
-const FULLSCREEN_PATHS = ["/kiosk", "/cinema", "/coach", "/grid", "/radio"];
+const FULLSCREEN_PATHS = ["/kiosk", "/cinema", "/coach", "/grid", "/radio", "/signage"];
 
 export function isFullscreenPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
