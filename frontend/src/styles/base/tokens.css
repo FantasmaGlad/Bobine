@@ -16,7 +16,6 @@
   --bg-mobile-content: var(--bg-content);
   --content-text-dim: var(--text-dim);
   --danger-panel-bg: color-mix(in srgb, var(--accent-error) 9%, var(--bg-main));
-  --danger-card-bg: color-mix(in srgb, var(--accent-error) 12%, var(--bg-main));
   --danger-text: var(--accent-error-text);
   --danger-action-bg: color-mix(in srgb, var(--accent-error) 16%, var(--bg-main));
   --danger-action-hover-bg: color-mix(in srgb, var(--accent-error) 22%, var(--bg-main));

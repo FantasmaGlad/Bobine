@@ -5,7 +5,7 @@ export type Edge = "none" | "start" | "middle" | "end";
 export function useSegmentedIndicator(value: string, count: number) {
   const trackRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+  const [indicator, setIndicator] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [edge, setEdge] = useState<Edge>("none");
 
   const updateEdge = useCallback(() => {
@@ -21,7 +21,7 @@ export function useSegmentedIndicator(value: string, count: number) {
     const track = trackRef.current;
     const active = track?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
     if (!track || !active) return;
-    setIndicator({ left: active.offsetLeft, width: active.offsetWidth });
+    setIndicator({ left: active.offsetLeft, top: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight });
     active.scrollIntoView({ inline: "center", block: "nearest" });
     updateEdge();
   }, [updateEdge]);

@@ -2,10 +2,6 @@ import type { Dict } from "../core.ts";
 
 export const signage: Dict = {
   empty: "Aucun visuel à diffuser sur ce canal.",
-  cable: "Câblé",
-  network: "Réseau",
-  channelsLabel: "Canal de diffusion",
-  openScreen: "Ouvrir l'écran",
   loopTitle: "Boucle diffusée",
   loopEmpty: "Ajoutez des images ou des vidéos de la bibliothèque des fonds ; elles passent dans l'ordre, en boucle.",
   addTitle: "Ajouter un fond",

@@ -45,7 +45,7 @@ export default function SegmentedTabs({ tabs, value, onChange, ariaLabel, classN
     >
       <div className="seg-track" ref={trackRef}>
         {indicator && (
-          <span className="seg-indicator" aria-hidden="true" style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }} />
+          <span className="seg-indicator" aria-hidden="true" style={{ width: indicator.width, height: indicator.height, transform: `translate(${indicator.left}px, ${indicator.top}px)` }} />
         )}
         {tabs.map((tab) => (
           <button

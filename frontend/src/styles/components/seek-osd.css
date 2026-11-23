@@ -1,26 +1,23 @@
 .seek-osd {
   position: fixed;
   left: 50%;
-  bottom: max(2rem, env(safe-area-inset-bottom));
-  width: min(64vw, 880px);
+  bottom: max(2.5rem, env(safe-area-inset-bottom));
+  width: min(70vw, 960px);
   box-sizing: border-box;
-  padding: 0.4rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  padding: 0.9rem 1.4rem;
   color: var(--text-main);
   background: var(--glass-floating-bg);
   -webkit-backdrop-filter: blur(var(--glass-floating-blur)) saturate(var(--saturate-rich));
   backdrop-filter: blur(var(--glass-floating-blur)) saturate(var(--saturate-rich));
   border: 1px solid var(--glass-floating-border);
   border-radius: 999px;
-  box-shadow: var(--glass-card-highlight), 0 10px 28px color-mix(in srgb, var(--ink) 22%, transparent);
+  box-shadow: var(--glass-card-highlight), 0 18px 44px color-mix(in srgb, var(--ink) 28%, transparent);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   z-index: 9998;
-  transform: translate(-50%, 1rem);
-  transition: transform 0.2s var(--ease-out), opacity 0.18s ease, visibility 0s linear 0.2s;
+  transform: translate(-50%, 1.5rem);
+  transition: transform 0.24s var(--ease-out), opacity 0.22s ease, visibility 0s linear 0.24s;
 }
 
 .seek-osd.is-visible {
@@ -30,27 +27,21 @@
   transition-delay: 0s;
 }
 
-.seek-osd-time {
-  flex: none;
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(0.8rem, 1.1vw, 1rem);
+.seek-osd-line {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
-.seek-osd-chapter {
-  flex: 0 1 auto;
-  max-width: 34%;
-  font-size: clamp(0.78rem, 1vw, 0.95rem);
-  opacity: 0.85;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.seek-osd-time {
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(0.9rem, 1.4vw, 1.2rem);
 }
 
 .seek-osd-track {
   position: relative;
-  flex: 1 1 0;
-  min-width: 6rem;
-  height: 4px;
+  flex: 1;
+  height: 8px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text-main) 22%, transparent);
 }
@@ -61,5 +52,22 @@
   border-radius: inherit;
   background: var(--accent-primary);
   transform-origin: left center;
-  transition: transform 0.12s linear;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.seek-osd-chapter {
+  position: absolute;
+  bottom: calc(100% + 1.6rem);
+  max-width: min(36vw, 420px);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-md);
+  font-size: clamp(0.85rem, 1.3vw, 1.1rem);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+  background: var(--glass-floating-bg);
+  border: 1px solid var(--glass-floating-border);
+  transition: left 0.2s var(--ease-out), transform 0.2s var(--ease-out);
 }

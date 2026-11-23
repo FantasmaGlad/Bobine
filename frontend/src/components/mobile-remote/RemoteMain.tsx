@@ -17,7 +17,6 @@ interface MainProps {
   connected: boolean;
   channelRadio: boolean;
   channelCinema: boolean;
-  channelSignage: boolean;
   isActive: boolean;
   cinemaLive: CinemaRemoteState | null;
   cinemaChapters: Chapters;
@@ -56,11 +55,10 @@ function idleMain({ onLaunch, t }: MainProps) {
 }
 
 export function RemoteMain(props: MainProps) {
-  const { connected, channelRadio, channelCinema, channelSignage, isActive, state, livePosition, getApiUrl, kioskChapters, sendCommand, t } = props;
+  const { connected, channelRadio, channelCinema, isActive, state, livePosition, getApiUrl, kioskChapters, sendCommand, t } = props;
   if (!connected) return <div className="mobile-remote-empty">{t("mobileRemote.connectingHint")}</div>;
   if (channelRadio) return <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />;
   if (channelCinema) return cinemaMain(props);
-  if (channelSignage) return <div className="mobile-remote-empty olc-anim-in"><p>{t("dashboard.signageNotice")}</p></div>;
   if (!isActive) return idleMain(props);
   return <KioskNowCard state={state} livePosition={livePosition} getApiUrl={getApiUrl} chapters={kioskChapters} sendCommand={sendCommand} />;
 }
