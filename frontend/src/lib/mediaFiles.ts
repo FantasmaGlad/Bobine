@@ -4,6 +4,13 @@ export const VIDEO_EXTENSIONS = [
 
 export const VIDEO_ACCEPT = ["video/*", ...VIDEO_EXTENSIONS.map((ext) => `.${ext}`)].join(",");
 
+export const BACKGROUND_IMAGE_EXTENSIONS = [
+  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".apng", ".bmp", ".dib", ".tif", ".tiff", ".tga", ".ico", ".cur",
+  ".icns", ".pcx", ".ppm", ".pgm", ".pbm", ".pnm", ".qoi", ".sgi", ".dds", ".jfif", ".jpe", ".jp2", ".j2k",
+] as const;
+
+export const BACKGROUND_ACCEPT = [VIDEO_ACCEPT, "image/*", ...BACKGROUND_IMAGE_EXTENSIONS].join(",");
+
 const VIDEO_EXTENSION_SET: ReadonlySet<string> = new Set(VIDEO_EXTENSIONS);
 
 export function fileExtension(name: string): string {

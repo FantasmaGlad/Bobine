@@ -106,6 +106,33 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(stored.n_frames, 3)
         self.assertTrue(bg.thumbnail_path.endswith(".jpg"))
 
+    def test_02c_formats_browsers_cannot_show_are_converted_to_webp(self):
+        from PIL import Image
+
+        tiff = str(Path(settings.backgrounds_watch_dir) / "temp_scan.tiff")
+        Image.new("I;16", (80, 40), 40000).save(tiff)
+        bg = import_background(tiff, "Scan 16 bits.tiff", ImportSource.upload)
+        self.assertTrue(bg.file_path.endswith(".webp") and bg.is_image)
+        with Image.open(bg.file_path) as stored:
+            self.assertEqual(stored.size, (80, 40))
+            self.assertGreater(stored.convert("L").getpixel((0, 0)), 100)
+        self.assertFalse(os.path.exists(tiff))
+
+        apng = str(Path(settings.backgrounds_watch_dir) / "temp_anim.apng")
+        frames = [Image.new("RGBA", (32, 32), color) for color in ("red", "blue", "green")]
+        frames[0].save(apng, format="PNG", save_all=True, append_images=frames[1:], duration=100, loop=0)
+        animated = import_background(apng, "Anim.apng", ImportSource.upload)
+        with Image.open(animated.file_path) as stored:
+            self.assertEqual((stored.format, stored.n_frames), ("WEBP", 3))
+
+    def test_02d_unreadable_image_leaves_nothing_behind(self):
+        broken = str(Path(settings.backgrounds_watch_dir) / "temp_broken.tga")
+        Path(broken).write_bytes(b"pas une image")
+        before = set(os.listdir(settings.backgrounds_dir))
+        with self.assertRaises(ValueError):
+            import_background(broken, "Casse.tga", ImportSource.upload)
+        self.assertEqual(set(os.listdir(settings.backgrounds_dir)), before)
+
     async def test_03_playback_manager_background_flow(self):
         broadcast_payloads = []
 
