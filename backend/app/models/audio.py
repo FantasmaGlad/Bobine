@@ -8,7 +8,7 @@ from pathlib import Path
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.utils.media_formats import IMAGE as IMAGE_EXTENSIONS
+from app.utils.media_formats import BACKGROUND_IMAGE as IMAGE_EXTENSIONS
 
 from .base import Base, ExternalMediaMixin, UidMixin, utcnow
 

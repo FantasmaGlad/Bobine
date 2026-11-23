@@ -101,6 +101,7 @@ class TestBackgroundFlow(unittest.IsolatedAsyncioTestCase):
         bg = import_background(temp_src, "Boucle animee.gif", ImportSource.upload)
         self.assertTrue(bg.file_path.endswith(".gif"))
         self.assertTrue(is_image_background(bg.file_path))
+        self.assertTrue(bg.is_image)
         with Image.open(bg.file_path) as stored:
             self.assertEqual(stored.n_frames, 3)
         self.assertTrue(bg.thumbnail_path.endswith(".jpg"))
