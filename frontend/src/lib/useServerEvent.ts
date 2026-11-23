@@ -3,11 +3,13 @@
 import { useEffect, useRef } from "react";
 import { getPlaybackWsUrl } from "./apiUrl.ts";
 
-export function useDevicesEvents(onChange: (scope: string) => void, enabled = true): void {
-  const callbackRef = useRef(onChange);
+export type ServerMessage = Record<string, unknown>;
+
+export function useServerEvent(event: string, onMessage: (message: ServerMessage) => void, enabled = true): void {
+  const callbackRef = useRef(onMessage);
   useEffect(() => {
-    callbackRef.current = onChange;
-  }, [onChange]);
+    callbackRef.current = onMessage;
+  }, [onMessage]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -24,11 +26,11 @@ export function useDevicesEvents(onChange: (scope: string) => void, enabled = tr
         delay = 1000;
         ws.send(JSON.stringify({ command: "subscribe", params: { channels: [] } }));
       };
-      ws.onmessage = (event) => {
+      ws.onmessage = (message) => {
         try {
-          const message = JSON.parse(event.data);
-          if (message.event === "ping") ws.send(JSON.stringify({ command: "pong" }));
-          else if (message.event === "devices_changed") callbackRef.current(String(message.scope ?? ""));
+          const data = JSON.parse(message.data);
+          if (data.event === "ping") ws.send(JSON.stringify({ command: "pong" }));
+          else if (data.event === event) callbackRef.current(data);
         } catch {
         }
       };
@@ -45,5 +47,5 @@ export function useDevicesEvents(onChange: (scope: string) => void, enabled = tr
       if (timer) clearTimeout(timer);
       socket?.close();
     };
-  }, [enabled]);
+  }, [event, enabled]);
 }

@@ -13,8 +13,8 @@ import RoutingSection from "@/components/devices/RoutingSection";
 import type { SectionProps } from "@/components/devices/shared/section";
 import { devicesRequest } from "@/lib/devices/request";
 import { type DevicesStatus } from "@/lib/devices/types";
-import { useDevicesEvents } from "@/lib/useDevicesEvents";
 import { useRadioFeed } from "@/lib/useRadioFeed";
+import { useServerEvent } from "@/lib/useServerEvent";
 import { useToast } from "@/lib/useToast";
 
 type Tab = "map" | "audio" | "bluetooth" | "routing" | "mixer" | "videosound";
@@ -54,7 +54,8 @@ export default function DevicesPage() {
     void loadStatus();
   }, [loadStatus]);
 
-  useDevicesEvents(() => setRefreshKey((k) => k + 1), !!status);
+  const refreshDevices = useCallback(() => setRefreshKey((k) => k + 1), []);
+  useServerEvent("devices_changed", refreshDevices, !!status);
 
   const radioFeed = useRadioFeed(!!status && (tab === "routing" || tab === "mixer"), !!status && tab === "mixer");
 
