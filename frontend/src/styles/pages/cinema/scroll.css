@@ -1,37 +1,34 @@
 .cinema-scroll-hint {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  bottom: max(2vh, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  bottom: 0;
+  transform: translate(-50%, 0);
   z-index: 3;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-main) 55%, transparent);
+  gap: 6px;
+  padding: 10px 26px calc(10px + env(safe-area-inset-bottom));
+  border: 1px solid var(--glass-floating-border);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: var(--glass-floating-bg);
+  -webkit-backdrop-filter: blur(var(--glass-floating-blur)) saturate(var(--saturate-rich));
+  backdrop-filter: blur(var(--glass-floating-blur)) saturate(var(--saturate-rich));
   color: var(--text-main);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  animation: cinema-hint-bob 2.4s ease-in-out infinite;
+  transition: transform 0.28s var(--ease-out);
 }
 
-.cinema-scroll-hint[hidden] {
-  display: none;
+.cinema-scroll-hint.is-away {
+  transform: translate(-50%, 110%);
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {
   .cinema-scroll-hint {
     display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cinema-scroll-hint {
-    animation: none;
   }
 }
