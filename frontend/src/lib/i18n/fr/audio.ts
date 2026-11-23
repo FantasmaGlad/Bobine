@@ -15,6 +15,7 @@ export const audio: Dict = {
   plainScreen: "Afficher un écran sobre sans boucle visuelle",
   coursesTab: "Cours",
   playlistsTab: "Playlists",
+  backgroundsTab: "Fonds animés",
   programPlaceholder: "Ex. RPM, yoga… (libre)",
   noProgram: "Sans catégorie",
   fetchError: "Erreur lors de la récupération des cours audio",

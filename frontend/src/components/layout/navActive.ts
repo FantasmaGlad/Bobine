@@ -1,7 +1,12 @@
-import { isNavGroup, type NavEntry } from "@/lib/navLinks";
+import { isNavGroup, type NavEntry, type NavLinkConfig } from "../../lib/navLinks.ts";
 
 export function isNavLinkActive(pathname: string, href: string): boolean {
   return pathname === href || pathname === `${href}/` || pathname.startsWith(`${href}/`);
+}
+
+export function activeChildHref(children: NavLinkConfig[], pathname: string): string | null {
+  const matching = children.filter((child) => isNavLinkActive(pathname, child.href));
+  return matching.reduce<string | null>((best, child) => (best === null || child.href.length > best.length ? child.href : best), null);
 }
 
 export function isEntryActive(pathname: string, href: string): boolean {
@@ -18,7 +23,8 @@ export function activeNavInfoFor(
 ): NavInfo {
   for (const entry of navEntries) {
     if (isNavGroup(entry)) {
-      const activeChild = entry.children.find((c) => isNavLinkActive(pathname, c.href));
+      const href = activeChildHref(entry.children, pathname);
+      const activeChild = entry.children.find((c) => c.href === href);
       if (activeChild) return { iconName: activeChild.iconName, label: t(activeChild.labelKey) };
     } else if (isEntryActive(pathname, entry.href)) {
       return { iconName: entry.iconName, label: t(entry.labelKey) };

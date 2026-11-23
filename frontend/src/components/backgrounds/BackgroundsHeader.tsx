@@ -11,14 +11,9 @@ export default function BackgroundsHeader({ t, fileInputRef, addFiles }: {
 }) {
   return (
     <div className="library-header-bar" style={{ marginBottom: "8px" }}>
-      <div>
-        <h1 style={{ fontFamily: "var(--font-title)", fontSize: "1.5rem", fontWeight: 900, margin: "0 0 4px" }}>
-          {t("backgrounds.hubTitle")}
-        </h1>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", margin: 0, maxWidth: "680px" }}>
-          {t("backgrounds.hubSubtitle")}
-        </p>
-      </div>
+      <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", margin: 0, maxWidth: "680px" }}>
+        {t("backgrounds.hubSubtitle")}
+      </p>
 
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <input
