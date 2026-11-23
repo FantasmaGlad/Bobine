@@ -50,17 +50,3 @@ export function InterruptedBanner({ data }: { data: DashboardData }) {
     </div>
   );
 }
-
-export function SignageNotice({ channel }: { channel: "cable" | "network" }) {
-  const { t } = useAppSettings();
-  return (
-    <div className="live-block signage-notice">
-      <Icon name="slideshow" size={32} color="var(--accent-text)" />
-      <p>{t("dashboard.signageNotice")}</p>
-      <Link href={`/visuals/?channel=${channel}`} className="btn btn-primary olc-press">
-        <Icon name="edit" size={18} />
-        {t("dashboard.signageEdit")}
-      </Link>
-    </div>
-  );
-}
