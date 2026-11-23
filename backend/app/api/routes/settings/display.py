@@ -8,6 +8,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.api.contract import LOCKED_OUTPUTS
 from app.database import get_db
 from app.models import Setting
 from app.playback.manager import get_playback_manager
@@ -65,7 +66,7 @@ def get_display_output(db: Session = Depends(get_db)) -> dict[str, str]:
 
 @router.put("/display-output")
 async def set_display_output(payload: DisplayOutputUpdate, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Bascule un canal (câblé ou réseau) entre kiosk et cinéma, indépendamment de l'autre."""
+    """Bascule la sortie d'un canal (câblé ou réseau), indépendamment de l'autre."""
     if payload.channel not in _DISPLAY_CHANNELS:
         raise HTTPException(status_code=422, detail="Canal invalide (attendu 'cable' ou 'network')")
     if payload.output not in _DISPLAY_OUTPUTS_BY_CHANNEL[payload.channel]:
@@ -93,7 +94,7 @@ async def apply_display_output(db: Session, channel: str, output: str, *, activa
 
     config_mirror.schedule_mirror()
 
-    if output in ("cinema", "radio"):
+    if output in LOCKED_OUTPUTS:
         manager = get_playback_manager(channel)
         current = manager.snapshot()
         if current["current_video"] or current["current_background"] or current["current_audio_course"]:

@@ -3239,7 +3239,7 @@
      "path": "/api/settings/display-output",
      "path_parameters": [],
      "query": [],
-     "summary": "Bascule un canal (câblé ou réseau) entre kiosk et cinéma, indépendamment de l'autre."
+     "summary": "Bascule la sortie d'un canal (câblé ou réseau), indépendamment de l'autre."
     },
     {
      "body": null,

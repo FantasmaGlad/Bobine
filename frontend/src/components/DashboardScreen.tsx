@@ -8,7 +8,7 @@ import AmbianceModal from "@/components/dashboard/AmbianceModal";
 import ChannelCard from "@/components/dashboard/ChannelCard";
 import LaunchPanel from "@/components/dashboard/LaunchPanel";
 import LiveHero from "@/components/dashboard/LiveHero";
-import { CoachModeNotice, InterruptedBanner } from "@/components/dashboard/Notices";
+import { CoachModeNotice, InterruptedBanner, SignageNotice } from "@/components/dashboard/Notices";
 import { ActionCards, UpcomingList } from "@/components/dashboard/SideCards";
 import { setDisplayOutput, useDashboardData } from "@/components/dashboard/useDashboardData";
 import MobileRemote from "@/components/MobileRemote";
@@ -32,6 +32,7 @@ export default function DashboardScreen({ channel }: { channel: PlaybackChannel 
   const displayOutput = isCable ? displayOutputCable : displayOutputNetwork;
   const cinema = displayOutput === "cinema";
   const radio = isCable && displayOutputCable === "radio";
+  const signage = displayOutput === "signage";
   const coach = isCable && state.state === "coach_mode";
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function DashboardScreen({ channel }: { channel: PlaybackChannel 
   if (coach) return <CoachModeNotice />;
 
   const channelCard = (
-    <ChannelCard isCable={isCable} connected={connected} state={state.state} displayOutput={displayOutput} cinema={cinema} radio={radio}
+    <ChannelCard isCable={isCable} connected={connected} state={state.state} displayOutput={displayOutput}
       onSetDisplayOutput={(output) => setDisplayOutput(channel, output)} />
   );
 
@@ -57,6 +58,15 @@ export default function DashboardScreen({ channel }: { channel: PlaybackChannel 
       <div className="dashboard-container">
         {channelCard}
         <RadioRemotePanel key="radio_cable" channel="radio_cable" />
+      </div>
+    );
+  }
+
+  if (signage) {
+    return (
+      <div className="dashboard-container">
+        {channelCard}
+        <SignageNotice channel={channel} />
       </div>
     );
   }

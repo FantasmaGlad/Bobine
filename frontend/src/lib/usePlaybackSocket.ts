@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
-import { createPageClientId, type DisplayOutput } from "@/lib/displayChannel";
+import { createPageClientId, lockedOutput, parseDisplayOutput, type DisplayOutput, type LockedOutput } from "@/lib/displayChannel";
 import { type ClockAnchor } from "@/lib/playbackClock";
 import type { RadioSoundSettings } from "@/lib/radioSound";
 import { ServerClockSync } from "@/lib/serverClockSync";
@@ -159,9 +159,9 @@ export function usePlaybackSocket(
   const [connected, setConnected] = useState(false);
   const [cinemaState, setCinemaState] = useState<CinemaRemoteState | null>(null);
   const [displayOutputCable, setDisplayOutputCable] = useState<DisplayOutput | null>(null);
-  const [displayOutputNetwork, setDisplayOutputNetwork] = useState<"kiosk" | "cinema" | null>(null);
+  const [displayOutputNetwork, setDisplayOutputNetwork] = useState<DisplayOutput | null>(null);
   const [cinemaLocked, setCinemaLocked] = useState(false);
-  const [lockedReason, setLockedReason] = useState<"cinema" | "radio" | null>(null);
+  const [lockedReason, setLockedReason] = useState<LockedOutput | null>(null);
   const cinemaLockedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
   const [libraryVersion, setLibraryVersion] = useState(0);
@@ -256,16 +256,15 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "display_output") {
-            if (parsed.channel === "cable" && (parsed.output === "kiosk" || parsed.output === "cinema" || parsed.output === "radio")) {
-              setDisplayOutputCable(parsed.output);
-            } else if (parsed.channel === "network" && (parsed.output === "kiosk" || parsed.output === "cinema")) {
-              setDisplayOutputNetwork(parsed.output);
-            }
+            const output = parsed.channel === "cable" || parsed.channel === "network" ? parseDisplayOutput(parsed.channel, parsed.output) : null;
+            if (output && parsed.channel === "cable") setDisplayOutputCable(output);
+            else if (output) setDisplayOutputNetwork(output);
             return;
           }
           if (parsed.event === "command_rejected") {
-            if (parsed.reason === "cinema_locked" || parsed.reason === "radio_locked") {
-              setLockedReason(parsed.reason === "radio_locked" ? "radio" : "cinema");
+            const locked = lockedOutput(parsed.reason);
+            if (locked) {
+              setLockedReason(locked);
               setCinemaLocked(true);
               if (cinemaLockedTimerRef.current) clearTimeout(cinemaLockedTimerRef.current);
               cinemaLockedTimerRef.current = setTimeout(() => setCinemaLocked(false), 5000);
@@ -400,12 +399,10 @@ export function usePlaybackSocket(
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        if (data.cable === "kiosk" || data.cable === "cinema" || data.cable === "radio") {
-          setDisplayOutputCable((prev) => prev ?? data.cable);
-        }
-        if (data.network === "kiosk" || data.network === "cinema") {
-          setDisplayOutputNetwork((prev) => prev ?? data.network);
-        }
+        const cable = parseDisplayOutput("cable", data.cable);
+        const network = parseDisplayOutput("network", data.network);
+        if (cable) setDisplayOutputCable((prev) => prev ?? cable);
+        if (network) setDisplayOutputNetwork((prev) => prev ?? network);
       })
       .catch(() => {});
     return () => {

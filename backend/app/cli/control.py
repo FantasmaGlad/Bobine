@@ -132,7 +132,7 @@ def cmd_api(client: Client, out: Output, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-OPEN_PAGES = {"admin": "/", "grid": "/grid", "cinema": "/cinema", "kiosk": "/kiosk", "radio": "/radio"}
+OPEN_PAGES = {"admin": "/", "grid": "/grid", "cinema": "/cinema", "kiosk": "/kiosk", "radio": "/radio", "signage": "/signage"}
 
 
 def cmd_open(client: Client, out: Output, args: argparse.Namespace) -> int:
