@@ -11,7 +11,7 @@ export function useStoryboard(videoId: number | null | undefined): Storyboard | 
     let cancelled = false;
     fetch(getApiUrl(`/videos/${videoId}/storyboard`), { cache: "no-store" })
       .then((res) => (res.ok ? (res.json() as Promise<Storyboard>) : null))
-      .then((board) => { if (!cancelled) setLoaded({ id: videoId, board: board ? { ...board, url: getApiUrl(board.url.replace(/^\/api/, "")) } : null }); })
+      .then((board) => { if (!cancelled) setLoaded({ id: videoId, board: board ? { ...board, sheets: board.sheets.map((sheet) => getApiUrl(sheet.replace(/^\/api/, ""))) } : null }); })
       .catch(() => { if (!cancelled) setLoaded({ id: videoId, board: null }); });
     return () => { cancelled = true; };
   }, [videoId]);
