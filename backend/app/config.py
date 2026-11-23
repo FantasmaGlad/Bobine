@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 1903
 
-    wait_time_between_courses: int = 0
+    wait_time_between_courses: int = 10
     volume_default: int = 100
     logs_retention_days: int = 7
 
