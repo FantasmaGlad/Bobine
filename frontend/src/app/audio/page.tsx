@@ -14,14 +14,18 @@ import { useAudioUpload } from "@/components/audio/useAudioUpload";
 import { useCourseEditor } from "@/components/audio/useCourseEditor";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import PageNav from "@/components/PageNav";
+import { oneOf } from "@/lib/urlView";
+import { useUrlView } from "@/lib/useUrlView";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useToast } from "@/lib/useToast";
 
 type Picker = { trackId: number | null } | null;
 
+const AUDIO_VIEWS = oneOf(["courses", "playlists"] as const, "courses");
+
 export default function AudioLibraryPage() {
   const { t } = useAppSettings();
-  const [mode, setMode] = useState<"courses" | "playlists">("courses");
+  const [mode, setMode] = useUrlView("vue", AUDIO_VIEWS);
   const [picker, setPicker] = useState<Picker>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement | null>(null);

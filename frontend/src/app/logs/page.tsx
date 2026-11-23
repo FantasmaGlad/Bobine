@@ -1,5 +1,7 @@
 "use client";
 import PageNav from "@/components/PageNav";
+import { oneOf } from "@/lib/urlView";
+import { useUrlView } from "@/lib/useUrlView";
 import React, { useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import ActivityTable from "@/components/logs/ActivityTable";
@@ -11,10 +13,12 @@ import { useActivityLog, useEventTypes } from "@/components/logs/useActivityLog"
 import { useLogDeletion } from "@/components/logs/useLogDeletion";
 import { useTechnicalLog } from "@/components/logs/useTechnicalLog";
 
+const LOG_VIEWS = oneOf(["activity", "technical"] as const, "activity");
+
 export default function LogsPage() {
   const { t, language } = useAppSettings();
   const eventLabel = (type: string) => eventTypeLabel(type, t);
-  const [tab, setTab] = useState<"activity" | "technical">("activity");
+  const [tab, setTab] = useUrlView("vue", LOG_VIEWS);
   const eventTypes = useEventTypes();
   const activity = useActivityLog(tab === "activity");
   const technical = useTechnicalLog(tab === "technical", t);
