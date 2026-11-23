@@ -5,7 +5,7 @@ export const devices: Dict = {
   loading: "Chargement…",
   settingsOpened: "Réglages ouverts sur l'appareil.",
   groups: { audio: "Sorties audio", bluetooth: "Bluetooth" },
-  sound: { video: { cable: "Vidéo câblée", network: "Vidéo réseau" } },
+  sound: { videoOf: "Vidéo {{output}}" },
   errors: {
     generic: "L'opération n'a pas pu aboutir.",
     network: "Impossible de joindre le serveur.",
@@ -21,7 +21,6 @@ export const devices: Dict = {
     no_route: "Aucune sortie n'est choisie pour cette radio.",
     bad_request: "Demande incomplète.",
   },
-  channels: { cable: "Câblé", network: "Réseau", radio_cable: "Radio câblée", radio_network: "Radio réseau" },
   audio: {
     unsupported: "Gestion de l'audio indisponible sur cette machine",
     none: "Aucune sortie audio détectée.",

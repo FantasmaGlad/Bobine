@@ -3,7 +3,8 @@
 import { useClientSnapshot } from "@/lib/useClientSnapshot";
 import React, { useState } from "react";
 import { useAppSettings } from "@/lib/AppSettingsContext";
-import { DEFAULT_RADIO_CHANNEL, isOutputId, isRadioChannel, outputById, type RadioChannelId } from "@/lib/outputs";
+import { buildOutputUrl } from "@/lib/displayChannel";
+import { DEFAULT_RADIO_CHANNEL, OUTPUTS, isOutputId, isRadioChannel, outputById, outputOfRadio, type RadioChannelId } from "@/lib/outputs";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
 import Icon from "@/components/Icon";
 
@@ -46,12 +47,12 @@ export default function RadioRemotePage() {
             {t("radioRemote.title")}
           </h3>
           <span className="status-pill neutral">
-            {channel === "radio_cable" ? t("radioRemote.outputCable") : t("radioRemote.outputNetwork")}
+            {channel && t(`outputs.${channel}`)}
           </span>
         </div>
         <div className="channel-card-right">
           <a
-            href={`/radio?channel=${channel === "radio_cable" ? "cable" : "network"}`}
+            href={buildOutputUrl("radio", "", outputOfRadio(channel ?? DEFAULT_RADIO_CHANNEL).id)}
             target="_blank"
             rel="noopener noreferrer"
             className="status-pill radio-remote-open"
@@ -62,26 +63,19 @@ export default function RadioRemotePage() {
           <div className="display-output-switch" role="tablist" aria-label={t("radioRemote.outputTabs")}>
             <span className="display-output-label">{t("radioRemote.outputTabs")}</span>
             <div className="display-output-buttons">
-              <button
-                role="tab"
-                aria-selected={channel === "radio_cable"}
-                className={`display-output-btn olc-press ${channel === "radio_cable" ? "active" : ""}`}
-                onClick={() => selectChannel("radio_cable")}
-                title={t("radioRemote.outputCableTitle")}
-              >
-                <Icon name="cable" size={16} />
-                {t("radioRemote.outputCable")}
-              </button>
-              <button
-                role="tab"
-                aria-selected={channel === "radio_network"}
-                className={`display-output-btn olc-press ${channel === "radio_network" ? "active" : ""}`}
-                onClick={() => selectChannel("radio_network")}
-                title={t("radioRemote.outputNetworkTitle")}
-              >
-                <Icon name="wifi" size={16} />
-                {t("radioRemote.outputNetwork")}
-              </button>
+              {OUTPUTS.map((output) => (
+                <button
+                  key={output.radioChannel}
+                  role="tab"
+                  aria-selected={channel === output.radioChannel}
+                  className={`display-output-btn olc-press ${channel === output.radioChannel ? "active" : ""}`}
+                  onClick={() => selectChannel(output.radioChannel)}
+                  title={t("radioRemote.outputTitle", { output: t(`outputs.${output.id}`), path: buildOutputUrl("radio", "", output.id) })}
+                >
+                  <Icon name={output.wired ? "cable" : "wifi"} size={16} />
+                  {t(`outputs.${output.radioChannel}`)}
+                </button>
+              ))}
             </div>
           </div>
         </div>

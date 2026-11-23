@@ -37,21 +37,21 @@ def _run(coro):
 
 
 def test_l_alias_historique_designe_la_sortie_reseau():
-    assert normalize_radio_channel("radio") == "radio_network"
-    assert normalize_radio_channel("radio_network") == "radio_network"
+    assert normalize_radio_channel("radio") == "radio_network_2"
+    assert normalize_radio_channel("radio_network_2") == "radio_network_2"
     assert normalize_radio_channel("radio_cable") == "radio_cable"
 
 
 def test_une_valeur_absente_ou_inconnue_retombe_sur_la_sortie_reseau():
-    assert normalize_radio_channel(None) == "radio_network"
-    assert normalize_radio_channel("cable") == "radio_network"
-    assert normalize_radio_channel("n'importe quoi") == "radio_network"
+    assert normalize_radio_channel(None) == "radio_network_2"
+    assert normalize_radio_channel("cable") == "radio_network_2"
+    assert normalize_radio_channel("n'importe quoi") == "radio_network_2"
 
 
 def test_is_radio_channel_accepte_les_sorties_et_l_alias_seulement():
     assert is_radio_channel("radio")
     assert is_radio_channel("radio_cable")
-    assert is_radio_channel("radio_network")
+    assert is_radio_channel("radio_network_2")
     assert not is_radio_channel("cable")
     assert not is_radio_channel("network")
     assert not is_radio_channel(None)
@@ -60,11 +60,11 @@ def test_is_radio_channel_accepte_les_sorties_et_l_alias_seulement():
 def test_les_deux_moteurs_existent_et_sont_distincts():
     managers = get_all_radio_managers()
     assert set(managers) == set(RADIO_CHANNELS)
-    assert managers["radio_cable"] is not managers["radio_network"]
+    assert managers["radio_cable"] is not managers["radio_network_2"]
     assert managers["radio_cable"].channel == "radio_cable"
-    assert managers["radio_network"].channel == "radio_network"
-    assert get_radio_manager() is managers["radio_network"]
-    assert get_radio_manager("radio") is managers["radio_network"]
+    assert managers["radio_network_2"].channel == "radio_network_2"
+    assert get_radio_manager() is managers["radio_network_2"]
+    assert get_radio_manager("radio") is managers["radio_network_2"]
     assert get_radio_manager("radio_cable") is managers["radio_cable"]
 
 
@@ -76,10 +76,10 @@ def test_chaque_evenement_porte_la_sortie_de_son_moteur():
             events.append(payload)
 
         cable = RadioPlaybackManager(_bc, "radio_cable")
-        network = RadioPlaybackManager(_bc, "radio_network")
+        network = RadioPlaybackManager(_bc, "radio_network_2")
         await cable.load_playlist(1, "Salle", TRACKS, shuffle=False)
         await network.load_playlist(2, "Hall", TRACKS, shuffle=False)
-        assert [e["channel"] for e in events] == ["radio_cable", "radio_network"]
+        assert [e["channel"] for e in events] == ["radio_cable", "radio_network_2"]
         assert events[0]["data"]["playlist_name"] == "Salle"
         assert events[1]["data"]["playlist_name"] == "Hall"
 
@@ -92,7 +92,7 @@ def test_les_deux_moteurs_ont_un_etat_independant():
             pass
 
         cable = RadioPlaybackManager(_bc, "radio_cable")
-        network = RadioPlaybackManager(_bc, "radio_network")
+        network = RadioPlaybackManager(_bc, "radio_network_2")
         await cable.load_playlist(1, "Salle", TRACKS, shuffle=False)
         await cable.set_volume(40)
         await network.load_playlist(2, "Hall", TRACKS, shuffle=False)
@@ -112,9 +112,9 @@ def test_le_decompte_d_ecrans_pour_le_depart_synchronise_est_par_sortie():
         async def _bc(payload):
             pass
 
-        counts = {"radio_cable": 1, "radio_network": 2}
+        counts = {"radio_cable": 1, "radio_network_2": 2}
         cable = RadioPlaybackManager(_bc, "radio_cable")
-        network = RadioPlaybackManager(_bc, "radio_network")
+        network = RadioPlaybackManager(_bc, "radio_network_2")
         cable.display_counter = lambda channel: counts[channel]
         network.display_counter = lambda channel: counts[channel]
         assert cable._lead_ms(150.0) == 0.0
@@ -129,9 +129,9 @@ def test_abonnement_a_l_alias_recoit_la_sortie_reseau_et_pas_la_sortie_cable():
     m.active_connections.update({legacy: None, cable_only: None})
     m.subscribe(legacy, ["radio"])
     m.subscribe(cable_only, ["radio_cable"])
-    for channel in ("radio_network", "radio_cable"):
+    for channel in ("radio_network_2", "radio_cable"):
         _run(m.broadcast({"event": "state_change", "cause": "radio_position_tick", "channel": channel, "data": {}}))
-    assert [e["channel"] for e in legacy.received] == ["radio_network"]
+    assert [e["channel"] for e in legacy.received] == ["radio_network_2"]
     assert [e["channel"] for e in cable_only.received] == ["radio_cable"]
 
 
@@ -140,10 +140,10 @@ def test_le_role_primaire_est_distinct_par_sortie_radio():
         m = ConnectionManager()
         ws_cable, ws_network, ws_legacy = FakeWS(), FakeWS(), FakeWS()
         assert await m.register_kiosk(ws_cable, "radio_cable", "page-cable") is True
-        assert await m.register_kiosk(ws_network, "radio_network", "page-network") is True
+        assert await m.register_kiosk(ws_network, "radio_network_2", "page-network") is True
         assert await m.register_kiosk(ws_legacy, "radio", "page-legacy") is False
         assert m.kiosk_count("radio_cable") == 1
-        assert m.kiosk_count("radio_network") == 2
+        assert m.kiosk_count("radio_network_2") == 2
         assert m.kiosk_count("radio") == 2
 
     _run(_run_case())
@@ -156,21 +156,21 @@ def client():
 
 
 def test_etat_rest_par_sortie_avec_defaut_et_alias(client):
-    assert client.get("/api/radio/state").json()["channel"] == "radio_network"
-    assert client.get("/api/radio/state?channel=radio").json()["channel"] == "radio_network"
-    assert client.get("/api/radio/state?channel=radio_network").json()["channel"] == "radio_network"
+    assert client.get("/api/radio/state").json()["channel"] == "radio_network_2"
+    assert client.get("/api/radio/state?channel=radio").json()["channel"] == "radio_network_2"
+    assert client.get("/api/radio/state?channel=radio_network_2").json()["channel"] == "radio_network_2"
     assert client.get("/api/radio/state?channel=radio_cable").json()["channel"] == "radio_cable"
-    assert client.get("/api/radio/state?channel=zzz").json()["channel"] == "radio_network"
+    assert client.get("/api/radio/state?channel=zzz").json()["channel"] == "radio_network_2"
 
 
 def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):
     with client.websocket_connect("/ws/playback") as ws:
         sync = {}
-        while not {"radio_cable", "radio_network"} <= set(sync):
+        while not {"radio_cable", "radio_network_2"} <= set(sync):
             message = ws.receive_json()
             if message.get("event") == "state_change":
                 sync[message["channel"]] = message
-        assert {"radio_cable", "radio_network"} <= set(sync)
+        assert {"radio_cable", "radio_network_2"} <= set(sync)
         assert "radio" not in sync
         ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio", "client_id": "p-legacy"}})
         message = ws.receive_json()
@@ -181,7 +181,7 @@ def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):
 
 @pytest.mark.recent_stack
 def test_commande_ciblee_sur_une_sortie_ne_touche_pas_l_autre(client):
-    cable, network = get_radio_manager("radio_cable"), get_radio_manager("radio_network")
+    cable, network = get_radio_manager("radio_cable"), get_radio_manager("radio_network_2")
     cable.state["volume"], network.state["volume"] = 100, 100
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "volume", "params": {"channel": "radio_cable", "volume": 33}})

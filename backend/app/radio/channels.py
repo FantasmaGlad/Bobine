@@ -9,29 +9,15 @@ from app.outputs import DEFAULT_RADIO_CHANNEL
 
 
 def normalize_radio_channel(value: Any) -> str:
-    """Identifiant de sortie radio canonique : l'alias historique `radio` devient `radio_network` ; toute valeur absente ou inconnue retombe sur le défaut."""
+    """Identifiant de sortie radio canonique : l'alias historique `radio` devient la radio par défaut ; toute valeur absente ou inconnue retombe sur le défaut."""
     if value in RADIO_CHANNELS:
         return value
     return DEFAULT_RADIO_CHANNEL
 
 
-RULE_TARGET_BOTH = "both"
-
-
-RULE_TARGETS = (*RADIO_CHANNELS, RULE_TARGET_BOTH)
-
-
-def normalize_rule_target(value: Any) -> str:
-    """Cible d'une règle de rappel."""
-    if value == RULE_TARGET_BOTH:
-        return RULE_TARGET_BOTH
-    return normalize_radio_channel(value)
-
-
 def rule_targets_output(target: Any, radio_channel: str) -> bool:
     """Vrai si une règle de rappel de cible `target` s'applique à la sortie `radio_channel`."""
-    normalized = normalize_rule_target(target)
-    return normalized == RULE_TARGET_BOTH or normalized == normalize_radio_channel(radio_channel)
+    return normalize_radio_channel(target) == normalize_radio_channel(radio_channel)
 
 
 def is_radio_channel(value: Any) -> bool:

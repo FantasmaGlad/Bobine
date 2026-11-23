@@ -21,9 +21,7 @@ function ruleDetail(rule: Rule) {
 }
 
 function targetKey(target: RuleTarget) {
-  if (target === "radio_cable") return "radioAnnouncements.targetCable";
-  if (target === "both") return "radioAnnouncements.targetBoth";
-  return "radioAnnouncements.targetNetwork";
+  return `outputs.${target}`;
 }
 
 const ruleIcon = (type: RuleType) => (type === "every_n_tracks" ? "music_note" : type === "every_x_minutes" ? "timer" : "schedule");

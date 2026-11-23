@@ -116,7 +116,7 @@ def test_display_outputs_follow_the_contract(client):
     for channel, outputs in contract.DISPLAY_OUTPUTS_BY_CHANNEL.items():
         for output in outputs:
             assert client.put("/api/settings/display-output", json={"channel": channel, "output": output}).status_code == 200, (channel, output)
-    refused = client.put("/api/settings/display-output", json={"channel": "network", "output": "radio"})
+    refused = client.put("/api/settings/display-output", json={"channel": "network", "output": "zzz"})
     assert refused.status_code in (400, 409, 422)
     for channel in contract.CHANNELS:
         client.put("/api/settings/display-output", json={"channel": channel, "output": "kiosk"})

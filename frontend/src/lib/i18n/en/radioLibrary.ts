@@ -4,8 +4,6 @@ export const radioLibrary: Dict = {
   title: "Radio Audio Tracks",
   outputDefaultLabel: "Default ambience for:",
   outputDefaultHint: "Sets this playlist as the output's ambience (startup, end of a schedule window, wired screen switched to Radio). Without its own choice, the default playlist is used.",
-  outputCable: "Wired radio",
-  outputNetwork: "Network radio",
   searchPlaceholder: "Search a title, artist, album…",
   importCta: "Import an audio",
   importHint: "ZIP, folder or tracks — click or drag and drop.",

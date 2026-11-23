@@ -124,5 +124,5 @@ class RadioAnnouncementRule(UidMixin, Base):
     interval_minutes: Mapped[int | None]
     times_of_day: Mapped[str | None]
     enabled: Mapped[bool] = mapped_column(default=True)
-    target: Mapped[str] = mapped_column(default="radio_network", server_default="radio_network")
+    target: Mapped[str] = mapped_column(default="radio_network_2", server_default="radio_network_2")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)

@@ -281,7 +281,7 @@ def test_display_json_is_the_route_response(recorder, capsys):
 
 
 def test_display_rejects_an_unknown_output():
-    assert cli.main(["display", "set", "network", "radio"]) == cli.EXIT_USAGE
+    assert cli.main(["display", "set", "network", "zzz"]) == cli.EXIT_USAGE
 
 
 def test_launcher_recognizes_the_display_command():

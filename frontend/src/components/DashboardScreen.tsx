@@ -33,7 +33,7 @@ export default function DashboardScreen({ channel }: { channel: OutputId }) {
   const spec = outputById(channel);
   const displayOutput = displayOutputs[channel] ?? null;
   const cinema = displayOutput === "cinema";
-  const radio = hasMode(channel, "radio") && displayOutput === "radio" && spec.radioChannel !== null;
+  const radio = hasMode(channel, "radio") && displayOutput === "radio";
   const signage = displayOutput === "signage";
   const coach = spec.coach && state.state === "coach_mode";
 
@@ -59,7 +59,7 @@ export default function DashboardScreen({ channel }: { channel: OutputId }) {
     return (
       <div className="dashboard-container">
         {channelCard}
-        {spec.radioChannel && <RadioRemotePanel key={spec.radioChannel} channel={spec.radioChannel} />}
+        <RadioRemotePanel key={spec.radioChannel} channel={spec.radioChannel} />
       </div>
     );
   }

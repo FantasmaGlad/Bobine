@@ -8,6 +8,7 @@ import { formatMediaDuration } from "@/lib/format";
 
 import type { OutputDefaults, PlaylistSummary } from "./types";
 import type { RadioCatalog } from "./useRadioCatalog";
+import { OUTPUTS } from "@/lib/outputs";
 
 interface Props {
   catalog: RadioCatalog;
@@ -33,8 +34,9 @@ function PlaylistCard({ playlist: p, catalog, outputDefaults, onOpen, onShowTrac
         <span className="rl-pcard-title" title={p.name}>{p.name}</span>
         <span className="rl-pcard-meta">{t("radioLibrary.itemsInPlaylist", { count: p.item_count })} · {formatMediaDuration(p.total_duration_seconds)}</span>
         <span className="rl-pcard-badges">
-          {outputDefaults?.radio_cable?.override_playlist_id === p.id && <span className="rl-card-tag"><Icon name="cable" size={11} /> {t("radioLibrary.outputCable")}</span>}
-          {outputDefaults?.radio_network?.override_playlist_id === p.id && <span className="rl-card-tag"><Icon name="wifi" size={11} /> {t("radioLibrary.outputNetwork")}</span>}
+          {OUTPUTS.filter((output) => outputDefaults?.[output.radioChannel]?.override_playlist_id === p.id).map((output) => (
+            <span key={output.radioChannel} className="rl-card-tag"><Icon name={output.wired ? "cable" : "wifi"} size={11} /> {t(`outputs.${output.radioChannel}`)}</span>
+          ))}
         </span>
       </div>
       <div className="rl-pcard-actions">

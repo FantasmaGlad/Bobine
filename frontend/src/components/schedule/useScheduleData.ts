@@ -6,6 +6,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
 import { addDays, isSameLocalDay, type ChannelValue, type Occurrence, type PlaylistSummary, type RadioPlaylistSummary, type VideoSummary } from "@/lib/scheduleTime";
 import type { ShowToast } from "@/lib/useToast";
+import { isRadioChannel, outputOfRadio } from "@/lib/outputs";
 
 const byRunAt = (a: Occurrence, b: Occurrence) => new Date(a.run_at).getTime() - new Date(b.run_at).getTime();
 
@@ -30,22 +31,23 @@ export function useScheduleCatalog() {
 
 export type ScheduleCatalog = ReturnType<typeof useScheduleCatalog>;
 
-export function useCableOutput(channel: ChannelValue) {
-  const [cableOutput, setCableOutput] = useState<string | null>(null);
+export function useRadioLaneOutput(channel: ChannelValue) {
+  const [read, setRead] = useState<{ channel: ChannelValue; mode: string } | null>(null);
   useEffect(() => {
-    if (channel !== "radio_cable") return;
+    if (!isRadioChannel(channel)) return;
+    const output = outputOfRadio(channel).id;
     let cancelled = false;
     fetch(getApiUrl("/settings/display-output"), { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data && typeof data.cable === "string") setCableOutput(data.cable);
+        if (!cancelled && data && typeof data[output] === "string") setRead({ channel, mode: data[output] });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [channel]);
-  return cableOutput;
+  return read?.channel === channel ? read.mode : null;
 }
 
 export function useOccurrences(weekStart: Date, channel: ChannelValue, showToast: ShowToast) {

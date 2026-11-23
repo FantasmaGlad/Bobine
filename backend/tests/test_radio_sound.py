@@ -23,7 +23,7 @@ from app.radio.sound import (
     sound_setting_key,
 )
 
-KEYS = ("radio_sound_radio_cable", "radio_sound_radio_network")
+KEYS = ("radio_sound_radio_cable", "radio_sound_radio_network_2")
 
 
 def _clean():
@@ -33,7 +33,7 @@ def _clean():
         db.commit()
     finally:
         db.close()
-    for channel in ("radio_cable", "radio_network"):
+    for channel in ("radio_cable", "radio_network_2"):
         get_radio_manager(channel).state["sound"] = default_sound()
 
 
@@ -94,13 +94,13 @@ def test_persistance_et_isolation_entre_sorties(client):
     try:
         save_sound(db, "radio_cable", sanitize_sound({"bands": [3, 0, 0, 0, -2], "bass_boost": 4}))
         assert load_sound(db, "radio_cable")["bands"] == [3, 0, 0, 0, -2]
-        assert load_sound(db, "radio_network") == default_sound()
-        assert sound_setting_key("radio") == "radio_sound_radio_network"
+        assert load_sound(db, "radio_network_2") == default_sound()
+        assert sound_setting_key("radio") == "radio_sound_radio_network_2"
         load_all_sounds_into_managers(db)
     finally:
         db.close()
     assert get_radio_manager("radio_cable").state["sound"]["bass_boost"] == 4
-    assert get_radio_manager("radio_network").state["sound"] == default_sound()
+    assert get_radio_manager("radio_network_2").state["sound"] == default_sound()
 
 
 def test_un_json_corrompu_ne_fait_jamais_d_erreur(client):
@@ -141,7 +141,7 @@ def test_rest_borne_persiste_et_cible_la_bonne_sortie(client):
     assert response.status_code == 200
     assert response.json()["bands"][0] == 12
     assert client.get("/api/radio/sound?channel=radio_cable").json()["bass_boost"] == 3
-    assert client.get("/api/radio/sound?channel=radio_network").json() == default_sound()
+    assert client.get("/api/radio/sound?channel=radio_network_2").json() == default_sound()
     assert client.get("/api/radio/sound").json() == default_sound()
     db = SessionLocal()
     try:
@@ -157,14 +157,14 @@ def test_rest_borne_persiste_et_cible_la_bonne_sortie(client):
 def test_commande_websocket_radio_set_sound_isolee_par_sortie(client):
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "radio_set_sound", "params": {
-            "channel": "radio_network", "sound": {"bands": [0, 0, 0, 0, 15], "limiter": False}}})
+            "channel": "radio_network_2", "sound": {"bands": [0, 0, 0, 0, 15], "limiter": False}}})
         ws.send_json({"command": "pong", "params": {}})
-    network = get_radio_manager("radio_network").state["sound"]
+    network = get_radio_manager("radio_network_2").state["sound"]
     assert network["bands"][4] == 12 and network["limiter"] is False
     assert get_radio_manager("radio_cable").state["sound"] == default_sound()
     db = SessionLocal()
     try:
-        assert load_sound(db, "radio_network")["bands"][4] == 12
+        assert load_sound(db, "radio_network_2")["bands"][4] == 12
     finally:
         db.close()
 
@@ -173,12 +173,12 @@ def test_l_etat_diffuse_en_websocket_contient_le_son(client):
     client.put("/api/radio/sound?channel=radio_cable", json={"bass_boost": 8})
     with client.websocket_connect("/ws/playback") as ws:
         seen = {}
-        while not {"radio_cable", "radio_network"} <= set(seen):
+        while not {"radio_cable", "radio_network_2"} <= set(seen):
             message = ws.receive_json()
             if message.get("event") == "state_change":
                 seen[message["channel"]] = message["data"]
     assert seen["radio_cable"]["sound"]["bass_boost"] == 8
-    assert seen["radio_network"]["sound"] == default_sound()
+    assert seen["radio_network_2"]["sound"] == default_sound()
 
 
 def test_le_demarrage_charge_les_reglages_persistes_dans_les_moteurs():
@@ -192,6 +192,6 @@ def test_le_demarrage_charge_les_reglages_persistes_dans_les_moteurs():
         get_radio_manager("radio_cable").state["sound"] = default_sound()
         with TestClient(app):
             assert get_radio_manager("radio_cable").state["sound"]["bass_boost"] == 7
-            assert get_radio_manager("radio_network").state["sound"] == default_sound()
+            assert get_radio_manager("radio_network_2").state["sound"] == default_sound()
     finally:
         _clean()

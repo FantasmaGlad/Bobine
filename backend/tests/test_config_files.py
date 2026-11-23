@@ -38,7 +38,8 @@ def test_one_file_per_kind_of_setting():
         "settings.json", "machine.json", "outputs/display.json", "outputs/radio.json", "library/videos.json",
         "library/audio.json", "library/radio.json", "library/backgrounds.json", "library/announcements.json",
         "playlists/video.json", "playlists/audio.json", "playlists/radio.json", "schedule/cable.json",
-        "schedule/network.json", "schedule/network-2.json", "schedule/radio-cable.json", "schedule/radio-network.json", "radio/tags.json",
+        "schedule/network.json", "schedule/network-2.json", "schedule/radio-cable.json", "schedule/radio-network.json",
+        "schedule/radio-network-2.json", "radio/tags.json",
         "radio/announcement-rules.json",
     ]
     assert set(config_files.KINDS) == {"manifest.json", *config_builders.BUILDERS}
@@ -66,7 +67,7 @@ def test_objects_are_referenced_by_readable_keys(library):
     assert files["radio/tags.json"]["assignments"][0]["tags"] == ["calme"]
     assert [t["name"] for t in files["radio/tags.json"]["tags"]] == ["calme"]
     assert _no_uid(files["radio/announcement-rules.json"]["rules"]) == [
-        {"type": "fixed_times", "target": "both", "enabled": True, "times_of_day": ["09:00"]},
+        {"type": "fixed_times", "target": "radio_cable", "enabled": True, "times_of_day": ["09:00"]},
     ]
     cable = files["schedule/cable.json"]
     assert cable["channel"] == "cable" and files["schedule/network.json"]["schedules"] == []

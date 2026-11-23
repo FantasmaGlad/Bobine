@@ -8,8 +8,8 @@ test("les quatre voies sont reconnues telles quelles", () => {
   }
 });
 
-test("l'ancien lien ?channel=radio ouvre la voie radio réseau", () => {
-  assert.equal(parseScheduleChannel("radio"), "radio_network");
+test("l'ancien lien ?channel=radio ouvre la radio de Réseau 2, l'ancienne radio réseau", () => {
+  assert.equal(parseScheduleChannel("radio"), "radio_network_2");
 });
 
 test("valeur absente ou inconnue : câblé, comme avant", () => {

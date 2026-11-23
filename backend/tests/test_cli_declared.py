@@ -102,7 +102,7 @@ def test_renaming_a_radio_playlist_keeps_its_tracks(rec, monkeypatch):
 
 def test_editing_a_rule_keeps_the_other_fields(rec, monkeypatch):
     rule = {"id": 2, "rule_type": "every_n_tracks", "n_tracks": 5, "interval_minutes": None, "times_of_day": None,
-            "enabled": True, "target": "both"}
+            "enabled": True, "target": "radio_cable"}
     monkeypatch.setattr(rec, "request", lambda method, path, **kw: rec.calls.append((method, path, kw.get("query"), kw.get("body"))) or [rule])
     assert cli.main(["radio-rules", "set", "2", "--enabled", "off"]) == cli.EXIT_OK
     assert rec.calls[-1][3] == {**{k: v for k, v in rule.items() if k != "id"}, "enabled": False}

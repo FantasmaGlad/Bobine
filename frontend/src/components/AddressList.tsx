@@ -4,8 +4,8 @@ import Icon from "@/components/Icon";
 
 interface AddressListProps {
   base: string;
-  pages: { path: string; labelKey: string }[];
-  t: (key: string) => string;
+  pages: { path: string; labelKey: string; output?: string }[];
+  t: (key: string, params?: Record<string, string | number>) => string;
   onCopy: (text: string) => void;
   copyLabel: string;
   showHost?: boolean;
@@ -29,7 +29,7 @@ export default function AddressList({ base, pages, t, onCopy, copyLabel, showHos
         return (
           <div key={page.path} className="settings-page-row">
             <a href={url} target="_blank" rel="noopener noreferrer" className="settings-page-link">
-              <span className="settings-path-key">{t(page.labelKey)}</span>
+              <span className="settings-path-key">{t(page.labelKey, page.output ? { output: t(`outputs.${page.output}`) } : undefined)}</span>
               <code className="settings-page-path">{page.path}</code>
             </a>
             <button type="button" className="settings-copy-btn olc-press" onClick={() => onCopy(url)} aria-label={copyLabel} title={copyLabel}>

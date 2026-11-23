@@ -5,7 +5,7 @@ export const devices: Dict = {
   loading: "Loading…",
   settingsOpened: "Settings opened on the device.",
   groups: { audio: "Audio outputs", bluetooth: "Bluetooth" },
-  sound: { video: { cable: "Wired video", network: "Network video" } },
+  sound: { videoOf: "{{output}} video" },
   errors: {
     generic: "The operation could not be completed.",
     network: "Cannot reach the server.",
@@ -21,7 +21,6 @@ export const devices: Dict = {
     no_route: "No audio output is chosen for this radio.",
     bad_request: "Incomplete request.",
   },
-  channels: { cable: "Wired", network: "Network", radio_cable: "Wired radio", radio_network: "Network radio" },
   audio: {
     unsupported: "Audio management unavailable on this machine",
     none: "No audio output detected.",

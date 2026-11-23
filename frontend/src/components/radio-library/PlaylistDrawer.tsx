@@ -8,7 +8,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { formatMediaDuration } from "@/lib/format";
 
 import { AddableTracks, PlaylistItems } from "./PlaylistTracks";
-import { RADIO_CHANNELS } from "@/lib/outputs";
+import { RADIO_CHANNELS, outputOfRadio } from "@/lib/outputs";
 import type { PlaylistDetail, RadioTrack } from "./types";
 import type { PlaylistEditor } from "./usePlaylistEditor";
 
@@ -53,8 +53,8 @@ function Outputs({ editor, playlist }: Pick<Props, "editor" | "playlist">) {
         return (
           <button key={output} type="button" className={`btn ${chosen ? "btn-primary" : "btn-secondary"}`} style={{ height: "30px", padding: "0 12px", fontSize: "0.78rem" }}
             aria-pressed={chosen} title={t("radioLibrary.outputDefaultHint")} onClick={() => editor.toggleOutput(output)}>
-            <Icon name={output === "radio_cable" ? "cable" : "wifi"} size={14} />
-            {output === "radio_cable" ? t("radioLibrary.outputCable") : t("radioLibrary.outputNetwork")}
+            <Icon name={outputOfRadio(output).wired ? "cable" : "wifi"} size={14} />
+            {t(`outputs.${output}`)}
           </button>
         );
       })}

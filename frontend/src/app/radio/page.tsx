@@ -30,7 +30,6 @@ import { crossfadeDurationMs, crossfadeSeconds, crossfadeTarget } from "@/compon
 import { decideTrack, otherSlot, targetGain, transportAction, type Slot } from "@/components/radio/engine/trackSync";
 import { planAnnouncement, type ActiveAnnouncement } from "@/components/radio/engine/announcements";
 import { RECOVERY_POLL_MS, STALL_CHECK_MS, recoveryOutcome, stalled } from "@/components/radio/engine/recovery";
-import { DEFAULT_RADIO_CHANNEL, WIRED_OUTPUT } from "@/lib/outputs";
 
 export default function RadioScreenPage() {
   const { t } = useAppSettings();
@@ -261,9 +260,9 @@ export default function RadioScreenPage() {
   };
 
   const [displayChannel] = useState(() => getDisplayChannel("radio"));
-  const radioChannel = radioChannelId(displayChannel) ?? DEFAULT_RADIO_CHANNEL;
+  const radioChannel = radioChannelId(displayChannel);
   const nextCourse = useNextCourse(displayChannel, 60000);
-  const { state, connected, sendCommand, isPrimary, serverNow, displayOutputCable } = useRadioSocket(
+  const { state, connected, sendCommand, isPrimary, serverNow, displayOutputs } = useRadioSocket(
     handleEvent,
     "kiosk",
     radioChannel,
@@ -281,7 +280,7 @@ export default function RadioScreenPage() {
   }, [mixKey]);
   useAudioRoute({ ctxRef: audioCtxRef, stageRef: mixStageRef, route: state.route ?? null, ready: graphReady, connected, sendCommand });
   useLevelMeter(mixStageRef, graphReady, Boolean(state.meter), isPrimary, sendCommand);
-  useDisplayOutputRedirect("radio", { [WIRED_OUTPUT]: displayOutputCable });
+  useDisplayOutputRedirect("radio", displayOutputs);
   const activeMediaRef = useMemo(
     () => ({ get current() { return getAudioEl(activeSlotRef.current); } }),
     [],

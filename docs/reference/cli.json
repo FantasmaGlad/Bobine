@@ -980,7 +980,8 @@
       {
        "choices": [
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -2654,7 +2655,7 @@
        "choices": [
         "radio_cable",
         "radio_network",
-        "both"
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3165,7 +3166,7 @@
        "choices": [
         "radio_cable",
         "radio_network",
-        "both"
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3235,7 +3236,7 @@
        "choices": [
         "radio_cable",
         "radio_network",
-        "both"
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3281,7 +3282,8 @@
       {
        "choices": [
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3306,7 +3308,8 @@
       {
        "choices": [
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3328,7 +3331,8 @@
       {
        "choices": [
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3433,7 +3437,8 @@
         "network",
         "network_2",
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3469,7 +3474,8 @@
         "network",
         "network_2",
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
@@ -3523,7 +3529,8 @@
         "network",
         "network_2",
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "canal (câblé par défaut)",
@@ -3782,7 +3789,8 @@
         "network",
         "network_2",
         "radio_cable",
-        "radio_network"
+        "radio_network",
+        "radio_network_2"
        ],
        "flag": false,
        "help": "",
