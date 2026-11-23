@@ -74,10 +74,10 @@ function build() {
   return { ctx, destination, chain };
 }
 
-test("la chaîne relie préampli, 5 bandes, basses, loudness x2 et limiteur à la sortie, dans l'ordre", () => {
+test("la chaîne relie préampli, 5 bandes, basses, loudness x2, limiteur et sa compensation à la sortie, dans l'ordre", () => {
   const { ctx, destination, chain } = build();
   assert.equal(ctx.biquads.length, 8);
-  assert.equal(ctx.gains.length, 1);
+  assert.equal(ctx.gains.length, 2);
   assert.equal(ctx.compressors.length, 1);
   let node = chain.input as unknown as FakeNode;
   const visited: string[] = [];
@@ -86,7 +86,7 @@ test("la chaîne relie préampli, 5 bandes, basses, loudness x2 et limiteur à l
     assert.equal(node.targets.length, 1, "chaîne linéaire : un seul successeur");
     node = node.targets[0];
   }
-  assert.deepEqual(visited, ["gain", "biquad", "biquad", "biquad", "biquad", "biquad", "biquad", "biquad", "biquad", "compressor"]);
+  assert.deepEqual(visited, ["gain", "biquad", "biquad", "biquad", "biquad", "biquad", "biquad", "biquad", "biquad", "compressor", "gain"]);
 });
 
 test("les filtres reçoivent leur type et leur fréquence à la création", () => {
