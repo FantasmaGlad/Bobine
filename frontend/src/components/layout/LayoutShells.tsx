@@ -5,6 +5,7 @@ import Link from "next/link";
 import AppLogo from "@/components/AppLogo";
 import Icon from "@/components/Icon";
 import NavEntries from "@/components/layout/NavEntries";
+import PageTransition from "@/components/layout/PageTransition";
 import { activeNavInfoFor, isEntryActive } from "@/components/layout/navActive";
 import { type useAppSettings } from "@/lib/AppSettingsContext";
 import { type visibleNavEntries } from "@/lib/navLinks";
@@ -75,7 +76,7 @@ export function mobileShell({ navEntries, footerLinks, pathname, activeGroup, to
         </span>
       </header>
 
-      <main className="mobile-page-content">{children}</main>
+      <main className="mobile-page-content"><PageTransition pathname={pathname}>{children}</PageTransition></main>
 
       {drawerOpen && (
         <>
@@ -114,7 +115,7 @@ export function desktopShell({ navEntries, footerLinks, pathname, activeGroup, t
       </aside>
 
       <div className="app-main">
-        <main className="page-content">{children}</main>
+        <main className="page-content"><PageTransition pathname={pathname}>{children}</PageTransition></main>
       </div>
       {overlays}
     </div>
