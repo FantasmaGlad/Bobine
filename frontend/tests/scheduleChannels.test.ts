@@ -1,15 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isRadioLane, parseScheduleChannel } from "../src/lib/scheduleChannels.ts";
+import { SCHEDULE_CHANNELS, parseScheduleChannel } from "../src/lib/scheduleChannels.ts";
 
-test("les quatre voies sont reconnues telles quelles", () => {
-  for (const channel of ["cable", "network", "radio_cable", "radio_network"] as const) {
-    assert.equal(parseScheduleChannel(channel), channel);
-  }
+test("une ligne de planning par sortie, reconnue telle quelle", () => {
+  assert.deepEqual(SCHEDULE_CHANNELS, ["cable", "network", "network_2"]);
+  for (const channel of SCHEDULE_CHANNELS) assert.equal(parseScheduleChannel(channel), channel);
 });
 
-test("l'ancien lien ?channel=radio ouvre la radio de Réseau 2, l'ancienne radio réseau", () => {
-  assert.equal(parseScheduleChannel("radio"), "radio_network_2");
+test("un ancien lien de voie radio ouvre la ligne de sa sortie", () => {
+  assert.equal(parseScheduleChannel("radio_cable"), "cable");
+  assert.equal(parseScheduleChannel("radio_network"), "network");
+  assert.equal(parseScheduleChannel("radio_network_2"), "network_2");
+  assert.equal(parseScheduleChannel("radio"), "network_2");
 });
 
 test("valeur absente ou inconnue : câblé, comme avant", () => {
@@ -17,11 +19,4 @@ test("valeur absente ou inconnue : câblé, comme avant", () => {
   assert.equal(parseScheduleChannel(undefined), "cable");
   assert.equal(parseScheduleChannel(""), "cable");
   assert.equal(parseScheduleChannel("zzz"), "cable");
-});
-
-test("seules les deux voies radio sont des voies radio", () => {
-  assert.equal(isRadioLane("radio_cable"), true);
-  assert.equal(isRadioLane("radio_network"), true);
-  assert.equal(isRadioLane("cable"), false);
-  assert.equal(isRadioLane("network"), false);
 });

@@ -16,7 +16,6 @@ import type { ScheduleDrag } from "./useDrag";
 import type { ScheduleCatalog } from "./useScheduleData";
 
 interface Props {
-  radio: boolean;
   catalog: ScheduleCatalog;
   drag: ScheduleDrag;
   isMobile: boolean;
@@ -27,7 +26,7 @@ interface Props {
 const EMPTY = { gridColumn: "1 / -1", textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", padding: "12px" } as const;
 const BADGE = { fontSize: "0.55rem", padding: "1px 4px" } as const;
 
-function RadioCards({ catalog, drag, isMobile, onPick, query }: Omit<Props, "radio" | "onClose"> & { query: string }) {
+function RadioCards({ catalog, drag, isMobile, onPick, query }: Omit<Props, "onClose"> & { query: string }) {
   const { t } = useAppSettings();
   const shown = catalog.radioPlaylists.filter((p) => matchesQuery(p.name, query));
   return (
@@ -52,7 +51,7 @@ function RadioCards({ catalog, drag, isMobile, onPick, query }: Omit<Props, "rad
   );
 }
 
-function VideoCards({ catalog, drag, isMobile, query }: Omit<Props, "radio" | "onClose" | "onPick"> & { query: string }) {
+function VideoCards({ catalog, drag, isMobile, query }: Omit<Props, "onClose" | "onPick"> & { query: string }) {
   const { t } = useAppSettings();
   const videos = catalog.videos.filter((v) => matchesQuery(v.title, query));
   const playlists = catalog.playlists.filter((p) => matchesQuery(p.name, query));
@@ -92,7 +91,8 @@ function VideoCards({ catalog, drag, isMobile, query }: Omit<Props, "radio" | "o
 export default function QuickLibrary(props: Props) {
   const { t } = useAppSettings();
   const [query, setQuery] = useState("");
-  const { radio, catalog, isMobile, onClose } = props;
+  const [radio, setRadio] = useState(false);
+  const { catalog, isMobile, onClose } = props;
   const suggestions = radio ? catalog.radioPlaylists.map((p) => p.name) : [...catalog.videos.map((v) => v.title), ...catalog.playlists.map((p) => p.name)];
   return (
     <div className="library-picker glass-floating" style={{ width: isMobile ? "100%" : "260px", height: "auto", flexShrink: 0 }}>
@@ -101,6 +101,10 @@ export default function QuickLibrary(props: Props) {
         <button className="close-btn" onClick={onClose} title={t("schedule.hide")}>
           <Icon name="close" size={16} />
         </button>
+      </div>
+      <div className="speed-group" style={{ width: "100%" }}>
+        <button type="button" className={`speed-btn ${radio ? "" : "active"}`} style={{ flex: 1 }} onClick={() => setRadio(false)}>{t("schedule.coursesOption")}</button>
+        <button type="button" className={`speed-btn ${radio ? "active" : ""}`} style={{ flex: 1 }} onClick={() => setRadio(true)}>{t("schedule.radioOption")}</button>
       </div>
       <SearchBox className="form-control" placeholder={t("schedule.searchPlaceholder")} value={query} onChange={setQuery} suggestions={suggestions} style={{ height: "32px", fontSize: "0.8rem" }} />
       <p style={{ fontSize: "0.7rem", color: "var(--text-dim)", margin: 0 }}>{t(radio ? "schedule.radioDragHint" : "schedule.dragHint")}</p>

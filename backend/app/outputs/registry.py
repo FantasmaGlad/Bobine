@@ -38,6 +38,12 @@ def output_of_radio(radio_channel: str) -> Output | None:
     return _BY_RADIO.get(radio_channel)
 
 
+def radio_channel_of(output_id: str) -> str:
+    """Radio d'une sortie ; la radio par défaut pour une valeur inconnue."""
+    output = _BY_ID.get(output_id)
+    return output.radio_channel if output else DEFAULT_RADIO_CHANNEL
+
+
 def display_modes() -> tuple[str, ...]:
     """Tous les modes d'écran, dans l'ordre de leur première apparition."""
     return tuple(dict.fromkeys(mode for output in OUTPUTS for mode in output.modes))

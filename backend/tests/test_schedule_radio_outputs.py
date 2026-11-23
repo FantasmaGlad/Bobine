@@ -102,30 +102,24 @@ def test_la_migration_rattache_l_ancienne_voie_radio_a_la_sortie_reseau_et_est_i
     assert channels == ["cable", "network", "radio_cable", "radio_network"]
 
 
-def test_creation_sur_chaque_voie_radio_et_alias_historique(client):
+def test_une_fenetre_radio_vit_sur_la_ligne_de_sa_sortie_anciennes_voies_comprises(client):
     pid = _playlist()
     stored = {}
-    for requested in ("radio_cable", "radio_network_2", "radio"):
+    for requested in ("cable", "network", "radio_cable", "radio_network_2", "radio", "zzz"):
         response = client.post("/api/schedule", json=_payload(pid, requested))
         assert response.status_code == 200, response.text
         stored[requested] = response.json()["channel"]
-    assert stored == {"radio_cable": "radio_cable", "radio_network_2": "radio_network_2", "radio": "radio_network_2"}
+    assert stored == {"cable": "cable", "network": "network", "radio_cable": "cable", "radio_network_2": "network_2",
+                      "radio": "network_2", "zzz": "network_2"}
 
 
-def test_une_cible_radio_ne_vit_jamais_sur_une_voie_video_et_inversement(client):
+def test_filtres_de_liste_par_sortie_avec_anciennes_voies(client):
     pid = _playlist()
-    assert client.post("/api/schedule", json=_payload(pid, "cable")).json()["channel"] == "radio_network_2"
-    assert client.post("/api/schedule", json=_payload(pid, "zzz")).json()["channel"] == "radio_network_2"
-
-
-def test_filtres_de_liste_par_voie_avec_alias(client):
-    pid = _playlist()
-    client.post("/api/schedule", json=_payload(pid, "radio_cable"))
-    client.post("/api/schedule", json=_payload(pid, "radio_network_2"))
+    client.post("/api/schedule", json=_payload(pid, "cable"))
+    client.post("/api/schedule", json=_payload(pid, "network_2"))
     by_channel = lambda ch: [s["channel"] for s in client.get("/api/schedule", params={"channel": ch}).json()]
-    assert by_channel("radio_cable") == ["radio_cable"]
-    assert by_channel("radio_network_2") == ["radio_network_2"]
-    assert by_channel("radio") == ["radio_network_2"]
+    assert by_channel("cable") == by_channel("radio_cable") == ["cable"]
+    assert by_channel("network_2") == by_channel("radio") == ["network_2"]
     assert len(client.get("/api/schedule").json()) == 2
 
 
@@ -134,8 +128,8 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_
     assert client.get("/api/outputs/cable").json()["mode"] != "radio"
     db = SessionLocal()
     try:
-        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network_2"))
-        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "network_2"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "cable"))
     finally:
         db.close()
     network, cable = get_radio_manager("radio_network_2"), get_radio_manager("radio_cable")
@@ -154,7 +148,7 @@ def test_la_bascule_planifiee_coupe_la_video_du_cable(client):
     assert manager.snapshot()["current_video"]
     db = SessionLocal()
     try:
-        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "cable"))
     finally:
         db.close()
     assert not get_playback_manager("cable").snapshot()["current_video"]
@@ -174,7 +168,7 @@ def test_le_mode_coach_garde_la_priorite_sur_une_programmation_radio_cable(clien
     try:
         db = SessionLocal()
         try:
-            asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+            asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "cable"))
         finally:
             db.close()
     finally:
@@ -189,7 +183,7 @@ def test_lancement_radio_cable_joue_quand_la_sortie_cable_est_sur_radio(client):
     client.put("/api/outputs/cable/mode", json={"mode": "radio"})
     db = SessionLocal()
     try:
-        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "cable"))
     finally:
         db.close()
     assert get_radio_manager("radio_cable").state["state"] == "playing"
@@ -202,7 +196,7 @@ def test_fin_de_fenetre_revient_a_l_ambiance_de_la_sortie_visee_seulement(client
         db.query(RadioPlaylist).filter(RadioPlaylist.id == pid).update({"is_default": True})
         schedule = Schedule(target_type=ScheduleTargetType.radio_playlist, target_id=pid,
                             schedule_type=ScheduleType.recurring, recurrence_rule='{"days_of_week":[0],"time":"08:00","end_time":"10:00"}',
-                            channel="radio_network_2")
+                            channel="network_2")
         db.add(schedule)
         db.commit()
         schedule_id = schedule.id

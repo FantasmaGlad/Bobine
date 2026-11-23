@@ -10,7 +10,6 @@ import type { ScheduleFormState } from "./useScheduleForm";
 import WhenFields from "./WhenFields";
 
 interface Props {
-  radio: boolean;
   catalog: ScheduleCatalog;
   state: ScheduleFormState;
 }
@@ -26,6 +25,7 @@ function TargetTypeSwitch({ state }: { state: ScheduleFormState }) {
     <div className="speed-group" style={{ width: "100%" }}>
       {button("video", "schedule.videoOption")}
       {button("playlist", "schedule.playlistOption")}
+      {button("radio_playlist", "schedule.radioOption")}
     </div>
   );
 }
@@ -49,8 +49,9 @@ function Actions({ state }: { state: ScheduleFormState }) {
   );
 }
 
-export default function ScheduleDrawer({ radio, catalog, state }: Props) {
+export default function ScheduleDrawer({ catalog, state }: Props) {
   const { t } = useAppSettings();
+  const radio = state.form.targetType === "radio_playlist";
   return (
     <>
       <div className="detail-drawer-overlay" onClick={state.close} />
@@ -66,9 +67,9 @@ export default function ScheduleDrawer({ radio, catalog, state }: Props) {
         <form onSubmit={state.save} className="drawer-body drawer-form">
           <div className="form-group">
             <label className="form-label">{radio ? t("schedule.radioPlaylistLabel") : t("schedule.targetLabel")}</label>
-            {!radio && <TargetTypeSwitch state={state} />}
+            <TargetTypeSwitch state={state} />
           </div>
-          <TargetPicker radio={radio} catalog={catalog} state={state} />
+          <TargetPicker catalog={catalog} state={state} />
           <WhenFields state={state} />
           {state.editingId && state.overrideCount > 0 && (
             <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{t("schedule.overrideCountHint", { count: state.overrideCount })}</p>

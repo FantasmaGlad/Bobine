@@ -15,7 +15,6 @@ import type { ScheduleCatalog } from "./useScheduleData";
 import type { ScheduleFormState } from "./useScheduleForm";
 
 interface Props {
-  radio: boolean;
   catalog: ScheduleCatalog;
   state: ScheduleFormState;
 }
@@ -71,9 +70,10 @@ function selectedName(state: ScheduleFormState, catalog: ScheduleCatalog): strin
   return catalog.playlists.find((p) => p.id === id)?.name;
 }
 
-export default function TargetPicker({ radio, catalog, state }: Props) {
+export default function TargetPicker({ catalog, state }: Props) {
   const { t } = useAppSettings();
   const { form, patch } = state;
+  const radio = form.targetType === "radio_playlist";
   const options = useMemo(
     () =>
       form.targetType === "video"

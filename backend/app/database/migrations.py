@@ -248,6 +248,23 @@ def _move_audio_route(conn) -> None:
     routes["radio_network_2"] = routes.pop("radio_network")
     conn.execute(text("UPDATE settings SET value = :value WHERE key = :key"), {"value": json.dumps(routes), "key": ROUTES_SETTING})
 
+
+def migrate_schedule_lanes_to_outputs():
+    """Une ligne de planning par sortie : une fenêtre radio rejoint la sortie de sa radio."""
+    from sqlalchemy import text
+
+    from app.outputs import OUTPUTS
+
+    if not database._IS_SQLITE:
+        return
+    with database.engine.begin() as conn:
+        if not conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='schedules'")).first():
+            return
+        moved = sum(conn.execute(text("UPDATE schedules SET channel = :output WHERE channel = :radio"),
+                                 {"output": output.id, "radio": output.radio_channel}).rowcount for output in OUTPUTS)
+    if moved:
+        logger.info(f"Migration : {moved} fenêtre(s) radio rattachée(s) à la ligne de leur sortie")
+
 def migrate_backfill_video_metadata():
     if not database._IS_SQLITE:
         return
