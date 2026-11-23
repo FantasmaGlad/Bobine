@@ -49,6 +49,15 @@ def _normalize_command(input_path: str, output_path: str, actions: list[str], me
     ]
 
 
+def _has_video(path: str) -> bool:
+    try:
+        meta = extract_metadata(path)
+    except Exception as exc:
+        logger.warning(f"Sortie de normalisation illisible ({path}) : {exc}")
+        return False
+    return bool(meta.get("codec")) and (meta.get("duration_seconds") or 0) > 0
+
+
 def _discard(path: str) -> None:
     try:
         if os.path.exists(path):
@@ -84,8 +93,10 @@ def normalize_video(
             _normalize_command(input_path, output_path, actions, meta, tier), job_id, meta.get("duration_seconds"),
             encoder_name=tier["encoder_name"], width=meta.get("width"), height=meta.get("height"),
         )
-        if ret == 0:
+        if ret == 0 and _has_video(output_path):
             return output_path
+        if ret == 0:
+            stderr = "sortie sans piste vidéo lisible"
         last_error_stderr = stderr
         logger.warning(f"Échec de l'encodage avec {tier['name']} ({tier['encoder_name']}) (code {ret}): {stderr}")
         _discard(output_path)
