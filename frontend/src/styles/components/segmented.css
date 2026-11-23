@@ -24,14 +24,13 @@
 
 .seg-indicator {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
+  top: 0;
   left: 0;
   border-radius: 999px;
   background: var(--accent-primary);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--accent-primary) 24%, transparent);
   pointer-events: none;
-  transition: transform var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring);
+  transition: transform var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring), height var(--dur-slow) var(--ease-spring);
 }
 
 .seg-btn {
@@ -67,7 +66,24 @@
   outline-offset: 1px;
 }
 
+.seg--many {
+  border-radius: 22px;
+}
+
+.seg--many .seg-track {
+  flex-wrap: wrap;
+}
+
+.seg--many .seg-btn {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 @media (max-width: 720px) {
+  .seg--many {
+    border-radius: 999px;
+  }
+
   .seg {
     container-type: inline-size;
     width: 100%;
@@ -77,6 +93,7 @@
 
   .seg--many .seg-track {
     min-width: max-content;
+    flex-wrap: nowrap;
   }
 
   .seg--many .seg-btn {

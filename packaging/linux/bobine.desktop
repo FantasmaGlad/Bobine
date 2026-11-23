@@ -13,7 +13,7 @@ StartupNotify=true
 X-GNOME-Autostart-enabled=true
 Keywords=cinema;fitness;video;audio;kiosk;radio;gym;playout;
 Keywords[fr]=cinéma;fitness;vidéo;audio;kiosque;radio;salle de sport;diffusion;
-Actions=admin;grid;cinema;visuals;stop;
+Actions=admin;grid;cinema;stop;
 
 [Desktop Action admin]
 Name=Open the administration
@@ -29,11 +29,6 @@ Exec=/usr/bin/bobine open grid
 Name=Open the cinema screen
 Name[fr]=Ouvrir l'écran cinéma
 Exec=/usr/bin/bobine open cinema
-
-[Desktop Action visuals]
-Name=Show a visual
-Name[fr]=Diffuser un visuel
-Exec=/usr/bin/bobine open visuals
 
 [Desktop Action stop]
 Name=Stop all playback

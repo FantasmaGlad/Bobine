@@ -37,27 +37,13 @@
   object-fit: contain;
 }
 
-.signage-notice {
+.signage-lock {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  padding: 32px 20px;
-  text-align: center;
-}
-
-.signage-notice p {
-  margin: 0;
-  max-width: 460px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
-.signage-notice .btn {
-  display: inline-flex;
   align-items: center;
   gap: 8px;
-  text-decoration: none;
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .signage-editor {
@@ -166,6 +152,31 @@
 @media (max-width: 900px) {
   .signage-editor {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .signage-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .signage-row .btn-icon {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .signage-row__seconds input {
+    width: 4em;
+  }
+
+  .signage-row__title {
+    flex-basis: calc(100% - 120px);
+  }
+
+  .signage-row__seconds {
+    margin-left: auto;
   }
 }
 

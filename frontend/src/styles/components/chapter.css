@@ -143,6 +143,12 @@
   backdrop-filter: blur(var(--blur-sm));
   pointer-events: none;
   animation: fadeIn 0.18s ease-out;
+  transition: bottom 0.24s var(--ease-out);
+}
+
+.chapter-toast.is-lifted {
+  z-index: 31;
+  bottom: calc(max(2.5rem, env(safe-area-inset-bottom)) + 10.5rem);
 }
 
 .chapter-toast__num {
