@@ -67,9 +67,7 @@ export default function CinemaControls(props: Props) {
         </button>
       </div>
       <div className="cinema-controls-bottom">
-        <button className="cinema-ctl-btn cinema-ctl-round" onClick={onPlayPause} title={playing ? t("cinema.pause") : t("cinema.play")}>
-          <Icon name={playing ? "pause" : "play_arrow"} size={30} filled />
-        </button>
+        <div className="cinema-timeline">
         <span className="cinema-time">{formatTime(position)}</span>
         <div className="chapter-seek">
           <input type="range" className="cinema-seek" min={0} max={duration || 0} step={1} value={Math.min(position, duration || 0)}
@@ -80,7 +78,13 @@ export default function CinemaControls(props: Props) {
           )}
         </div>
         <span className="cinema-time">{formatTime(duration)}</span>
-        {subtitles.length > 0 && <SubtitleMenu {...props} />}
+        </div>
+        <div className="cinema-controls-row">
+          <button className="cinema-ctl-btn cinema-ctl-round" onClick={onPlayPause} title={playing ? t("cinema.pause") : t("cinema.play")}>
+            <Icon name={playing ? "pause" : "play_arrow"} size={30} filled />
+          </button>
+          {subtitles.length > 0 && <SubtitleMenu {...props} />}
+        </div>
       </div>
     </div>
   );
