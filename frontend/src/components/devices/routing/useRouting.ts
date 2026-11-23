@@ -1,28 +1,21 @@
 import { useMemo, useState } from "react";
-import { audioDisplayName } from "@/lib/devices/audio";
 import { devicesRequest } from "@/lib/devices/request";
 import { type RadioOutputId, type RoutingView } from "@/lib/devices/routing";
 import { type AudioListing } from "@/lib/devices/types";
-import type { RadioFeed } from "@/lib/useRadioFeed";
-import { buildRoutingGraph, type Assignment } from "@/lib/routingGraph";
 import { errorText, type SectionProps } from "../shared/section";
 import { useDevicesResource } from "../shared/useDevicesResource";
 
-export function useRoutingModel(refreshKey: number, feed: RadioFeed, t: SectionProps["t"]) {
+export interface Assignment {
+  channel: RadioOutputId;
+  sinkId: string | null;
+}
+
+export function useRoutingModel(refreshKey: number) {
   const routing = useDevicesResource<RoutingView>("/routing", refreshKey);
   const audio = useDevicesResource<AudioListing>("/audio", refreshKey);
   const devices = useMemo(() => audio.data?.devices ?? [], [audio.data]);
   const outputs = useMemo(() => routing.data?.outputs ?? [], [routing.data]);
-  const live = useMemo(() => {
-    const map: Partial<Record<RadioOutputId, boolean>> = {};
-    for (const [channel, value] of Object.entries(feed.channels)) if (value) map[channel as RadioOutputId] = value.playing;
-    return map;
-  }, [feed.channels]);
-  const model = useMemo(
-    () => buildRoutingGraph({ outputs, devices, playing: live, displayName: audioDisplayName, defaultLabel: t("devices.routing.defaultOutput") }),
-    [outputs, devices, live, t],
-  );
-  return { routing, audio, devices, outputs, live, model };
+  return { routing, devices, outputs };
 }
 
 export function useRoutingSave(notify: SectionProps["notify"], t: SectionProps["t"], reload: () => Promise<void>) {

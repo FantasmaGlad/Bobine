@@ -90,10 +90,7 @@
 @import "./components/device-panel/pairing.css";
 @import "./components/glass-interactive.css";
 @import "./components/segmented.css";
-@import "./components/device-panel/map-nodes.css";
-@import "./components/device-panel/map.css";
-@import "./pages/devices/routing.css";
-@import "./pages/devices/mixer.css";
+@import "./pages/devices/sound.css";
 @import "./base/press-states.css";
 @import "./components/scroll-nav.css";
 @import "./pages/radio-remote/radio-remote.css";

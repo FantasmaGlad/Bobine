@@ -202,40 +202,23 @@ function declaration(selector: string, property: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
-test("routage et mixage : les surfaces de tranche et de nœud sont celles dont le texte est déjà vérifié", () => {
-  assert.equal(declaration(".rt-node-card", "fill"), "var(--bg-surface-elevated)");
-  assert.equal(declaration(".mx-strip", "background"), "var(--bg-surface-elevated)");
-  assert.equal(declaration(".rt-node-label", "fill"), "var(--text-main)");
-  assert.equal(declaration(".rt-node-sub", "fill"), "var(--text-muted)");
-  assert.equal(declaration(".mx-toggle", "color"), "var(--text-main)");
+test("son : la ligne de réglage est la surface dont le texte est déjà vérifié", () => {
+  assert.equal(declaration(".sd-row", "background"), "var(--bg-surface-elevated)");
 });
 
 for (const theme of THEMES) {
   const vars = themeVars(theme);
   const c = (expr: string) => evaluate(expr, vars);
 
-  test(`${theme} : routage et mixage (bascules, vumètre, arêtes du graphe)`, () => {
-    const strip = onPage(declaration(".mx-strip", "background"), vars);
-    const solo = ratio(c(declaration(".mx-toggle--solo.is-on", "color")), onPage(declaration(".mx-toggle--solo.is-on", "background"), vars));
-    assert.ok(solo >= AA, `solo actif : ${solo.toFixed(2)}`);
-    const muteBg = over(c(declaration(".mx-toggle--mute.is-on", "background")), strip);
-    const mute = ratio(c(declaration(".mx-toggle--mute.is-on", "color")), muteBg);
+  test(`${theme} : son (sourdine, vumètre)`, () => {
+    const row = onPage(declaration(".sd-row", "background"), vars);
+    const mute = ratio(c(declaration(".sd-mute.is-on", "color")), row);
     assert.ok(mute >= AA, `sourdine active : ${mute.toFixed(2)}`);
-    const track = over(c(declaration(".mx-meter", "background")), strip);
-    for (const fill of [declaration(".mx-meter-fill", "background"), declaration(".mx-meter-fill.is-hot", "background")]) {
+    const track = over(c(declaration(".sd-meter", "background")), row);
+    for (const fill of [declaration(".sd-meter-fill", "background"), declaration(".sd-meter-fill.is-hot", "background")]) {
       const got = ratio(c(fill), track);
       assert.ok(got >= NON_TEXT, `vumètre ${fill} sur sa piste : ${got.toFixed(2)}`);
     }
-    const frame = onPage(declaration(".rt-graph-frame", "background"), vars);
-    for (const [rule, expect] of [[".rt-edge--route", "stroke"], [".rt-edge", "stroke"], [".rt-edge.is-absent", "stroke"]] as const) {
-      const got = ratio(c(declaration(rule, expect)), frame);
-      assert.ok(got >= NON_TEXT, `${rule} sur le graphe : ${got.toFixed(2)}`);
-    }
-    const card = onPage(declaration(".rt-card, .mx-channel", "background"), vars);
-    const ok = ratio(c(declaration(".rt-status--ok .material-symbols-outlined", "color")), card);
-    const warn = ratio(c(declaration(".rt-status--warn .material-symbols-outlined", "color")), card);
-    assert.ok(ok >= NON_TEXT, `icône d'état « appliqué » : ${ok.toFixed(2)}`);
-    assert.ok(warn >= NON_TEXT, `icône d'état « attention » : ${warn.toFixed(2)}`);
   });
 }
 

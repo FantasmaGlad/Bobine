@@ -14,16 +14,6 @@ async function unlockOutputLabels(): Promise<"ok" | "denied" | "unsupported"> {
   }
 }
 
-export function RoutingUnsupported({ reason, t }: { reason?: string | null; t: SectionProps["t"] }) {
-  return (
-    <div className="rl-empty-state">
-      <Icon name="alt_route" size={40} style={{ opacity: 0.25, marginBottom: "8px" }} />
-      <p style={{ margin: 0, fontWeight: 600 }}>{t("devices.routing.unsupported")}</p>
-      {reason && <p className="settings-hint">{reason}</p>}
-    </div>
-  );
-}
-
 export function UnlockLabelsNote({ notify, t }: { notify: SectionProps["notify"]; t: SectionProps["t"] }) {
   const unlock = async () => {
     const outcome = await unlockOutputLabels();

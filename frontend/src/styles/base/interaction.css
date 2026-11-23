@@ -7,13 +7,13 @@
   z-index: 5;
 }
 
-:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)) {
+:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)) {
   cursor: pointer;
   transition: transform var(--dur-fast, 160ms) var(--ease-out, ease-out), filter var(--dur-fast, 160ms) var(--ease-out, ease-out), background-color var(--dur-fast, 160ms) var(--ease-out, ease-out), box-shadow var(--dur-fast, 160ms) var(--ease-out, ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.dv-map-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)):hover {
+  :where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.btn):not(.view-btn):not(.seg-btn):not(.display-output-btn):not(.sheet-close):not(.glass-interactive)):hover {
     filter: brightness(var(--hover-brightness, 1.08));
   }
 }
