@@ -9,7 +9,7 @@ import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOut
 import { useKioskRemote } from "@/lib/input/useKioskRemote";
 import Icon from "@/components/Icon";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
-import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
+import { chapterJumpTarget, chapterToastPlacement, useVideoChapters } from "@/lib/chapters";
 import SeekOsd, { useSeekHud } from "@/components/SeekOsd";
 import { useScrubber } from "@/lib/useScrubber";
 import { useStoryboard } from "@/lib/useStoryboard";
@@ -257,7 +257,7 @@ export default function KioskPage() {
 
       {state.current_video && <SeekOsd {...seekHud} visible={seekHud.visible} chapters={chapters} board={storyboard} />}
 
-      {state.state === "playing" && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={seekHud.visible} />}
+      {state.state === "playing" && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} placement={chapterToastPlacement({ previewing: seekHud.visible, controlsVisible: false })} />}
 
       <div className={`kiosk-layer kiosk-video-layer ${backgroundLayerActive && !backgroundIsImage ? "visible" : ""}`}>
         <video ref={bgVideoRef} className="kiosk-video" loop muted playsInline autoPlay />
