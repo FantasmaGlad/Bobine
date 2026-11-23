@@ -3463,7 +3463,7 @@
        "type": "string"
       }
      ],
-     "summary": "Boucle de visuels du canal, dans l'ordre de diffusion ; un fond supprimé n'y figure plus."
+     "summary": "Boucle de visuels du canal, dans l'ordre de diffusion ; un visuel supprimé n'y figure plus."
     },
     {
      "body": {
@@ -4804,6 +4804,156 @@
      ],
      "query": [],
      "summary": "Lance la production de la version « lisible partout » (H.264 8 bits, ≤ 1080p, AAC) — suivie via `GET /api/import-jobs`, état dans `web_status`."
+    }
+   ]
+  },
+  {
+   "name": "visuals",
+   "routes": [
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/visuals",
+     "path_parameters": [],
+     "query": [
+      {
+       "choices": null,
+       "name": "limit",
+       "required": false,
+       "type": "integer"
+      },
+      {
+       "choices": null,
+       "name": "offset",
+       "required": false,
+       "type": "integer"
+      }
+     ],
+     "summary": "Visuels, du plus récent au plus ancien."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/visuals/upload",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Envoi d'un visuel, traité en arrière-plan : suivi par `GET /api/import-jobs`."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "file",
+        "required": false,
+        "type": "string"
+       },
+       {
+        "choices": null,
+        "name": "upload_id",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "multipart"
+     },
+     "method": "POST",
+     "path": "/api/visuals/upload-zip",
+     "path_parameters": [],
+     "query": [],
+     "summary": "Import d'une archive (ZIP ou tar) d'images et de vidéos : un visuel par fichier, en une seule tâche."
+    },
+    {
+     "body": null,
+     "method": "DELETE",
+     "path": "/api/visuals/{visual_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "visual_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Supprime un visuel, son fichier et sa miniature."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/visuals/{visual_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "visual_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Fiche d'un visuel."
+    },
+    {
+     "body": {
+      "fields": [
+       {
+        "choices": null,
+        "name": "title",
+        "required": false,
+        "type": "string"
+       }
+      ],
+      "format": "json"
+     },
+     "method": "PUT",
+     "path": "/api/visuals/{visual_id}",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "visual_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Renomme un visuel."
+    },
+    {
+     "body": null,
+     "method": "GET",
+     "path": "/api/visuals/{visual_id}/stream",
+     "path_parameters": [
+      {
+       "choices": null,
+       "name": "visual_id",
+       "required": true,
+       "type": "integer"
+      }
+     ],
+     "query": [],
+     "summary": "Flux d'un visuel, image ou vidéo."
     }
    ]
   }

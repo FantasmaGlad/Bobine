@@ -10,25 +10,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.utils.media_formats import BACKGROUND_IMAGE as IMAGE_EXTENSIONS
 
-from .base import Base, ExternalMediaMixin, UidMixin, utcnow
+from .base import Base, ExternalMediaMixin, UidMixin, VisualAssetMixin, utcnow
 
 
-class Background(UidMixin, Base):
+class Background(UidMixin, VisualAssetMixin, Base):
     __uid_prefix__ = "bg"
     __tablename__ = "backgrounds"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    file_path: Mapped[str] = mapped_column(unique=True)
-    title: Mapped[str]
-    duration_seconds: Mapped[float | None]
-    thumbnail_path: Mapped[str | None]
-    imported_at: Mapped[datetime] = mapped_column(default=utcnow)
-
-    @property
-    def is_image(self) -> bool:
-        if not self.file_path:
-            return False
-        return Path(self.file_path).suffix.lower() in IMAGE_EXTENSIONS
 
 
 class AudioCourse(UidMixin, Base):

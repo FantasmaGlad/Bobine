@@ -1,7 +1,7 @@
 import type { DisplayChannel } from "./displayChannel.ts";
 
 export interface SignageEntry {
-  background_id: number;
+  visual_id: number;
   seconds: number | null;
   title: string;
   is_image: boolean;
@@ -52,6 +52,6 @@ export function clampSeconds(raw: string): number | null {
   return Math.min(SIGNAGE_MAX_SECONDS, Math.max(SIGNAGE_MIN_SECONDS, value));
 }
 
-export function streamPath(backgroundId: number): string {
-  return `/backgrounds/${backgroundId}/stream`;
+export function streamPath(visualId: number): string {
+  return `/visuals/${visualId}/stream`;
 }

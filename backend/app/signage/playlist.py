@@ -12,21 +12,21 @@ DEFAULT_IMAGE_SECONDS = 10
 
 @dataclass(frozen=True)
 class SignageItem:
-    background_id: int
+    visual_id: int
     seconds: int | None
 
 
 def check_item(raw: object) -> SignageItem:
     if not isinstance(raw, dict):
-        raise ValueError("élément : objet {background_id, seconds}")
-    background_id = raw.get("background_id")
-    if isinstance(background_id, bool) or not isinstance(background_id, int) or background_id < 1:
-        raise ValueError("background_id : entier positif")
+        raise ValueError("élément : objet {visual_id, seconds}")
+    visual_id = raw.get("visual_id")
+    if isinstance(visual_id, bool) or not isinstance(visual_id, int) or visual_id < 1:
+        raise ValueError("visual_id : entier positif")
     seconds = raw.get("seconds")
     if seconds is not None and (isinstance(seconds, bool) or not isinstance(seconds, int)
                                 or not MIN_SECONDS <= seconds <= MAX_SECONDS):
         raise ValueError(f"seconds : entier de {MIN_SECONDS} à {MAX_SECONDS}, ou null pour la durée de la vidéo")
-    return SignageItem(background_id, seconds)
+    return SignageItem(visual_id, seconds)
 
 
 def parse_items(raw: object) -> tuple[SignageItem, ...]:
@@ -44,4 +44,4 @@ def resolved_seconds(item: SignageItem, is_image: bool) -> int | None:
 
 
 def serialize(items: tuple[SignageItem, ...]) -> list[dict]:
-    return [{"background_id": item.background_id, "seconds": item.seconds} for item in items]
+    return [{"visual_id": item.visual_id, "seconds": item.seconds} for item in items]

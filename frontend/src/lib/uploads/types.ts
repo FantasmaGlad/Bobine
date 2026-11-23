@@ -2,7 +2,7 @@ import type { UploadNotice, UploadPhase } from "@/lib/uploadFlow";
 
 export type UploadKind =
   | "video" | "background" | "video_zip" | "background_zip" | "audio_files" | "audio_zip"
-  | "radio_files" | "radio_zip" | "radio_announcement_files";
+  | "radio_files" | "radio_zip" | "radio_announcement_files" | "visual" | "visual_zip";
 
 export interface PendingUploadSpec {
   kind: UploadKind;

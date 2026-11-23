@@ -67,7 +67,7 @@ export default function DashboardScreen({ channel }: { channel: PlaybackChannel 
     return (
       <div className="dashboard-container">
         {channelCard}
-        <SignagePanel channel={channel} backgrounds={data.backgrounds} />
+        <SignagePanel channel={channel} />
       </div>
     );
   }

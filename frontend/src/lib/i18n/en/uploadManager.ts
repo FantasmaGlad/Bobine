@@ -7,6 +7,7 @@ export const uploadManager: Dict = {
   taskLost: "Task lost (server restarted or expired).",
   importFailed: "Import failed",
   kindVideo: "Course",
+  kindVisual: "Visual",
   kindBackground: "Animated background",
   kindAudio: "Audio course",
   kindRadio: "Radio music",

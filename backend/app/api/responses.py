@@ -79,7 +79,7 @@ class RemoteInputs(BaseModel):
 
 
 class SignageEntry(BaseModel):
-    background_id: int
+    visual_id: int
     seconds: Optional[int]
     title: str
     is_image: bool

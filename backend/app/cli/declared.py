@@ -64,6 +64,7 @@ IMPORT_FAMILIES = {
     "audio": ("/api/audio/upload", "/api/audio/upload-zip", "files", False, ("title", "program", "release")),
     "radio-library": ("/api/radio/tracks/upload", "/api/radio/tracks/upload-zip", "files", False, ()),
     "backgrounds": ("/api/backgrounds/upload", "/api/backgrounds/upload-zip", "file", True, ("title",)),
+    "visuals": ("/api/visuals/upload", "/api/visuals/upload-zip", "file", True, ("title",)),
 }
 FINISHED_STAGES = ("done", "error", "cancelled")
 
