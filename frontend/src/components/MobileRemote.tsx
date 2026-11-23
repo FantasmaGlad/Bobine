@@ -57,7 +57,7 @@ export default function MobileRemote({
   const kioskChapters = useVideoChapters(state.current_video?.id, getApiUrl);
   const cinemaChapters = useVideoChapters(cinemaLive?.video_id, getApiUrl);
 
-  const main = connected && channelSignage ? <SignagePanel channel={channel ?? "cable"} backgrounds={backgrounds} /> : (
+  const main = connected && channelSignage ? <SignagePanel channel={channel ?? "cable"} /> : (
     <RemoteMain
       connected={connected} channelRadio={channelRadio} channelCinema={channelCinema} isActive={isActive}
       cinemaLive={cinemaLive} cinemaChapters={cinemaChapters} kioskChapters={kioskChapters} state={state} livePosition={livePosition}

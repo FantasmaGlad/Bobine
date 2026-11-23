@@ -6,7 +6,7 @@ import type { DisplayChannel } from "@/lib/displayChannel";
 import type { SignageEntry, SignageLoop } from "@/lib/signageLoop";
 import { useServerEvent, type ServerMessage } from "@/lib/useServerEvent";
 
-export type SignageDraft = Pick<SignageEntry, "background_id" | "seconds">;
+export type SignageDraft = Pick<SignageEntry, "visual_id" | "seconds">;
 
 export function useSignageLoop(channel: DisplayChannel) {
   const [entries, setEntries] = useState<SignageEntry[] | null>(null);

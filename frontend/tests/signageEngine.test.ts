@@ -5,7 +5,7 @@ import type { Slide } from "../src/components/signage/engine/slide.ts";
 import { planSlot, type SignageEntry } from "../src/lib/signageLoop.ts";
 
 const entry = (id: number, is_image: boolean, play_seconds: number | null): SignageEntry => ({
-  background_id: id, seconds: play_seconds, title: `visuel ${id}`, is_image, play_seconds, duration_seconds: null,
+  visual_id: id, seconds: play_seconds, title: `visuel ${id}`, is_image, play_seconds, duration_seconds: null,
 });
 
 class FakeSlide implements Slide {
@@ -29,8 +29,8 @@ function rig(broken: Set<number> = new Set()) {
   const prepared: FakeSlide[] = [];
   const stage: Stage = { show: (slide) => shown.push(slide as FakeSlide), clear: () => undefined };
   const engine = new SignageEngine(stage, async (e, loop) => {
-    if (broken.has(e.background_id)) return null;
-    const slide = new FakeSlide(e.background_id, loop);
+    if (broken.has(e.visual_id)) return null;
+    const slide = new FakeSlide(e.visual_id, loop);
     prepared.push(slide);
     return slide;
   });

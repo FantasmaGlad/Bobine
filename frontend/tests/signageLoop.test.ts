@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { clampSeconds, entryDurationMs, moved, nextIndex, type SignageEntry } from "../src/lib/signageLoop.ts";
 
 const entry = (play_seconds: number | null): SignageEntry => ({
-  background_id: 1, seconds: play_seconds, title: "Affiche", is_image: play_seconds !== null, play_seconds, duration_seconds: null,
+  visual_id: 1, seconds: play_seconds, title: "Affiche", is_image: play_seconds !== null, play_seconds, duration_seconds: null,
 });
 
 test("une image dure son nombre de secondes, une vidéo entière attend sa fin", () => {

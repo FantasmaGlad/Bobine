@@ -27,7 +27,7 @@ COMMAND_HELP = {
     "logs-admin": "journal d'activité et journal technique",
     "interrupted": "lecture interrompue par un redémarrage",
     "inputs": "touches du clavier, de la télécommande et de la manette",
-    "signage": "boucle de visuels diffusée (images et vidéos des fonds)",
+    "signage": "boucle de visuels diffusée sur un canal",
 }
 
 __all__ = ["Arg", "COMMAND_HELP", "Call", "SPECS", "Spec", "UsageError"]

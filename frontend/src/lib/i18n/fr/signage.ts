@@ -3,9 +3,9 @@ import type { Dict } from "../core.ts";
 export const signage: Dict = {
   empty: "Aucun visuel à diffuser sur ce canal.",
   loopTitle: "Boucle diffusée",
-  loopEmpty: "Ajoutez des images ou des vidéos de la bibliothèque des fonds ; elles passent dans l'ordre, en boucle.",
-  addTitle: "Ajouter un fond",
-  noBackgrounds: "Aucun fond dans la bibliothèque : importez des images ou des vidéos depuis Fonds animés.",
+  loopEmpty: "Ajoutez des visuels ; ils passent dans l'ordre, en boucle.",
+  addTitle: "Ajouter un visuel",
+  noVisuals: "Aucun visuel : importez des images, des GIF ou des vidéos.",
   wholeVideo: "entière",
   secondsLabel: "Durée d'affichage de {title}, en secondes",
   moveUp: "Monter",

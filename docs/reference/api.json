@@ -3463,7 +3463,7 @@
        "type": "string"
       }
      ],
-     "summary": "Boucle de visuels du canal, dans l'ordre de diffusion ; un fond supprimé n'y figure plus."
+     "summary": "Boucle de visuels du canal, dans l'ordre de diffusion ; un visuel supprimé n'y figure plus."
     },
     {
      "body": {

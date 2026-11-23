@@ -20,6 +20,8 @@ export const KIND_LABEL_KEYS: Record<UploadKind, string> = {
   radio_files: "uploadManager.kindRadio",
   radio_zip: "uploadManager.kindRadio",
   radio_announcement_files: "uploadManager.kindAnnouncements",
+  visual: "uploadManager.kindVisual",
+  visual_zip: "uploadManager.kindVisual",
 };
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;

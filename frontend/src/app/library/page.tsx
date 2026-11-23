@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type DragEvent } from "react";
 
 import Icon from "@/components/Icon";
 import LibraryMedia from "@/components/library/LibraryMedia";
@@ -9,11 +9,14 @@ import PageNav from "@/components/PageNav";
 import { oneOf } from "@/lib/urlView";
 import { useUrlView } from "@/lib/useUrlView";
 import VideoPlaylistManager from "@/components/library/VideoPlaylistManager";
+import ImportVisualsButton from "@/components/visuals/ImportVisualsButton";
+import { useVisualLibrary } from "@/components/visuals/useVisualLibrary";
+import VisualsLibrary from "@/components/visuals/VisualsLibrary";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { ARCHIVE_ACCEPT, VIDEO_ACCEPT } from "@/lib/mediaFiles";
 import { useToast } from "@/lib/useToast";
 
-const LIBRARY_VIEWS = oneOf(["media", "playlists"] as const, "media");
+const LIBRARY_VIEWS = oneOf(["media", "playlists", "visuals"] as const, "media");
 
 export default function LibraryPage() {
   const { t } = useAppSettings();
@@ -23,22 +26,32 @@ export default function LibraryPage() {
   const { toast, showToast } = useToast();
   const uploads = useLibraryUploads(() => programs.current, showToast);
   const media = mode === "media";
+  const visualsView = mode === "visuals";
+  const visuals = useVisualLibrary();
   const pick = () => fileInput.current?.click();
+  const dropVisuals = (e: DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files?.length) visuals.importFiles(Array.from(e.dataTransfer.files));
+  };
 
   return (
     <div
       className={`library-container ${media ? "" : "playlists-mode"}`}
       onDragEnter={media ? uploads.onDrag : undefined}
-      onDragOver={media ? uploads.onDrag : undefined}
+      onDragOver={media ? uploads.onDrag : visualsView ? (e) => e.preventDefault() : undefined}
       onDragLeave={media ? uploads.onDrag : undefined}
-      onDrop={media ? uploads.onDrop : undefined}
+      onDrop={media ? uploads.onDrop : visualsView ? dropVisuals : undefined}
     >
       <PageNav
-        tabs={[{ id: "media", icon: "video_library", label: t("library.mediaTab") }, { id: "playlists", icon: "playlist_play", label: t("library.playlistsTab") }]}
+        tabs={[
+          { id: "media", icon: "video_library", label: t("library.mediaTab") },
+          { id: "playlists", icon: "playlist_play", label: t("library.playlistsTab") },
+          { id: "visuals", icon: "slideshow", label: t("library.visualsTab") },
+        ]}
         value={mode}
         onChange={(id) => setMode(id as typeof mode)}
         ariaLabel={t("library.mediaTab")}
-        actions={<>{media && (
+        actions={<>{visualsView && <ImportVisualsButton label={t("common.import")} onFiles={visuals.importFiles} />}{media && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <input ref={fileInput} type="file" accept={`${VIDEO_ACCEPT},${ARCHIVE_ACCEPT}`} multiple style={{ display: "none" }} onChange={uploads.onFileChange} />
             <button type="button" className="btn btn-primary" style={{ height: "40px", padding: "0 16px", fontSize: "0.85rem" }} onClick={pick}>
@@ -48,7 +61,10 @@ export default function LibraryPage() {
           </div>
         )}</>}
       />
-      {media ? <LibraryMedia uploads={uploads} onPick={pick} toast={toast} showToast={showToast} programsRef={programs} /> : <VideoPlaylistManager />}
+      {visualsView && toast && <div className={`toast ${toast.type}`}><span>{toast.message}</span></div>}
+      {media ? <LibraryMedia uploads={uploads} onPick={pick} toast={toast} showToast={showToast} programsRef={programs} />
+        : visualsView ? <VisualsLibrary visuals={visuals.visuals} failed={visuals.failed} onRename={visuals.rename} onRemove={visuals.remove} showToast={showToast} />
+        : <VideoPlaylistManager />}
     </div>
   );
 }
