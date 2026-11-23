@@ -19,7 +19,7 @@ import Icon from "@/components/Icon";
 import VolumeOsd from "@/components/VolumeOsd";
 import { useAppSettings } from "@/lib/AppSettingsContext";
 import { getApiUrl } from "@/lib/apiUrl";
-import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";
+import { chapterJumpTarget, chapterToastPlacement, useVideoChapters } from "@/lib/chapters";
 import { thumbnailUrl, type CinemaVideo } from "@/lib/cinemaCatalog";
 import { videoStreamUrl } from "@/lib/clientCodecSupport";
 import { buildOutputUrl } from "@/lib/displayChannel";
@@ -346,6 +346,7 @@ export default function CinemaPage() {
   const playingLayer = phase === "playing";
   const duration = selected?.duration_seconds ?? 0;
   const shownPosition = seekDrag ?? position;
+  const previewing = seekDrag !== null || scrubHud.visible;
 
   const reportPosition = useCallback((seconds: number) => {
     if (Date.now() - lastPositionUpdate.current < 1000) return;
@@ -389,10 +390,10 @@ export default function CinemaPage() {
           <PauseScreen t={t} media={selected} thumbnail={selected ? thumbnailUrl(selected) : null} position={shownPosition} duration={duration}
             kicker={t("cinema.pause")} resumeLabel={t("cinema.play")} onResume={playPause} back={{ label: t("cinema.backToMenu"), onBack: backToMenu }} />
         )}
-        {isPlaying && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={!hideControls && playingLayer && controlsVisible} />}
+        {isPlaying && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} placement={chapterToastPlacement({ previewing, controlsVisible: !hideControls && playingLayer && controlsVisible })} />}
         {!hideControls && (
           <CinemaControls visible={playingLayer && (controlsVisible || !isPlaying)} playing={isPlaying} position={shownPosition} duration={duration} chapters={chapters}
-            board={storyboard} scrubbing={seekDrag !== null || scrubHud.visible}
+            board={storyboard} scrubbing={previewing}
             subtitles={subtitles} activeSubtitle={activeSubtitle} onSubtitle={setActiveSubtitle} onPlayPause={playPause} onBack={backToMenu} onDrag={setSeekDrag} onSeek={seekTo} />
         )}
       </div>
