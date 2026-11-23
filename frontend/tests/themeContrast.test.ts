@@ -269,18 +269,15 @@ for (const theme of THEMES) {
   });
   test(`${theme} : danger, texte et commandes sur les fonds réels`, () => {
     const panel = over(c(declaration(".settings-danger", "background")), c("var(--bg-content)"));
-    const card = over(c(declaration(".settings-danger-card", "background")), panel);
     const dangerText = c(declaration(".settings-danger h3", "color"));
-    for (const bg of [panel, card]) {
-      assert.ok(ratio(c("var(--text-main)"), bg) >= MAIN_MIN, "texte principal");
-      assert.ok(ratio(c("var(--text-muted)"), bg) >= AA, `aide et commandes : ${ratio(c("var(--text-muted)"), bg).toFixed(2)}`);
-      assert.ok(ratio(dangerText, bg) >= AA, `titres rouges : ${ratio(dangerText, bg).toFixed(2)}`);
-    }
+    assert.ok(ratio(c("var(--text-main)"), panel) >= MAIN_MIN, "texte principal");
+    assert.ok(ratio(c("var(--text-muted)"), panel) >= AA, `aide et commandes : ${ratio(c("var(--text-muted)"), panel).toFixed(2)}`);
+    assert.ok(ratio(dangerText, panel) >= AA, `titres rouges : ${ratio(dangerText, panel).toFixed(2)}`);
     for (const selector of [".settings-danger .btn-danger", ".settings-danger .btn-danger:hover:not(:disabled)", ".settings-danger .btn-danger:active:not(:disabled)"]) {
-      const bg = over(c(declaration(selector, "background")), card);
+      const bg = over(c(declaration(selector, "background")), panel);
       const fg = c(declaration(".settings-danger .btn-danger", "color"));
       assert.ok(ratio(fg, bg) >= AA, `${selector} : ${ratio(fg, bg).toFixed(2)}`);
-      assert.ok(ratio(dangerText, card) >= NON_TEXT, "bordure et focus sur la carte");
+      assert.ok(ratio(dangerText, panel) >= NON_TEXT, "bordure et focus sur le bloc");
     }
   });
 }
