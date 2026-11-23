@@ -9,6 +9,7 @@ import CinemaGrid from "@/components/cinema/CinemaGrid";
 import { EmptyScreen, StandbyScreen } from "@/components/cinema/CinemaScreens";
 import { seekWhenReady } from "@/components/cinema/media";
 import PauseScreen from "@/components/PauseScreen";
+import { useSeekHud } from "@/components/SeekOsd";
 import { cinemaRemoteKeys } from "@/components/cinema/remoteKeys";
 import UpNextLayer, { UP_NEXT_AUTOPLAY_SECONDS } from "@/components/cinema/UpNextLayer";
 import { useCinemaVideos } from "@/components/cinema/useCinemaVideos";
@@ -254,12 +255,14 @@ export default function CinemaPage() {
   };
 
   const scrubber = useScrubber();
+  const [scrubHud, showScrubHud] = useSeekHud();
   const scrub = (direction: 1 | -1) => {
     const el = videoRef.current;
     if (!el) return;
     scrubber.press(direction, el.currentTime || 0, el.duration || 0, {
       onPreview: (seconds) => {
         setPosition(seconds);
+        showScrubHud({ position: seconds, duration: el.duration || 0 });
         wakeControls();
       },
       onCommit: (seconds) => {
@@ -270,6 +273,7 @@ export default function CinemaPage() {
         const target = chapterJumpTarget(chapters, from, dir === 1 ? "next" : "prev");
         if (target === null) return false;
         seekBy(target - (videoRef.current?.currentTime || 0));
+        showScrubHud({ position: target, duration: el.duration || 0 });
         return true;
       },
     });
@@ -387,7 +391,7 @@ export default function CinemaPage() {
         {isPlaying && <ChapterToast chapters={chapters} videoRef={videoRef} label={t("chapters.toastLabel")} lifted={!hideControls && playingLayer && controlsVisible} />}
         {!hideControls && (
           <CinemaControls visible={playingLayer && (controlsVisible || !isPlaying)} playing={isPlaying} position={shownPosition} duration={duration} chapters={chapters}
-            board={storyboard} scrubbing={seekDrag !== null}
+            board={storyboard} scrubbing={seekDrag !== null || scrubHud.visible}
             subtitles={subtitles} activeSubtitle={activeSubtitle} onSubtitle={setActiveSubtitle} onPlayPause={playPause} onBack={backToMenu} onDrag={setSeekDrag} onSeek={seekTo} />
         )}
       </div>

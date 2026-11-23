@@ -162,6 +162,24 @@ def check_hevc(workdir: Path) -> None:
         check_web_rendition(new[0]["id"])
 
 
+def check_cinema_seek_preview() -> None:
+    def boards_ready():
+        statuses = [fetch_status(f"fetch('/api/videos/{v['id']}/storyboard').then(r=>done(r.status))") for v in api("/videos")]
+        return statuses and all(code == 200 for code in statuses)
+
+    check("planches d'aperçu prêtes", bool(wait_for(boards_ready, 120, 2)))
+    api("/settings/display-output", "PUT", {"channel": "cable", "output": "cinema"})
+    wd.navigate(BASE + "/cinema/")
+    time.sleep(3)
+    wd.execute("document.querySelector('.cinema-hero-play').click()")
+    started = wait_for(lambda: wd.execute("const v=document.querySelector('video'); return !!(v && v.readyState >= 1)"), 20, 0.5)
+    wd.execute("window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',keyCode:39,bubbles:true}))")
+    time.sleep(0.8)
+    shown = wd.execute("return !!document.querySelector('.cinema-controls .seek-preview-image')")
+    check("cinéma : un saut à la télécommande affiche l'aperçu de la timeline", bool(started) and shown,
+          f"lecture {'lancée' if started else 'non lancée'}, aperçu {'visible' if shown else 'absent'}")
+
+
 def check_compatibility_section() -> None:
     wd.navigate(BASE + "/settings/#section-playback")
     time.sleep(2.5)
@@ -203,6 +221,7 @@ def main() -> int:
         check_api_not_found()
         check_chunked_import(workdir)
         check_hevc(workdir)
+        check_cinema_seek_preview()
         if "--resume" in sys.argv:
             resume_after_network_cut(workdir)
         check_compatibility_section()
