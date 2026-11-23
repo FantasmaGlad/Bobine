@@ -1,6 +1,9 @@
 import type { Dict } from "../core.ts";
 
 export const radioAnnouncements: Dict = {
+  tabAnnouncements: "Rappels",
+  tabRules: "Règles",
+  sectionsLabel: "Sections des rappels",
   closeImport: "Fermer l'import",
   openImport: "Importer un rappel",
   targetNetwork: "Radio réseau",
@@ -8,7 +11,6 @@ export const radioAnnouncements: Dict = {
   targetBoth: "Les deux sorties",
   ruleTargetTitle: "Sortie radio concernée par cette règle (les fichiers de rappels restent partagés)",
   playNowTargetTitle: "Sortie radio où jouer le rappel",
-  listTitle: "Vos rappels",
   importing: "Import…",
   rulesHint: "Définissent QUAND un rappel se glisse dans la musique. Le rappel joué est tiré au hasard parmi les rappels actifs.",
   addRuleTitle: "Nouvelle règle",
@@ -39,7 +41,6 @@ export const radioAnnouncements: Dict = {
   playNow: "Jouer maintenant",
   playNowToast: "Rappel « {{description}} » déclenché.",
   playNowError: "Aucun rappel actif disponible.",
-  rulesTitle: "Règles de déclenchement",
   addRule: "Ajouter une règle",
   noRules: "Aucune règle. Un rappel ne se joue alors que manuellement.",
   ruleTypeEveryNTracks: "Toutes les N musiques",

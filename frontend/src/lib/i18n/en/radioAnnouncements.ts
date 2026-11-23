@@ -1,6 +1,9 @@
 import type { Dict } from "../core.ts";
 
 export const radioAnnouncements: Dict = {
+  tabAnnouncements: "Reminders",
+  tabRules: "Rules",
+  sectionsLabel: "Reminder sections",
   closeImport: "Close the import",
   openImport: "Import an announcement",
   targetNetwork: "Network radio",
@@ -8,7 +11,6 @@ export const radioAnnouncements: Dict = {
   targetBoth: "Both outputs",
   ruleTargetTitle: "Radio output concerned by this rule (reminder files stay shared)",
   playNowTargetTitle: "Radio output where the reminder is played",
-  listTitle: "Your reminders",
   importing: "Importing…",
   rulesHint: "Define WHEN a reminder slips into the music. The reminder played is picked at random among the enabled ones.",
   addRuleTitle: "New rule",
@@ -39,7 +41,6 @@ export const radioAnnouncements: Dict = {
   playNow: "Play now",
   playNowToast: "Reminder \"{{description}}\" triggered.",
   playNowError: "No active reminder available.",
-  rulesTitle: "Trigger rules",
   addRule: "Add a rule",
   noRules: "No rules yet. A reminder only plays manually.",
   ruleTypeEveryNTracks: "Every N tracks",
