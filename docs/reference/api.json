@@ -4626,7 +4626,7 @@
       }
      ],
      "query": [],
-     "summary": "Mosaïque d'aperçu (une vignette par intervalle, lignes de gauche à droite) ; 404 tant qu'elle n'est pas prête."
+     "summary": "Planches d'aperçu (une vignette par intervalle, planches de colonnes x lignes, de gauche à droite) ; 404 tant qu'elles ne sont pas prêtes."
     },
     {
      "body": null,

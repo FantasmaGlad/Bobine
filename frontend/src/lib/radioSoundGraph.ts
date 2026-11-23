@@ -1,10 +1,19 @@
-import { toGraphParams, type FilterParams, type RadioSoundSettings } from "./radioSound.ts";
+import { limiterTrim, toGraphParams, type FilterParams, type LimiterParams, type RadioSoundSettings } from "./radioSound.ts";
 
 const SMOOTHING_TIME_CONSTANT = 0.03;
 
 export interface SoundChain {
   input: AudioNode;
   apply: (sound: RadioSoundSettings, smooth?: boolean) => void;
+}
+
+export function applyLimiter(limiter: DynamicsCompressorNode, trim: GainNode, p: LimiterParams, now: number, smooth: boolean): void {
+  setParam(limiter.threshold, p.threshold, now, smooth);
+  setParam(limiter.knee, p.knee, now, smooth);
+  setParam(limiter.ratio, p.ratio, now, smooth);
+  setParam(limiter.attack, p.attack, now, smooth);
+  setParam(limiter.release, p.release, now, smooth);
+  setParam(trim.gain, limiterTrim(p), now, smooth);
 }
 
 export function setParam(param: AudioParam, value: number, now: number, smooth: boolean): void {
@@ -30,10 +39,11 @@ export function createSoundChain(ctx: AudioContext, destination: AudioNode, init
   const loudnessLow = createFilter(ctx, neutral.loudnessLow);
   const loudnessHigh = createFilter(ctx, neutral.loudnessHigh);
   const limiter = ctx.createDynamicsCompressor();
+  const trim = ctx.createGain();
 
-  const chain: AudioNode[] = [preamp, ...bandNodes, bass, loudnessLow, loudnessHigh, limiter];
+  const chain: AudioNode[] = [preamp, ...bandNodes, bass, loudnessLow, loudnessHigh, limiter, trim];
   for (let i = 0; i < chain.length - 1; i++) chain[i].connect(chain[i + 1]);
-  limiter.connect(destination);
+  trim.connect(destination);
 
   const apply = (sound: RadioSoundSettings, smooth = true) => {
     const p = toGraphParams(sound);
@@ -43,11 +53,7 @@ export function createSoundChain(ctx: AudioContext, destination: AudioNode, init
     setParam(bass.gain, p.bass.gain, now, smooth);
     setParam(loudnessLow.gain, p.loudnessLow.gain, now, smooth);
     setParam(loudnessHigh.gain, p.loudnessHigh.gain, now, smooth);
-    setParam(limiter.threshold, p.limiter.threshold, now, smooth);
-    setParam(limiter.knee, p.limiter.knee, now, smooth);
-    setParam(limiter.ratio, p.limiter.ratio, now, smooth);
-    setParam(limiter.attack, p.limiter.attack, now, smooth);
-    setParam(limiter.release, p.limiter.release, now, smooth);
+    applyLimiter(limiter, trim, p.limiter, now, smooth);
   };
 
   apply(initial, false);
