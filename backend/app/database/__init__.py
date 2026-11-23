@@ -135,6 +135,7 @@ def init_db():
     migrations.migrate_backfill_audio_duration()
     migrations.migrate_update_channel_beta_to_canary()
     migrations.migrate_schedule_radio_channel_to_network()
+    migrations.migrate_radio_outputs()
     migrations.migrate_storage_indexes()
     migrations.migrate_drop_devices_access_settings()
     migrations.migrate_add_uids()

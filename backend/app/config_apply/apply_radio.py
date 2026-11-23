@@ -148,7 +148,8 @@ def _apply_announcements(ctx: _Context, file: str, document: dict) -> None:
 
 
 def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
-    from app.radio.channels import DEFAULT_RADIO_CHANNEL, RULE_TARGETS
+    from app.api.contract import RADIO_CHANNELS
+    from app.radio.channels import DEFAULT_RADIO_CHANNEL
 
     rules = []
     for entry in _list(ctx, file, document, "rules"):
@@ -159,7 +160,7 @@ def _apply_announcement_rules(ctx: _Context, file: str, document: dict) -> None:
             continue
         target = entry.get("target", DEFAULT_RADIO_CHANNEL)
         times = entry.get("times_of_day")
-        if target not in RULE_TARGETS:
+        if target not in RADIO_CHANNELS:
             ctx.fail(file, f"sortie de règle invalide : {target!r}")
         if rule_type == RadioAnnouncementRuleType.every_n_tracks and not (isinstance(entry.get("n_tracks"), int) and entry["n_tracks"] >= 1):
             ctx.fail(file, "n_tracks (entier, au moins 1) requis pour every_n_tracks")

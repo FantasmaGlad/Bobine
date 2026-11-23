@@ -9,7 +9,7 @@ export interface Announcement {
 
 export type RuleType = "every_n_tracks" | "every_x_minutes" | "fixed_times";
 
-export type RuleTarget = RadioChannelId | "both";
+export type RuleTarget = RadioChannelId;
 
 export interface Rule {
   id: number;

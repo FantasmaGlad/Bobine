@@ -8,6 +8,7 @@ from app.devices.service import PLAYER_ROUTE_STATUSES
 from app.main import app
 from app.radio.manager import get_radio_manager
 from devices_routing_support import JBL, _local, _players, _wait_for
+from app.api.contract import RADIO_CHANNELS
 
 
 def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
@@ -15,7 +16,7 @@ def test_choix_effacement_et_repli_d_une_route(api, monkeypatch):
     _local(monkeypatch)
     client = TestClient(app)
     view = client.get("/api/devices/routing").json()
-    assert view["supported"] is True and [o["channel"] for o in view["outputs"]] == ["radio_cable", "radio_network"]
+    assert view["supported"] is True and [o["channel"] for o in view["outputs"]] == list(RADIO_CHANNELS)
     assert all(o["route"] is None and o["state"] == "default" for o in view["outputs"])
     assert view["server_mechanism"]["supported"] is True and view["fallbacks"] == ["default", "mute"]
 

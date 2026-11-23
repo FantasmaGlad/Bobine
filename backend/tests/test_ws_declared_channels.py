@@ -8,7 +8,7 @@ os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.contract import CHANNELS
+from app.api.contract import CHANNELS, RADIO_CHANNELS
 from app.main import app
 
 
@@ -39,11 +39,11 @@ def test_a_client_declaring_one_radio_receives_only_that_radio(client):
         assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, "radio_cable"])
 
 
-def test_the_legacy_alias_declares_the_network_radio(client):
+def test_the_legacy_alias_declares_the_default_radio(client):
     with client.websocket_connect("/ws/playback?channels=radio") as ws:
-        assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, "radio_network"])
+        assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, "radio_network_2"])
 
 
 def test_a_client_declaring_nothing_keeps_every_state(client):
     with client.websocket_connect("/ws/playback") as ws:
-        assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, "radio_cable", "radio_network"])
+        assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, *RADIO_CHANNELS])

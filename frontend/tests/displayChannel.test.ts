@@ -34,9 +34,9 @@ test("valeur de paramètre invalide ignorée", () => {
 });
 
 test("la redirection conserve le canal et le reste de la query", () => {
-  assert.equal(buildOutputUrl("cinema", "?channel=network", "network"), "/cinema?channel=network");
-  assert.equal(buildOutputUrl("kiosk", "", "network"), "/kiosk?channel=network");
-  assert.equal(buildOutputUrl("kiosk", "?debug=sync", "cable"), "/kiosk?debug=sync&channel=cable");
+  assert.equal(buildOutputUrl("cinema", "?channel=network", "network"), "/cinema?output=network");
+  assert.equal(buildOutputUrl("kiosk", "", "network"), "/kiosk?output=network");
+  assert.equal(buildOutputUrl("kiosk", "?debug=sync", "cable"), "/kiosk?debug=sync&output=cable");
 });
 
 test("scénario d'origine : écran réseau en 127.0.0.1 reste réseau après redirection kiosk -> cinéma -> kiosk", () => {
@@ -65,16 +65,18 @@ test("deux chargements de page = deux identifiants distincts", () => {
 
 import { decideOutputRedirect, radioChannelId } from "../src/lib/displayChannel.ts";
 
-test("radio : /radio nu = réseau quel que soit l'hôte (compatibilité des favoris)", () => {
-  assert.deepEqual(resolveChannel("", "127.0.0.1", "radio"), { channel: "network", source: "default" });
-  assert.deepEqual(resolveChannel("", "192.168.1.20", "radio"), { channel: "network", source: "default" });
-  assert.deepEqual(resolveChannel("", "bobine.local", "radio"), { channel: "network", source: "default" });
+test("radio : /radio nu = Réseau 2, l'ancienne radio réseau, quel que soit l'hôte (compatibilité des favoris)", () => {
+  assert.deepEqual(resolveChannel("", "127.0.0.1", "radio"), { channel: "network_2", source: "default" });
+  assert.deepEqual(resolveChannel("", "192.168.1.20", "radio"), { channel: "network_2", source: "default" });
+  assert.deepEqual(resolveChannel("", "bobine.local", "radio"), { channel: "network_2", source: "default" });
 });
 
-test("radio : ?channel= explicite l'emporte, y compris câblé en 127.0.0.1 ou sur le LAN", () => {
+test("radio : la sortie explicite l'emporte ; l'ancien ?channel=network mène à Réseau 2", () => {
   assert.deepEqual(resolveChannel("?channel=cable", "127.0.0.1", "radio"), { channel: "cable", source: "query" });
   assert.deepEqual(resolveChannel("?channel=cable", "192.168.1.20", "radio"), { channel: "cable", source: "query" });
-  assert.deepEqual(resolveChannel("?channel=network", "127.0.0.1", "radio"), { channel: "network", source: "query" });
+  assert.deepEqual(resolveChannel("?channel=network", "127.0.0.1", "radio"), { channel: "network_2", source: "query" });
+  assert.deepEqual(resolveChannel("?output=network", "127.0.0.1", "radio"), { channel: "network", source: "query" });
+  assert.deepEqual(resolveChannel("?channel=network", "192.168.1.20", "kiosk"), { channel: "network", source: "query" });
 });
 
 test("radio : identifiant du moteur serveur selon la sortie", () => {
@@ -83,9 +85,9 @@ test("radio : identifiant du moteur serveur selon la sortie", () => {
 });
 
 test("radio : la redirection vers la radio câblée conserve la requête et pose le canal", () => {
-  assert.equal(buildOutputUrl("radio", "", "cable"), "/radio?channel=cable");
-  assert.equal(buildOutputUrl("radio", "?channel=cable", "cable"), "/radio?channel=cable");
-  assert.equal(buildOutputUrl("radio", "?debug=1", "cable"), "/radio?debug=1&channel=cable");
+  assert.equal(buildOutputUrl("radio", "", "cable"), "/radio?output=cable");
+  assert.equal(buildOutputUrl("radio", "?channel=cable", "cable"), "/radio?output=cable");
+  assert.equal(buildOutputUrl("radio", "?debug=1", "cable"), "/radio?debug=1&output=cable");
 });
 
 test("radio : la page radio ne suit jamais la sortie stockée au montage", () => {
@@ -97,19 +99,19 @@ test("radio : la page radio ne suit jamais la sortie stockée au montage", () =>
 
 test("redirection : le kiosque de la machine passe sur la radio câblée dès le montage", () => {
   const d = decideOutputRedirect("kiosk", "", "127.0.0.1", { cable: "radio", network: "kiosk" }, null);
-  assert.equal(d.to, "/radio?channel=cable");
+  assert.equal(d.to, "/radio?output=cable");
   assert.equal(d.seen, "radio");
 });
 
 test("redirection : /cinema?channel=cable (HDMI Android) suit aussi la radio, requête conservée", () => {
   const d = decideOutputRedirect("cinema", "?channel=cable", "127.0.0.1", { cable: "radio", network: "kiosk" }, null);
-  assert.equal(d.to, "/radio?channel=cable");
+  assert.equal(d.to, "/radio?output=cable");
 });
 
-test("redirection : un écran réseau ne bascule jamais vers la radio", () => {
+test("redirection : un écran réseau suit sa propre sortie vers la radio, jamais celle du câble", () => {
   assert.equal(decideOutputRedirect("kiosk", "?channel=network", "127.0.0.1", { cable: "radio", network: "cinema" }, null).to, null);
   assert.equal(decideOutputRedirect("kiosk", "?channel=network", "127.0.0.1", { cable: "kiosk", network: "radio" }, null).to, null);
-  assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", { cable: "kiosk", network: "radio" }, "kiosk").to, null);
+  assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", { cable: "kiosk", network: "radio" }, "kiosk").to, "/radio?output=network");
 });
 
 test("redirection : la radio câblée repart sur une bascule faite en direct, pas au montage", () => {
@@ -117,9 +119,9 @@ test("redirection : la radio câblée repart sur une bascule faite en direct, pa
   assert.equal(mount.to, null);
   assert.equal(mount.seen, "radio");
   const live = decideOutputRedirect("radio", "?channel=cable", "127.0.0.1", { cable: "cinema", network: "kiosk" }, mount.seen);
-  assert.equal(live.to, "/cinema?channel=cable");
+  assert.equal(live.to, "/cinema?output=cable");
   const liveKiosk = decideOutputRedirect("radio", "?channel=cable", "127.0.0.1", { cable: "kiosk", network: "kiosk" }, "radio");
-  assert.equal(liveKiosk.to, "/kiosk?channel=cable");
+  assert.equal(liveKiosk.to, "/kiosk?output=cable");
 });
 
 test("redirection : /radio?channel=cable ouvert à la main hors sortie radio n'est pas éjecté", () => {
@@ -128,7 +130,7 @@ test("redirection : /radio?channel=cable ouvert à la main hors sortie radio n'e
   assert.equal(decideOutputRedirect("radio", "?channel=cable", "192.168.1.20", { cable: "cinema", network: "kiosk" }, mount.seen).to, null);
   const inSync = decideOutputRedirect("radio", "?channel=cable", "192.168.1.20", { cable: "radio", network: "kiosk" }, "cinema");
   assert.equal(inSync.to, null);
-  assert.equal(decideOutputRedirect("radio", "?channel=cable", "192.168.1.20", { cable: "kiosk", network: "kiosk" }, inSync.seen).to, "/kiosk?channel=cable");
+  assert.equal(decideOutputRedirect("radio", "?channel=cable", "192.168.1.20", { cable: "kiosk", network: "kiosk" }, inSync.seen).to, "/kiosk?output=cable");
 });
 
 test("redirection : un poste radio réseau (ou /radio nu) ne suit jamais aucune sortie", () => {
@@ -139,9 +141,9 @@ test("redirection : un poste radio réseau (ou /radio nu) ne suit jamais aucune 
 });
 
 test("redirection : comportement historique kiosk <-> cinéma inchangé", () => {
-  assert.equal(decideOutputRedirect("kiosk", "", "127.0.0.1", { cable: "cinema", network: "kiosk" }, null).to, "/cinema?channel=cable");
+  assert.equal(decideOutputRedirect("kiosk", "", "127.0.0.1", { cable: "cinema", network: "kiosk" }, null).to, "/cinema?output=cable");
   assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", { cable: "kiosk", network: "kiosk" }, null).to, null);
-  assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", { cable: "kiosk", network: "kiosk" }, "cinema").to, "/kiosk?channel=network");
+  assert.equal(decideOutputRedirect("cinema", "?channel=network", "192.168.1.20", { cable: "kiosk", network: "kiosk" }, "cinema").to, "/kiosk?output=network");
 });
 
 test("un changement de sortie de l'AUTRE canal ne fait jamais naviguer un écran (canaux indépendants)", async () => {
@@ -156,24 +158,23 @@ test("un changement de sortie de l'AUTRE canal ne fait jamais naviguer un écran
   const real = decideOutputRedirect("kiosk", search, "192.168.1.50", { cable: "kiosk", network: "kiosk" }, first.seen);
   assert.equal(real.to, null);
   const toCinema = decideOutputRedirect("kiosk", search, "192.168.1.50", { cable: "kiosk", network: "cinema" }, "kiosk");
-  assert.equal(toCinema.to, "/cinema?channel=network");
+  assert.equal(toCinema.to, "/cinema?output=network");
   assert.equal(shouldEvaluateRedirect("cable", { cable: "cinema", network: null }, null), true);
   assert.equal(shouldEvaluateRedirect("cable", { cable: null, network: "cinema" }, null), false);
 });
 
 test("le bouton d'ouverture suit la sortie du canal, kiosque par défaut", () => {
-  assert.equal(screenUrl("cable", null), "/kiosk?channel=cable");
-  assert.equal(screenUrl("cable", "radio"), "/radio?channel=cable");
-  assert.equal(screenUrl("network", "cinema"), "/cinema?channel=network");
+  assert.equal(screenUrl("cable", null), "/kiosk?output=cable");
+  assert.equal(screenUrl("cable", "radio"), "/radio?output=cable");
+  assert.equal(screenUrl("network", "cinema"), "/cinema?output=network");
 });
 
 import { lockedOutput, outputsFor, parseDisplayOutput } from "../src/lib/displayChannel.ts";
 
-test("visuel : sortie offerte aux deux canaux, la radio reste câblée seulement", () => {
-  assert.deepEqual(outputsFor("cable"), ["kiosk", "cinema", "radio", "signage"]);
-  assert.deepEqual(outputsFor("network"), ["kiosk", "cinema", "signage"]);
+test("chaque sortie offre les mêmes modes, radio comprise", () => {
+  for (const output of ["cable", "network", "network_2"] as const) assert.deepEqual(outputsFor(output), ["kiosk", "cinema", "radio", "signage"]);
   assert.equal(parseDisplayOutput("network", "signage"), "signage");
-  assert.equal(parseDisplayOutput("network", "radio"), null);
+  assert.equal(parseDisplayOutput("network", "radio"), "radio");
   assert.equal(parseDisplayOutput("cable", "autre"), null);
 });
 
@@ -186,9 +187,9 @@ test("visuel : le motif du verrou nomme la sortie qui l'impose", () => {
 
 test("visuel : le kiosque câblé passe sur /signage et la page du visuel revient au kiosque", () => {
   const toSignage = decideOutputRedirect("kiosk", "", "127.0.0.1", { cable: "signage", network: null }, "kiosk");
-  assert.equal(toSignage.to, "/signage?channel=cable");
+  assert.equal(toSignage.to, "/signage?output=cable");
   const back = decideOutputRedirect("signage", "?channel=network", "192.0.2.5", { cable: null, network: "kiosk" }, "signage");
-  assert.equal(back.to, "/kiosk?channel=network");
+  assert.equal(back.to, "/kiosk?output=network");
 });
 
 test("Réseau 2 suit sa propre sortie, jamais celle de Réseau 1", async () => {
@@ -196,8 +197,8 @@ test("Réseau 2 suit sa propre sortie, jamais celle de Réseau 1", async () => {
   const search = "?channel=network_2";
   assert.equal(parseChannelParam(search), "network_2");
   assert.equal(decideOutputRedirect("kiosk", search, "192.0.2.7", { network: "cinema", network_2: "kiosk" }, "kiosk").to, null);
-  assert.equal(decideOutputRedirect("kiosk", search, "192.0.2.7", { network: "kiosk", network_2: "cinema" }, "kiosk").to, "/cinema?channel=network_2");
+  assert.equal(decideOutputRedirect("kiosk", search, "192.0.2.7", { network: "kiosk", network_2: "cinema" }, "kiosk").to, "/cinema?output=network_2");
   assert.deepEqual(parseDisplayOutputs({ cable: "radio", network: "signage", network_2: "radio" }, { network: "kiosk" }),
-    { cable: "radio", network: "kiosk", network_2: null });
-  assert.equal(radioChannelId("network_2"), null);
+    { cable: "radio", network: "kiosk", network_2: "radio" });
+  assert.equal(radioChannelId("network_2"), "radio_network_2");
 });

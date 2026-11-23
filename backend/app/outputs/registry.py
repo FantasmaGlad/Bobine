@@ -8,8 +8,8 @@ from dataclasses import dataclass
 class Output:
     id: str
     label: str
-    radio_label: str | None
-    radio_channel: str | None
+    radio_label: str
+    radio_channel: str
     modes: tuple[str, ...]
     wired: bool = False
     coach: bool = False
@@ -18,16 +18,16 @@ class Output:
 
 OUTPUTS: tuple[Output, ...] = (
     Output("cable", "Câblé", "Radio câblée", "radio_cable", ("kiosk", "cinema", "radio", "signage"), wired=True, coach=True, schedule_first=True),
-    Output("network", "Réseau 1", "Radio réseau", "radio_network", ("kiosk", "cinema", "signage")),
-    Output("network_2", "Réseau 2", None, None, ("kiosk", "cinema", "signage")),
+    Output("network", "Réseau 1", "Radio Réseau 1", "radio_network", ("kiosk", "cinema", "radio", "signage")),
+    Output("network_2", "Réseau 2", "Radio Réseau 2", "radio_network_2", ("kiosk", "cinema", "radio", "signage")),
 )
 
 _BY_ID = {output.id: output for output in OUTPUTS}
-_BY_RADIO = {output.radio_channel: output for output in OUTPUTS if output.radio_channel}
+_BY_RADIO = {output.radio_channel: output for output in OUTPUTS}
 
 DEFAULT_OUTPUT = OUTPUTS[0]
 WIRED_OUTPUT = next(output for output in OUTPUTS if output.wired)
-DEFAULT_RADIO_CHANNEL = _BY_ID["network"].radio_channel
+DEFAULT_RADIO_CHANNEL = _BY_ID["network_2"].radio_channel
 
 
 def get_output(output_id: str) -> Output | None:

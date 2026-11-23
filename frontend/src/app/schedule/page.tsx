@@ -9,7 +9,7 @@ import ScheduleToolbar from "@/components/schedule/ScheduleToolbar";
 import { DayView, ListView, WeekView, type ViewProps } from "@/components/schedule/ScheduleViews";
 import { useScheduleDrag } from "@/components/schedule/useDrag";
 import { useOccurrenceControls } from "@/components/schedule/useOccurrenceControls";
-import { useCableOutput, useOccurrences, useScheduleCatalog } from "@/components/schedule/useScheduleData";
+import { useOccurrences, useRadioLaneOutput, useScheduleCatalog } from "@/components/schedule/useScheduleData";
 import { useScheduleForm } from "@/components/schedule/useScheduleForm";
 import { useScheduleNavigation, ZOOM_LEVELS } from "@/components/schedule/useScheduleNavigation";
 import { useAppSettings } from "@/lib/AppSettingsContext";
@@ -18,21 +18,19 @@ import { useUrlView } from "@/lib/useUrlView";
 import type { ChannelValue } from "@/lib/scheduleTime";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useToast } from "@/lib/useToast";
-import { OUTPUTS, isRadioChannel, outputById, type RadioChannelId } from "@/lib/outputs";
+import { OUTPUTS, isRadioChannel, outputById, outputOfRadio } from "@/lib/outputs";
 
 const CHANNEL_TABS = [
   ...OUTPUTS.map((output) => ({ id: output.id, icon: output.wired ? "cable" : "wifi", label: output.wired ? "schedule.channelTabCable" : "schedule.channelTabNetwork" })),
-  { id: "radio_cable", icon: "graphic_eq", label: "schedule.channelTabRadioCable" },
-  { id: "radio_network", icon: "graphic_eq", label: "schedule.channelTabRadioNetwork" },
+  ...OUTPUTS.map((output) => ({ id: output.radioChannel, icon: "graphic_eq", label: `outputs.${output.radioChannel}` })),
 ];
 
-const RADIO_TITLES: Record<RadioChannelId, string> = {
-  radio_cable: "schedule.channelRadioCableTitle",
-  radio_network: "schedule.channelRadioNetworkTitle",
-};
+function laneOutput(channel: ChannelValue) {
+  return isRadioChannel(channel) ? outputOfRadio(channel) : outputById(channel);
+}
 
 function channelTitle(channel: ChannelValue): string {
-  if (isRadioChannel(channel)) return RADIO_TITLES[channel];
+  if (isRadioChannel(channel)) return "schedule.channelRadioTitle";
   return outputById(channel).wired ? "schedule.channelCableTitle" : "schedule.channelNetworkTitle";
 }
 
@@ -63,7 +61,7 @@ export default function SchedulePage() {
   const { toast, showToast } = useToast();
   const nav = useScheduleNavigation(isMobile);
   const catalog = useScheduleCatalog();
-  const cableOutput = useCableOutput(channel);
+  const laneMode = useRadioLaneOutput(channel);
   const data = useOccurrences(nav.weekStart, channel, showToast);
   const form = useScheduleForm(channel, showToast, data.refresh);
   const controls = useOccurrenceControls(showToast, data.refresh, form.openEdit);
@@ -117,10 +115,10 @@ export default function SchedulePage() {
         onToggleLibrary={() => setLibraryOpen((open) => !open)}
         onCreate={() => form.openCreate()}
       />
-      {channel === "radio_cable" && cableOutput !== null && cableOutput !== "radio" && (
+      {laneMode !== null && laneMode !== "radio" && (
         <div className="interrupted-block" role="status">
           <div className="interrupted-text">
-            <span className="interrupted-label">{t("schedule.radioCableAutoSwitchHint")}</span>
+            <span className="interrupted-label">{t("schedule.radioAutoSwitchHint", { output: t(`outputs.${laneOutput(channel).id}`) })}</span>
           </div>
         </div>
       )}

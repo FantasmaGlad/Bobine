@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 TARGETS = (
     *(("playback", output.id, output.label) for output in OUTPUTS),
-    *(("radio", output.id, output.radio_label) for output in OUTPUTS if output.radio_channel),
+    *(("radio", output.id, output.radio_label) for output in OUTPUTS),
 )
 STATE_LABELS = {
     "playing": "lecture", "paused": "en pause", "waiting": "en attente", "playlist_waiting": "en attente", "idle": "arrêtée",

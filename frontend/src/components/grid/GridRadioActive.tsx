@@ -4,6 +4,9 @@ import AppLogo from "@/components/AppLogo";
 import Icon from "@/components/Icon";
 import RadioRemotePanel from "@/components/RadioRemotePanel";
 import { formatWallClock } from "@/lib/format";
+import { WIRED_OUTPUT, outputById } from "@/lib/outputs";
+
+const WIRED_RADIO = outputById(WIRED_OUTPUT).radioChannel;
 
 export default function GridRadioActive({ t, now }: { t: (key: string, vars?: Record<string, string | number>) => string; now: Date }) {
   return (
@@ -21,7 +24,7 @@ export default function GridRadioActive({ t, now }: { t: (key: string, vars?: Re
             </div>
             <span className="grid-standby-clock">{formatWallClock(now)}</span>
           </div>
-          <RadioRemotePanel key="radio_cable" channel="radio_cable" variant="compact" />
+          <RadioRemotePanel key={WIRED_RADIO} channel={WIRED_RADIO} variant="compact" />
         </div>
       </div>
   );

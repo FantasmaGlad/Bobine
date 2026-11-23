@@ -19,8 +19,8 @@ from app.api.paging import Window, window
 from app.utils._pydantic_compat import fields_set
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
-from app.api.contract import LEGACY_RADIO_CHANNEL
-from app.radio.channels import DEFAULT_RADIO_CHANNEL, RULE_TARGETS, normalize_rule_target
+from app.api.contract import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS
+from app.radio.channels import DEFAULT_RADIO_CHANNEL, normalize_radio_channel
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
 from app.radio.importer import import_radio_announcement, import_radio_announcements_from_files
@@ -92,7 +92,7 @@ def _rule_response(rule: RadioAnnouncementRule) -> dict:
         "interval_minutes": rule.interval_minutes,
         "times_of_day": json.loads(rule.times_of_day) if rule.times_of_day else None,
         "enabled": rule.enabled,
-        "target": normalize_rule_target(rule.target),
+        "target": normalize_radio_channel(rule.target),
     }
 
 
@@ -102,9 +102,9 @@ def _expected(values: tuple[str, ...]) -> str:
 
 
 def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
-    if data.target is not None and data.target not in (*RULE_TARGETS, LEGACY_RADIO_CHANNEL):
+    if data.target is not None and data.target not in (*RADIO_CHANNELS, LEGACY_RADIO_CHANNEL):
         raise HTTPException(
-            status_code=422, detail=f"target invalide (attendu {_expected(RULE_TARGETS)})"
+            status_code=422, detail=f"target invalide (attendu {_expected(RADIO_CHANNELS)})"
         )
     if data.rule_type == RadioAnnouncementRuleType.every_n_tracks and not data.n_tracks:
         raise HTTPException(status_code=422, detail="n_tracks est requis pour une règle « toutes les N musiques »")
@@ -219,17 +219,13 @@ def delete_announcement(announcement_id: int, db: Session = Depends(get_db)):
 @router.post("/announcements/play-now", response_model=AnnouncementPlayed)
 async def play_announcement_now(payload: PlayNowInput, db: Session = Depends(get_db)):
     """Déclenchement manuel — toujours en mode « duck » (fondu immédiat, la musique continue)."""
-    from app.api.contract import RADIO_CHANNELS
-    from app.radio.channels import RULE_TARGET_BOTH, normalize_rule_target
     from app.radio.manager import get_radio_manager
     from app.radio.commands import play_announcement_now as play_now, resolve_announcement
 
     announcement = resolve_announcement(db, payload.announcement_id)
     if not announcement:
         raise HTTPException(status_code=404, detail="Aucun rappel disponible")
-    target = normalize_rule_target(payload.target)
-    outputs = RADIO_CHANNELS if target == RULE_TARGET_BOTH else (target,)
-    return await play_now(db, [get_radio_manager(channel) for channel in outputs], announcement)
+    return await play_now(db, [get_radio_manager(normalize_radio_channel(payload.target))], announcement)
 
 
 @router.get("/announcement-rules", response_model=List[RadioAnnouncementRuleResponse])
@@ -247,7 +243,7 @@ def create_rule(payload: RadioAnnouncementRuleInput, db: Session = Depends(get_d
         interval_minutes=payload.interval_minutes,
         times_of_day=json.dumps(payload.times_of_day) if payload.times_of_day else None,
         enabled=payload.enabled,
-        target=normalize_rule_target(payload.target or DEFAULT_RADIO_CHANNEL),
+        target=normalize_radio_channel(payload.target or DEFAULT_RADIO_CHANNEL),
     )
     db.add(rule)
     db.commit()
@@ -267,7 +263,7 @@ def update_rule(rule_id: int, payload: RadioAnnouncementRuleInput, db: Session =
     rule.times_of_day = json.dumps(payload.times_of_day) if payload.times_of_day else None
     rule.enabled = payload.enabled
     if payload.target is not None:
-        rule.target = normalize_rule_target(payload.target)
+        rule.target = normalize_radio_channel(payload.target)
     db.commit()
     db.refresh(rule)
     return _rule_response(rule)

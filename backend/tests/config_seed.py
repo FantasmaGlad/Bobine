@@ -52,7 +52,7 @@ def seed():
             ambiance,
             RadioAnnouncement(file_path="/media/rappels/bouteille.mp3", description="Pensez à votre bouteille"),
             RadioAnnouncementRule(rule_type=RadioAnnouncementRuleType.fixed_times, times_of_day='["09:00"]',
-                                  target="both"),
+                                  target="radio_cable"),
         ])
         db.flush()
         schedule = Schedule(target_type=ScheduleTargetType.playlist, target_id=playlist.id,

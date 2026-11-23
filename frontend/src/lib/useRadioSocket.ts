@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCachesAndReload } from "@/lib/cacheReload";
 import type { ClockAnchor } from "@/lib/playbackClock";
 import { ServerClockSync } from "@/lib/serverClockSync";
-import { parseDisplayOutput, type DisplayOutput } from "@/lib/displayChannel";
-import { DEFAULT_RADIO_CHANNEL, type RadioChannelId } from "@/lib/outputs";
+import { parseDisplayOutput, parseDisplayOutputs, type DisplayOutputs } from "@/lib/displayChannel";
+import { DEFAULT_RADIO_CHANNEL, isOutputId, type RadioChannelId } from "@/lib/outputs";
 import { defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
 import { defaultMix, type RadioMix } from "@/lib/radioMix";
 import type { RadioRoute } from "@/lib/audioRoute";
@@ -101,7 +101,7 @@ export function useRadioSocket(
   const [state, setState] = useState<RadioState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
   const [isPrimary, setIsPrimary] = useState(false);
-  const [displayOutputCable, setDisplayOutputCable] = useState<DisplayOutput | null>(null);
+  const [displayOutputs, setDisplayOutputs] = useState<DisplayOutputs>({});
   const wsRef = useRef<WebSocket | null>(null);
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
   const onEventRef = useRef(onEvent);
@@ -175,8 +175,9 @@ export function useRadioSocket(
             return;
           }
           if (parsed.event === "display_output") {
-            const output = parsed.channel === "cable" ? parseDisplayOutput("cable", parsed.output) : null;
-            if (output) setDisplayOutputCable(output);
+            const screen = isOutputId(parsed.channel) ? parsed.channel : null;
+            const output = screen ? parseDisplayOutput(screen, parsed.output) : null;
+            if (screen && output) setDisplayOutputs((prev) => ({ ...prev, [screen]: output }));
             return;
           }
           if (parsed.event === "inputs_change") {
@@ -247,8 +248,7 @@ export function useRadioSocket(
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
-        const cable = parseDisplayOutput("cable", data.cable);
-        if (cable) setDisplayOutputCable((prev) => prev ?? cable);
+        setDisplayOutputs((prev) => parseDisplayOutputs(data, prev));
       })
       .catch(() => {});
     return () => {
@@ -272,5 +272,5 @@ export function useRadioSocket(
 
   const serverNow = useCallback(() => clockSyncRef.current.serverNow(), []);
 
-  return { state, connected, sendCommand, isPrimary, serverNow, displayOutputCable };
+  return { state, connected, sendCommand, isPrimary, serverNow, displayOutputs };
 }

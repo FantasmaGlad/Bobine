@@ -2,14 +2,11 @@ import type { Dict } from "../core.ts";
 
 export const radioRemote: Dict = {
   title: "Radio",
+  outputTitle: "{{output}} output radio — {{path}}",
   outputTabs: "Radio output",
   openPlayer: "Open the radio screen",
   gridRadioActiveTitle: "Wired output in Radio mode",
   gridRadioActiveHint: "The music plays on the external screen. Control it from this tablet.",
-  outputCable: "Wired radio",
-  outputCableTitle: "Radio of the wired output (physically connected screen) — /radio?channel=cable",
-  outputNetwork: "Network radio",
-  outputNetworkTitle: "Radio of the network output (any other device) — /radio?channel=network",
   disconnected: "Disconnected",
   stateLabels: {
     idle: "Silent",

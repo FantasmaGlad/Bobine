@@ -10,7 +10,7 @@ class Backend:
 
     def __init__(self, states=None):
         self.states = {("playback", "cable"): "playing", ("playback", "network"): "paused",
-                       ("playback", "network_2"): "idle", ("radio", "cable"): "waiting", ("radio", "network"): "playing",
+                       ("playback", "network_2"): "idle", ("radio", "cable"): "waiting", ("radio", "network"): "playing", ("radio", "network_2"): "idle",
                        **(states or {})}
         self.calls = []
         self.down = False
@@ -70,20 +70,20 @@ def test_toggle_does_nothing_while_waiting(backend):
 def test_stop_all_stops_every_output_even_if_one_is_refused(backend):
     backend.refused.add("/api/playback/cable/stop")
     c = controls(backend)
-    assert c.stop_all() == 4
+    assert c.stop_all() == 5
     stops = sorted(url for method, url in backend.calls if method == "POST")
     assert stops == ["/api/playback/cable/stop", "/api/playback/network/stop", "/api/playback/network_2/stop",
-                     "/api/radio/cable/stop", "/api/radio/network/stop"]
+                     "/api/radio/cable/stop", "/api/radio/network/stop", "/api/radio/network_2/stop"]
 
 
 def test_states_are_cached_briefly_and_refreshed_after_an_action(backend):
     now = [0.0]
     c = controls(backend, lambda: now[0])
     c.states(); c.states(); c.label("playback", "cable", "Câblé")
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 5
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 6
     now[0] = 5.0
     c.states()
-    assert len([call for call in backend.calls if call[0] == "GET"]) == 10
+    assert len([call for call in backend.calls if call[0] == "GET"]) == 12
     c.toggle("playback", "cable")
     backend.states[("playback", "cable")] = "paused"
     assert c.label("playback", "cable", "Câblé") == "Câblé : en pause — Reprendre"

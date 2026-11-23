@@ -21,19 +21,21 @@ from app.models import (
     RadioTrack,
     Setting,
 )
+from app.api.contract import RADIO_CHANNELS
 from app.radio.channels import rule_targets_output
 from app.radio.manager import get_radio_manager
 from app.api.routes.playback.radio_commands import _due_wait_end_announcement
 from app.scheduling.radio import _revert_radio_to_default, resolve_radio_default_playlist, start_radio_ambiance
 
 SETTING_KEYS = (
-    "display_output_cable", "display_output_network",
+    "display_output_cable", "display_output_network", "display_output_network_2",
     "radio_default_playlist_id_radio_cable", "radio_default_playlist_id_radio_network",
+    "radio_default_playlist_id_radio_network_2",
 )
 
 
 def _reset_engines():
-    for channel in ("radio_cable", "radio_network"):
+    for channel in RADIO_CHANNELS:
         asyncio.run(get_radio_manager(channel).stop())
 
 
@@ -89,12 +91,11 @@ def _put_output(client, channel, output):
     return client.put("/api/settings/display-output", json={"channel": channel, "output": output})
 
 
-def test_le_cable_accepte_radio_et_le_reseau_le_refuse(client):
-    assert _put_output(client, "cable", "radio").status_code == 200
-    assert client.get("/api/settings/display-output").json()["cable"] == "radio"
-    refused = _put_output(client, "network", "radio")
-    assert refused.status_code == 422
-    assert client.get("/api/settings/display-output").json()["network"] != "radio"
+def test_chaque_sortie_accepte_la_radio_et_refuse_un_mode_inconnu(client):
+    for channel in ("cable", "network", "network_2"):
+        assert _put_output(client, channel, "radio").status_code == 200
+        assert client.get("/api/settings/display-output").json()[channel] == "radio"
+        assert _put_output(client, channel, "kiosk").status_code == 200
     assert _put_output(client, "cable", "n'importe quoi").status_code == 422
 
 
@@ -239,10 +240,14 @@ def test_fin_de_fenetre_recharge_en_pause_une_sortie_cable_non_basculee(client):
     _seed_library(("Ambiance",), default="Ambiance")
     db = SessionLocal()
     try:
+        _put_output(client, "network", "kiosk")
+        _put_output(client, "network_2", "radio")
         asyncio.run(_revert_radio_to_default(db, "radio_cable"))
         assert get_radio_manager("radio_cable").state["state"] == "paused"
         asyncio.run(_revert_radio_to_default(db, "radio_network"))
-        assert get_radio_manager("radio_network").state["state"] == "playing"
+        assert get_radio_manager("radio_network").state["state"] == "paused"
+        asyncio.run(_revert_radio_to_default(db, "radio_network_2"))
+        assert get_radio_manager("radio_network_2").state["state"] == "playing"
     finally:
         db.close()
 
@@ -250,25 +255,25 @@ def test_fin_de_fenetre_recharge_en_pause_une_sortie_cable_non_basculee(client):
 def test_cible_de_rappel_applique_a_la_bonne_sortie():
     assert rule_targets_output("radio_cable", "radio_cable")
     assert not rule_targets_output("radio_cable", "radio_network")
-    assert rule_targets_output("both", "radio_cable") and rule_targets_output("both", "radio_network")
-    assert rule_targets_output("radio", "radio_network") and not rule_targets_output("radio", "radio_cable")
-    assert rule_targets_output(None, "radio_network") and not rule_targets_output(None, "radio_cable")
+    assert rule_targets_output("radio", "radio_network_2") and not rule_targets_output("radio", "radio_network")
+    assert rule_targets_output(None, "radio_network_2") and not rule_targets_output(None, "radio_cable")
 
 
 def test_les_regles_de_rappel_ont_une_cible_validee_et_ancienne_valeur_reseau(client):
     base = {"rule_type": "every_n_tracks", "n_tracks": 2}
     created = client.post("/api/radio/announcement-rules", json=base)
     assert created.status_code == 201
-    assert created.json()["target"] == "radio_network"
+    assert created.json()["target"] == "radio_network_2"
     cable = client.post("/api/radio/announcement-rules", json={**base, "target": "radio_cable"})
     assert cable.json()["target"] == "radio_cable"
-    both = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "target": "both"})
-    assert both.json()["target"] == "both"
+    moved = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "target": "radio_network"})
+    assert moved.json()["target"] == "radio_network"
+    assert client.post("/api/radio/announcement-rules", json={**base, "target": "both"}).status_code == 422
     assert client.post("/api/radio/announcement-rules", json={**base, "target": "zzz"}).status_code == 422
     kept = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "enabled": False})
-    assert kept.status_code == 200 and kept.json()["target"] == "both"
+    assert kept.status_code == 200 and kept.json()["target"] == "radio_network"
     listed = client.get("/api/radio/announcement-rules").json()
-    assert {r["target"] for r in listed} == {"radio_network", "both"}
+    assert {r["target"] for r in listed} == {"radio_network_2", "radio_network"}
 
 
 def test_la_regle_toutes_les_n_musiques_est_filtree_par_sortie(client):
@@ -286,22 +291,19 @@ def test_la_regle_toutes_les_n_musiques_est_filtree_par_sortie(client):
         db.close()
 
 
-def test_play_now_cible_une_sortie_ou_les_deux(client):
+def test_play_now_cible_une_seule_sortie(client):
     db = SessionLocal()
     try:
         db.add(RadioAnnouncement(file_path="/tmp/test-rappel2.mp3", description="Bonjour", duration_seconds=3.0))
         db.commit()
     finally:
         db.close()
-    cable, network = get_radio_manager("radio_cable"), get_radio_manager("radio_network")
+    cable, network = get_radio_manager("radio_cable"), get_radio_manager("radio_network_2")
     assert client.post("/api/radio/announcements/play-now", json={"target": "radio_cable"}).status_code == 200
     assert cable.state["current_announcement"] and not network.state["current_announcement"]
     _reset_engines()
     assert client.post("/api/radio/announcements/play-now", json={}).status_code == 200
     assert network.state["current_announcement"] and not cable.state["current_announcement"]
-    _reset_engines()
-    assert client.post("/api/radio/announcements/play-now", json={"target": "both"}).status_code == 200
-    assert cable.state["current_announcement"] and network.state["current_announcement"]
 
 
 def test_les_deux_canaux_acceptent_la_sortie_visuel_qui_coupe_la_video(client):
@@ -311,7 +313,8 @@ def test_les_deux_canaux_acceptent_la_sortie_visuel_qui_coupe_la_video(client):
     asyncio.run(manager.load(1, "Cours", 600.0, None, None))
     assert _put_output(client, "cable", "signage").status_code == 200
     assert _put_output(client, "network", "signage").status_code == 200
-    assert client.get("/api/settings/display-output").json() == {"cable": "signage", "network": "signage", "network_2": "kiosk"}
+    outputs = client.get("/api/settings/display-output").json()
+    assert (outputs["cable"], outputs["network"]) == ("signage", "signage")
     assert not get_playback_manager("network").snapshot()["current_video"]
 
 

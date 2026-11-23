@@ -197,6 +197,57 @@ def migrate_schedule_radio_channel_to_network():
             )
 
 
+RADIO_OUTPUTS_MARK = "migration_radio_outputs"
+_RADIO_KEY_PREFIXES = ("radio_sound_", "radio_mix_", "radio_default_playlist_id_")
+_RULE_COLUMNS = "rule_type, n_tracks, interval_minutes, times_of_day, enabled, created_at"
+
+
+def migrate_radio_outputs():
+    """La radio réseau devient celle de Réseau 2, une seule fois : planning, règles, réglages et route audio ; règles « les deux » recopiées sur chaque ancienne sortie."""
+    from sqlalchemy import text
+
+    if not database._IS_SQLITE:
+        return
+    with database.engine.begin() as conn:
+        tables = {row[0] for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))}
+        if not {"settings", "schedules", "radio_announcement_rules"} <= tables:
+            return
+        if conn.execute(text("SELECT 1 FROM settings WHERE key = :key"), {"key": RADIO_OUTPUTS_MARK}).first():
+            return
+        moved = conn.execute(text("UPDATE schedules SET channel='radio_network_2' WHERE channel='radio_network'")).rowcount
+        conn.execute(text("UPDATE radio_announcement_rules SET target='radio_network_2' WHERE target IN ('radio_network', 'radio')"))
+        conn.execute(text(
+            f"INSERT INTO radio_announcement_rules ({_RULE_COLUMNS}, target) "
+            f"SELECT {_RULE_COLUMNS}, 'radio_network_2' FROM radio_announcement_rules WHERE target = 'both'"
+        ))
+        conn.execute(text("UPDATE radio_announcement_rules SET target='radio_cable' WHERE target = 'both'"))
+        for prefix in _RADIO_KEY_PREFIXES:
+            conn.execute(text("UPDATE settings SET key = :new WHERE key = :old"),
+                         {"new": f"{prefix}radio_network_2", "old": f"{prefix}radio_network"})
+        _move_audio_route(conn)
+        conn.execute(text("INSERT OR IGNORE INTO settings (key, value) VALUES ('display_output_network_2', 'radio')"))
+        conn.execute(text("INSERT INTO settings (key, value) VALUES (:key, '1')"), {"key": RADIO_OUTPUTS_MARK})
+    logger.info(f"Migration : radio réseau rattachée à Réseau 2 ({moved} programmation(s))")
+
+
+def _move_audio_route(conn) -> None:
+    import json
+
+    from sqlalchemy import text
+
+    from app.devices.routing import ROUTES_SETTING
+
+    row = conn.execute(text("SELECT value FROM settings WHERE key = :key"), {"key": ROUTES_SETTING}).first()
+    try:
+        routes = json.loads(row[0]) if row and row[0] else {}
+    except ValueError:
+        logger.warning("Migration : routes audio illisibles, laissées telles quelles")
+        return
+    if not isinstance(routes, dict) or "radio_network" not in routes:
+        return
+    routes["radio_network_2"] = routes.pop("radio_network")
+    conn.execute(text("UPDATE settings SET value = :value WHERE key = :key"), {"value": json.dumps(routes), "key": ROUTES_SETTING})
+
 def migrate_backfill_video_metadata():
     if not database._IS_SQLITE:
         return

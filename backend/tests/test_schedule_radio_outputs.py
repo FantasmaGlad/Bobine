@@ -44,7 +44,7 @@ def _clean_db():
 
 
 def _stop_engines():
-    for channel in ("radio_cable", "radio_network"):
+    for channel in ("radio_cable", "radio_network_2"):
         asyncio.run(get_radio_manager(channel).stop())
 
 
@@ -105,27 +105,27 @@ def test_la_migration_rattache_l_ancienne_voie_radio_a_la_sortie_reseau_et_est_i
 def test_creation_sur_chaque_voie_radio_et_alias_historique(client):
     pid = _playlist()
     stored = {}
-    for requested in ("radio_cable", "radio_network", "radio"):
+    for requested in ("radio_cable", "radio_network_2", "radio"):
         response = client.post("/api/schedule", json=_payload(pid, requested))
         assert response.status_code == 200, response.text
         stored[requested] = response.json()["channel"]
-    assert stored == {"radio_cable": "radio_cable", "radio_network": "radio_network", "radio": "radio_network"}
+    assert stored == {"radio_cable": "radio_cable", "radio_network_2": "radio_network_2", "radio": "radio_network_2"}
 
 
 def test_une_cible_radio_ne_vit_jamais_sur_une_voie_video_et_inversement(client):
     pid = _playlist()
-    assert client.post("/api/schedule", json=_payload(pid, "cable")).json()["channel"] == "radio_network"
-    assert client.post("/api/schedule", json=_payload(pid, "zzz")).json()["channel"] == "radio_network"
+    assert client.post("/api/schedule", json=_payload(pid, "cable")).json()["channel"] == "radio_network_2"
+    assert client.post("/api/schedule", json=_payload(pid, "zzz")).json()["channel"] == "radio_network_2"
 
 
 def test_filtres_de_liste_par_voie_avec_alias(client):
     pid = _playlist()
     client.post("/api/schedule", json=_payload(pid, "radio_cable"))
-    client.post("/api/schedule", json=_payload(pid, "radio_network"))
+    client.post("/api/schedule", json=_payload(pid, "radio_network_2"))
     by_channel = lambda ch: [s["channel"] for s in client.get("/api/schedule", params={"channel": ch}).json()]
     assert by_channel("radio_cable") == ["radio_cable"]
-    assert by_channel("radio_network") == ["radio_network"]
-    assert by_channel("radio") == ["radio_network"]
+    assert by_channel("radio_network_2") == ["radio_network_2"]
+    assert by_channel("radio") == ["radio_network_2"]
     assert len(client.get("/api/schedule").json()) == 2
 
 
@@ -134,11 +134,11 @@ def test_lancement_radio_reseau_demarre_et_radio_cable_ramene_l_ecran_cable_sur_
     assert client.get("/api/settings/display-output").json()["cable"] != "radio"
     db = SessionLocal()
     try:
-        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network"))
+        asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_network_2"))
         asyncio.run(launch_target(db, ScheduleTargetType.radio_playlist, pid, "radio_cable"))
     finally:
         db.close()
-    network, cable = get_radio_manager("radio_network"), get_radio_manager("radio_cable")
+    network, cable = get_radio_manager("radio_network_2"), get_radio_manager("radio_cable")
     assert network.state["state"] == "playing"
     assert client.get("/api/settings/display-output").json()["cable"] == "radio"
     assert cable.state["state"] == "playing" and cable.state["playlist_id"] == pid
@@ -202,12 +202,12 @@ def test_fin_de_fenetre_revient_a_l_ambiance_de_la_sortie_visee_seulement(client
         db.query(RadioPlaylist).filter(RadioPlaylist.id == pid).update({"is_default": True})
         schedule = Schedule(target_type=ScheduleTargetType.radio_playlist, target_id=pid,
                             schedule_type=ScheduleType.recurring, recurrence_rule='{"days_of_week":[0],"time":"08:00","end_time":"10:00"}',
-                            channel="radio_network")
+                            channel="radio_network_2")
         db.add(schedule)
         db.commit()
         schedule_id = schedule.id
     finally:
         db.close()
     asyncio.run(fire_schedule_end(schedule_id))
-    assert get_radio_manager("radio_network").state["state"] == "playing"
+    assert get_radio_manager("radio_network_2").state["state"] == "playing"
     assert get_radio_manager("radio_cable").state["state"] == "idle"

@@ -4,8 +4,6 @@ export const radioLibrary: Dict = {
   title: "Piste Audio Radio",
   outputDefaultLabel: "Ambiance par défaut pour :",
   outputDefaultHint: "Choisit cette playlist comme ambiance de la sortie (démarrage, fin de fenêtre de planning, bascule de l'écran câblé sur Radio). Sans choix propre, la playlist par défaut est utilisée.",
-  outputCable: "Radio câblée",
-  outputNetwork: "Radio réseau",
   searchPlaceholder: "Rechercher un titre, un artiste, un album…",
   importCta: "Importer un audio",
   importHint: "ZIP, dossier ou pistes — cliquez ou glissez-déposez.",

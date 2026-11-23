@@ -16,6 +16,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { oneOf } from "@/lib/urlView";
 import { useUrlView } from "@/lib/useUrlView";
 import { useToast } from "@/lib/useToast";
+import { RADIO_CHANNELS } from "@/lib/outputs";
 
 const VIEWS = oneOf(["announcements", "rules"] as const, "announcements");
 
@@ -30,11 +31,7 @@ export default function RadioAnnouncementsPage() {
   const { playNowTarget, setPlayNowTarget, handlePlayNow } = usePlayNow(t, showToast);
   const announcements = view === "announcements";
 
-  const targetOptions = [
-    { value: "radio_network", label: t("radioAnnouncements.targetNetwork") },
-    { value: "radio_cable", label: t("radioAnnouncements.targetCable") },
-    { value: "both", label: t("radioAnnouncements.targetBoth") },
-  ];
+  const targetOptions = RADIO_CHANNELS.map((channel) => ({ value: channel, label: t(`outputs.${channel}`) }));
 
   const actions = (
     <div className="ra-actions">

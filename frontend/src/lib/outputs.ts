@@ -1,16 +1,16 @@
 export const OUTPUTS = [
   { id: "cable", radioChannel: "radio_cable", modes: ["kiosk", "cinema", "radio", "signage"], wired: true, coach: true },
-  { id: "network", radioChannel: "radio_network", modes: ["kiosk", "cinema", "signage"], wired: false, coach: false },
-  { id: "network_2", radioChannel: null, modes: ["kiosk", "cinema", "signage"], wired: false, coach: false },
+  { id: "network", radioChannel: "radio_network", modes: ["kiosk", "cinema", "radio", "signage"], wired: false, coach: false },
+  { id: "network_2", radioChannel: "radio_network_2", modes: ["kiosk", "cinema", "radio", "signage"], wired: false, coach: false },
 ] as const;
 
 export type OutputSpec = (typeof OUTPUTS)[number];
 export type OutputId = OutputSpec["id"];
-export type RadioChannelId = NonNullable<OutputSpec["radioChannel"]>;
+export type RadioChannelId = OutputSpec["radioChannel"];
 export type DisplayMode = OutputSpec["modes"][number];
 
 export const OUTPUT_IDS: readonly OutputId[] = OUTPUTS.map((output) => output.id);
-export const RADIO_CHANNELS: readonly RadioChannelId[] = OUTPUTS.flatMap((output) => (output.radioChannel ? [output.radioChannel] : []));
+export const RADIO_CHANNELS: readonly RadioChannelId[] = OUTPUTS.map((output) => output.radioChannel);
 export const DISPLAY_MODES: readonly DisplayMode[] = [...new Set(OUTPUTS.flatMap((output): readonly DisplayMode[] => output.modes))];
 
 export function outputById(id: OutputId): OutputSpec {
@@ -35,5 +35,5 @@ export function hasMode(id: OutputId, mode: DisplayMode): boolean {
 
 export const DEFAULT_OUTPUT: OutputId = OUTPUTS[0].id;
 export const WIRED_OUTPUT: OutputId = (OUTPUTS.find((output) => output.wired) ?? OUTPUTS[0]).id;
-export const DEFAULT_RADIO_CHANNEL: RadioChannelId = "radio_network";
+export const DEFAULT_RADIO_CHANNEL: RadioChannelId = outputById("network_2").radioChannel;
 export const NETWORK_FALLBACK: OutputId = (OUTPUTS.find((output) => !output.wired) ?? OUTPUTS[0]).id;

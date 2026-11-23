@@ -58,7 +58,7 @@ export default function SoundSection({ caps, refreshKey, notify, t, feed }: Prop
         const output = outputs.find((o) => o.channel === channel);
         const route = output?.route ?? null;
         const summary = output ? summarizeRouting(output) : null;
-        const name = t(`devices.channels.${channel}`);
+        const name = t(`outputs.${channel}`);
         return (
           <section key={channel} className="sd-group" aria-label={name}>
             {hasSolo(mix) && (
@@ -94,7 +94,7 @@ export default function SoundSection({ caps, refreshKey, notify, t, feed }: Prop
       })}
       <section className="sd-group" aria-label={t("devices.videoSound.title")}>
         {OUTPUT_IDS.map((channel) => (
-          <SoundRow key={channel} icon="movie" title={t(`devices.sound.video.${channel}`)} t={t}
+          <SoundRow key={channel} icon="movie" title={t("devices.sound.videoOf", { output: t(`outputs.${channel}`) })} t={t}
             sound={video.sounds[channel]} onSound={(next) => video.save(channel, next)} />
         ))}
       </section>

@@ -7,6 +7,8 @@ os.environ["BOBINE_WATCH_DIR"] = "data/test_watched"
 os.environ["BOBINE_THUMBNAILS_DIR"] = "data/test_thumbnails"
 
 import pytest
+
+from app.api.contract import RADIO_CHANNELS
 from fastapi.testclient import TestClient
 
 from app.database import SessionLocal, init_db
@@ -27,7 +29,7 @@ from app.radio.mix import (
 )
 from app.radio.sound import default_sound
 
-KEYS = ("radio_mix_radio_cable", "radio_mix_radio_network", "radio_sound_radio_cable", "radio_sound_radio_network")
+KEYS = ("radio_mix_radio_cable", "radio_mix_radio_network_2", "radio_sound_radio_cable", "radio_sound_radio_network_2")
 
 
 def test_reglages_neutres_et_copie_independante():
@@ -71,8 +73,8 @@ def test_champs_absents_gardent_la_base_et_l_egaliseur_des_rappels_est_borne():
 
 def test_cle_de_persistance_par_sortie_et_alias_historique():
     assert mix_setting_key("radio_cable") == "radio_mix_radio_cable"
-    assert mix_setting_key("radio") == "radio_mix_radio_network"
-    assert mix_setting_key("n'importe quoi") == "radio_mix_radio_network"
+    assert mix_setting_key("radio") == "radio_mix_radio_network_2"
+    assert mix_setting_key("n'importe quoi") == "radio_mix_radio_network_2"
 
 
 def test_niveaux_du_vumetre_bornes_et_limites_aux_tranches_connues():
@@ -86,7 +88,7 @@ def _clean():
     with SessionLocal() as db:
         db.query(Setting).filter(Setting.key.in_(KEYS)).delete(synchronize_session=False)
         db.commit()
-    for channel in ("radio_cable", "radio_network"):
+    for channel in ("radio_cable", "radio_network_2"):
         state = get_radio_manager(channel).state
         state["mix"], state["sound"], state["meter"] = default_mix(), default_sound(), False
 
@@ -97,13 +99,13 @@ def test_persistance_aller_retour_et_json_corrompu():
         assert load_mix(db, "radio_cable") == default_mix()
         save_mix(db, "radio_cable", {"music": {"gain_db": -6, "solo": True}})
         assert load_mix(db, "radio_cable")["music"] == {"gain_db": -6, "muted": False, "solo": True}
-        assert load_mix(db, "radio_network") == default_mix()
+        assert load_mix(db, "radio_network_2") == default_mix()
         db.query(Setting).filter(Setting.key == mix_setting_key("radio_cable")).first().value = "{pas du json"
         db.commit()
         assert load_mix(db, "radio_cable") == default_mix()
-        save_mix(db, "radio_network", {"master": {"muted": True}})
+        save_mix(db, "radio_network_2", {"master": {"muted": True}})
         load_all_mixes_into_managers(db)
-    assert get_radio_manager("radio_network").state["mix"]["master"]["muted"] is True
+    assert get_radio_manager("radio_network_2").state["mix"]["master"]["muted"] is True
     assert get_radio_manager("radio_cable").state["mix"] == default_mix()
     _clean()
 
@@ -118,7 +120,7 @@ def api(monkeypatch):
 
 def test_api_ecriture_bornee_persistee_et_publiee_dans_l_etat(api):
     initial = api.get("/api/devices/mixer").json()
-    assert [o["channel"] for o in initial["outputs"]] == ["radio_cable", "radio_network"]
+    assert [o["channel"] for o in initial["outputs"]] == list(RADIO_CHANNELS)
     assert initial["outputs"][0]["mix"] == default_mix() and initial["outputs"][0]["sound"] == default_sound()
 
     response = api.put("/api/devices/mixer/radio_cable", json={"mix": {"music": {"gain_db": -200, "solo": True}, "announcements": {"muted": True}}})
@@ -126,7 +128,7 @@ def test_api_ecriture_bornee_persistee_et_publiee_dans_l_etat(api):
     cable = response.json()["outputs"][0]
     assert cable["mix"]["music"] == {"gain_db": GAIN_MIN_DB, "muted": False, "solo": True} and cable["mix"]["announcements"]["muted"] is True
     assert get_radio_manager("radio_cable").state["mix"]["music"]["solo"] is True
-    assert get_radio_manager("radio_network").state["mix"] == default_mix()
+    assert get_radio_manager("radio_network_2").state["mix"] == default_mix()
     with SessionLocal() as db:
         assert load_mix(db, "radio_cable")["music"]["solo"] is True
 
@@ -136,11 +138,11 @@ def test_api_ecriture_bornee_persistee_et_publiee_dans_l_etat(api):
 
 
 def test_api_egaliseur_de_la_musique_meme_chemin_que_le_son_radio(api):
-    response = api.put("/api/devices/mixer/radio_network", json={"sound": {"bands": [4, 0, 0, 0, -2], "bass_boost": 50}})
+    response = api.put("/api/devices/mixer/radio_network_2", json={"sound": {"bands": [4, 0, 0, 0, -2], "bass_boost": 50}})
     assert response.status_code == 200
-    sound = get_radio_manager("radio_network").state["sound"]
+    sound = get_radio_manager("radio_network_2").state["sound"]
     assert sound["bands"] == [4, 0, 0, 0, -2] and sound["bass_boost"] == 12
-    assert api.get("/api/radio/sound", params={"channel": "radio_network"}).json()["bands"][0] == 4
+    assert api.get("/api/radio/sound", params={"channel": "radio_network_2"}).json()["bands"][0] == 4
 
 
 def test_api_erreurs_structurees(api):
@@ -231,7 +233,7 @@ def test_le_flux_d_evenement_niveaux_est_propre_a_la_sortie():
         cable, network = WS(), WS()
         m.active_connections.update({cable: None, network: None})
         m.subscribe(cable, ["radio_cable"])
-        m.subscribe(network, ["radio_network"])
+        m.subscribe(network, ["radio_network_2"])
         await m.broadcast({"event": "radio_levels", "channel": "radio_cable", "levels": {"music": 10}})
         assert len(cable.received) == 1 and network.received == []
 
