@@ -1,4 +1,4 @@
-:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"]):not(.dv-map-btn)):active {
+:where(button, [role="button"], summary, a.btn):where(:not(:disabled):not([aria-disabled="true"])):active {
   transform: scale(0.97);
   filter: brightness(var(--press-brightness, 0.92));
 }

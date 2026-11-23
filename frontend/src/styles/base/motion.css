@@ -145,15 +145,6 @@
   }
 }
 
-@keyframes dv-flash {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-primary) 70%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 16px transparent;
-  }
-}
-
 @keyframes rt-edge-pulse {
   50% {
     opacity: 0.5;

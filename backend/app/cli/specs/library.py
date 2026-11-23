@@ -32,4 +32,5 @@ SPECS: tuple[Spec, ...] = (
           files=("file",)),
     route("library", "chapters-embedded", "POST", "/api/videos/{video_id}/chapters/from-file", "lire les chapitres du fichier vidéo"),
     route("library", "chapters-export", "GET", "/api/videos/{video_id}/chapters/export", "exporter les chapitres"),
+    route("library", "storyboard", "GET", "/api/videos/{video_id}/storyboard", "mosaïque d'aperçu de la barre de lecture"),
 )
