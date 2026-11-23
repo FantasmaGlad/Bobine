@@ -6,7 +6,7 @@ import { useAppSettings } from "@/lib/AppSettingsContext";
 import { useAudioClockFollower } from "@/lib/useAudioClockFollower";
 import { useVideoClockFollower } from "@/lib/useVideoClockFollower";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
-import { useKioskRemote } from "@/lib/useKioskRemote";
+import { useKioskRemote } from "@/lib/input/useKioskRemote";
 import Icon from "@/components/Icon";
 import { subtitleSrc, useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 import { chapterJumpTarget, useVideoChapters } from "@/lib/chapters";

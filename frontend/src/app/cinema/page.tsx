@@ -26,7 +26,7 @@ import { unloadMedia } from "@/lib/mediaElement";
 import type { ClockAnchor } from "@/lib/playbackClock";
 import { useApplySubtitleMode, useVideoSubtitles } from "@/lib/subtitles";
 import { getDisplayChannel, isWiredDisplay, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
-import { useKioskRemote } from "@/lib/useKioskRemote";
+import { useKioskRemote } from "@/lib/input/useKioskRemote";
 import { useMediaClockFollower, type ClockTarget } from "@/lib/useMediaClockFollower";
 import { useMediaSound } from "@/lib/useMediaSound";
 import { useScrubber } from "@/lib/useScrubber";
