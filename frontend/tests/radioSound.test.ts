@@ -14,6 +14,10 @@ import {
   knownPresetId,
   matchingPreset,
   peakBoostDb,
+  LIMITER_OFF,
+  LIMITER_ON,
+  limiterMakeupDb,
+  limiterTrim,
   toGraphParams,
 } from "../src/lib/radioSound.ts";
 
@@ -80,8 +84,7 @@ test("le préampli ne donne jamais de gain positif et compense le pire relèveme
   const cutOnly = { ...defaultSound(), bands: [-6, -6, -6, -6, -6] };
   assert.equal(computePreamp(cutOnly), 1);
   const extreme = { ...defaultSound(), bands: [12, 12, 12, 12, 12], bass_boost: 12, loudness: true };
-  assert.ok(computePreamp(extreme) >= Math.pow(10, -18 / 20) - 1e-9, "atténuation plafonnée");
-  assert.ok(computePreamp(extreme) <= 1);
+  assert.ok(Math.abs(computePreamp(extreme) * Math.pow(10, peakBoostDb(extreme) / 20) - 1) < 1e-9, "le plus fort renfort est entièrement compensé");
 });
 
 test("son neutre : tous les filtres à 0 dB, préampli à 1, limiteur transparent", () => {
@@ -135,4 +138,13 @@ test("isNeutralSound : contournement ou tout à plat sans loudness", async () =>
   assert.equal(isNeutralSound({ ...defaultSound(), bass_boost: 2 }), false);
   assert.equal(isNeutralSound({ ...defaultSound(), loudness: true }), false);
   assert.equal(isNeutralSound({ ...defaultSound(), limiter: false }), true);
+});
+
+test("le gain de rattrapage du compresseur est annulé : le limiteur ne fait jamais dépasser 0 dBFS", () => {
+  for (const limiter of [LIMITER_ON, LIMITER_OFF]) {
+    const thresholdOut = limiter.threshold + (0 - limiter.threshold) / limiter.ratio;
+    const outDb = thresholdOut + limiterMakeupDb(limiter) + 20 * Math.log10(limiterTrim(limiter));
+    assert.ok(outDb <= 1e-9, `sortie à 0 dBFS en entrée : ${outDb.toFixed(2)} dB`);
+  }
+  assert.ok(LIMITER_ON.attack >= 0.01, "attaque assez lente pour ne pas déformer les basses");
 });

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import RadioSoundPanel from "@/components/RadioSoundPanel";
+import Link from "next/link";
+import Icon from "@/components/Icon";
+import { useAppSettings } from "@/lib/AppSettingsContext";
 import NowPlayingCard from "@/components/radio/remote/NowPlayingCard";
 import PlaylistLauncher from "@/components/radio/remote/PlaylistLauncher";
 import QueuePanel from "@/components/radio/remote/QueuePanel";
@@ -15,6 +17,7 @@ interface RadioRemotePanelProps {
 }
 
 export default function RadioRemotePanel({ channel, variant = "full" }: RadioRemotePanelProps) {
+  const { t } = useAppSettings();
   const [lastCause, setLastCause] = useState("sync");
   const handleRadioEvent = (evt: RadioEvent) => setLastCause(evt.cause);
   const { state, connected, sendCommand } = useRadioSocket(handleRadioEvent, undefined, channel);
@@ -26,9 +29,10 @@ export default function RadioRemotePanel({ channel, variant = "full" }: RadioRem
       <div className="dashboard-bento-grid" style={variant === "compact" ? { gridTemplateColumns: "1fr" } : undefined}>
         <div className="bento-col-main">
           <PlaylistLauncher sendCommand={sendCommand} />
-          <div className="live-block" style={{ marginTop: "16px" }}>
-            <RadioSoundPanel sound={state.sound} sendCommand={sendCommand} variant={variant} />
-          </div>
+          <Link href="/settings/?vue=sound" className="btn btn-secondary radio-sound-link">
+            <Icon name="graphic_eq" size={18} />
+            {t("radioRemote.soundSettings")}
+          </Link>
         </div>
         {variant === "full" && (
           <div className="bento-col-side">

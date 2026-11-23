@@ -8,10 +8,16 @@
   transform: none;
 }
 
-.settings-danger-zone {
+.settings-danger-zone,
+.settings-stack {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+.settings-danger-zone[hidden],
+.settings-stack[hidden] {
+  display: none;
 }
 
 .settings-danger h3 {

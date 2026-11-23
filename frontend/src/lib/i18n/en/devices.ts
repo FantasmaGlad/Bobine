@@ -3,9 +3,7 @@ import type { Dict } from "../core.ts";
 export const devices: Dict = {
   channelWords: { mono: "Mono", stereo: "Stereo", stereoMap: "Stereo ({{map}})", count: "{{count}} channels", left: "L", right: "R", rearLeft: "RL", rearRight: "RR", sideLeft: "Side L", sideRight: "Side R" },
   loading: "Loading…",
-  sectionsLabel: "Device sections",
   settingsOpened: "Settings opened on the device.",
-  tabs: { devices: "Devices", sound: "Sound" },
   groups: { audio: "Audio outputs", bluetooth: "Bluetooth" },
   sound: { video: { cable: "Wired video", network: "Network video" } },
   errors: {

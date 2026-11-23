@@ -56,27 +56,6 @@
   border-radius: 4px;
 }
 
-.settings-timing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 4px 24px;
-}
-
-.settings-timing-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.settings-timing-field .form-control {
-  max-width: 160px;
-}
-
-.settings-timing-unit {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
 .settings-search {
   display: flex;
   align-items: center;
@@ -267,3 +246,99 @@ details.settings-doc-group[open] > summary.settings-doc-header::after {
   height: 22px;
   accent-color: var(--accent-primary);
 }
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 24px;
+  align-items: start;
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.settings-aside {
+  position: sticky;
+  top: 16px;
+}
+
+.settings-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-tree .settings-search {
+  width: 100%;
+}
+
+.settings-tree-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-tree-title {
+  display: block;
+  margin: 0 0 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.settings-tree-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-tree-item:hover {
+  color: var(--text-main);
+  background: var(--bg-surface-hover);
+}
+
+.settings-tree-item.is-active {
+  color: var(--text-main);
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 3px 0 0 var(--accent-text);
+}
+
+@media (max-width: 900px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-aside {
+    position: static;
+    order: -1;
+  }
+
+  .settings-tree-group ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .settings-tree-item {
+    width: auto;
+  }
+}
+

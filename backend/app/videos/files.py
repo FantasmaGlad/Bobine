@@ -16,7 +16,7 @@ from app.models import ScheduleTargetType, Video
 from app.scheduling.targets import drop_schedules_targeting, remove_jobs
 from app.utils import chapters as chapter_utils
 from app.utils.web_rendition import remove_web_file
-from app.videos.storyboard import storyboard_path
+from app.videos.storyboard import remove_storyboard
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,6 @@ def _owned_files(video: Video) -> list[tuple[str, str]]:
         files.append(("fichier média", video.file_path))
     if video.thumbnail_path:
         files.append(("miniature", video.thumbnail_path))
-    files.append(("mosaïque d'aperçu", str(storyboard_path(video.id))))
     return files + [("fichier de sous-titres", sub.file_path) for sub in video.subtitles]
 
 
@@ -94,6 +93,7 @@ def delete_video(db: Session, video: Video) -> None:
     db.commit()
     remove_jobs(schedule_ids)
     remove_web_file(web_path)
+    remove_storyboard(video.id)
     for label, path in files:
         try:
             Path(path).unlink(missing_ok=True)
