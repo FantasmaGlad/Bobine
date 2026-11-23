@@ -22,7 +22,8 @@ def test_frontend_lists_equal_the_backend_lists():
     assert set(frontend_list("RADIO_AUDIO_EXTENSIONS")) == set(media_formats.RADIO_AUDIO)
     assert set(frontend_list("COURSE_AUDIO_EXTENSIONS")) == set(media_formats.COURSE_AUDIO)
     assert tuple(frontend_list("ARCHIVE_EXTENSIONS")) == media_formats.ARCHIVE
-    assert {"." + ext for ext in frontend_list("VIDEO_EXTENSIONS")} >= set(media_formats.VIDEO)
+    assert {"." + ext for ext in frontend_list("VIDEO_EXTENSIONS")} == set(media_formats.BACKGROUND_VIDEO)
+    assert set(frontend_list("BACKGROUND_IMAGE_EXTENSIONS")) == set(media_formats.BACKGROUND_IMAGE_SOURCES)
     assert {"." + ext for ext in frontend_list("SUBTITLE_EXTENSIONS")} == set(media_formats.SUBTITLE)
 
 
@@ -36,6 +37,13 @@ def test_importers_share_the_single_lists():
     assert importer.SUPPORTED_EXTENSIONS is media_formats.VIDEO
     assert zip_safety.ARCHIVE_EXTENSIONS is media_formats.ARCHIVE
     assert paths.VIDEO_EXTENSIONS is media_formats.VIDEO and paths.AUDIO_EXTENSIONS == media_formats.SUPPORT_AUDIO
+    assert importer.IMAGE_EXTENSIONS is media_formats.BACKGROUND_IMAGE_SOURCES is paths.IMAGE_EXTENSIONS
+    assert importer.BACKGROUND_SUPPORTED_EXTENSIONS == media_formats.BACKGROUND_VIDEO | media_formats.BACKGROUND_IMAGE_SOURCES
+
+
+def test_formats_browsers_cannot_show_are_converted_not_stored():
+    assert not media_formats.CONVERTED_IMAGE & media_formats.BACKGROUND_IMAGE
+    assert not media_formats.BACKGROUND_IMAGE_SOURCES & media_formats.BACKGROUND_VIDEO
 
 
 def make_zip(path):

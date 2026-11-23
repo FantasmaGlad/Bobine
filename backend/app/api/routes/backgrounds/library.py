@@ -12,10 +12,9 @@ from app.api.paging import Window, window
 from app.database import get_db, SessionLocal
 from app.models import Background, ImportSource
 from app.utils.importer.background import import_background
-from app.utils.importer.formats import is_image_background
+from app.utils.importer.formats import BACKGROUND_SUPPORTED_EXTENSIONS, is_image_background
 from app.utils.executors import ffmpeg_executor
 from app.utils.archive_import import import_media_archive
-from app.utils import media_formats
 from app.utils.staged_uploads import receive_single_upload
 from app.utils.import_jobs import create_job, update_job, register_job_future, JobCancelledError
 from app.utils._pydantic_compat import OrmModel, _ComputedFieldsCompatMixin, computed_field
@@ -93,7 +92,7 @@ def upload_background(
 def _run_background_archive_job(job_id: str, archive_path: str) -> None:
     try:
         backgrounds = import_media_archive(
-            archive_path, job_id, media_formats.VIDEO | {".webm"} | media_formats.BACKGROUND_IMAGE,
+            archive_path, job_id, BACKGROUND_SUPPORTED_EXTENSIONS,
             lambda path, name: import_background(path, name, ImportSource.upload, job_id=job_id), "d'ambiance",
         )
         update_job(job_id, stage="done", result_id=backgrounds[0].id)

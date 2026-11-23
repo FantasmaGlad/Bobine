@@ -7,7 +7,7 @@ from pathlib import Path
 from app.config import settings
 from app.models import Background, ImportSource
 from app.utils.import_jobs import update_job
-from app.utils.importer.formats import IMAGE_EXTENSIONS
+from app.utils.importer.formats import IMAGE_EXTENSIONS, is_image_background
 from app.utils.importer.pipeline import Target, import_media, save, thumbnail_or_placeholder, wait_if_watched
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,37 @@ def _image_thumbnail(source: Path, file_id: str) -> str:
     return str(dest)
 
 
+def _flat(img):
+    if img.mode.startswith("I;16") or img.mode in ("I", "F"):
+        return img.convert("I").point(lambda value: value * (1 / 256)).convert("L")
+    alpha = "A" in img.getbands() or "transparency" in img.info
+    return img.convert("RGBA" if alpha else "RGB")
+
+
+def _store_image(source: Path, original_filename: str, file_id: str) -> Path:
+    from PIL import Image
+
+    if is_image_background(original_filename):
+        dest = Path(settings.backgrounds_dir) / f"bg_{file_id}{Path(original_filename).suffix.lower()}"
+        shutil.move(source, dest)
+        return dest
+    dest = Path(settings.backgrounds_dir) / f"bg_{file_id}.webp"
+    try:
+        with Image.open(source) as img:
+            if getattr(img, "n_frames", 1) > 1:
+                img.save(dest, "WEBP", save_all=True, quality=90, method=4, loop=img.info.get("loop", 0))
+            else:
+                _flat(img).save(dest, "WEBP", quality=92, method=4)
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
+    source.unlink()
+    logger.info("Fond %s converti en WebP pour l'affichage", original_filename)
+    return dest
+
+
 def import_background_image(src_path: str, original_filename: str, job_id: str | None = None) -> Background:
-    """Fond fixe : pipeline dédié, sans ffmpeg — une image n'a ni codec à valider ni normalisation à envisager, seule sa décodabilité compte (via Pillow)."""
+    """Fond image : pipeline dédié, sans ffmpeg ; un format que les navigateurs n'affichent pas est converti en WebP."""
     from PIL import Image, UnidentifiedImageError
 
     update_job(job_id, stage="probing")
@@ -43,13 +72,14 @@ def import_background_image(src_path: str, original_filename: str, job_id: str |
     try:
         with Image.open(src_path) as img:
             img.verify()
-    except (UnidentifiedImageError, OSError) as e:
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
         raise ValueError(f"Le fichier {original_filename} n'est pas une image valide : {e}")
 
     file_id = uuid.uuid4().hex
-    ext = Path(original_filename).suffix.lower()
-    dest_path = Path(settings.backgrounds_dir) / f"bg_{file_id}{ext}"
-    shutil.move(src_path, dest_path)
+    try:
+        dest_path = _store_image(Path(src_path), original_filename, file_id)
+    except (OSError, ValueError, Image.DecompressionBombError) as e:
+        raise ValueError(f"Le fichier {original_filename} n'a pas pu être converti : {e}")
 
     update_job(job_id, stage="thumbnail")
     thumbnail_path = thumbnail_or_placeholder(lambda: _image_thumbnail(dest_path, file_id), dest_path,

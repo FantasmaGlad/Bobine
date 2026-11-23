@@ -2,7 +2,7 @@
 
 import React from "react";
 import Icon from "@/components/Icon";
-import { ARCHIVE_ACCEPT, VIDEO_ACCEPT } from "@/lib/mediaFiles";
+import { ARCHIVE_ACCEPT, BACKGROUND_ACCEPT } from "@/lib/mediaFiles";
 
 export default function BackgroundsHeader({ t, fileInputRef, addFiles }: {
   t: (key: string) => string;
@@ -24,7 +24,7 @@ export default function BackgroundsHeader({ t, fileInputRef, addFiles }: {
         <input
           ref={fileInputRef}
           type="file"
-          accept={`${VIDEO_ACCEPT},image/*,${ARCHIVE_ACCEPT}`}
+          accept={`${BACKGROUND_ACCEPT},${ARCHIVE_ACCEPT}`}
           multiple
           style={{ display: "none" }}
           onChange={(e) => {
