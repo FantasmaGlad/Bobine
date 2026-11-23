@@ -30,10 +30,6 @@ def _grid_url() -> str:
     return f"{_admin_url()}/grid"
 
 
-def _cinema_url() -> str:
-    return f"{_admin_url()}/cinema"
-
-
 def _health_url() -> str:
     return f"{_admin_url()}/api/health"
 

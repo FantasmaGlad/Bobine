@@ -7,12 +7,13 @@ import webbrowser
 import pystray
 
 from app.desktop import tray_actions
+from app.quick_actions import QUICK_ACTIONS
 from app.desktop.displays import DisplayOrchestrator, DisplayWatcher
 
 from .tray_display import launch_kiosk_browser
 from .tray_supervisor import BackendSupervisor
 from .tray_updates import _notify_best_effort, _on_check_update, _update_text
-from .tray_urls import _admin_url, _cinema_url, _grid_url
+from .tray_urls import _admin_url
 
 
 def _output_items(controls: "tray_actions.Controls") -> list:
@@ -46,17 +47,15 @@ def _build_menu(supervisor: BackendSupervisor, orchestrator: DisplayOrchestrator
         supervisor.stop()
         icon.stop()
 
-    def opener(url):
-        return lambda icon, item: webbrowser.open(url())
+    def opener(path):
+        return lambda icon, item: webbrowser.open(_admin_url() + path)
 
     return pystray.Menu(
         pystray.MenuItem(lambda item: "État : en ligne" if supervisor.is_running() else "État : hors ligne", None, enabled=False),
         pystray.Menu.SEPARATOR,
         *_output_items(tray_actions.Controls(_admin_url)),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Ouvrir l'administration", opener(_admin_url), default=True),
-        pystray.MenuItem("Ouvrir le pupitre tactile (/grid)", opener(_grid_url)),
-        pystray.MenuItem("Ouvrir l'écran cinéma (/cinema)", opener(_cinema_url)),
+        *[pystray.MenuItem(action.name, opener(action.path), default=action.path == "/") for action in QUICK_ACTIONS],
         pystray.MenuItem("Ouvrir en mode kiosque", lambda icon, item: launch_kiosk_browser()),
         pystray.MenuItem("Rouvrir l'écran projecteur", on_reopen_projector),
         pystray.MenuItem(_update_text, _on_check_update),

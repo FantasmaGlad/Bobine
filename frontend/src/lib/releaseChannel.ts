@@ -23,6 +23,16 @@ export function channelFaviconUrl(channel: UpdateChannel): string {
   return `/favicon-${channel}.png`;
 }
 
+export function channelManifestUrl(channel: UpdateChannel): string {
+  return `/manifest-${channel}.json`;
+}
+
+export function applyChannelManifest(doc: Pick<Document, "querySelectorAll">, channel: UpdateChannel): void {
+  for (const link of Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="manifest"]'))) {
+    link.href = channelManifestUrl(channel);
+  }
+}
+
 export function applyChannelFavicon(
   doc: Pick<Document, "querySelectorAll" | "createElement" | "head">,
   channel: UpdateChannel,

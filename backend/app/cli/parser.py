@@ -20,7 +20,7 @@ from app.api.contract import (
 from .client import Client, local_version
 from .completion import completion_script
 from .config import cmd_backup, cmd_config, cmd_restore, cmd_settings
-from .control import cmd_api, cmd_diagnose, cmd_open, cmd_playback, cmd_update, cmd_update_status
+from .control import OPEN_PAGES, cmd_api, cmd_diagnose, cmd_open, cmd_playback, cmd_update, cmd_update_status
 from .core import DEFAULT_TIMEOUT, EXIT_OK, Output
 from .declared import add_import_commands, add_spec_commands
 from .paging import paged
@@ -229,7 +229,7 @@ def build_parser() -> argparse.ArgumentParser:
     completion.set_defaults(run=cmd_completion)
 
     open_page = sub.add_parser("open", parents=[sub_common], help="ouvrir une page de Bobine dans le navigateur (port réel)")
-    open_page.add_argument("page", nargs="?", default="admin", help="admin, grid, cinema, kiosk ou radio")
+    open_page.add_argument("page", nargs="?", default="admin", help=", ".join(OPEN_PAGES))
     open_page.set_defaults(run=cmd_open)
 
     sub.add_parser("version", parents=[sub_common], help="version de cette commande et du serveur visé").set_defaults(run=cmd_version)

@@ -30,6 +30,7 @@ ICO_SIZES = [(s, s) for s in (16, 24, 32, 48, 64, 128, 256)]
 ICNS_CANVAS = 1024
 TRAY_SIZE = 256
 FAVICON_SIZE = 64
+WEB_APP_SIZES = (192, 512)
 VERSIONS_SIZE = 1024
 SPLASH_SIZE = 512
 
@@ -124,6 +125,8 @@ def outputs_for_channel(channel: str) -> list[Output]:
 
     outputs.append(Output(f"frontend/public/logo-{channel}.png", master))
     outputs.append(Output(f"frontend/public/favicon-{channel}.png", resized(desktop, FAVICON_SIZE)))
+    for size in WEB_APP_SIZES:
+        outputs.append(Output(f"frontend/public/icon-{channel}-{size}.png", resized(desktop, size)))
 
     versions = resized(master, VERSIONS_SIZE)
     name = channel.capitalize()

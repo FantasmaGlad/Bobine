@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Language } from "@/lib/i18n";
 import { pushThemeToNative } from "@/lib/nativeBridge";
-import { applyChannelFavicon, type UpdateChannel } from "@/lib/releaseChannel";
+import { applyChannelFavicon, applyChannelManifest, type UpdateChannel } from "@/lib/releaseChannel";
 import { resolveMode, type ResolvedMode, type ThemeId, type ThemeMode } from "@/lib/themePalettes";
 
 export function useThemeDocument(theme: ThemeId, themeMode: ThemeMode, language: Language, updateChannel: UpdateChannel): ResolvedMode {
@@ -37,6 +37,7 @@ export function useThemeDocument(theme: ThemeId, themeMode: ThemeMode, language:
 
   useEffect(() => {
     applyChannelFavicon(document, updateChannel);
+    applyChannelManifest(document, updateChannel);
   }, [updateChannel]);
 
   return resolvedMode;
