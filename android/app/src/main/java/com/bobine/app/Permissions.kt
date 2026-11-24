@@ -2,6 +2,8 @@ package com.bobine.app
 
 import android.Manifest
 import android.app.Activity
+import android.bluetooth.BluetoothManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,18 +22,19 @@ object Permissions {
 
     val bluetooth: List<String> = listOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
 
-    fun runtime(context: Context): List<String> = buildList {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
-        if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)) addAll(bluetooth)
+    fun hasBluetooth(context: Context): Boolean {
+        val pm = context.packageManager
+        if (pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) || pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+            return true
+        }
+        return (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter != null
     }
+
+    fun runtime(context: Context): List<String> =
+        startupRuntimePermissions(Build.VERSION.SDK_INT, hasBluetooth(context))
 
     fun missing(context: Context, wanted: List<String>): List<String> =
         wanted.filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
-
-    fun requestNew(activity: Activity) {
-        val prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        ask(activity, missing(activity, runtime(activity)).filterNot { prefs.getBoolean(it, false) })
-    }
 
     fun request(activity: Activity, wanted: List<String>) {
         val absent = missing(activity, wanted)
@@ -63,14 +66,23 @@ object Permissions {
         if (wanted.isNotEmpty()) request(activity, wanted)
     }
 
-    private fun openAppSettings(activity: Activity) {
-        try {
-            activity.startActivity(
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        } catch (e: Exception) {
-            Log.w("Permissions", "Réglages de l'application indisponibles sur cet appareil", e)
+    fun openPackageSettings(context: Context, action: String, allowGenericFallback: Boolean = false): Boolean {
+        for ((intentAction, uriText) in packageSettingsSpecs(action, context.packageName, allowGenericFallback)) {
+            val intent = (if (uriText != null) Intent(intentAction, Uri.parse(uriText)) else Intent(intentAction))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(intent)
+                return true
+            } catch (e: ActivityNotFoundException) {
+                Log.w("Permissions", "Ecran systeme $intentAction (${uriText ?: "generique"}) indisponible", e)
+            } catch (e: Exception) {
+                Log.w("Permissions", "Ouverture de $intentAction impossible", e)
+            }
         }
+        return false
+    }
+
+    private fun openAppSettings(activity: Activity) {
+        openPackageSettings(activity, Settings.ACTION_APPLICATION_DETAILS_SETTINGS, allowGenericFallback = false)
     }
 }

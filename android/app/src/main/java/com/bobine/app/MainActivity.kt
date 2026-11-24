@@ -6,13 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
-import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -52,18 +49,17 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var loadRetry = Runnable { }
     private var webView: WebView? = null
+    private lateinit var startupPermissions: StartupPermissionFlow
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         activeActivity = java.lang.ref.WeakReference(this)
+        startupPermissions = StartupPermissionFlow(this)
 
-        Permissions.requestNew(this)
-        requestIgnoreBatteryOptimizations()
-        requestOverlayPermissionOnce()
         UpdateManager.cleanupStaleDownloads(this)
-
         startForegroundService(Intent(this, BobineForegroundService::class.java))
+        startupPermissions.start()
 
         if (isTv) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -211,32 +207,6 @@ class MainActivity : AppCompatActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) applyImmersiveFullscreen()
-    }
-
-    private fun requestOverlayPermissionOnce() {
-        if (Settings.canDrawOverlays(this) || !StartOnBoot.isEnabled(this)) return
-        val prefs = getSharedPreferences("bobine_native", MODE_PRIVATE)
-        if (prefs.getBoolean("overlay_permission_asked", false)) return
-        prefs.edit().putBoolean("overlay_permission_asked", true).apply()
-        try {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-        } catch (e: Exception) {
-            Log.w("MainActivity", "Ecran de permission d'affichage indisponible sur cet appareil", e)
-        }
-    }
-
-    private fun requestIgnoreBatteryOptimizations() {
-        val powerManager = getSystemService(PowerManager::class.java)
-        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
-            try {
-                startActivity(Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:$packageName")
-                ))
-            } catch (e: Exception) {
-                Log.w("MainActivity", "Impossible de demander l'exemption batterie", e)
-            }
-        }
     }
 
     private fun relayKeyToWeb(key: String, keyCode: Int, toPresentation: Boolean) {
