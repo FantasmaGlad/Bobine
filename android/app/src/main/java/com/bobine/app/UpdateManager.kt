@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -61,14 +60,7 @@ object UpdateManager {
     }
 
     private fun openUnknownSourcesSettings(context: Context) {
-        try {
-            context.startActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        } catch (e: Exception) {
-            Log.w(TAG, "Ouverture de l'ecran des sources inconnues impossible : ${e.message}")
-        }
+        Permissions.openPackageSettings(context, Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, allowGenericFallback = true)
     }
 
     fun cleanupStaleDownloads(context: Context) {

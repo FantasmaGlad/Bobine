@@ -10,7 +10,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
@@ -44,8 +43,7 @@ object BluetoothBridge {
         return if (missingBluetooth(context)) permissionRequired(context) else bridgeOk()
     }
 
-    fun hasBluetooth(context: Context): Boolean =
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)
+    fun hasBluetooth(context: Context): Boolean = Permissions.hasBluetooth(context)
 
     private fun kindOf(device: BluetoothDevice): String {
         @SuppressLint("MissingPermission")
