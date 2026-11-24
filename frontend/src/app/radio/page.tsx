@@ -9,10 +9,9 @@ import { radioChannelId } from "@/lib/displayChannel";
 import UpcomingCourse from "@/components/UpcomingCourse";
 import { UI_LANGUAGE } from "@/lib/i18n";
 import { useNextCourse } from "@/lib/useNextCourse";
-import { createSoundChain, type SoundChain } from "@/lib/radioSoundGraph";
-import { createMixStage, type MixStage } from "@/lib/radioMixGraph";
-import { clampMix, defaultMix } from "@/lib/radioMix";
-import { defaultSound } from "@/lib/radioSound";
+import { type MixStage } from "@/lib/radioMixGraph";
+import { clampMix } from "@/lib/radioMix";
+import { createRadioAudioEngine, type RadioAudioEngine } from "@/lib/audio/radioAudioEngine";
 import { useAudioRoute } from "@/lib/useAudioRoute";
 import { detectAutoplayAllowed } from "@/lib/autoplayProbe";
 import { getDisplayChannel, useDisplayOutputRedirect } from "@/lib/useDisplayOutputRedirect";
@@ -25,9 +24,8 @@ import { useAudioContextKeepAlive } from "@/components/radio/useAudioContextKeep
 import { useDuckSettings } from "@/components/radio/useDuckSettings";
 import { useLevelMeter } from "@/components/radio/useLevelMeter";
 import { useRadioRemote } from "@/components/radio/useRadioRemote";
-import { rampParam, rampParamFrom, setParamNow } from "@/components/radio/engine/params";
 import { crossfadeDurationMs, crossfadeSeconds, crossfadeTarget } from "@/components/radio/engine/crossfade";
-import { decideTrack, otherSlot, targetGain, transportAction, type Slot } from "@/components/radio/engine/trackSync";
+import { decideTrack, otherSlot, shouldSyncSameTrackGain, targetGain, transportAction, type Slot } from "@/components/radio/engine/trackSync";
 import { planAnnouncement, type ActiveAnnouncement } from "@/components/radio/engine/announcements";
 import { RECOVERY_POLL_MS, STALL_CHECK_MS, recoveryOutcome, stalled } from "@/components/radio/engine/recovery";
 
@@ -40,19 +38,8 @@ export default function RadioScreenPage() {
   const getAudioEl = (slot: Slot): HTMLAudioElement | null => (slot === 0 ? audioARef.current : audioBRef.current);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const gainARef = useRef<GainNode | null>(null);
-  const gainBRef = useRef<GainNode | null>(null);
-  const getGain = (slot: Slot): GainNode | null => (slot === 0 ? gainARef.current : gainBRef.current);
-  const setGainRef = (slot: Slot, node: GainNode) => {
-    if (slot === 0) gainARef.current = node;
-    else gainBRef.current = node;
-  };
-  const announcementGainRef = useRef<GainNode | null>(null);
-  const graphReadyRef = useRef(false);
-  const soundChainRef = useRef<SoundChain | null>(null);
-  const soundRef = useRef(defaultSound());
   const mixStageRef = useRef<MixStage | null>(null);
-  const mixRef = useRef(defaultMix());
+  const engineRef = useRef<RadioAudioEngine | null>(null);
   const [graphReady, setGraphReady] = useState(false);
 
   const [unlocked, setUnlocked] = useState(false);
@@ -74,53 +61,24 @@ export default function RadioScreenPage() {
   const recoveryPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const duckSettingsRef = useDuckSettings();
 
-  const ensureAudioGraph = (initialVolume: number) => {
-    if (graphReadyRef.current) return;
-    const AudioContextClass =
-      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    audioCtxRef.current = ctx;
-    const mixStage = createMixStage(ctx, ctx.destination, mixRef.current);
-    mixStageRef.current = mixStage;
-    const soundChain = createSoundChain(ctx, mixStage.musicInput, soundRef.current);
-    soundChainRef.current = soundChain;
-    for (const slot of [0, 1] as Slot[]) {
-      const el = getAudioEl(slot);
-      if (!el) continue;
-      el.volume = 1;
-      const gain = ctx.createGain();
-      gain.gain.value = slot === activeSlotRef.current ? initialVolume / 100 : 0;
-      gain.connect(soundChain.input);
-      ctx.createMediaElementSource(el).connect(gain);
-      setGainRef(slot, gain);
+  const ensureEngine = useCallback((): RadioAudioEngine => {
+    if (!engineRef.current) {
+      engineRef.current = createRadioAudioEngine({
+        getSlot: (slot) => (slot === 0 ? audioARef.current : audioBRef.current),
+        getAnnouncement: () => announcementAudioRef.current,
+        onGraphReady: (ctx, stage) => {
+          audioCtxRef.current = ctx;
+          mixStageRef.current = stage;
+          setGraphReady(true);
+        },
+      });
     }
-    const annEl = announcementAudioRef.current;
-    if (annEl) {
-      annEl.volume = 1;
-      const annGain = ctx.createGain();
-      annGain.gain.value = 1;
-      annGain.connect(mixStage.announcementsInput);
-      ctx.createMediaElementSource(annEl).connect(annGain);
-      announcementGainRef.current = annGain;
-    }
-    graphReadyRef.current = true;
-    setGraphReady(true);
-  };
+    return engineRef.current;
+  }, []);
 
-  const setGainNow = (slot: Slot, value: number) => {
-    const gain = getGain(slot);
-    const ctx = audioCtxRef.current;
-    if (!gain || !ctx) return;
-    setParamNow(gain.gain, value, ctx.currentTime);
-  };
+  const setGainNow = (slot: Slot, value: number) => ensureEngine().setSlotGain(slot, value);
 
-  const rampGain = (slot: Slot, to: number, durationMs: number) => {
-    const gain = getGain(slot);
-    const ctx = audioCtxRef.current;
-    if (!gain || !ctx) return;
-    rampParam(gain.gain, to, durationMs, ctx.currentTime);
-  };
+  const rampGain = (slot: Slot, to: number, durationMs: number) => ensureEngine().rampSlotGain(slot, to, durationMs);
 
   const loadDirect = (track: RadioTrackInfo, positionSeconds: number, playing: boolean, gainValue: number) => {
     const slot = activeSlotRef.current;
@@ -137,7 +95,7 @@ export default function RadioScreenPage() {
         el.currentTime = positionSeconds || 0;
       } catch {
       }
-      if (playing && unlocked) el.play().catch(() => {});
+      if (playing && unlockedRef.current) el.play().catch(() => {});
     };
     el.addEventListener("canplay", onReady);
   };
@@ -147,7 +105,7 @@ export default function RadioScreenPage() {
     const fromSlot = activeSlotRef.current;
     const toSlot = otherSlot(fromSlot);
     const toEl = getAudioEl(toSlot);
-    if (!toEl || !audioCtxRef.current) return;
+    if (!toEl || !unlockedRef.current) return;
     crossfadingRef.current = true;
     slotTrackIdRef.current[toSlot] = nextTrack.id;
     lastProgressRef.current[toSlot] = Date.now();
@@ -177,8 +135,6 @@ export default function RadioScreenPage() {
     const wasAnnouncing = activeAnnouncementRef.current;
     if (!announcementAudio) return;
     const plan = planAnnouncement(wasAnnouncing, ann, data.volume, duckSettingsRef.current);
-    const annGain = announcementGainRef.current;
-    const ctx = audioCtxRef.current;
     if (plan.kind === "start" && ann) {
       activeAnnouncementRef.current = { id: ann.id, mode: ann.mode };
       abortCrossfadeIfAny(data.volume);
@@ -188,13 +144,13 @@ export default function RadioScreenPage() {
       }
       announcementAudio.src = getApiUrl(`/radio/announcements/${ann.id}/stream`);
       announcementAudio.load();
-      if (unlocked) announcementAudio.play().catch(() => {});
+      if (unlockedRef.current) announcementAudio.play().catch(() => {});
       const [from, to] = plan.announcementGain;
-      if (annGain && ctx) rampParamFrom(annGain.gain, from, to, plan.fadeMs, ctx.currentTime);
+      ensureEngine().rampAnnouncementGain(from, to, plan.fadeMs);
       if (plan.musicRamp !== null) rampGain(activeSlotRef.current, plan.musicRamp, plan.fadeMs);
     } else if (plan.kind === "end") {
       activeAnnouncementRef.current = null;
-      if (annGain && ctx) rampParam(annGain.gain, plan.announcementGain[1], plan.unloadAfterMs, ctx.currentTime);
+      ensureEngine().rampAnnouncementGain(null, plan.announcementGain[1], plan.unloadAfterMs);
       announcementFadeOutTimeoutRef.current = setTimeout(() => {
         unloadMedia(announcementAudio);
         announcementFadeOutTimeoutRef.current = null;
@@ -211,8 +167,10 @@ export default function RadioScreenPage() {
     const duck = duckSettingsRef.current;
     const transport = transportAction(evt.cause, data.current_announcement, data.playing, el.paused, crossfadingRef.current);
     if (transport.abortCrossfade) abortCrossfadeIfAny(ducking ? duck.level : data.volume);
-    const gain = targetGain("same", ducking, data.volume, duck);
-    if (gain !== null) setGainNow(slot, gain);
+    if (shouldSyncSameTrackGain(evt.cause, ducking, crossfadingRef.current, Boolean(announcementFadeOutTimeoutRef.current))) {
+      const gain = targetGain("same", ducking, data.volume, duck);
+      if (gain !== null) setGainNow(slot, gain);
+    }
     const { seek, action } = transport;
     if (seek) {
       try {
@@ -220,7 +178,7 @@ export default function RadioScreenPage() {
       } catch {
       }
     }
-    if (action === "play" && unlocked) el.play().catch(() => {});
+    if (action === "play" && unlockedRef.current) el.play().catch(() => {});
     else if (action === "pause") el.pause();
   };
 
@@ -262,22 +220,21 @@ export default function RadioScreenPage() {
   const [displayChannel] = useState(() => getDisplayChannel("radio"));
   const radioChannel = radioChannelId(displayChannel);
   const nextCourse = useNextCourse(displayChannel, 60000);
-  const { state, connected, sendCommand, isPrimary, serverNow, displayOutputs } = useRadioSocket(
+  const { state, connected, sendCommand, isPrimary, isMirror, serverNow, displayOutputs } = useRadioSocket(
     handleEvent,
     "kiosk",
     radioChannel,
   );
-  const soundKey = JSON.stringify(state.sound);
+  const policyKey = JSON.stringify([state.sound, state.mix, state.route ?? null, Boolean(state.meter)]);
   useEffect(() => {
-    const sound = JSON.parse(soundKey) as RadioState["sound"];
-    soundRef.current = sound;
-    soundChainRef.current?.apply(sound);
-  }, [soundKey]);
-  const mixKey = JSON.stringify(state.mix);
-  useEffect(() => {
-    mixRef.current = clampMix(JSON.parse(mixKey) as RadioState["mix"]);
-    mixStageRef.current?.apply(mixRef.current);
-  }, [mixKey]);
+    const [sound, mix, route, meter] = JSON.parse(policyKey) as [
+      RadioState["sound"],
+      RadioState["mix"],
+      RadioState["route"],
+      boolean,
+    ];
+    ensureEngine().updatePolicy(sound, clampMix(mix), route, meter);
+  }, [policyKey, ensureEngine]);
   useAudioRoute({ ctxRef: audioCtxRef, stageRef: mixStageRef, route: state.route ?? null, ready: graphReady, connected, sendCommand });
   useLevelMeter(mixStageRef, graphReady, Boolean(state.meter), isPrimary, sendCommand);
   useDisplayOutputRedirect("radio", displayOutputs);
@@ -289,7 +246,7 @@ export default function RadioScreenPage() {
     mediaRef: activeMediaRef,
     state,
     select: selectRadioTarget,
-    enabled: !isPrimary,
+    enabled: isMirror,
     serverNow,
     tryPlay: (el) => {
       if (unlockedRef.current) el?.play().catch(() => {});
@@ -318,14 +275,17 @@ export default function RadioScreenPage() {
       unloadMedia(slotA.current);
       unloadMedia(slotB.current);
       unloadMedia(announcement.current);
-      audioCtxRef.current?.close().catch(() => {});
+      engineRef.current?.dispose();
+      engineRef.current = null;
+      audioCtxRef.current = null;
+      mixStageRef.current = null;
     };
   }, []);
 
   const maybeStartCrossfade = (el: HTMLAudioElement) => {
     const flags = {
       crossfading: crossfadingRef.current,
-      graphReady: graphReadyRef.current,
+      graphReady: unlockedRef.current,
       announcing: Boolean(activeAnnouncementRef.current),
     };
     const nextTrack = crossfadeTarget(state, el, flags);
@@ -411,8 +371,8 @@ export default function RadioScreenPage() {
 
   const handleUnlock = () => {
     setUnlocked(true);
-    ensureAudioGraph(state.volume);
-    audioCtxRef.current?.resume().catch(() => {});
+    unlockedRef.current = true;
+    ensureEngine().unlock(activeSlotRef.current, state.volume / 100);
     const radioIsActive = !!state.current_track && state.state !== "idle";
     const el = getAudioEl(activeSlotRef.current);
     if (el && radioIsActive && state.playing) {

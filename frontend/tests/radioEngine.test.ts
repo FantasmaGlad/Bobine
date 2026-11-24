@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { rampParam, setParamNow } from "../src/components/radio/engine/params.ts";
 import { crossfadeDurationMs, crossfadeTarget } from "../src/components/radio/engine/crossfade.ts";
-import { decideTrack, targetGain, transportAction, type Decks } from "../src/components/radio/engine/trackSync.ts";
+import { decideTrack, shouldSyncSameTrackGain, targetGain, transportAction, type Decks } from "../src/components/radio/engine/trackSync.ts";
 import { planAnnouncement } from "../src/components/radio/engine/announcements.ts";
 import { recoveryOutcome, stalled } from "../src/components/radio/engine/recovery.ts";
 
@@ -203,4 +203,13 @@ test("reprise : progrès, attente, piste suivante après 10 s, ou abandon", () =
   assert.equal(recoveryOutcome(false, 10000, false, true, false), "give_up");
   assert.equal(recoveryOutcome(false, 10000, true, false, false), "give_up");
   assert.equal(recoveryOutcome(false, 10000, true, true, true), "give_up");
+});
+
+test("gain sur même piste : le tic périodique et un fondu actif ne réécrasent jamais le gain", () => {
+  assert.equal(shouldSyncSameTrackGain("radio_position_tick", false, false, false), false);
+  assert.equal(shouldSyncSameTrackGain("radio_volume", false, true, false), false);
+  assert.equal(shouldSyncSameTrackGain("sync", true, false, false), false);
+  assert.equal(shouldSyncSameTrackGain("sync", false, false, true), false);
+  assert.equal(shouldSyncSameTrackGain("radio_volume", false, false, true), true);
+  assert.equal(shouldSyncSameTrackGain("radio_volume", false, false, false), true);
 });

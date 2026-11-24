@@ -132,8 +132,12 @@ export function computePreamp(sound: RadioSoundSettings): number {
   return Math.pow(10, -peakBoostDb(sound) / 20);
 }
 
-export const LIMITER_ON: LimiterParams = { threshold: -1, knee: 0, ratio: 20, attack: 0.01, release: 0.25 };
+export const LIMITER_ON: LimiterParams = { threshold: -2, knee: 0, ratio: 20, attack: 0.025, release: 0.4 };
 export const LIMITER_OFF: LimiterParams = { threshold: 0, knee: 0, ratio: 1, attack: 0.003, release: 0.25 };
+
+export function soundNeedsLimiter(sound: RadioSoundSettings): boolean {
+  return sound.enabled && sound.limiter && peakBoostDb(sound) > 0;
+}
 
 export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
   const active = sound.enabled;
@@ -149,7 +153,7 @@ export function toGraphParams(sound: RadioSoundSettings): SoundGraphParams {
     bass: { type: "lowshelf", frequency: BASS_FREQUENCY, gain: active ? sound.bass_boost : 0, q: 0.7 },
     loudnessLow: { type: "lowshelf", frequency: LOUDNESS_LOW.frequency, gain: active && sound.loudness ? LOUDNESS_LOW.gain : 0, q: 0.7 },
     loudnessHigh: { type: "highshelf", frequency: LOUDNESS_HIGH.frequency, gain: active && sound.loudness ? LOUDNESS_HIGH.gain : 0, q: 0.7 },
-    limiter: active && sound.limiter && peakBoostDb(sound) > 0 ? LIMITER_ON : LIMITER_OFF,
+    limiter: soundNeedsLimiter(sound) ? LIMITER_ON : LIMITER_OFF,
   };
 }
 

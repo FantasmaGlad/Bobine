@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type RefObject } from "react";
+import { createPlaybackAudioContext } from "./audio/context";
 import { createSoundChain, type SoundChain } from "./radioSoundGraph";
 import { isNeutralSound, type RadioSoundSettings } from "./radioSound";
 
@@ -16,13 +17,7 @@ let sharedContext: AudioContext | null = null;
 
 function context(): AudioContext | null {
   if (sharedContext && sharedContext.state !== "closed") return sharedContext;
-  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!Ctor) return null;
-  try {
-    sharedContext = new Ctor({ latencyHint: "playback" });
-  } catch {
-    sharedContext = null;
-  }
+  sharedContext = createPlaybackAudioContext();
   return sharedContext;
 }
 

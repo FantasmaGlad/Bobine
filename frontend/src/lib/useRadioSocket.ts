@@ -101,6 +101,7 @@ export function useRadioSocket(
   const [state, setState] = useState<RadioState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
   const [isPrimary, setIsPrimary] = useState(false);
+  const [isMirror, setIsMirror] = useState(false);
   const [displayOutputs, setDisplayOutputs] = useState<DisplayOutputs>({});
   const wsRef = useRef<WebSocket | null>(null);
   const pendingCommandsRef = useRef<{ payload: string; queuedAt: number }[]>([]);
@@ -167,11 +168,14 @@ export function useRadioSocket(
             return;
           }
           if (parsed.event === "kiosk_role") {
-            setIsPrimary(!!parsed.is_primary);
+            const primary = !!parsed.is_primary;
+            setIsPrimary(primary);
+            setIsMirror(!primary);
             return;
           }
           if (parsed.event === "promoted_primary") {
             setIsPrimary(true);
+            setIsMirror(false);
             return;
           }
           if (parsed.event === "display_output") {
@@ -202,6 +206,7 @@ export function useRadioSocket(
         if (wsRef.current !== ws) return;
         setConnected(false);
         setIsPrimary(false);
+        setIsMirror(false);
         wsRef.current = null;
         if (!cancelled) {
           reconnectTimer = setTimeout(connect, retryDelay);
@@ -272,5 +277,5 @@ export function useRadioSocket(
 
   const serverNow = useCallback(() => clockSyncRef.current.serverNow(), []);
 
-  return { state, connected, sendCommand, isPrimary, serverNow, displayOutputs };
+  return { state, connected, sendCommand, isPrimary, isMirror, serverNow, displayOutputs };
 }

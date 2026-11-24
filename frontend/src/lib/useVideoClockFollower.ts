@@ -6,6 +6,7 @@ import { useMediaClockFollower, type ClockTarget } from "@/lib/useMediaClockFoll
 interface VideoOptions {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   state: PlaybackState;
+  rateCorrection?: boolean;
   serverNow: () => number;
   tryPlay: (el: HTMLMediaElement | null | undefined) => void;
   onSeek?: () => void;
@@ -18,6 +19,6 @@ export function selectVideoTarget(state: PlaybackState): ClockTarget {
   return { anchor: state.clock, mode: state.state, key: state.current_video.id };
 }
 
-export function useVideoClockFollower({ videoRef, state, serverNow, tryPlay, onSeek }: VideoOptions) {
-  useMediaClockFollower({ mediaRef: videoRef, state, select: selectVideoTarget, serverNow, tryPlay, onSeek });
+export function useVideoClockFollower({ videoRef, state, rateCorrection, serverNow, tryPlay, onSeek }: VideoOptions) {
+  useMediaClockFollower({ mediaRef: videoRef, state, select: selectVideoTarget, rateCorrection, serverNow, tryPlay, onSeek });
 }
