@@ -8,9 +8,7 @@
 
 # Bobine — Bêta (lot curé)
 
-> **Canal Bêta (accès anticipé).** Lots de fonctionnalités et correctifs sélectionnés et testés avant leur passage en Stable — plus avancé que Stable, plus testé que Canary. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
-
-Pre-release curée : un lot de fonctionnalités/correctifs sélectionné par le mainteneur, publié manuellement — plus testé que Canary (qui suit chaque commit de main), moins que Stable. Republiée **en place** sur ce même tag mobile `beta` (jamais un nouveau tag par itération) à chaque nouveau lot. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
+> **Canal Bêta (accès anticipé).** Lots de fonctionnalités et correctifs curés et publiés manuellement **en place** sur le tag mobile `beta` (jamais un nouveau tag par itération) — plus testé que Canary, moins que Stable. Une version stable équivalente ou plus récente la remplace toujours automatiquement.
 
 Réservée aux utilisateurs ayant activé le canal Bêta (Réglages → Mises à jour). Pour suivre chaque commit de main sans attendre un lot, voir le [canal Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary).
 
