@@ -52,7 +52,6 @@ export const library: Dict = {
   selectedCount: "{{count}} vidéo(s) sélectionnée(s)",
   addToPlaylist: "Ajouter à une playlist",
   clearSelection: "Annuler la sélection",
-  selectAll: "Tout sélectionner",
   selectAllTitle: "Sélectionner / désélectionner toutes les vidéos affichées",
   selectGroupTitle: "Sélectionner / désélectionner tout ce groupe",
   searchPlaceholder: "Rechercher une vidéo...",

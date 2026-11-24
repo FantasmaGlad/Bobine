@@ -1,7 +1,6 @@
 import type { Dict } from "../core.ts";
 
 export const nav: Dict = {
-  dashboard: "Tableau de bord",
   dashboardOutputs: {
     cable: "Sortie Câblé",
     network: "Sortie Réseau 1",
@@ -15,7 +14,6 @@ export const nav: Dict = {
   libraryReminders: "Rappels radio",
   libraryVisuals: "Visuels",
   schedule: "Planning",
-  metrics: "Métriques",
   metricsGroup: "Métriques",
   metricsCourses: "Cours",
   metricsSystem: "Système",

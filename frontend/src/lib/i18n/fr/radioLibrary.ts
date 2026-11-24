@@ -15,7 +15,6 @@ export const radioLibrary: Dict = {
   noResults: "Aucun morceau ne correspond à la recherche.",
   countLabel: "{{count}} morceau(x)",
   unknownArtist: "Artiste inconnu",
-  edit: "Modifier",
   delete: "Supprimer",
   editTitle: "Modifier le morceau",
   fieldTitle: "Titre",

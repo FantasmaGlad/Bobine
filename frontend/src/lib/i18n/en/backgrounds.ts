@@ -28,7 +28,6 @@ export const backgrounds: Dict = {
   noBackgrounds: "No animated background available",
   defaultClubAmbiance: "Default club ambiance",
   noBackgroundAmbiance: "No background (sober screen)",
-  onScreen: "On screen",
   infiniteLoop: "Infinite loop",
   fetchError: "Error while fetching backgrounds",
   connectionError: "Unable to connect to the server",

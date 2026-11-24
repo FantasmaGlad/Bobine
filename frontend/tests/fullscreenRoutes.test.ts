@@ -15,7 +15,7 @@ test("les pages d'administration radio restent des pages normales (pas de préfi
 });
 
 test("les autres pages d'administration ne sont pas plein écran", () => {
-  for (const path of ["/", "/dashboard-cable", "/dashboard-network", "/library", "/library/coach", "/library/radio", "/library/visuals", "/schedule", "/settings"]) {
+  for (const path of ["/", "/dashboard/cable", "/dashboard/network", "/dashboard/network_2", "/library", "/library/coach", "/library/radio", "/library/visuals", "/schedule", "/settings"]) {
     assert.equal(isFullscreenPath(path), false, path);
   }
 });

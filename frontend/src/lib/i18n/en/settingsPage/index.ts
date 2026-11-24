@@ -65,8 +65,6 @@ export const settingsPage: Dict = {
   logsPurging: "Purging…",
   logsPurgedSuccess: "Cleanup completed successfully",
   groups: { general: "General", playback: "Playback", system: "System" },
-  dangerSection: "Danger Zone",
-  dangerHint: "Destructive and irreversible actions. Proceed with caution.",
   resetDataTitle: "Reset Data",
   resetDataAction: "Reset Data",
   startOnBoot: {

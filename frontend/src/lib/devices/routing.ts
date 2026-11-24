@@ -72,11 +72,6 @@ export function summarizeRouting(output: Pick<RoutingOutput, "route" | "state" |
   return { tone: "info", key: "pending", extra };
 }
 
-export function outputLabelsHidden(devices: Array<{ kind: string; label: string }>): boolean {
-  const outputs = devices.filter((d) => d.kind === "audiooutput");
-  return outputs.length > 0 && outputs.every((d) => !d.label);
-}
-
 export interface MixerOutput {
   channel: RadioChannelId;
   mix: unknown;

@@ -83,15 +83,15 @@
   transform: none;
 }
 
-.nav-link[href^="/dashboard-"] {
+.nav-link[href^="/dashboard/"] {
   transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2), background 0.15s ease, color 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.nav-link[href^="/dashboard-"]:hover {
+.nav-link[href^="/dashboard/"]:hover {
   transform: translateX(4px) scale(1.03);
 }
 
-.nav-link[href^="/dashboard-"].active {
+.nav-link[href^="/dashboard/"].active {
   transform: scale(1.02);
   box-shadow: inset 3px 0 0 0 var(--accent-primary), 0 6px 18px color-mix(in srgb, var(--accent-primary) 22%, transparent);
 }

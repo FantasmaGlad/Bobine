@@ -15,7 +15,6 @@ export const storage: Dict = {
   offlineInfo: "{{count}} items unavailable until it is plugged back",
   offlineEmpty: "External library, plug it back to find it again",
   explore: "Browse",
-  open: "Open",
   opening: "Opening…",
   eject: "Safely remove",
   ejected: "You can unplug \"{{name}}\".",
@@ -98,7 +97,6 @@ export const storage: Dict = {
     empty: "Nothing added yet",
   },
   details: {
-    health: "Health",
     healthOk: "Healthy",
     healthWarning: "Keep an eye on it",
     healthCritical: "Replace it",
@@ -111,7 +109,6 @@ export const storage: Dict = {
     protectionOk: "Recommended settings active",
     protectionPartial: "{{count}} setting(s) unavailable here",
     protectionCustom: "Settings changed",
-    format: "Format",
     formatAdvice: "Which format to choose?",
     temperature: "{{value}} °C",
     hours: "{{value}} h powered on",
@@ -225,7 +222,6 @@ export const storage: Dict = {
   },
   format,
   portable: {
-    title: "Phones and tablets",
     states: {
       missing_tool: "Component missing",
       detected: "Detected",

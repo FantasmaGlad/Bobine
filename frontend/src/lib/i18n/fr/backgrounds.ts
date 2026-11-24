@@ -28,7 +28,6 @@ export const backgrounds: Dict = {
   noBackgrounds: "Aucun fond animé disponible",
   defaultClubAmbiance: "Ambiance par défaut du club",
   noBackgroundAmbiance: "Aucun fond (écran sobre)",
-  onScreen: "À l'écran",
   infiniteLoop: "Boucle infinie",
   fetchError: "Erreur lors de la récupération des fonds animés",
   connectionError: "Impossible de se connecter au serveur",
