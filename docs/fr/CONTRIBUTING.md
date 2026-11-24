@@ -21,7 +21,7 @@ Version anglaise : [CONTRIBUTING.md](../CONTRIBUTING.md). En participant, vous a
 
 **Respectez l'architecture.** Lisez le code autour de votre changement avant de toucher au backend, au modèle de données ou au contrat réseau. Bobine fonctionne en un seul processus (FastAPI et SQLite) et entièrement hors ligne. Un changement qui ajoute un service externe, une dépendance au cloud ou un nouveau composant d'arrière-plan exige un accord préalable dans un ticket.
 
-**Exactitude de la documentation.** Ne documentez jamais une fonctionnalité qui n'existe pas ou n'est pas publiée. La documentation utilisateur vit dans `README.md` et `README.fr.md` ; gardez les deux cohérents, et signalez-nous si vous ne pouvez pas fournir la traduction.
+**Exactitude de la documentation.** Ne documentez jamais une fonctionnalité qui n'existe pas ou n'est pas publiée. La documentation utilisateur vit dans `README.md` et `docs/fr/README.md` ; gardez les deux cohérents, et signalez-nous si vous ne pouvez pas fournir la traduction.
 
 ## Vous êtes responsable de votre code
 
@@ -42,12 +42,12 @@ Bobine comporte plusieurs composants. Avant d'ouvrir une demande de fusion, lanc
 
 | Composant | Dossier | Vérifications |
 |---|---|---|
-| Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` puis `python -m pytest backend/tests -q` avec `PYTHONPATH=backend` (nécessite `ffmpeg`, `pytest` et `httpx` ; la CI utilise Python 3.11, 3.12 et 3.13, donc aucune syntaxe postérieure à 3.11) |
-| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` puis `npm run build` (CI) ; `npm test` (CI) ; aussi `npx tsc --noEmit` (local). `npm run lint` n'est pas imposé par la CI et signale des problèmes existants : n'en introduisez pas de nouveaux dans le code que vous touchez |
-| Sidecar des périphériques (Rust) | `devices/` | `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` |
+| Backend (Python, FastAPI, SQLite) | `backend/` | `ruff check .`, `python -m compileall -q backend/app scripts` puis `python -m pytest backend/tests -q` avec `PYTHONPATH=backend` (nécessite `ffmpeg`, `pytest` et `httpx` ; la CI utilise Python 3.11, 3.12 et 3.13, donc aucune syntaxe postérieure à 3.11) |
+| Frontend (Next.js, Node 22) | `frontend/` | `npm ci`, `npm test`, `npx tsc --noEmit`, `npm run lint` et `npm run build` (tous appliqués par la CI) |
+| Périphériques et projecteur (Rust) | `devices/`, `projector/` | `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` |
 | Composant audio natif (Rust) | `media/` | `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` puis `cargo test --locked` ; `python3 scripts/ci/check-media-licenses.py --offline` pour les licences des dépendances |
 
-Le schéma de données est géré par SQLAlchemy : les tables sont créées au démarrage, et les colonnes ajoutées aux tables existantes passent par les micro-migrations idempotentes du module de base de données (voir le document d'architecture). Un changement de schéma doit fonctionner sur une base existante sans perte de données et être couvert par un test. Une demande de fusion qui fait échouer un job de CI n'est pas relue tant qu'elle n'est pas verte.
+Le schéma de données est géré par SQLAlchemy : les tables sont créées au démarrage, et les colonnes ajoutées aux tables existantes passent par les micro-migrations idempotentes dans `backend/app/database/`. Un changement de schéma doit fonctionner sur une base existante sans perte de données et être couvert par un test. Une demande de fusion qui fait échouer un job de CI n'est pas relue tant qu'elle n'est pas verte.
 
 ## Plateformes
 
@@ -120,3 +120,4 @@ Bobine est publié sous [GNU AGPL-3.0](../../LICENSE). En soumettant une contrib
 |---|---|
 | 2026-10-08 | Adoption du guide de contribution. |
 | 2026-10-23 | Vérifications alignées sur la CI : pytest, Python 3.11 à 3.13, composants Rust `devices/` et `media/`, tests du frontend en local seulement. |
+| 2026-11-24 | Chemin `docs/fr/README.md` corrigé, ajout de `ruff`, `eslint` en CI et du composant Rust `projector/`. |

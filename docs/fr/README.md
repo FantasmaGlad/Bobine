@@ -33,7 +33,7 @@ Les salles de cours collectifs et les studios de cycling diffusent des cours vid
 
 - **Vos contenus, votre matériel** : vos vidéos, votre planning, l'identité de votre club. Aucun compte, aucune redevance.
 - **Hors ligne** : une fois installé, les cours planifiés, la borne adhérents et la radio fonctionnent sans internet.
-- **Un programme, plusieurs écrans** : planning hebdomadaire, borne adhérents (`/kiosk`, `/cinema`), pupitre coach (`/grid`, `/coach`), radio avec rappels vocaux (`/radio`), télécommande sur téléphone, mesures de fréquentation.
+- **Un programme, plusieurs écrans** : planning hebdomadaire, écrans unifiés (`/screen`, `/kiosk`, `/cinema`), pupitre coach (`/grid`, `/coach`), radio avec rappels vocaux (`/radio`), télécommande sur téléphone, mesures de fréquentation.
 - **Sans surveillance** : démarre seul à la mise sous tension, y compris après une coupure de courant.
 
 ## Téléchargement
@@ -82,11 +82,11 @@ Sous Windows PowerShell 5.1 avec un .NET antérieur à 4.7, lancez `[Net.Service
 
 Trois canaux, à changer à tout moment dans **Réglages → Mises à jour**.
 
-| Canal | Publication | Pour | Version |
-| :--- | :--- | :--- | :--- |
-| <img src="../../Assets/Images/Versions/Stable-cropped-1024.png" width="20" height="20" valign="middle" alt="Stable"> **Stable** | chaque version taguée (`V6.0.0`) | les clubs et studios en exploitation | [Stable](https://github.com/FantasmaGlad/Bobine/releases/latest) |
-| <img src="../../Assets/Images/Versions/Beta-cropped-1024.png" width="20" height="20" valign="middle" alt="Bêta"> **Bêta** | lots choisis par le mainteneur | essayer les nouveautés avant la Stable | [Bêta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) |
-| <img src="../../Assets/Images/Versions/Canary-cropped-1024.png" width="20" height="20" valign="middle" alt="Canary"> **Canary** | chaque commit sur `main` | tester les derniers changements | [Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) |
+| Canal | Publication | Pour |
+| :--- | :--- | :--- |
+| <img src="../../Assets/Images/Versions/Stable-cropped-1024.png" width="20" height="20" valign="middle" alt="Stable"> [**Stable**](https://github.com/FantasmaGlad/Bobine/releases/latest) | chaque version taguée (`V6.0.0`) | les clubs et studios en exploitation |
+| <img src="../../Assets/Images/Versions/Beta-cropped-1024.png" width="20" height="20" valign="middle" alt="Bêta"> [**Bêta**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) | lots choisis par le mainteneur | essayer les nouveautés avant la Stable |
+| <img src="../../Assets/Images/Versions/Canary-cropped-1024.png" width="20" height="20" valign="middle" alt="Canary"> [**Canary**](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) | chaque commit sur `main` | tester les derniers changements |
 
 ## Documentation
 
@@ -106,8 +106,8 @@ Un planning hebdomadaire de cours collectifs n'a pas besoin de sept plateformes 
 
 ## Sécurité et licence
 
-- **Sécurité** : signalez une vulnérabilité en privé par [GitHub Security Advisories](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou à [security@bobine.fit](mailto:security@bobine.fit) (OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` ; détails sur [security.bobine.fit](https://security.bobine.fit/fr/) et dans [SECURITY.md](../SECURITY.md)).
-- **Contribuer** : [CONTRIBUTING.md](../CONTRIBUTING.md), [CODE_OF_CONDUCT.md](../CODE_OF_CONDUCT.md).
+- **Sécurité** : signalez une vulnérabilité en privé par [GitHub Security Advisories](https://github.com/FantasmaGlad/Bobine/security/advisories/new) ou à [security@bobine.fit](mailto:security@bobine.fit) (OpenPGP `23CA D324 C507 FB0F 97E6 AECA 6E4C 020E F8BD FEB2` ; détails sur [security.bobine.fit](https://security.bobine.fit/fr/) et dans [SECURITY.md](SECURITY.md)).
+- **Contribuer** : [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 - **Licence** : [AGPL-3.0](../../LICENSE).
 
 <sub>Dépôts liés : [bobine-deploy](https://github.com/FantasmaGlad/bobine-deploy) (installation à distance) · [BobineWeb](https://github.com/FantasmaGlad/BobineWeb) (site) · [bobine-packages](https://github.com/FantasmaGlad/bobine-packages) (dépôts Linux) · [homebrew-bobine](https://github.com/FantasmaGlad/homebrew-bobine) (tap Homebrew)</sub>

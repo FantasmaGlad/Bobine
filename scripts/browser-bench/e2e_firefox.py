@@ -100,7 +100,7 @@ def resume_after_network_cut(workdir: Path) -> None:
 
 
 def check_pages() -> None:
-    for route in ("/library/", "/radio/", "/kiosk/?output=network", "/coach/", "/settings/", "/cinema/"):
+    for route in ("/library/", "/radio/", "/screen/?output=cable", "/kiosk/?output=network", "/coach/", "/settings/", "/cinema/"):
         wd.navigate(BASE + route)
         time.sleep(2.5)
         body = wd.execute("return document.body.innerText || ''")

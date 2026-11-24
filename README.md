@@ -33,7 +33,7 @@ Group-fitness rooms and cycling studios play pre-recorded video classes on large
 
 - **Your content, your hardware**: your videos, your schedule, your club branding. No account, no license fee.
 - **Offline**: once installed, scheduled classes, the member kiosk and the radio run without internet.
-- **One program, several screens**: weekly schedule, member kiosk (`/kiosk`, `/cinema`), coach desk (`/grid`, `/coach`), radio with spoken reminders (`/radio`), phone remote, attendance metrics.
+- **One program, several screens**: weekly schedule, unified screens (`/screen`, `/kiosk`, `/cinema`), coach desk (`/grid`, `/coach`), radio with spoken reminders (`/radio`), phone remote, attendance metrics.
 - **Unattended**: starts on its own when powered on, including after a power cut.
 
 ## Download
@@ -82,11 +82,11 @@ On Windows PowerShell 5.1 with a .NET runtime older than 4.7, run `[Net.ServiceP
 
 Three channels, switchable at any time in **Settings → Software Updates**.
 
-| Channel | Published | For | Release |
-| :--- | :--- | :--- | :--- |
-| <img src="Assets/Images/Versions/Stable-cropped-1024.png" width="20" height="20" valign="middle" alt="Stable"> **Stable** | each tagged version (`V6.0.0`) | clubs and studios in production | [Stable](https://github.com/FantasmaGlad/Bobine/releases/latest) |
-| <img src="Assets/Images/Versions/Beta-cropped-1024.png" width="20" height="20" valign="middle" alt="Beta"> **Beta** | batches chosen by the maintainer | trying upcoming features before Stable | [Beta](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) |
-| <img src="Assets/Images/Versions/Canary-cropped-1024.png" width="20" height="20" valign="middle" alt="Canary"> **Canary** | every commit on `main` | testing the latest changes | [Canary](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) |
+| Channel | Published | For |
+| :--- | :--- | :--- |
+| <img src="Assets/Images/Versions/Stable-cropped-1024.png" width="20" height="20" valign="middle" alt="Stable"> [**Stable**](https://github.com/FantasmaGlad/Bobine/releases/latest) | each tagged version (`V6.0.0`) | clubs and studios in production |
+| <img src="Assets/Images/Versions/Beta-cropped-1024.png" width="20" height="20" valign="middle" alt="Beta"> [**Beta**](https://github.com/FantasmaGlad/Bobine/releases/tag/beta) | batches chosen by the maintainer | trying upcoming features before Stable |
+| <img src="Assets/Images/Versions/Canary-cropped-1024.png" width="20" height="20" valign="middle" alt="Canary"> [**Canary**](https://github.com/FantasmaGlad/Bobine/releases/tag/canary) | every commit on `main` | testing the latest changes |
 
 ## Documentation
 

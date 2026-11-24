@@ -21,7 +21,7 @@ French version: [docs/fr/CONTRIBUTING.md](fr/CONTRIBUTING.md). By taking part yo
 
 **Respect the architecture.** Read the code around your change before touching the backend, the data model or the network contract. Bobine runs as a single process (FastAPI and SQLite) and works fully offline. A change that adds an external service, a cloud dependency or a new background component needs prior agreement in an issue.
 
-**Accuracy in documentation.** Never document a feature that does not exist or is not released. User-facing documentation lives in `README.md` and `README.fr.md`; keep the two consistent, and tell us if you cannot provide a translation.
+**Accuracy in documentation.** Never document a feature that does not exist or is not released. User-facing documentation lives in `README.md` and `docs/fr/README.md`; keep the two consistent, and tell us if you cannot provide a translation.
 
 ## You are responsible for your code
 
@@ -42,12 +42,12 @@ Bobine has several components. Before opening a pull request, run locally the ch
 
 | Component | Directory | Checks |
 |---|---|---|
-| Backend (Python, FastAPI, SQLite) | `backend/` | `python -m compileall -q backend/app scripts` then `python -m pytest backend/tests -q` with `PYTHONPATH=backend` (needs `ffmpeg`, `pytest` and `httpx`; CI runs Python 3.11, 3.12 and 3.13, so no syntax newer than 3.11) |
-| Frontend (Next.js, Node 22) | `frontend/` | `npm ci` then `npm run build` (CI); `npm test` (CI); also `npx tsc --noEmit` (local). `npm run lint` is not enforced by CI and reports existing issues: do not introduce new ones in the code you touch |
-| Devices sidecar (Rust) | `devices/` | `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked` |
+| Backend (Python, FastAPI, SQLite) | `backend/` | `ruff check .`, `python -m compileall -q backend/app scripts` then `python -m pytest backend/tests -q` with `PYTHONPATH=backend` (needs `ffmpeg`, `pytest` and `httpx`; CI runs Python 3.11, 3.12 and 3.13, so no syntax newer than 3.11) |
+| Frontend (Next.js, Node 22) | `frontend/` | `npm ci`, `npm test`, `npx tsc --noEmit`, `npm run lint` and `npm run build` (all enforced by CI) |
+| Devices and projector (Rust) | `devices/`, `projector/` | `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked` |
 | Native audio component (Rust) | `media/` | `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` then `cargo test --locked`; `python3 scripts/ci/check-media-licenses.py --offline` for the dependency licenses |
 
-The data schema is managed by SQLAlchemy: tables are created at startup, and columns added to existing tables go through the idempotent micro-migrations of the database module (see the architecture document). A schema change must work on an existing database without data loss and be covered by a test. A pull request that breaks one of the CI jobs is not reviewed until it is green.
+The data schema is managed by SQLAlchemy: tables are created at startup, and columns added to existing tables go through idempotent micro-migrations in `backend/app/database/`. A schema change must work on an existing database without data loss and be covered by a test. A pull request that breaks one of the CI jobs is not reviewed until it is green.
 
 ## Platforms
 
@@ -120,3 +120,4 @@ Bobine is released under the [GNU AGPL-3.0](../LICENSE). By submitting a contrib
 |---|---|
 | 2026-10-08 | Contribution guide adopted. |
 | 2026-10-23 | Checks aligned with CI: pytest, Python 3.11-3.13, Rust components `devices/` and `media/`, local-only frontend tests. |
+| 2026-11-24 | Updated doc path (`docs/fr/README.md`), added `ruff`, `eslint` in CI and `projector/` Rust component. |
