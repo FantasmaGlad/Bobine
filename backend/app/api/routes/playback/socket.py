@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.contract import CHANNELS, DEFAULT_CHANNEL, RADIO_CHANNELS
 from app.database import get_db
 from app.playback.manager import get_playback_manager
-from app.radio.channels import is_radio_channel, normalize_radio_channel
+from app.radio.channels import is_radio_channel
 from app.radio.manager import get_all_radio_managers
 from app.utils.boot_state import current_boot_id
 from app.utils.ws_manager import manager as ws_manager
@@ -33,8 +33,7 @@ def _declared_channels(websocket: WebSocket) -> list[str] | None:
     raw = websocket.query_params.get("channels")
     if raw is None:
         return None
-    named = (normalize_radio_channel(c) if is_radio_channel(c) else c for c in (part.strip() for part in raw.split(",")))
-    return [c for c in named if c in CHANNELS or c in RADIO_CHANNELS]
+    return [c for c in (part.strip() for part in raw.split(",")) if c in CHANNELS or c in RADIO_CHANNELS]
 
 
 async def _send_initial_state(websocket: WebSocket, declared: list[str] | None) -> None:
@@ -49,7 +48,7 @@ async def _identify_kiosk(websocket: WebSocket, session: _Session, params: dict)
     if not session.is_kiosk:
         session.is_kiosk = True
         requested = params.get("channel")
-        session.channel = normalize_radio_channel(requested) if is_radio_channel(requested) else _resolve_channel(requested)
+        session.channel = requested if is_radio_channel(requested) else _resolve_channel(requested)
         session.client_id = params.get("client_id") or f"conn-{id(websocket)}"
     is_primary = await ws_manager.register_kiosk(websocket, session.channel, session.client_id)
     ws_manager.set_kiosk_page(websocket, params.get("page") if isinstance(params.get("page"), str) else None)

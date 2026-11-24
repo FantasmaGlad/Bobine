@@ -4,8 +4,7 @@ import time
 
 from fastapi import WebSocket
 
-from app.api.contract import CHANNELS, DEFAULT_CHANNEL, LEGACY_RADIO_CHANNEL, RADIO_CHANNELS
-from app.radio.channels import normalize_radio_channel
+from app.api.contract import CHANNELS, DEFAULT_CHANNEL, RADIO_CHANNELS
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +70,7 @@ class ConnectionManager:
 
     def subscribe(self, websocket: WebSocket, channels) -> None:
         """Déclare les canaux dont ce client veut les évènements propres à un canal."""
-        self._subscriptions[websocket] = frozenset(
-            normalize_radio_channel(c) if c == LEGACY_RADIO_CHANNEL else str(c) for c in channels
-        )
+        self._subscriptions[websocket] = frozenset(str(c) for c in channels)
 
     def _wants(self, websocket: WebSocket, message: dict) -> bool:
         subscribed = self._subscriptions.get(websocket)
@@ -100,8 +97,6 @@ class ConnectionManager:
 
     async def register_kiosk(self, websocket: WebSocket, channel: str = DEFAULT_CHANNEL, client_id: str = "") -> bool:
         """Enregistre un kiosk sur SON canal et (ré)évalue son statut primaire/miroir."""
-        if channel == LEGACY_RADIO_CHANNEL:
-            channel = normalize_radio_channel(channel)
         if channel not in self._kiosk_connections:
             channel = DEFAULT_CHANNEL
         kiosks = self._kiosk_connections[channel]
@@ -173,8 +168,6 @@ class ConnectionManager:
 
     def kiosk_count(self, channel: str) -> int:
         """Nombre d'écrans de diffusion (kiosques identifiés) sur ce canal."""
-        if channel == LEGACY_RADIO_CHANNEL:
-            channel = normalize_radio_channel(channel)
         return len(self._kiosk_connections.get(channel, []))
 
     def is_primary_kiosk(self, websocket: WebSocket) -> bool:

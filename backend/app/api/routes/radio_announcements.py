@@ -19,7 +19,7 @@ from app.api.paging import Window, window
 from app.utils._pydantic_compat import fields_set
 from app.database import get_db
 from app.models import RadioAnnouncement, RadioAnnouncementRule, RadioAnnouncementRuleType
-from app.api.contract import LEGACY_RADIO_CHANNEL, RADIO_CHANNELS
+from app.api.contract import RADIO_CHANNELS
 from app.radio.channels import DEFAULT_RADIO_CHANNEL, normalize_radio_channel
 from app.utils.executors import io_executor
 from app.utils.import_jobs import create_job, update_job
@@ -102,7 +102,7 @@ def _expected(values: tuple[str, ...]) -> str:
 
 
 def _validate_rule_fields(data: RadioAnnouncementRuleInput) -> None:
-    if data.target is not None and data.target not in (*RADIO_CHANNELS, LEGACY_RADIO_CHANNEL):
+    if data.target is not None and data.target not in RADIO_CHANNELS:
         raise HTTPException(
             status_code=422, detail=f"target invalide (attendu {_expected(RADIO_CHANNELS)})"
         )
