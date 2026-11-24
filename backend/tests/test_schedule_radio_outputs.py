@@ -102,24 +102,27 @@ def test_la_migration_rattache_l_ancienne_voie_radio_a_la_sortie_reseau_et_est_i
     assert channels == ["cable", "network", "radio_cable", "radio_network"]
 
 
-def test_une_fenetre_radio_vit_sur_la_ligne_de_sa_sortie_anciennes_voies_comprises(client):
+def test_une_fenetre_radio_vit_sur_la_ligne_de_sa_sortie_et_refuse_les_anciennes_voies(client):
     pid = _playlist()
     stored = {}
-    for requested in ("cable", "network", "radio_cable", "radio_network_2", "radio", "zzz"):
+    for requested in ("cable", "network", "network_2"):
         response = client.post("/api/schedule", json=_payload(pid, requested))
         assert response.status_code == 200, response.text
         stored[requested] = response.json()["channel"]
-    assert stored == {"cable": "cable", "network": "network", "radio_cable": "cable", "radio_network_2": "network_2",
-                      "radio": "network_2", "zzz": "network_2"}
+    assert stored == {"cable": "cable", "network": "network", "network_2": "network_2"}
+    for legacy in ("radio_cable", "radio_network", "radio_network_2", "radio", "zzz"):
+        assert client.post("/api/schedule", json=_payload(pid, legacy)).status_code == 422, legacy
 
 
-def test_filtres_de_liste_par_sortie_avec_anciennes_voies(client):
+def test_filtres_de_liste_par_sortie_refusent_les_anciennes_voies(client):
     pid = _playlist()
     client.post("/api/schedule", json=_payload(pid, "cable"))
     client.post("/api/schedule", json=_payload(pid, "network_2"))
     by_channel = lambda ch: [s["channel"] for s in client.get("/api/schedule", params={"channel": ch}).json()]
-    assert by_channel("cable") == by_channel("radio_cable") == ["cable"]
-    assert by_channel("network_2") == by_channel("radio") == ["network_2"]
+    assert by_channel("cable") == ["cable"]
+    assert by_channel("network_2") == ["network_2"]
+    for legacy in ("radio_cable", "radio_network_2", "radio", "zzz"):
+        assert client.get("/api/schedule", params={"channel": legacy}).status_code == 422, legacy
     assert len(client.get("/api/schedule").json()) == 2
 
 

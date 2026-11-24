@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.contract import DEFAULT_CHANNEL, LEGACY_RADIO_CHANNEL, RADIO_CHANNELS, SCHEDULE_CHANNELS
+from app.api.contract import DEFAULT_CHANNEL, SCHEDULE_CHANNELS
 from app.models import (
     Playlist,
     RadioPlaylist,
@@ -16,8 +16,6 @@ from app.models import (
     ScheduleType,
     Video,
 )
-from app.outputs import DEFAULT_RADIO_CHANNEL, output_of_radio
-from app.radio.channels import normalize_radio_channel
 from app.scheduling.occurrences import ensure_utc, resolve_target_display
 
 from .schemas import ScheduleInput
@@ -29,19 +27,17 @@ _CHANNELS = SCHEDULE_CHANNELS
 
 
 def normalize_channel(value: str | None) -> str | None:
-    """Sortie d'une programmation ; une ancienne voie radio (`radio_<sortie>`, `radio`) désigne la sortie de cette radio."""
+    """Sortie d'une programmation ; lève 422 si une valeur fournie ne désigne pas une sortie."""
+    if value is None:
+        return None
     if value in _CHANNELS:
         return value
-    if value == LEGACY_RADIO_CHANNEL or value in RADIO_CHANNELS:
-        return output_of_radio(normalize_radio_channel(value)).id
-    return None
+    expected = ", ".join(f"'{channel}'" for channel in _CHANNELS)
+    raise HTTPException(status_code=422, detail=f"Sortie invalide (attendu {expected})")
 
 
-def storage_channel(value: str | None, target_type: ScheduleTargetType) -> str:
-    channel = normalize_channel(value)
-    if channel:
-        return channel
-    return output_of_radio(DEFAULT_RADIO_CHANNEL).id if target_type == ScheduleTargetType.radio_playlist else DEFAULT_CHANNEL
+def storage_channel(value: str | None) -> str:
+    return normalize_channel(value) or DEFAULT_CHANNEL
 
 
 def check_target_exists(db: Session, target_type: ScheduleTargetType, target_id: int) -> None:

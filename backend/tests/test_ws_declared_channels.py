@@ -39,9 +39,9 @@ def test_a_client_declaring_one_radio_receives_only_that_radio(client):
         assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, "radio_cable"])
 
 
-def test_the_legacy_alias_declares_the_default_radio(client):
+def test_the_removed_legacy_alias_is_ignored(client):
     with client.websocket_connect("/ws/playback?channels=radio") as ws:
-        assert sorted(_initial_syncs(ws)) == sorted([*CHANNELS, "radio_network_2"])
+        assert sorted(_initial_syncs(ws)) == sorted(CHANNELS)
 
 
 def test_a_client_declaring_nothing_keeps_every_state(client):

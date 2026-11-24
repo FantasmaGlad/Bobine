@@ -7,11 +7,11 @@ test("une ligne de planning par sortie, reconnue telle quelle", () => {
   for (const channel of SCHEDULE_CHANNELS) assert.equal(parseScheduleChannel(channel), channel);
 });
 
-test("un ancien lien de voie radio ouvre la ligne de sa sortie", () => {
+test("une ancienne voie radio n'est plus traduite et retombe sur câblé", () => {
   assert.equal(parseScheduleChannel("radio_cable"), "cable");
-  assert.equal(parseScheduleChannel("radio_network"), "network");
-  assert.equal(parseScheduleChannel("radio_network_2"), "network_2");
-  assert.equal(parseScheduleChannel("radio"), "network_2");
+  assert.equal(parseScheduleChannel("radio_network"), "cable");
+  assert.equal(parseScheduleChannel("radio_network_2"), "cable");
+  assert.equal(parseScheduleChannel("radio"), "cable");
 });
 
 test("valeur absente ou inconnue : câblé, comme avant", () => {

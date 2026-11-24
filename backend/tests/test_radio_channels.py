@@ -48,10 +48,11 @@ def test_une_valeur_absente_ou_inconnue_retombe_sur_la_sortie_reseau():
     assert normalize_radio_channel("n'importe quoi") == "radio_network_2"
 
 
-def test_is_radio_channel_accepte_les_sorties_et_l_alias_seulement():
-    assert is_radio_channel("radio")
+def test_is_radio_channel_accepte_les_sorties_radio_seulement():
     assert is_radio_channel("radio_cable")
+    assert is_radio_channel("radio_network")
     assert is_radio_channel("radio_network_2")
+    assert not is_radio_channel("radio")
     assert not is_radio_channel("cable")
     assert not is_radio_channel("network")
     assert not is_radio_channel(None)
@@ -123,28 +124,30 @@ def test_le_decompte_d_ecrans_pour_le_depart_synchronise_est_par_sortie():
     _run(_run_case())
 
 
-def test_abonnement_a_l_alias_recoit_la_sortie_reseau_et_pas_la_sortie_cable():
+def test_abonnement_filtre_par_sortie_radio_et_ignore_l_ancien_alias():
     m = ConnectionManager()
-    legacy, cable_only = FakeWS(), FakeWS()
-    m.active_connections.update({legacy: None, cable_only: None})
+    legacy, network_2, cable_only = FakeWS(), FakeWS(), FakeWS()
+    m.active_connections.update({legacy: None, network_2: None, cable_only: None})
     m.subscribe(legacy, ["radio"])
+    m.subscribe(network_2, ["radio_network_2"])
     m.subscribe(cable_only, ["radio_cable"])
     for channel in ("radio_network_2", "radio_cable"):
         _run(m.broadcast({"event": "state_change", "cause": "radio_position_tick", "channel": channel, "data": {}}))
-    assert [e["channel"] for e in legacy.received] == ["radio_network_2"]
+    assert legacy.received == []
+    assert [e["channel"] for e in network_2.received] == ["radio_network_2"]
     assert [e["channel"] for e in cable_only.received] == ["radio_cable"]
 
 
 def test_le_role_primaire_est_distinct_par_sortie_radio():
     async def _run_case():
         m = ConnectionManager()
-        ws_cable, ws_network, ws_legacy = FakeWS(), FakeWS(), FakeWS()
+        ws_cable, ws_network, ws_mirror = FakeWS(), FakeWS(), FakeWS()
         assert await m.register_kiosk(ws_cable, "radio_cable", "page-cable") is True
         assert await m.register_kiosk(ws_network, "radio_network_2", "page-network") is True
-        assert await m.register_kiosk(ws_legacy, "radio", "page-legacy") is False
+        assert await m.register_kiosk(ws_mirror, "radio_network_2", "page-mirror") is False
         assert m.kiosk_count("radio_cable") == 1
         assert m.kiosk_count("radio_network_2") == 2
-        assert m.kiosk_count("radio") == 2
+        assert m.kiosk_count("radio") == 0
 
     _run(_run_case())
 
@@ -162,7 +165,7 @@ def test_etat_rest_de_la_radio_de_chaque_sortie(client):
     assert client.get("/api/outputs/zzz").status_code == 404
 
 
-def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):
+def test_websocket_synchronise_les_moteurs_radio(client):
     with client.websocket_connect("/ws/playback") as ws:
         sync = {}
         while not {"radio_cable", "radio_network_2"} <= set(sync):
@@ -171,7 +174,7 @@ def test_websocket_synchronise_les_deux_moteurs_et_accepte_l_alias(client):
                 sync[message["channel"]] = message
         assert {"radio_cable", "radio_network_2"} <= set(sync)
         assert "radio" not in sync
-        ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio", "client_id": "p-legacy"}})
+        ws.send_json({"command": "identify", "params": {"role": "kiosk", "channel": "radio_network_2", "client_id": "p-net2"}})
         message = ws.receive_json()
         while message.get("event") != "kiosk_role":
             message = ws.receive_json()
@@ -184,7 +187,7 @@ def test_commande_ciblee_sur_une_sortie_ne_touche_pas_l_autre(client):
     cable.state["volume"], network.state["volume"] = 100, 100
     with client.websocket_connect("/ws/playback") as ws:
         ws.send_json({"command": "volume", "params": {"channel": "radio_cable", "volume": 33}})
-        ws.send_json({"command": "volume", "params": {"channel": "radio", "volume": 55}})
+        ws.send_json({"command": "volume", "params": {"channel": "radio_network_2", "volume": 55}})
         ws.send_json({"command": "pong", "params": {}})
     try:
         assert cable.state["volume"] == 33

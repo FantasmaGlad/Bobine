@@ -29,8 +29,9 @@ router = APIRouter()
 def list_schedules(channel: str | None = None, db: Session = Depends(get_db), page: Window = Depends(window)):
     """Liste des programmations, filtrable par canal de diffusion."""
     query = db.query(Schedule)
-    if normalize_channel(channel):
-        query = query.filter(Schedule.channel == normalize_channel(channel))
+    selected = normalize_channel(channel)
+    if selected:
+        query = query.filter(Schedule.channel == selected)
     return [to_response(db, s) for s in page.rows(query.order_by(Schedule.id.desc()))]
 
 
@@ -44,8 +45,9 @@ def list_occurrences(start: datetime, end: datetime, channel: str | None = None,
     if end - start > MAX_OCCURRENCE_SPAN:
         raise HTTPException(status_code=422, detail="L'intervalle demandé dépasse 62 jours")
     query = db.query(Schedule).filter(Schedule.active == True)
-    if normalize_channel(channel):
-        query = query.filter(Schedule.channel == normalize_channel(channel))
+    selected = normalize_channel(channel)
+    if selected:
+        query = query.filter(Schedule.channel == selected)
     return page.items(expand_occurrences(db, query.all(), start, end))
 
 
@@ -55,8 +57,9 @@ def get_next_schedule(channel: str | None = None, db: Session = Depends(get_db))
     now = datetime.now(timezone.utc)
     horizon = now + timedelta(days=60)
     query = db.query(Schedule).filter(Schedule.active == True)
-    if normalize_channel(channel):
-        query = query.filter(Schedule.channel == normalize_channel(channel))
+    selected = normalize_channel(channel)
+    if selected:
+        query = query.filter(Schedule.channel == selected)
     schedules = query.all()
     occurrences = expand_occurrences(db, schedules, now, horizon)
     upcoming = next((o for o in occurrences if o["override_action"] != OverrideAction.cancelled), None)
@@ -85,7 +88,7 @@ async def create_schedule(data: ScheduleInput, db: Session = Depends(get_db)):
         run_at=run_at,
         recurrence_rule=recurrence_rule,
         active=data.active,
-        channel=storage_channel(data.channel, data.target_type),
+        channel=storage_channel(data.channel),
     )
     db.add(schedule)
     db.commit()
@@ -110,7 +113,7 @@ async def update_schedule(schedule_id: int, data: ScheduleInput, db: Session = D
     schedule.run_at = run_at
     schedule.recurrence_rule = recurrence_rule
     schedule.active = data.active
-    schedule.channel = storage_channel(data.channel, data.target_type)
+    schedule.channel = storage_channel(data.channel)
     db.commit()
     db.refresh(schedule)
     sync_schedule_job(schedule)

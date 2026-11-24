@@ -11,7 +11,6 @@ GITHUB_REPO = "FantasmaGlad/Bobine"
 CHANNELS = tuple(output.id for output in OUTPUTS)
 DEFAULT_CHANNEL = DEFAULT_OUTPUT.id
 RADIO_CHANNELS = tuple(output.radio_channel for output in OUTPUTS)
-LEGACY_RADIO_CHANNEL = "radio"
 SCHEDULE_CHANNELS = CHANNELS
 SCHEDULE_TARGETS = ("video", "playlist", "radio_playlist")
 OVERRIDE_ACTIONS = ("cancelled", "replaced")

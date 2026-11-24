@@ -8,7 +8,6 @@ from app import config_files
 from app import config_builders
 from app import config_mirror
 from app.config_apply.context import ConfigErrors, _Context
-from app.config_apply.legacy_schedules import merge_radio_schedules
 from app.config_apply.registry import APPLIERS, ORDER
 from app.config_apply.values import _diff
 
@@ -33,7 +32,6 @@ def _canonical_files(files: dict[str, Any]) -> dict[str, Any]:
         if name in renamed:
             errors.append(f"{name} fourni deux fois (nom plat et arborescence)")
         renamed[name] = document
-    renamed = merge_radio_schedules(renamed)
     errors += [f"fichier inconnu : {name}" for name in sorted(set(renamed) - set(APPLIERS))]
     if errors:
         raise ConfigErrors(errors)

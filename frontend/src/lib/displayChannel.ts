@@ -53,17 +53,13 @@ export function isLoopbackHost(hostname: string): boolean {
   return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]" || hostname === "::1";
 }
 
-export function parseChannelParam(search: string, page?: DisplayPage): DisplayChannel | null {
-  const params = new URLSearchParams(search);
-  const output = params.get("output");
-  if (isOutputId(output)) return output;
-  const legacy = params.get("channel");
-  if (page === "radio" && legacy === "network") return outputOfRadio(DEFAULT_RADIO_CHANNEL).id;
-  return isOutputId(legacy) ? legacy : null;
+export function parseChannelParam(search: string): DisplayChannel | null {
+  const output = new URLSearchParams(search).get("output");
+  return isOutputId(output) ? output : null;
 }
 
 export function resolveChannel(search: string, hostname: string, page: DisplayPage): ResolvedChannel {
-  const explicit = parseChannelParam(search, page);
+  const explicit = parseChannelParam(search);
   if (explicit) return { channel: explicit, source: "query" };
   if (page === "kiosk") return { channel: DEFAULT_OUTPUT, source: "default" };
   if (page === "radio") return { channel: outputOfRadio(DEFAULT_RADIO_CHANNEL).id, source: "default" };
@@ -72,7 +68,6 @@ export function resolveChannel(search: string, hostname: string, page: DisplayPa
 
 export function buildOutputUrl(target: DisplayPage, search: string, channel: DisplayChannel): string {
   const params = new URLSearchParams(search);
-  params.delete("channel");
   params.set("output", channel);
   return `/${target}?${params.toString()}`;
 }

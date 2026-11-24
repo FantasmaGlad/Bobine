@@ -268,6 +268,7 @@ def test_les_regles_de_rappel_ont_une_cible_validee_et_ancienne_valeur_reseau(cl
     assert cable.json()["target"] == "radio_cable"
     moved = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "target": "radio_network"})
     assert moved.json()["target"] == "radio_network"
+    assert client.post("/api/radio/announcement-rules", json={**base, "target": "radio"}).status_code == 422
     assert client.post("/api/radio/announcement-rules", json={**base, "target": "both"}).status_code == 422
     assert client.post("/api/radio/announcement-rules", json={**base, "target": "zzz"}).status_code == 422
     kept = client.put(f"/api/radio/announcement-rules/{cable.json()['id']}", json={**base, "enabled": False})

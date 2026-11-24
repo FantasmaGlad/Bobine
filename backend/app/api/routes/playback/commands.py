@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.contract import DEFAULT_CHANNEL
 from app.models import Background, Playlist, Video
 from app.playback.manager import get_playback_manager
-from app.radio.channels import is_radio_channel, normalize_radio_channel
+from app.radio.channels import is_radio_channel
 from app.utils import video_sound
 from app.utils.importer.formats import is_image_background
 from app.utils.ws_manager import manager as ws_manager
@@ -140,8 +140,7 @@ async def _handle_command(
         return
     raw_channel = params.get("channel") or default_channel
     if is_radio_channel(raw_channel):
-        await _handle_radio_command(command, params, client_ts, db, websocket, is_kiosk,
-                                    radio_channel=normalize_radio_channel(raw_channel))
+        await _handle_radio_command(command, params, client_ts, db, websocket, is_kiosk, radio_channel=raw_channel)
         return
     channel = _resolve_channel(raw_channel)
     handler = _HANDLERS.get(command)
