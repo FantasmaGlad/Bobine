@@ -26,6 +26,18 @@ export function targetGain(decision: TrackDecision, ducking: boolean, volume: nu
   return null;
 }
 
+export function shouldSyncSameTrackGain(
+  cause: string,
+  ducking: boolean,
+  crossfading: boolean,
+  announcementFadingOut: boolean,
+): boolean {
+  if (ducking || crossfading) return false;
+  if (cause === "radio_position_tick") return false;
+  if (announcementFadingOut && cause !== "radio_volume") return false;
+  return true;
+}
+
 export function transportAction(
   cause: string,
   announcement: Pick<RadioAnnouncementInfo, "mode"> | null,

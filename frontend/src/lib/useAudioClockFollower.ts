@@ -6,6 +6,7 @@ import { useMediaClockFollower, type ClockTarget } from "@/lib/useMediaClockFoll
 interface AudioOptions {
   audioRef: React.RefObject<HTMLAudioElement | null>;
   state: PlaybackState;
+  rateCorrection?: boolean;
   serverNow: () => number;
   tryPlay: (el: HTMLMediaElement | null | undefined) => void;
   onSeek?: () => void;
@@ -23,6 +24,6 @@ export function selectAudioTarget(state: PlaybackState): ClockTarget {
   };
 }
 
-export function useAudioClockFollower({ audioRef, state, serverNow, tryPlay, onSeek }: AudioOptions) {
-  useMediaClockFollower({ mediaRef: audioRef, state, select: selectAudioTarget, serverNow, tryPlay, onSeek });
+export function useAudioClockFollower({ audioRef, state, rateCorrection, serverNow, tryPlay, onSeek }: AudioOptions) {
+  useMediaClockFollower({ mediaRef: audioRef, state, select: selectAudioTarget, rateCorrection, serverNow, tryPlay, onSeek });
 }

@@ -1,4 +1,13 @@
-import { clampSound, defaultSound, LIMITER_OFF, LIMITER_ON, type LimiterParams, type RadioSoundSettings } from "./radioSound.ts";
+import {
+  clampSound,
+  defaultSound,
+  isNeutralSound,
+  LIMITER_OFF,
+  LIMITER_ON,
+  soundNeedsLimiter,
+  type LimiterParams,
+  type RadioSoundSettings,
+} from "./radioSound.ts";
 
 export const GAIN_MIN_DB = -40;
 export const GAIN_MAX_DB = 6;
@@ -94,8 +103,27 @@ export interface MixerParams extends EffectiveGains {
   limiter: LimiterParams;
 }
 
-export function toMixerParams(mix: RadioMix): MixerParams {
-  const boost = mix.master.gain_db > 0 || mix.music.gain_db > 0 || mix.announcements.gain_db > 0;
+export function isNeutralMix(mix: RadioMix): boolean {
+  return (
+    mix.master.gain_db === 0 &&
+    !mix.master.muted &&
+    mix.music.gain_db === 0 &&
+    !mix.music.muted &&
+    !mix.music.solo &&
+    mix.announcements.gain_db === 0 &&
+    !mix.announcements.muted &&
+    !mix.announcements.solo &&
+    isNeutralSound(mix.announcements.sound)
+  );
+}
+
+export function toMixerParams(mix: RadioMix, extraLimiter = false): MixerParams {
+  const boost =
+    extraLimiter ||
+    mix.master.gain_db > 0 ||
+    mix.music.gain_db > 0 ||
+    mix.announcements.gain_db > 0 ||
+    soundNeedsLimiter(mix.announcements.sound);
   return { ...effectiveGains(mix), announcementsSound: mix.announcements.sound, limiter: boost ? LIMITER_ON : LIMITER_OFF };
 }
 

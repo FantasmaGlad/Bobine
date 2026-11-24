@@ -8,6 +8,7 @@ class FakeParam {
   setValueAtTime(value: number) { this.value = value; }
   setTargetAtTime(value: number) { this.value = value; }
   cancelScheduledValues() {}
+  cancelAndHoldAtTime() {}
 }
 class FakeNode {
   targets: FakeNode[] = [];
@@ -25,6 +26,11 @@ class FakeCompressor extends FakeNode {
   threshold = new FakeParam(); knee = new FakeParam(); ratio = new FakeParam(); attack = new FakeParam(); release = new FakeParam();
   constructor() { super("compressor"); }
 }
+class FakeWaveShaper extends FakeNode {
+  curve: Float32Array | null = null;
+  oversample = "none";
+  constructor() { super("shaper"); }
+}
 class FakeAnalyser extends FakeNode {
   fftSize = 2048;
   samples: number[] = [];
@@ -35,32 +41,31 @@ class FakeContext {
   currentTime = 0;
   gains: FakeGain[] = [];
   compressors: FakeCompressor[] = [];
+  shapers: FakeWaveShaper[] = [];
   analysers: FakeAnalyser[] = [];
   createGain() { const g = new FakeGain(); this.gains.push(g); return g; }
   createBiquadFilter() { return new FakeBiquad(); }
   createDynamicsCompressor() { const c = new FakeCompressor(); this.compressors.push(c); return c; }
+  createWaveShaper() { const w = new FakeWaveShaper(); this.shapers.push(w); return w; }
   createAnalyser() { const a = new FakeAnalyser(); this.analysers.push(a); return a; }
 }
 
-function build(mix = defaultMix()) {
+function build(mix = defaultMix(), protectMusic = false) {
   const ctx = new FakeContext();
   const destination = new FakeNode("destination");
-  const stage = createMixStage(ctx as unknown as AudioContext, destination as unknown as AudioNode, mix);
+  const stage = createMixStage(ctx as unknown as AudioContext, destination as unknown as AudioNode, mix, protectMusic);
   return { ctx, destination, stage };
 }
 
-test("câblage : musique et rappels → sortie → limiteur → compensation → porte de route → destination", () => {
+test("câblage : un seul limiteur final contournable en sortie, aucun compresseur doublon sur les rappels", () => {
   const { ctx, destination, stage } = build();
-  const [musicBus, announcementsBus, masterBus] = ctx.gains as unknown as FakeNode[];
+  const [musicBus, announcementsBus, masterBus, routeGate] = ctx.gains as unknown as FakeNode[];
   assert.ok((stage.musicInput as unknown as FakeNode) === musicBus);
   assert.ok(musicBus.targets.includes(masterBus) && announcementsBus.targets.includes(masterBus));
-  const limiter = ctx.compressors[0];
-  assert.ok(masterBus.targets.includes(limiter));
-  const trim = limiter.targets[0];
-  const routeGate = trim.targets[0];
+  assert.equal(ctx.compressors.length, 1);
+  assert.equal(ctx.shapers.length, 1);
+  assert.equal(stage.isLimiterBypassed(), true);
   assert.ok(routeGate.targets.includes(destination as unknown as FakeNode));
-  const announcementsLimiter = ctx.compressors[1];
-  assert.ok(announcementsLimiter.targets[0].targets.includes(announcementsBus));
   assert.equal(stage.announcementsInput === (stage.musicInput as unknown), false);
 });
 
@@ -76,19 +81,23 @@ test("réglages initiaux posés sans transition, puis changements appliqués", (
   assert.equal(masterBus.gain.value, 1);
 });
 
-test("limiteur de sortie : transparent à plat, actif quand un fader relève", () => {
+test("limiteur de sortie : contourné à plat, engagé si un fader ou la musique demande une protection", () => {
   const { ctx, stage } = build();
   const limiter = ctx.compressors[0];
   assert.equal(limiter.ratio.value, 1);
+  assert.equal(stage.isLimiterBypassed(), true);
   stage.apply(clampMix({ master: { gain_db: 4 } }));
   assert.equal(limiter.ratio.value, 20);
+  assert.equal(stage.isLimiterBypassed(), false);
+  stage.apply(defaultMix(), true, false);
+  assert.equal(stage.isLimiterBypassed(), true);
+  stage.apply(defaultMix(), true, true);
+  assert.equal(stage.isLimiterBypassed(), false);
 });
 
 test("sourdine de repli : porte de route seule, mixage intact", () => {
   const { ctx, stage } = build();
-  const limiter = ctx.compressors[0];
-  const routeGate = limiter.targets[0].targets[0] as unknown as FakeGain;
-  const masterBus = ctx.gains[2];
+  const [, , masterBus, routeGate] = ctx.gains;
   assert.equal(routeGate.gain.value, 1);
   stage.setRouteMuted(true);
   assert.equal(routeGate.gain.value, 0);

@@ -1,52 +1,31 @@
+import { setParam } from "./audio/params.ts";
+import { createSafetyLimiter } from "./audio/safetyLimiter.ts";
 import { meterLevel, toMixerParams, type MeterId, type RadioMix } from "./radioMix.ts";
-import { applyLimiter, createSoundChain, setParam, type SoundChain } from "./radioSoundGraph.ts";
+import { createSoundChain, type SoundChain } from "./radioSoundGraph.ts";
 
 export type MeterLevels = Record<MeterId, number>;
 
 export interface MixStage {
   musicInput: AudioNode;
   announcementsInput: AudioNode;
-  apply: (mix: RadioMix, smooth?: boolean) => void;
+  apply: (mix: RadioMix, smooth?: boolean, protectMusic?: boolean) => void;
   setRouteMuted: (muted: boolean) => void;
   setMetering: (on: boolean) => void;
   readLevels: () => Partial<MeterLevels>;
+  isLimiterBypassed: () => boolean;
 }
 
-export function createMixStage(ctx: AudioContext, destination: AudioNode, initial: RadioMix): MixStage {
-  const params = toMixerParams(initial);
-  const musicBus = ctx.createGain();
-  const announcementsBus = ctx.createGain();
-  const masterBus = ctx.createGain();
-  const limiter = ctx.createDynamicsCompressor();
-  const trim = ctx.createGain();
-  const routeGate = ctx.createGain();
-  musicBus.connect(masterBus);
-  announcementsBus.connect(masterBus);
-  masterBus.connect(limiter);
-  limiter.connect(trim);
-  trim.connect(routeGate);
-  routeGate.connect(destination);
+interface MeterTap {
+  id: MeterId;
+  node: AnalyserNode;
+  source: AudioNode;
+  buffer: Float32Array<ArrayBuffer>;
+}
 
-  const announcementsChain: SoundChain = createSoundChain(ctx, announcementsBus, params.announcementsSound);
-
-  const apply = (mix: RadioMix, smooth = true) => {
-    const p = toMixerParams(mix);
-    const now = ctx.currentTime;
-    setParam(musicBus.gain, p.music, now, smooth);
-    setParam(announcementsBus.gain, p.announcements, now, smooth);
-    setParam(masterBus.gain, p.master, now, smooth);
-    applyLimiter(limiter, trim, p.limiter, now, smooth);
-    announcementsChain.apply(p.announcementsSound, smooth);
-  };
-  apply(initial, false);
-  routeGate.gain.value = 1;
-
-  const setRouteMuted = (muted: boolean) => setParam(routeGate.gain, muted ? 0 : 1, ctx.currentTime, true);
-
-  let analysers: Array<{ id: MeterId; node: AnalyserNode; source: AudioNode; buffer: Float32Array<ArrayBuffer> }> | null = null;
+function createMeterBank(ctx: AudioContext, taps: Array<[MeterId, AudioNode]>) {
+  let analysers: MeterTap[] | null = null;
   const setMetering = (on: boolean) => {
     if (on && !analysers) {
-      const taps: Array<[MeterId, AudioNode]> = [["music", musicBus], ["announcements", announcementsBus], ["master", masterBus]];
       analysers = taps.map(([id, source]) => {
         const node = ctx.createAnalyser();
         node.fftSize = 256;
@@ -68,6 +47,55 @@ export function createMixStage(ctx: AudioContext, destination: AudioNode, initia
     }
     return levels;
   };
+  return { setMetering, readLevels };
+}
 
-  return { musicInput: musicBus, announcementsInput: announcementsChain.input, apply, setRouteMuted, setMetering, readLevels };
+export function createMixStage(
+  ctx: AudioContext,
+  destination: AudioNode,
+  initial: RadioMix,
+  initialProtectMusic = false,
+): MixStage {
+  const params = toMixerParams(initial, initialProtectMusic);
+  const musicBus = ctx.createGain();
+  const announcementsBus = ctx.createGain();
+  const masterBus = ctx.createGain();
+  const routeGate = ctx.createGain();
+  const safety = createSafetyLimiter(ctx, routeGate, params.limiter);
+  musicBus.connect(masterBus);
+  announcementsBus.connect(masterBus);
+  masterBus.connect(safety.input);
+  routeGate.connect(destination);
+
+  const announcementsChain: SoundChain = createSoundChain(
+    ctx,
+    announcementsBus,
+    params.announcementsSound,
+    { includeLimiter: false },
+  );
+
+  const apply = (mix: RadioMix, smooth = true, protectMusic = false) => {
+    const p = toMixerParams(mix, protectMusic);
+    const now = ctx.currentTime;
+    setParam(musicBus.gain, p.music, now, smooth);
+    setParam(announcementsBus.gain, p.announcements, now, smooth);
+    setParam(masterBus.gain, p.master, now, smooth);
+    safety.apply(p.limiter, now, smooth);
+    announcementsChain.apply(p.announcementsSound, smooth);
+  };
+  apply(initial, false, initialProtectMusic);
+  routeGate.gain.value = 1;
+
+  const setRouteMuted = (muted: boolean) => setParam(routeGate.gain, muted ? 0 : 1, ctx.currentTime, true);
+  const meters = createMeterBank(ctx, [["music", musicBus], ["announcements", announcementsBus], ["master", masterBus]]);
+
+  return {
+    musicInput: musicBus,
+    announcementsInput: announcementsChain.input,
+    apply,
+    setRouteMuted,
+    setMetering: meters.setMetering,
+    readLevels: meters.readLevels,
+    isLimiterBypassed: safety.isBypassed,
+  };
 }

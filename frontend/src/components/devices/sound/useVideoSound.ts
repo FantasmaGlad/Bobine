@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { videoSoundSavePath } from "@/lib/audio/videoSound";
 import { getDevicesApiUrl } from "@/lib/devices/request";
 import { OUTPUT_IDS, type OutputId } from "@/lib/outputs";
 import { clampSound, defaultSound, type RadioSoundSettings } from "@/lib/radioSound";
@@ -31,7 +32,7 @@ export function useVideoSound(refreshKey: number, notify: SectionProps["notify"]
 
   const save = useCallback((channel: OutputId, sound: RadioSoundSettings) => {
     setSounds((prev) => ({ ...prev, [channel]: sound }));
-    fetch(playbackUrl(`/playback/${channel}/set_sound`), {
+    fetch(playbackUrl(videoSoundSavePath(channel)), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sound }),

@@ -20,16 +20,28 @@ interface Options<S> {
   state: S;
   select: (state: S) => ClockTarget;
   enabled?: boolean;
+  rateCorrection?: boolean;
   isMediaForKey?: (el: HTMLMediaElement, key: string | number | null | undefined) => boolean;
   serverNow: () => number;
   tryPlay: (el: HTMLMediaElement | null | undefined) => void;
   onSeek?: () => void;
 }
 
-export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = true, isMediaForKey, serverNow, tryPlay, onSeek }: Options<S>) {
+export function useMediaClockFollower<S>({
+  mediaRef,
+  state,
+  select,
+  enabled = true,
+  rateCorrection = true,
+  isMediaForKey,
+  serverNow,
+  tryPlay,
+  onSeek,
+}: Options<S>) {
   const stateRef = useRef(state);
   const selectRef = useRef(select);
   const enabledRef = useRef(enabled);
+  const rateCorrectionRef = useRef(rateCorrection);
   const isMediaForKeyRef = useRef(isMediaForKey);
   const serverNowRef = useRef(serverNow);
   const tryPlayRef = useRef(tryPlay);
@@ -38,6 +50,7 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
     stateRef.current = state;
     selectRef.current = select;
     enabledRef.current = enabled;
+    rateCorrectionRef.current = rateCorrection;
     isMediaForKeyRef.current = isMediaForKey;
     serverNowRef.current = serverNow;
     tryPlayRef.current = tryPlay;
@@ -143,6 +156,13 @@ export function useMediaClockFollower<S>({ mediaRef, state, select, enabled = tr
           correcting = false;
           video.playbackRate = nominal;
           seekSafely(video, target + SEEK_LATENCY_COMPENSATION_S, true);
+        }
+        return;
+      }
+      if (!rateCorrectionRef.current) {
+        correcting = false;
+        if (Math.abs(video.playbackRate - nominal) > 0.001) {
+          video.playbackRate = nominal;
         }
         return;
       }

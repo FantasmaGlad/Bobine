@@ -163,6 +163,7 @@ export function usePlaybackSocket(
   const [lockedReason, setLockedReason] = useState<LockedOutput | null>(null);
   const cinemaLockedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPrimary, setIsPrimary] = useState(false);
+  const [isMirror, setIsMirror] = useState(false);
   const [libraryVersion, setLibraryVersion] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const lastMessageAtRef = useRef(0);
@@ -247,7 +248,9 @@ export function usePlaybackSocket(
             return;
           }
           if (parsed.event === "kiosk_role") {
-            setIsPrimary(!!parsed.is_primary);
+            const primary = !!parsed.is_primary;
+            setIsPrimary(primary);
+            setIsMirror(!primary);
             return;
           }
           if (parsed.event === "promoted_primary") {
@@ -319,6 +322,7 @@ export function usePlaybackSocket(
         if (wsRef.current !== ws) return;
         setConnected(false);
         setIsPrimary(false);
+        setIsMirror(false);
         wsRef.current = null;
         if (!cancelled) {
           reconnectTimer = setTimeout(connect, retryDelay);
@@ -421,7 +425,7 @@ export function usePlaybackSocket(
   }, [channel]);
 
   return {
-    state, connected, sendCommand, serverNow, isPrimary, displayOutputs,
+    state, connected, sendCommand, serverNow, isPrimary, isMirror, displayOutputs,
     cinemaLocked, lockedReason, cinemaState, libraryVersion,
   };
 }

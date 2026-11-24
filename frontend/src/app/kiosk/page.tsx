@@ -97,7 +97,7 @@ export default function KioskPage() {
     [showOsd, showVolumeHud, showSeekHud, tryPlay]
   );
 
-  const { state, sendCommand, serverNow, isPrimary, displayOutputs } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
+  const { state, sendCommand, serverNow, isPrimary, isMirror, displayOutputs } = usePlaybackSocket(handleEvent, "kiosk", channel, undefined, "kiosk");
 
   const subtitles = useVideoSubtitles(state.current_video?.id, getApiUrl);
   useApplySubtitleMode([videoRef], subtitles, state.subtitle ?? null);
@@ -106,13 +106,14 @@ export default function KioskPage() {
   useVideoClockFollower({
     videoRef,
     state,
+    rateCorrection: isMirror,
     serverNow,
     tryPlay,
     onSeek: () => {
       lastSeekTimeRef.current = Date.now();
     },
   });
-  useAudioClockFollower({ audioRef, state, serverNow, tryPlay });
+  useAudioClockFollower({ audioRef, state, rateCorrection: isMirror, serverNow, tryPlay });
   useEffect(() => {
     isPrimaryRef.current = isPrimary;
   }, [isPrimary]);

@@ -335,6 +335,7 @@ export default function CinemaPage() {
     mediaRef: cinemaMediaRef,
     state: cinemaSync,
     select: selectCinemaTarget,
+    rateCorrection: false,
     isMediaForKey: (el, key) => el.src.includes(`/videos/${key}/stream`),
     serverNow,
     tryPlay: (el) => { el?.play().catch(() => {}); },
