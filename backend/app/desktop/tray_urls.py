@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from app.outputs import WIRED_OUTPUT
 from app.utils.port import DEFAULT_PORT
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ def _display_state_url() -> str:
 
 
 def _projector_url() -> str:
-    return f"{_admin_url()}/cinema/?channel=cable"
+    return f"{_admin_url()}/screen/?output={WIRED_OUTPUT.id}"
 
 
 def _updates_check_url() -> str:

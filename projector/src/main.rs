@@ -156,10 +156,10 @@ mod tests {
         let parsed = parse_args(&a(&[
             "p",
             "--url",
-            "http://127.0.0.1:1903/cinema/?channel=cable",
+            "http://127.0.0.1:1903/screen/?output=cable",
         ]))
         .unwrap();
-        assert_eq!(parsed.url, "http://127.0.0.1:1903/cinema/?channel=cable");
+        assert_eq!(parsed.url, "http://127.0.0.1:1903/screen/?output=cable");
         assert_eq!(parsed.monitor, MonitorChoice::External);
     }
 

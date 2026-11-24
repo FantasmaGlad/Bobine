@@ -296,7 +296,7 @@ def test_tray_urls_follow_the_published_port(monkeypatch, tray):
     assert tray._admin_url() == "http://127.0.0.1:8003"
     assert tray._health_url() == "http://127.0.0.1:8003/api/health"
     assert tray._kiosk_url() == "http://127.0.0.1:8003/kiosk"
-    assert tray._projector_url() == "http://127.0.0.1:8003/cinema/?channel=cable"
+    assert tray._projector_url() == "http://127.0.0.1:8003/screen/?output=cable"
     assert tray._display_state_url() == "http://127.0.0.1:8003/api/display/state"
 
 

@@ -18,7 +18,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
-private const val CINEMA_PATH = "/cinema/?channel=cable"
+private const val SCREEN_PATH = "/screen/?output=cable"
 private const val BACKEND_POLL_MS = 200L
 
 class BobinePresentation(context: Context, display: Display) : Presentation(context, display) {
@@ -116,7 +116,7 @@ class BobinePresentation(context: Context, display: Display) : Presentation(cont
 
     private fun loadWhenBackendReady() {
         handler.removeCallbacks(loadRetry)
-        val url = BackendEndpoint.url(context, CINEMA_PATH)
+        val url = BackendEndpoint.url(context, SCREEN_PATH)
         if (url != null) {
             webView?.loadUrl(url)
         } else {

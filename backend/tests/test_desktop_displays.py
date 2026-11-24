@@ -52,7 +52,7 @@ def test_external_monitors():
 
 
 def test_commande_projecteur_positionnee_avec_profil_dedie():
-    cmd = build_projector_command("/usr/bin/chromium", "http://127.0.0.1:8000/cinema/?channel=cable", PROJECTOR, "/tmp/p")
+    cmd = build_projector_command("/usr/bin/chromium", "http://127.0.0.1:8000/screen/?output=cable", PROJECTOR, "/tmp/p")
     assert cmd[0] == "/usr/bin/chromium"
     assert "--user-data-dir=/tmp/p" in cmd
     assert "--new-window" in cmd
@@ -60,7 +60,7 @@ def test_commande_projecteur_positionnee_avec_profil_dedie():
     assert "--window-size=1920,1080" in cmd
     assert "--start-fullscreen" in cmd
     assert "--kiosk" in cmd and "--autoplay-policy=no-user-gesture-required" in cmd
-    assert cmd[-1] == "http://127.0.0.1:8000/cinema/?channel=cable"
+    assert cmd[-1] == "http://127.0.0.1:8000/screen/?output=cable"
     assert "--ozone-platform=x11" not in cmd
     assert "--ozone-platform=x11" in build_projector_command("b", "u", PROJECTOR, "/tmp/p", wayland=True)
 
@@ -288,8 +288,8 @@ def test_fenetre_native_trouvee_sur_linux_et_windows_si_presente():
 
 
 def test_commande_native_choisit_l_ecran_externe_elle_meme():
-    assert build_native_projector_command("/b/bobine-projector", "http://127.0.0.1:8000/cinema/?channel=cable") == [
-        "/b/bobine-projector", "--url", "http://127.0.0.1:8000/cinema/?channel=cable", "--monitor", "external",
+    assert build_native_projector_command("/b/bobine-projector", "http://127.0.0.1:8000/screen/?output=cable") == [
+        "/b/bobine-projector", "--url", "http://127.0.0.1:8000/screen/?output=cable", "--monitor", "external",
     ]
 
 
