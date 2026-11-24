@@ -4,7 +4,6 @@ export const cinema: Dict = {
   seekPosition: "Position dans le cours",
   back30: "Reculer de 30 secondes",
   forward30: "Avancer de 30 secondes",
-  subtitle: "Cliquez sur un cours pour le lancer sur grand écran.",
   empty: "Aucun cours disponible pour le moment.",
   otherProgram: "Autres",
   backToMenu: "Retour au menu",

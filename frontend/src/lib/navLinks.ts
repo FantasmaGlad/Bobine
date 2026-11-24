@@ -21,7 +21,7 @@ export function isNavGroup(entry: NavEntry): entry is NavGroupConfig {
 }
 
 export function dashboardHref(id: OutputId): string {
-  return `/dashboard-${id.replace("_", "-")}`;
+  return `/dashboard/${id}`;
 }
 
 export const navEntries: NavEntry[] = [

@@ -15,7 +15,6 @@ export const storage: Dict = {
   offlineInfo: "{{count}} éléments indisponibles jusqu'au rebranchement",
   offlineEmpty: "Bibliothèque externe, rebranchez-la pour la retrouver",
   explore: "Explorer",
-  open: "Ouvrir",
   opening: "Ouverture…",
   eject: "Retirer sans risque",
   ejected: "Vous pouvez débrancher « {{name}} ».",
@@ -98,7 +97,6 @@ export const storage: Dict = {
     empty: "Aucun élément ajouté",
   },
   details: {
-    health: "Santé",
     healthOk: "En bonne santé",
     healthWarning: "À surveiller",
     healthCritical: "À remplacer",
@@ -111,7 +109,6 @@ export const storage: Dict = {
     protectionOk: "Réglages recommandés actifs",
     protectionPartial: "{{count}} réglage(s) non disponible(s) ici",
     protectionCustom: "Réglages modifiés",
-    format: "Format",
     formatAdvice: "Quel format choisir ?",
     temperature: "{{value}} °C",
     hours: "{{value}} h de fonctionnement",
@@ -225,7 +222,6 @@ export const storage: Dict = {
   },
   format,
   portable: {
-    title: "Téléphones et tablettes",
     states: {
       missing_tool: "Composant manquant",
       detected: "Détecté",

@@ -51,7 +51,6 @@ export const metricsPage: Dict = {
   cpu: "Processeur (CPU)",
   gpu: "Processeur Graphique (GPU)",
   ram: "Mémoire Vive (RAM)",
-  power: "Consommation",
   storage: "Disque / Stockage",
   runtime: "Runtime Bobine",
 };
