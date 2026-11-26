@@ -1,7 +1,7 @@
 pytest==9.2.0
 httpx==0.28.1
-ruff==0.17.5
-certifi==2026.10.23
+ruff==0.17.6
+certifi==2026.11.20
 httpcore==1.0.9
 iniconfig==2.3.1
 packaging==26.3
